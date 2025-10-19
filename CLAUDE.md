@@ -30,3 +30,18 @@ We track work in Beads instead of Markdown. Run `bd quickstart` to see how.
 There is an initial issue (mtg-1) which will serve as our primary tracking issue for what we're currently working on. Every time we do a git commit let's make sure the tracking issue tracks our medium-term TODO list, so that if we lose our current conversation history we can start again from there.
 
 You should periodically do documentation work, usually before committing, to make sure the issues are up-to-date.
+
+Make sure you ACTUALLY run `cargo test` before any commit. Include a Test Results Summary section in every commit message like this:
+
+```
+## Test Results Summary
+
+    $ cargo test 2>&1  | grep -E '(test result: |Running |Doc-tests )'
+         Running unittests src/lib.rs (target/debug/deps/mtg_forge_rs-dbfccebd340e260f)
+    test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+         Running unittests src/main.rs (target/debug/deps/mtg_forge_rs-d765597e7833fdac)
+    test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+       Doc-tests mtg_forge_rs
+    test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
