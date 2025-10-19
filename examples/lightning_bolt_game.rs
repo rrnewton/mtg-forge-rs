@@ -58,15 +58,12 @@ fn main() {
     if let Some(zones) = game.get_player_zones(alice) {
         for card_id in &zones.hand.cards {
             let card = game.cards.get(*card_id).unwrap();
-            println!(
-                "  - {} ({})",
-                card.name,
-                if card.is_land() {
-                    "Land"
-                } else {
-                    &card.mana_cost.to_string()
-                }
-            );
+            let cost_str = if card.is_land() {
+                "Land".to_string()
+            } else {
+                card.mana_cost.to_string()
+            };
+            println!("  - {} ({})", card.name, cost_str);
         }
     }
 
