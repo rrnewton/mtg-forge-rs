@@ -2,7 +2,7 @@
 //!
 //! Loads card definitions from Forge's cardsfolder format
 
-use crate::core::{Card, CardType, Color, EntityId, ManaCost};
+use crate::core::{Card, CardType, Color, ManaCost};
 use crate::{MtgError, Result};
 use smallvec::SmallVec;
 use std::fs;
@@ -120,7 +120,7 @@ pub struct CardDefinition {
 
 impl CardDefinition {
     /// Create a Card instance from this definition
-    pub fn instantiate(&self, id: EntityId, owner: EntityId) -> Card {
+    pub fn instantiate(&self, id: crate::core::CardId, owner: crate::core::PlayerId) -> Card {
         let mut card = Card::new(id, self.name.clone(), owner);
         card.mana_cost = self.mana_cost.clone();
         card.types = SmallVec::from_vec(self.types.clone());

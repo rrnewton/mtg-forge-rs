@@ -25,7 +25,7 @@ fn main() {
 
     // Create 3 Mountains for Alice
     for i in 0..3 {
-        let card_id = game.next_entity_id();
+        let card_id = game.next_card_id();
         let mut card = Card::new(card_id, format!("Mountain {}", i + 1), alice);
         card.types.push(CardType::Land);
         card.colors.push(Color::Red);
@@ -39,7 +39,7 @@ fn main() {
 
     // Create 2 Lightning Bolts for Alice
     for i in 0..2 {
-        let card_id = game.next_entity_id();
+        let card_id = game.next_card_id();
         let mut card = Card::new(card_id, format!("Lightning Bolt {}", i + 1), alice);
         card.types.push(CardType::Instant);
         card.mana_cost = ManaCost::from_string("R");

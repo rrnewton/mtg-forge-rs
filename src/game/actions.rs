@@ -1,6 +1,6 @@
 //! Game actions and mechanics
 
-use crate::core::{CardType, EntityId};
+use crate::core::{CardId, CardType, PlayerId};
 use crate::game::GameState;
 use crate::zones::Zone;
 use crate::{MtgError, Result};
@@ -10,43 +10,43 @@ use crate::{MtgError, Result};
 pub enum GameAction {
     /// Play a land from hand
     PlayLand {
-        player_id: EntityId,
-        card_id: EntityId,
+        player_id: PlayerId,
+        card_id: CardId,
     },
 
     /// Cast a spell from hand
     CastSpell {
-        player_id: EntityId,
-        card_id: EntityId,
-        targets: Vec<EntityId>,
+        player_id: PlayerId,
+        card_id: CardId,
+        targets: Vec<CardId>,
     },
 
     /// Deal damage to a target
     DealDamage {
-        source: EntityId,
-        target: EntityId,
+        source: CardId,
+        target: CardId,
         amount: i32,
     },
 
     /// Tap a permanent for mana
     TapForMana {
-        player_id: EntityId,
-        card_id: EntityId,
+        player_id: PlayerId,
+        card_id: CardId,
     },
 
     /// Declare attackers
     DeclareAttackers {
-        player_id: EntityId,
-        attackers: Vec<EntityId>,
+        player_id: PlayerId,
+        attackers: Vec<CardId>,
     },
 
     /// Pass priority
-    PassPriority { player_id: EntityId },
+    PassPriority { player_id: PlayerId },
 }
 
 impl GameState {
     /// Play a land from hand to battlefield
-    pub fn play_land(&mut self, player_id: EntityId, card_id: EntityId) -> Result<()> {
+    pub fn play_land(&mut self, player_id: PlayerId, card_id: CardId) -> Result<()> {
         // Check if player can play a land
         let player = self.players.get(player_id)?;
         if !player.can_play_land() {
@@ -81,9 +81,9 @@ impl GameState {
     /// Cast a spell (put it on the stack)
     pub fn cast_spell(
         &mut self,
-        player_id: EntityId,
-        card_id: EntityId,
-        _targets: Vec<EntityId>,
+        player_id: PlayerId,
+        card_id: CardId,
+        _targets: Vec<CardId>,
     ) -> Result<()> {
         // Check if card is in hand
         if let Some(zones) = self.get_player_zones(player_id) {
@@ -109,7 +109,7 @@ impl GameState {
     }
 
     /// Resolve a spell from the stack
-    pub fn resolve_spell(&mut self, card_id: EntityId) -> Result<()> {
+    pub fn resolve_spell(&mut self, card_id: CardId) -> Result<()> {
         let card = self.cards.get(card_id)?;
         let owner = card.owner;
 
@@ -126,8 +126,8 @@ impl GameState {
         Ok(())
     }
 
-    /// Deal damage to a target
-    pub fn deal_damage(&mut self, target_id: EntityId, amount: i32) -> Result<()> {
+    /// Deal damage to a player target
+    pub fn deal_damage(&mut self, target_id: PlayerId, amount: i32) -> Result<()> {
         // Check if target is a player
         if self.players.contains(target_id) {
             let player = self.players.get_mut(target_id)?;
@@ -135,29 +135,32 @@ impl GameState {
             return Ok(());
         }
 
-        // Check if target is a creature
-        if self.cards.contains(target_id) {
-            // Get info about the creature first (without holding the borrow)
-            let (is_creature, toughness, owner) = {
-                let card = self.cards.get(target_id)?;
-                (card.is_creature(), card.current_toughness(), card.owner)
-            };
+        Err(MtgError::InvalidAction("Invalid damage target".to_string()))
+    }
 
-            if is_creature {
-                // Mark damage (simplified - real MTG has damage tracking)
-                // For now, if damage >= toughness, creature dies
-                if amount >= toughness as i32 {
-                    self.move_card(target_id, Zone::Battlefield, Zone::Graveyard, owner)?;
-                }
-                return Ok(());
+    /// Deal damage to a creature
+    pub fn deal_damage_to_creature(&mut self, target_id: CardId, amount: i32) -> Result<()> {
+
+        // Get info about the creature first (without holding the borrow)
+        let (is_creature, toughness, owner) = {
+            let card = self.cards.get(target_id)?;
+            (card.is_creature(), card.current_toughness(), card.owner)
+        };
+
+        if is_creature {
+            // Mark damage (simplified - real MTG has damage tracking)
+            // For now, if damage >= toughness, creature dies
+            if amount >= toughness as i32 {
+                self.move_card(target_id, Zone::Battlefield, Zone::Graveyard, owner)?;
             }
+            return Ok(());
         }
 
         Err(MtgError::InvalidAction("Invalid damage target".to_string()))
     }
 
     /// Tap a land for mana
-    pub fn tap_for_mana(&mut self, player_id: EntityId, card_id: EntityId) -> Result<()> {
+    pub fn tap_for_mana(&mut self, player_id: PlayerId, card_id: CardId) -> Result<()> {
         let card = self.cards.get_mut(card_id)?;
 
         // Check if card is a land and untapped
@@ -301,7 +304,7 @@ mod tests {
         let p1_id = *game.players.iter().next().unwrap().0;
 
         // Create a 2/2 creature on battlefield
-        let card_id = game.next_entity_id();
+        let card_id = game.next_card_id();
         let mut card = Card::new(card_id, "Grizzly Bears".to_string(), p1_id);
         card.types.push(CardType::Creature);
         card.power = Some(2);
@@ -310,8 +313,8 @@ mod tests {
         game.battlefield.add(card_id);
 
         // Deal 2 damage (should kill it)
-        let result = game.deal_damage(card_id, 2);
-        assert!(result.is_ok(), "deal_damage failed: {:?}", result);
+        let result = game.deal_damage_to_creature(card_id, 2);
+        assert!(result.is_ok(), "deal_damage_to_creature failed: {:?}", result);
 
         // Check it's in graveyard
         assert!(

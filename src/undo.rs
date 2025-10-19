@@ -3,7 +3,7 @@
 //! This module provides a transaction log of game actions that can be
 //! rewound to efficiently explore the game tree without expensive deep copies.
 
-use crate::core::EntityId;
+use crate::core::{CardId, PlayerId};
 use crate::zones::Zone;
 use serde::{Deserialize, Serialize};
 
@@ -12,37 +12,37 @@ use serde::{Deserialize, Serialize};
 pub enum GameAction {
     /// Move a card between zones
     MoveCard {
-        card_id: EntityId,
+        card_id: CardId,
         from_zone: Zone,
         to_zone: Zone,
-        owner: EntityId,
+        owner: PlayerId,
     },
 
     /// Tap/untap a permanent
-    TapCard { card_id: EntityId, tapped: bool },
+    TapCard { card_id: CardId, tapped: bool },
 
     /// Modify life total
-    ModifyLife { player_id: EntityId, amount: i32 },
+    ModifyLife { player_id: PlayerId, amount: i32 },
 
     /// Add mana to pool
     AddMana {
-        player_id: EntityId,
+        player_id: PlayerId,
         color: crate::core::Color,
     },
 
     /// Empty mana pool
-    EmptyManaPool { player_id: EntityId },
+    EmptyManaPool { player_id: PlayerId },
 
     /// Add counter to card
     AddCounter {
-        card_id: EntityId,
+        card_id: CardId,
         counter_type: String,
         amount: u8,
     },
 
     /// Remove counter from card
     RemoveCounter {
-        card_id: EntityId,
+        card_id: CardId,
         counter_type: String,
         amount: u8,
     },
@@ -55,13 +55,13 @@ pub enum GameAction {
 
     /// Change turn
     ChangeTurn {
-        from_player: EntityId,
-        to_player: EntityId,
+        from_player: PlayerId,
+        to_player: PlayerId,
         turn_number: u32,
     },
 
     /// Mark a choice point (for tree search)
-    ChoicePoint { player_id: EntityId, choice_id: u32 },
+    ChoicePoint { player_id: PlayerId, choice_id: u32 },
 }
 
 /// Undo log for tracking and rewinding game actions
@@ -166,7 +166,7 @@ mod tests {
         assert_eq!(log.len(), 0);
 
         let action = GameAction::ModifyLife {
-            player_id: EntityId::new(1),
+            player_id: PlayerId::new(1),
             amount: -3,
         };
 
@@ -183,22 +183,22 @@ mod tests {
         let mut log = UndoLog::new();
 
         log.log(GameAction::ModifyLife {
-            player_id: EntityId::new(1),
+            player_id: PlayerId::new(1),
             amount: -1,
         });
         log.log(GameAction::ModifyLife {
-            player_id: EntityId::new(1),
+            player_id: PlayerId::new(1),
             amount: -1,
         });
 
         log.mark_choice_point();
 
         log.log(GameAction::ModifyLife {
-            player_id: EntityId::new(1),
+            player_id: PlayerId::new(1),
             amount: -1,
         });
         log.log(GameAction::ModifyLife {
-            player_id: EntityId::new(1),
+            player_id: PlayerId::new(1),
             amount: -1,
         });
 
@@ -213,7 +213,7 @@ mod tests {
         let mut log = UndoLog::disabled();
 
         log.log(GameAction::ModifyLife {
-            player_id: EntityId::new(1),
+            player_id: PlayerId::new(1),
             amount: -1,
         });
 

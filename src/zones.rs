@@ -1,6 +1,6 @@
 //! Game zones (Library, Hand, Graveyard, Battlefield, etc.)
 
-use crate::core::EntityId;
+use crate::core::{CardId, PlayerId};
 use serde::{Deserialize, Serialize};
 
 /// Different zones where cards can exist
@@ -22,14 +22,14 @@ pub struct CardZone {
     pub zone_type: Zone,
 
     /// Owner of this zone (each player has their own zones)
-    pub owner: EntityId,
+    pub owner: PlayerId,
 
     /// Cards in this zone (order matters for Library and Graveyard)
-    pub cards: Vec<EntityId>,
+    pub cards: Vec<CardId>,
 }
 
 impl CardZone {
-    pub fn new(zone_type: Zone, owner: EntityId) -> Self {
+    pub fn new(zone_type: Zone, owner: PlayerId) -> Self {
         CardZone {
             zone_type,
             owner,
@@ -37,11 +37,11 @@ impl CardZone {
         }
     }
 
-    pub fn add(&mut self, card_id: EntityId) {
+    pub fn add(&mut self, card_id: CardId) {
         self.cards.push(card_id);
     }
 
-    pub fn remove(&mut self, card_id: EntityId) -> bool {
+    pub fn remove(&mut self, card_id: CardId) -> bool {
         if let Some(pos) = self.cards.iter().position(|&id| id == card_id) {
             self.cards.remove(pos);
             true
@@ -50,7 +50,7 @@ impl CardZone {
         }
     }
 
-    pub fn contains(&self, card_id: EntityId) -> bool {
+    pub fn contains(&self, card_id: CardId) -> bool {
         self.cards.contains(&card_id)
     }
 
@@ -63,17 +63,17 @@ impl CardZone {
     }
 
     /// Draw from top (for Library)
-    pub fn draw_top(&mut self) -> Option<EntityId> {
+    pub fn draw_top(&mut self) -> Option<CardId> {
         self.cards.pop()
     }
 
     /// Look at top card without removing it
-    pub fn peek_top(&self) -> Option<EntityId> {
+    pub fn peek_top(&self) -> Option<CardId> {
         self.cards.last().copied()
     }
 
     /// Add to bottom (for Library)
-    pub fn add_to_bottom(&mut self, card_id: EntityId) {
+    pub fn add_to_bottom(&mut self, card_id: CardId) {
         self.cards.insert(0, card_id);
     }
 
@@ -99,7 +99,7 @@ pub struct PlayerZones {
 }
 
 impl PlayerZones {
-    pub fn new(player_id: EntityId) -> Self {
+    pub fn new(player_id: PlayerId) -> Self {
         PlayerZones {
             library: CardZone::new(Zone::Library, player_id),
             hand: CardZone::new(Zone::Hand, player_id),
@@ -135,14 +135,14 @@ mod tests {
 
     #[test]
     fn test_card_zone() {
-        let player_id = EntityId::new(1);
+        let player_id = PlayerId::new(1);
         let mut zone = CardZone::new(Zone::Hand, player_id);
 
         assert_eq!(zone.len(), 0);
         assert!(zone.is_empty());
 
-        let card1 = EntityId::new(10);
-        let card2 = EntityId::new(11);
+        let card1 = CardId::new(10);
+        let card2 = CardId::new(11);
 
         zone.add(card1);
         zone.add(card2);
@@ -158,12 +158,12 @@ mod tests {
 
     #[test]
     fn test_library_operations() {
-        let player_id = EntityId::new(1);
+        let player_id = PlayerId::new(1);
         let mut library = CardZone::new(Zone::Library, player_id);
 
-        let card1 = EntityId::new(10);
-        let card2 = EntityId::new(11);
-        let card3 = EntityId::new(12);
+        let card1 = CardId::new(10);
+        let card2 = CardId::new(11);
+        let card3 = CardId::new(12);
 
         library.add(card1); // Bottom
         library.add(card2);
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_player_zones() {
-        let player_id = EntityId::new(1);
+        let player_id = PlayerId::new(1);
         let zones = PlayerZones::new(player_id);
 
         assert_eq!(zones.library.zone_type, Zone::Library);

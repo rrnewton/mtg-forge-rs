@@ -1,6 +1,6 @@
 //! Card types and definitions
 
-use crate::core::{Color, EntityId, GameEntity, ManaCost};
+use crate::core::{CardId, Color, GameEntity, ManaCost, PlayerId};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -18,12 +18,12 @@ pub enum CardType {
 
 /// Represents a card in the game
 ///
-/// Cards have a unique EntityId but many cards can share the same card definition.
+/// Cards have a unique CardId but many cards can share the same card definition.
 /// This struct represents the instance of a card during gameplay.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
     /// Unique ID for this card instance
-    pub id: EntityId,
+    pub id: CardId,
 
     /// Card name (e.g., "Lightning Bolt")
     pub name: String,
@@ -50,10 +50,10 @@ pub struct Card {
     pub text: String,
 
     /// Current zone owner (player who owns this card)
-    pub owner: EntityId,
+    pub owner: PlayerId,
 
     /// Current controller (can differ from owner)
-    pub controller: EntityId,
+    pub controller: PlayerId,
 
     /// Is the card tapped?
     pub tapped: bool,
@@ -64,7 +64,7 @@ pub struct Card {
 }
 
 impl Card {
-    pub fn new(id: EntityId, name: String, owner: EntityId) -> Self {
+    pub fn new(id: CardId, name: String, owner: PlayerId) -> Self {
         Card {
             id,
             name,
@@ -135,8 +135,8 @@ impl Card {
     }
 }
 
-impl GameEntity for Card {
-    fn id(&self) -> EntityId {
+impl GameEntity<Card> for Card {
+    fn id(&self) -> CardId {
         self.id
     }
 
@@ -151,8 +151,8 @@ mod tests {
 
     #[test]
     fn test_card_creation() {
-        let id = EntityId::new(1);
-        let owner = EntityId::new(100);
+        let id = CardId::new(1);
+        let owner = PlayerId::new(100);
         let card = Card::new(id, "Lightning Bolt".to_string(), owner);
 
         assert_eq!(card.id, id);
@@ -164,8 +164,8 @@ mod tests {
 
     #[test]
     fn test_card_counters() {
-        let id = EntityId::new(1);
-        let owner = EntityId::new(100);
+        let id = CardId::new(1);
+        let owner = PlayerId::new(100);
         let mut card = Card::new(id, "Test Creature".to_string(), owner);
 
         card.power = Some(2);

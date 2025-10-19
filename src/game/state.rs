@@ -1,6 +1,6 @@
 //! Main game state structure
 
-use crate::core::{Card, EntityId, EntityStore, Player};
+use crate::core::{Card, CardId, EntityId, EntityStore, Player, PlayerId};
 use crate::game::TurnStructure;
 use crate::zones::{CardZone, PlayerZones, Zone};
 use crate::Result;
@@ -19,7 +19,7 @@ pub struct GameState {
     pub players: EntityStore<Player>,
 
     /// Zones for each player
-    pub player_zones: Vec<(EntityId, PlayerZones)>,
+    pub player_zones: Vec<(PlayerId, PlayerZones)>,
 
     /// Shared battlefield (all players)
     pub battlefield: CardZone,
@@ -43,9 +43,9 @@ impl GameState {
         let mut next_id = 0;
 
         // Create players with unified IDs
-        let p1_id = EntityId::new(next_id);
+        let p1_id = PlayerId::new(next_id);
         next_id += 1;
-        let p2_id = EntityId::new(next_id);
+        let p2_id = PlayerId::new(next_id);
         next_id += 1;
 
         let player1 = Player::new(p1_id, player1_name, starting_life);
@@ -60,8 +60,9 @@ impl GameState {
             (p2_id, PlayerZones::new(p2_id)),
         ];
 
-        // Use a unified EntityId for shared zones (battlefield, stack)
-        let shared_id = EntityId::new(next_id);
+        // Use a unified PlayerId for shared zones (battlefield, stack)
+        // These don't belong to a specific player, but we need an ID for the zone
+        let shared_id = PlayerId::new(next_id);
         next_id += 1;
 
         GameState {
@@ -77,14 +78,31 @@ impl GameState {
     }
 
     /// Get next entity ID (unified across all entity types)
-    pub fn next_entity_id(&mut self) -> EntityId {
+    /// Generic version that can return any EntityId<T> type
+    pub fn next_id<T>(&mut self) -> EntityId<T> {
         let id = EntityId::new(self.next_entity_id);
         self.next_entity_id += 1;
         id
     }
 
+    /// Convenience method for getting next card ID
+    pub fn next_card_id(&mut self) -> CardId {
+        self.next_id()
+    }
+
+    /// Convenience method for getting next player ID
+    pub fn next_player_id(&mut self) -> PlayerId {
+        self.next_id()
+    }
+
+    /// Legacy method for compatibility (deprecated)
+    #[allow(dead_code)]
+    pub fn next_entity_id(&mut self) -> CardId {
+        self.next_card_id()
+    }
+
     /// Get player zones for a specific player
-    pub fn get_player_zones(&self, player_id: EntityId) -> Option<&PlayerZones> {
+    pub fn get_player_zones(&self, player_id: PlayerId) -> Option<&PlayerZones> {
         self.player_zones
             .iter()
             .find(|(id, _)| *id == player_id)
@@ -92,7 +110,7 @@ impl GameState {
     }
 
     /// Get mutable player zones for a specific player
-    pub fn get_player_zones_mut(&mut self, player_id: EntityId) -> Option<&mut PlayerZones> {
+    pub fn get_player_zones_mut(&mut self, player_id: PlayerId) -> Option<&mut PlayerZones> {
         self.player_zones
             .iter_mut()
             .find(|(id, _)| *id == player_id)
@@ -102,10 +120,10 @@ impl GameState {
     /// Move a card from one zone to another
     pub fn move_card(
         &mut self,
-        card_id: EntityId,
+        card_id: CardId,
         from: Zone,
         to: Zone,
-        owner: EntityId,
+        owner: PlayerId,
     ) -> Result<()> {
         // Remove from source zone
         let removed = match from {
@@ -148,7 +166,7 @@ impl GameState {
     }
 
     /// Draw a card for a player
-    pub fn draw_card(&mut self, player_id: EntityId) -> Result<Option<EntityId>> {
+    pub fn draw_card(&mut self, player_id: PlayerId) -> Result<Option<CardId>> {
         if let Some(zones) = self.get_player_zones_mut(player_id) {
             if let Some(card_id) = zones.library.draw_top() {
                 zones.hand.add(card_id);
@@ -159,7 +177,7 @@ impl GameState {
     }
 
     /// Untap all permanents controlled by a player
-    pub fn untap_all(&mut self, player_id: EntityId) -> Result<()> {
+    pub fn untap_all(&mut self, player_id: PlayerId) -> Result<()> {
         for card_id in self.battlefield.cards.iter() {
             if let Ok(card) = self.cards.get_mut(*card_id) {
                 if card.controller == player_id {
@@ -186,8 +204,8 @@ impl GameState {
     }
 
     /// Get the next player in turn order
-    fn get_next_player(&self, current_player: EntityId) -> Result<EntityId> {
-        let player_ids: Vec<EntityId> = self.players.iter().map(|(id, _)| *id).collect();
+    fn get_next_player(&self, current_player: PlayerId) -> Result<PlayerId> {
+        let player_ids: Vec<PlayerId> = self.players.iter().map(|(id, _)| *id).collect();
         let current_idx = player_ids
             .iter()
             .position(|&id| id == current_player)
@@ -203,7 +221,7 @@ impl GameState {
     }
 
     /// Get the winner (if game is over)
-    pub fn get_winner(&self) -> Option<EntityId> {
+    pub fn get_winner(&self) -> Option<PlayerId> {
         if !self.is_game_over() {
             return None;
         }

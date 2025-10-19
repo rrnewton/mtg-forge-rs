@@ -93,14 +93,14 @@ pub struct TurnStructure {
     pub current_step: Step,
 
     /// Active player (whose turn it is)
-    pub active_player: crate::core::EntityId,
+    pub active_player: crate::core::PlayerId,
 
     /// Priority player (who currently has priority)
-    pub priority_player: Option<crate::core::EntityId>,
+    pub priority_player: Option<crate::core::PlayerId>,
 }
 
 impl TurnStructure {
-    pub fn new(starting_player: crate::core::EntityId) -> Self {
+    pub fn new(starting_player: crate::core::PlayerId) -> Self {
         TurnStructure {
             turn_number: 1,
             current_step: Step::Untap,
@@ -124,7 +124,7 @@ impl TurnStructure {
     }
 
     /// Start a new turn
-    pub fn next_turn(&mut self, next_player: crate::core::EntityId) {
+    pub fn next_turn(&mut self, next_player: crate::core::PlayerId) {
         self.turn_number += 1;
         self.current_step = Step::Untap;
         self.active_player = next_player;
@@ -135,7 +135,7 @@ impl TurnStructure {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::EntityId;
+    use crate::core::PlayerId;
 
     #[test]
     fn test_step_phases() {
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_turn_structure() {
-        let player = EntityId::new(1);
+        let player = PlayerId::new(1);
         let mut turn = TurnStructure::new(player);
 
         assert_eq!(turn.turn_number, 1);
@@ -171,7 +171,7 @@ mod tests {
         while turn.advance_step() {}
         assert_eq!(turn.current_step, Step::Cleanup);
 
-        let player2 = EntityId::new(2);
+        let player2 = PlayerId::new(2);
         turn.next_turn(player2);
         assert_eq!(turn.turn_number, 2);
         assert_eq!(turn.current_step, Step::Untap);
