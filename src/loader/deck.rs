@@ -1,8 +1,8 @@
 //! Deck file loader (.dck format)
 
-use std::path::Path;
+use crate::{MtgError, Result};
 use std::fs;
-use crate::{Result, MtgError};
+use std::path::Path;
 
 /// Deck loader for .dck files
 pub struct DeckLoader;
@@ -10,8 +10,7 @@ pub struct DeckLoader;
 impl DeckLoader {
     /// Load a deck from a .dck file
     pub fn load_from_file(path: &Path) -> Result<DeckList> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| MtgError::IoError(e))?;
+        let content = fs::read_to_string(path).map_err(MtgError::IoError)?;
         Self::parse(&content)
     }
 
@@ -41,10 +40,7 @@ impl DeckLoader {
                         rest.trim().to_string()
                     };
 
-                    let entry = DeckEntry {
-                        card_name,
-                        count,
-                    };
+                    let entry = DeckEntry { card_name, count };
 
                     if in_sideboard {
                         sideboard.push(entry);

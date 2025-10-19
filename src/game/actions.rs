@@ -1,9 +1,9 @@
 //! Game actions and mechanics
 
-use crate::{Result, MtgError};
-use crate::core::{EntityId, CardType};
+use crate::core::{CardType, EntityId};
 use crate::game::GameState;
 use crate::zones::Zone;
+use crate::{MtgError, Result};
 
 /// Types of game actions
 #[derive(Debug, Clone)]
@@ -41,9 +41,7 @@ pub enum GameAction {
     },
 
     /// Pass priority
-    PassPriority {
-        player_id: EntityId,
-    },
+    PassPriority { player_id: EntityId },
 }
 
 impl GameState {
@@ -168,7 +166,9 @@ impl GameState {
         }
 
         if card.tapped {
-            return Err(MtgError::InvalidAction("Land is already tapped".to_string()));
+            return Err(MtgError::InvalidAction(
+                "Land is already tapped".to_string(),
+            ));
         }
 
         // Tap the land
@@ -285,7 +285,10 @@ mod tests {
         }
 
         // Check it moved
-        assert!(!game.battlefield.contains(card_id), "Card still on battlefield");
+        assert!(
+            !game.battlefield.contains(card_id),
+            "Card still on battlefield"
+        );
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert!(zones.graveyard.contains(card_id), "Card not in graveyard");
         }
@@ -311,7 +314,10 @@ mod tests {
         assert!(result.is_ok(), "deal_damage failed: {:?}", result);
 
         // Check it's in graveyard
-        assert!(!game.battlefield.contains(card_id), "Card still on battlefield");
+        assert!(
+            !game.battlefield.contains(card_id),
+            "Card still on battlefield"
+        );
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert!(zones.graveyard.contains(card_id), "Card not in graveyard");
         }

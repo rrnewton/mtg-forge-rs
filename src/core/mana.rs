@@ -79,13 +79,7 @@ impl ManaCost {
 
     /// Total converted mana cost
     pub fn cmc(&self) -> u8 {
-        self.generic
-            + self.white
-            + self.blue
-            + self.black
-            + self.red
-            + self.green
-            + self.colorless
+        self.generic + self.white + self.blue + self.black + self.red + self.green + self.colorless
     }
 }
 
@@ -179,7 +173,8 @@ impl ManaPool {
         }
 
         // Check if we have enough mana for generic cost
-        let available = self.white + self.blue + self.black + self.red + self.green + self.colorless;
+        let available =
+            self.white + self.blue + self.black + self.red + self.green + self.colorless;
         let required = cost.cmc();
         available >= required
     }

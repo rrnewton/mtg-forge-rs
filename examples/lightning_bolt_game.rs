@@ -10,11 +10,7 @@ fn main() {
     println!("=== MTG Forge - Lightning Bolt MVP ===\n");
 
     // Create a two-player game
-    let mut game = GameState::new_two_player(
-        "Alice".to_string(),
-        "Bob".to_string(),
-        20
-    );
+    let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
 
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
     let alice = players[0];
@@ -30,7 +26,7 @@ fn main() {
     // Create 3 Mountains for Alice
     for i in 0..3 {
         let card_id = game.next_entity_id();
-        let mut card = Card::new(card_id, format!("Mountain {}", i+1), alice);
+        let mut card = Card::new(card_id, format!("Mountain {}", i + 1), alice);
         card.types.push(CardType::Land);
         card.colors.push(Color::Red);
         game.cards.insert(card_id, card);
@@ -44,7 +40,7 @@ fn main() {
     // Create 2 Lightning Bolts for Alice
     for i in 0..2 {
         let card_id = game.next_entity_id();
-        let mut card = Card::new(card_id, format!("Lightning Bolt {}", i+1), alice);
+        let mut card = Card::new(card_id, format!("Lightning Bolt {}", i + 1), alice);
         card.types.push(CardType::Instant);
         card.mana_cost = ManaCost::from_string("R");
         card.colors.push(Color::Red);
@@ -62,7 +58,15 @@ fn main() {
     if let Some(zones) = game.get_player_zones(alice) {
         for card_id in &zones.hand.cards {
             let card = game.cards.get(*card_id).unwrap();
-            println!("  - {} ({})", card.name, if card.is_land() { "Land" } else { &card.mana_cost.to_string() });
+            println!(
+                "  - {} ({})",
+                card.name,
+                if card.is_land() {
+                    "Land"
+                } else {
+                    &card.mana_cost.to_string()
+                }
+            );
         }
     }
 
@@ -71,7 +75,8 @@ fn main() {
     println!("Alice plays Mountain 1");
 
     let mountain_id = game.get_player_zones(alice).unwrap().hand.cards[0];
-    game.play_land(alice, mountain_id).expect("Failed to play land");
+    game.play_land(alice, mountain_id)
+        .expect("Failed to play land");
 
     println!("  Battlefield: Mountain 1");
 
@@ -85,7 +90,8 @@ fn main() {
     println!("Alice plays Mountain 2");
 
     let mountain2_id = game.get_player_zones(alice).unwrap().hand.cards[0];
-    game.play_land(alice, mountain2_id).expect("Failed to play land");
+    game.play_land(alice, mountain2_id)
+        .expect("Failed to play land");
 
     println!("  Battlefield: Mountain 1, Mountain 2");
 
@@ -99,13 +105,15 @@ fn main() {
     println!("Alice plays Mountain 3");
 
     let mountain3_id = game.get_player_zones(alice).unwrap().hand.cards[0];
-    game.play_land(alice, mountain3_id).expect("Failed to play land");
+    game.play_land(alice, mountain3_id)
+        .expect("Failed to play land");
 
     println!("  Battlefield: Mountain 1, Mountain 2, Mountain 3");
 
     println!("\nAlice taps Mountain 1 for (R)");
     let mountains: Vec<_> = game.battlefield.cards.clone();
-    game.tap_for_mana(alice, mountains[0]).expect("Failed to tap for mana");
+    game.tap_for_mana(alice, mountains[0])
+        .expect("Failed to tap for mana");
 
     let alice_player = game.players.get(alice).unwrap();
     println!("  Mana pool: {}", alice_player.mana_pool.red);
@@ -113,7 +121,11 @@ fn main() {
     println!("\nAlice casts Lightning Bolt targeting Bob!");
 
     // Get Lightning Bolt from hand
-    let bolt_id = game.get_player_zones(alice).unwrap().hand.cards
+    let bolt_id = game
+        .get_player_zones(alice)
+        .unwrap()
+        .hand
+        .cards
         .iter()
         .find(|&id| {
             let card = game.cards.get(*id).unwrap();
@@ -124,7 +136,10 @@ fn main() {
 
     // Cast the spell (simplified - no actual mana payment yet)
     // For now, we'll just move it to stack manually
-    game.get_player_zones_mut(alice).unwrap().hand.remove(bolt_id);
+    game.get_player_zones_mut(alice)
+        .unwrap()
+        .hand
+        .remove(bolt_id);
     game.stack.add(bolt_id);
 
     println!("  Stack: Lightning Bolt (targeting Bob)");
@@ -134,7 +149,10 @@ fn main() {
 
     // Move bolt to graveyard
     game.stack.remove(bolt_id);
-    game.get_player_zones_mut(alice).unwrap().graveyard.add(bolt_id);
+    game.get_player_zones_mut(alice)
+        .unwrap()
+        .graveyard
+        .add(bolt_id);
 
     let bob_player = game.players.get(bob).unwrap();
     println!("  Bob takes 3 damage!");

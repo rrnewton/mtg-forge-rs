@@ -4,10 +4,10 @@
 //! optimized for efficient tree search and AI gameplay.
 
 pub mod core;
+pub mod error;
 pub mod game;
-pub mod zones;
 pub mod loader;
 pub mod undo;
-pub mod error;
+pub mod zones;
 
 pub use error::{MtgError, Result};

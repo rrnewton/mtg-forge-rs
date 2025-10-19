@@ -2,11 +2,11 @@
 //!
 //! Loads card definitions from Forge's cardsfolder format
 
-use std::path::Path;
-use std::fs;
-use crate::{Result, MtgError};
-use crate::core::{Card, CardType, Color, ManaCost, EntityId};
+use crate::core::{Card, CardType, Color, EntityId, ManaCost};
+use crate::{MtgError, Result};
 use smallvec::SmallVec;
+use std::fs;
+use std::path::Path;
 
 /// Card loader for .txt files
 pub struct CardLoader;
@@ -14,8 +14,7 @@ pub struct CardLoader;
 impl CardLoader {
     /// Load a card from a .txt file
     pub fn load_from_file(path: &Path) -> Result<CardDefinition> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| MtgError::IoError(e))?;
+        let content = fs::read_to_string(path).map_err(MtgError::IoError)?;
         Self::parse(&content)
     }
 

@@ -1,7 +1,7 @@
 //! Game zones (Library, Hand, Graveyard, Battlefield, etc.)
 
-use serde::{Deserialize, Serialize};
 use crate::core::EntityId;
+use serde::{Deserialize, Serialize};
 
 /// Different zones where cards can exist
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

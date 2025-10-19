@@ -1,10 +1,10 @@
 //! Game entity system with simple integer IDs
 
+use crate::MtgError;
+use crate::Result;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use rustc_hash::FxHashMap;
-use crate::Result;
-use crate::MtgError;
 
 /// Simple integer ID for game entities
 ///

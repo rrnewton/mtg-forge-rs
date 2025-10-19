@@ -1,8 +1,8 @@
 //! Card types and definitions
 
+use crate::core::{Color, EntityId, GameEntity, ManaCost};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use crate::core::{EntityId, GameEntity, ManaCost, Color};
 
 /// Card types in MTG
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

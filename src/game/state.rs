@@ -1,10 +1,10 @@
 //! Main game state structure
 
-use serde::{Deserialize, Serialize};
-use crate::core::{Card, Player, EntityStore, EntityId};
-use crate::zones::{PlayerZones, CardZone, Zone};
+use crate::core::{Card, EntityId, EntityStore, Player};
 use crate::game::TurnStructure;
+use crate::zones::{CardZone, PlayerZones, Zone};
 use crate::Result;
+use serde::{Deserialize, Serialize};
 
 /// Complete game state
 ///
@@ -100,7 +100,13 @@ impl GameState {
     }
 
     /// Move a card from one zone to another
-    pub fn move_card(&mut self, card_id: EntityId, from: Zone, to: Zone, owner: EntityId) -> Result<()> {
+    pub fn move_card(
+        &mut self,
+        card_id: EntityId,
+        from: Zone,
+        to: Zone,
+        owner: EntityId,
+    ) -> Result<()> {
         // Remove from source zone
         let removed = match from {
             Zone::Battlefield => self.battlefield.remove(card_id),

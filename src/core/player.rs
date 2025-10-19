@@ -1,7 +1,7 @@
 //! Player representation
 
-use serde::{Deserialize, Serialize};
 use crate::core::{EntityId, GameEntity, ManaPool};
+use serde::{Deserialize, Serialize};
 
 /// Represents a player in the game
 #[derive(Debug, Clone, Serialize, Deserialize)]

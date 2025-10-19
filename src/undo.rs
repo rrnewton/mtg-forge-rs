@@ -3,9 +3,9 @@
 //! This module provides a transaction log of game actions that can be
 //! rewound to efficiently explore the game tree without expensive deep copies.
 
-use serde::{Deserialize, Serialize};
 use crate::core::EntityId;
 use crate::zones::Zone;
+use serde::{Deserialize, Serialize};
 
 /// Atomic game actions that can be logged and undone
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,16 +19,10 @@ pub enum GameAction {
     },
 
     /// Tap/untap a permanent
-    TapCard {
-        card_id: EntityId,
-        tapped: bool,
-    },
+    TapCard { card_id: EntityId, tapped: bool },
 
     /// Modify life total
-    ModifyLife {
-        player_id: EntityId,
-        amount: i32,
-    },
+    ModifyLife { player_id: EntityId, amount: i32 },
 
     /// Add mana to pool
     AddMana {
@@ -37,9 +31,7 @@ pub enum GameAction {
     },
 
     /// Empty mana pool
-    EmptyManaPool {
-        player_id: EntityId,
-    },
+    EmptyManaPool { player_id: EntityId },
 
     /// Add counter to card
     AddCounter {
@@ -69,10 +61,7 @@ pub enum GameAction {
     },
 
     /// Mark a choice point (for tree search)
-    ChoicePoint {
-        player_id: EntityId,
-        choice_id: u32,
-    },
+    ChoicePoint { player_id: EntityId, choice_id: u32 },
 }
 
 /// Undo log for tracking and rewinding game actions
