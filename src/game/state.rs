@@ -266,6 +266,138 @@ impl GameState {
             .find(|(_, p)| !p.has_lost)
             .map(|(id, _)| *id)
     }
+
+    /// Undo the most recent action
+    ///
+    /// Pops the last action from the undo log and reverts it.
+    /// Returns Ok(true) if an action was undone, Ok(false) if log is empty.
+    pub fn undo(&mut self) -> Result<bool> {
+        if let Some(action) = self.undo_log.pop() {
+            match action {
+                crate::undo::GameAction::MoveCard {
+                    card_id,
+                    from_zone,
+                    to_zone,
+                    owner,
+                } => {
+                    // Move card back from to_zone to from_zone
+                    // Don't log this action since it's a revert
+                    let removed = match to_zone {
+                        Zone::Battlefield => self.battlefield.remove(card_id),
+                        Zone::Stack => self.stack.remove(card_id),
+                        _ => {
+                            if let Some(zones) = self.get_player_zones_mut(owner) {
+                                if let Some(zone) = zones.get_zone_mut(to_zone) {
+                                    zone.remove(card_id)
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                    };
+
+                    if removed {
+                        match from_zone {
+                            Zone::Battlefield => self.battlefield.add(card_id),
+                            Zone::Stack => self.stack.add(card_id),
+                            _ => {
+                                if let Some(zones) = self.get_player_zones_mut(owner) {
+                                    if let Some(zone) = zones.get_zone_mut(from_zone) {
+                                        zone.add(card_id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                crate::undo::GameAction::TapCard { card_id, tapped } => {
+                    // Reverse the tap state
+                    if let Ok(card) = self.cards.get_mut(card_id) {
+                        if tapped {
+                            card.untap();
+                        } else {
+                            card.tap();
+                        }
+                    }
+                }
+                crate::undo::GameAction::ModifyLife { player_id, delta } => {
+                    // Apply the negative of the delta
+                    if let Ok(player) = self.players.get_mut(player_id) {
+                        if delta > 0 {
+                            player.lose_life(delta);
+                        } else {
+                            player.gain_life(-delta);
+                        }
+                        // Recheck has_lost status
+                        if player.life > 0 {
+                            player.has_lost = false;
+                        }
+                    }
+                }
+                crate::undo::GameAction::AddMana { player_id, color } => {
+                    // Remove the mana that was added
+                    if let Ok(player) = self.players.get_mut(player_id) {
+                        match color {
+                            crate::core::Color::White => {
+                                if player.mana_pool.white > 0 {
+                                    player.mana_pool.white -= 1;
+                                }
+                            }
+                            crate::core::Color::Blue => {
+                                if player.mana_pool.blue > 0 {
+                                    player.mana_pool.blue -= 1;
+                                }
+                            }
+                            crate::core::Color::Black => {
+                                if player.mana_pool.black > 0 {
+                                    player.mana_pool.black -= 1;
+                                }
+                            }
+                            crate::core::Color::Red => {
+                                if player.mana_pool.red > 0 {
+                                    player.mana_pool.red -= 1;
+                                }
+                            }
+                            crate::core::Color::Green => {
+                                if player.mana_pool.green > 0 {
+                                    player.mana_pool.green -= 1;
+                                }
+                            }
+                            crate::core::Color::Colorless => {
+                                if player.mana_pool.colorless > 0 {
+                                    player.mana_pool.colorless -= 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                crate::undo::GameAction::EmptyManaPool { .. } => {
+                    // TODO: Need to track previous mana pool state to properly undo
+                    // For now, this is a no-op
+                }
+                crate::undo::GameAction::AddCounter { .. } => {
+                    // TODO: Implement counter undo
+                }
+                crate::undo::GameAction::RemoveCounter { .. } => {
+                    // TODO: Implement counter undo
+                }
+                crate::undo::GameAction::AdvanceStep { .. } => {
+                    // TODO: Implement step/turn undo
+                }
+                crate::undo::GameAction::ChangeTurn { .. } => {
+                    // TODO: Implement turn change undo
+                }
+                crate::undo::GameAction::ChoicePoint { .. } => {
+                    // Choice points don't need to be undone
+                }
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 #[cfg(test)]

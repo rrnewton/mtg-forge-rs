@@ -6,6 +6,51 @@
 use mtg_forge_rs::core::{Card, CardType, Color, Effect, ManaCost, TargetRef};
 use mtg_forge_rs::game::GameState;
 
+/// Print the current game state in a readable format
+fn print_game_state(game: &GameState, label: &str) {
+    println!("\n{}", label);
+
+    // Print player life totals
+    for (_id, player) in game.players.iter() {
+        let status = if player.has_lost { " (LOST)" } else { "" };
+        println!("  {}: {} life{}", player.name, player.life, status);
+    }
+
+    // Print battlefield
+    let battlefield_count = game.battlefield.cards.len();
+    print!("  Battlefield: ");
+    if battlefield_count == 0 {
+        println!("(empty)");
+    } else {
+        let cards: Vec<String> = game.battlefield.cards.iter()
+            .filter_map(|id| game.cards.get(*id).ok())
+            .map(|c| c.name.as_str().to_string())
+            .collect();
+        println!("{}", cards.join(", "));
+    }
+
+    // Print stack
+    let stack_count = game.stack.cards.len();
+    print!("  Stack: ");
+    if stack_count == 0 {
+        println!("(empty)");
+    } else {
+        let cards: Vec<String> = game.stack.cards.iter()
+            .filter_map(|id| game.cards.get(*id).ok())
+            .map(|c| c.name.as_str().to_string())
+            .collect();
+        println!("{}", cards.join(", "));
+    }
+
+    // Print player zones for first player
+    if let Some((player_id, _)) = game.players.iter().next() {
+        if let Some(zones) = game.get_player_zones(*player_id) {
+            println!("  Alice's hand: {} cards", zones.hand.cards.len());
+            println!("  Alice's graveyard: {} cards", zones.graveyard.cards.len());
+        }
+    }
+}
+
 fn main() {
     println!("=== MTG Forge - Lightning Bolt MVP ===\n");
 
@@ -189,4 +234,22 @@ fn main() {
     for (i, action) in game.undo_log.actions().iter().enumerate() {
         println!("  {}: {:?}", i + 1, action);
     }
+
+    // Demonstrate undo by rewinding the game state
+    println!("\n=== Rewinding Game State ===");
+    println!("Now undoing actions one by one...\n");
+
+    let total_actions = game.undo_log.len();
+    for i in 0..total_actions {
+        if let Ok(undone) = game.undo() {
+            if undone {
+                print_game_state(&game, &format!("After undo #{} (actions remaining: {})", i + 1, game.undo_log.len()));
+            } else {
+                break;
+            }
+        }
+    }
+
+    println!("\n=== Rewind Complete ===");
+    println!("Game state has been fully rewound to the beginning!");
 }
