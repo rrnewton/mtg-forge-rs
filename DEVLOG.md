@@ -39,8 +39,28 @@ pub subtypes: SmallVec<[String; 2]>,
 Let's get rid of all of those and use more specific types (enums, newtypes, or at least aliases).
 
 
-
+Implement and test the undo functionality
 ----------------------------------------
+
+First, a minor refactor. In ModifyLife let's rename `amount` `delta` instead so it is clear it is an increment/decrement and not an absolute amount.
+
+Next, let's finish and test this undo log. It looks like the types are there, but that it is not actually USED by the game logic. Let's start to remedy that. We need to insure that EVERY mutable method on `GameState` (i.e. which takes a `&mut self`) also adds to an UndoLog stored in the `GameState`. Ensure this is the case. Then, as a first test, at the end of the lightning bolt example, report the length of the undo log and print the list of actions stored in it.
+
+
+
+
+Implement more of an engine driving the game with callbacks
+-----------------------------------------------------------
+
+Right now our `lightning_bolt_game.rs` example directly mutates the game by calling a series of methods on it (play_land, tap_for_mana, cast_spell, etc).
+
+We need to move toward a state where the engine drives the game and the player (AI or human) drives the CHOICES through either a UI (such as the text UI) or through an API.
+
+Let's start to move towards that. The lightning bolt example should 
+
+
+
+
 
 
 
