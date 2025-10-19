@@ -79,6 +79,8 @@ impl GameState {
     }
 
     /// Cast a spell (put it on the stack)
+    ///
+    /// This validates mana payment and deducts the cost from the player's mana pool.
     pub fn cast_spell(
         &mut self,
         player_id: PlayerId,
@@ -92,15 +94,18 @@ impl GameState {
             }
         }
 
-        let card = self.cards.get(card_id)?;
+        // Get the mana cost (need to do this before mutable borrow)
+        let mana_cost = {
+            let card = self.cards.get(card_id)?;
+            card.mana_cost.clone()
+        };
 
-        // Check if player can pay mana cost
-        let player = self.players.get(player_id)?;
-        if !player.mana_pool.can_pay(&card.mana_cost) {
-            return Err(MtgError::InvalidAction("Cannot pay mana cost".to_string()));
-        }
-
-        // TODO: Actually pay the mana cost (requires mana payment logic)
+        // Pay the mana cost
+        let player = self.players.get_mut(player_id)?;
+        player
+            .mana_pool
+            .pay_cost(&mana_cost)
+            .map_err(|e| MtgError::InvalidAction(e))?;
 
         // Move card to stack
         self.move_card(card_id, Zone::Hand, Zone::Stack, player_id)?;
@@ -324,5 +329,83 @@ mod tests {
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert!(zones.graveyard.contains(card_id), "Card not in graveyard");
         }
+    }
+
+    #[test]
+    fn test_cast_spell_with_mana_payment() {
+        use crate::core::{Color, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = *game.players.iter().next().unwrap().0;
+
+        // Create a Lightning Bolt in hand (cost: R)
+        let bolt_id = game.next_card_id();
+        let mut bolt = Card::new(bolt_id, "Lightning Bolt".to_string(), p1_id);
+        bolt.types.push(CardType::Instant);
+        bolt.mana_cost = ManaCost::from_string("R");
+        game.cards.insert(bolt_id, bolt);
+
+        // Add to hand
+        if let Some(zones) = game.get_player_zones_mut(p1_id) {
+            zones.hand.add(bolt_id);
+        }
+
+        // Try to cast without mana - should fail
+        let result = game.cast_spell(p1_id, bolt_id, vec![]);
+        assert!(result.is_err());
+
+        // Add mana to pool
+        let player = game.players.get_mut(p1_id).unwrap();
+        player.mana_pool.add_color(Color::Red);
+
+        // Now cast should succeed
+        let result = game.cast_spell(p1_id, bolt_id, vec![]);
+        assert!(result.is_ok(), "cast_spell failed: {:?}", result);
+
+        // Check mana was deducted
+        let player = game.players.get(p1_id).unwrap();
+        assert_eq!(player.mana_pool.red, 0);
+
+        // Check card is on stack
+        assert!(game.stack.contains(bolt_id));
+    }
+
+    #[test]
+    fn test_cast_spell_with_generic_mana() {
+        use crate::core::{Color, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = *game.players.iter().next().unwrap().0;
+
+        // Create a spell with cost 2R
+        let spell_id = game.next_card_id();
+        let mut spell = Card::new(spell_id, "Lava Spike".to_string(), p1_id);
+        spell.types.push(CardType::Sorcery);
+        spell.mana_cost = ManaCost::from_string("2R");
+        game.cards.insert(spell_id, spell);
+
+        // Add to hand
+        if let Some(zones) = game.get_player_zones_mut(p1_id) {
+            zones.hand.add(spell_id);
+        }
+
+        // Add mana: 2R + 1U = 4 mana total
+        let player = game.players.get_mut(p1_id).unwrap();
+        player.mana_pool.add_color(Color::Red);
+        player.mana_pool.add_color(Color::Red);
+        player.mana_pool.add_color(Color::Blue);
+
+        // Cast spell - should use 1R for R, and 2R for generic 2
+        let result = game.cast_spell(p1_id, spell_id, vec![]);
+        assert!(result.is_ok(), "cast_spell failed: {:?}", result);
+
+        // Check mana was deducted properly (should have 1 blue left)
+        let player = game.players.get(p1_id).unwrap();
+        assert_eq!(player.mana_pool.red, 0);
+        assert_eq!(player.mana_pool.blue, 0); // Blue was used for generic cost
+        assert_eq!(player.mana_pool.total(), 0);
+
+        // Check card is on stack
+        assert!(game.stack.contains(spell_id));
     }
 }

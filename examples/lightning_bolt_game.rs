@@ -113,9 +113,10 @@ fn main() {
         .expect("Failed to tap for mana");
 
     let alice_player = game.players.get(alice).unwrap();
-    println!("  Mana pool: {}", alice_player.mana_pool.red);
+    println!("  Mana pool: {} red", alice_player.mana_pool.red);
 
-    println!("\nAlice casts Lightning Bolt targeting Bob!");
+    println!("\nAlice casts Lightning Bolt (cost: R) targeting Bob!");
+    println!("  Paying 1 red mana from pool...");
 
     // Get Lightning Bolt from hand
     let bolt_id = game
@@ -131,25 +132,20 @@ fn main() {
         .copied()
         .expect("No Lightning Bolt in hand");
 
-    // Cast the spell (simplified - no actual mana payment yet)
-    // For now, we'll just move it to stack manually
-    game.get_player_zones_mut(alice)
-        .unwrap()
-        .hand
-        .remove(bolt_id);
-    game.stack.add(bolt_id);
+    // Cast the spell using the proper cast_spell method (pays mana automatically)
+    game.cast_spell(alice, bolt_id, vec![])
+        .expect("Failed to cast Lightning Bolt");
 
+    let alice_player = game.players.get(alice).unwrap();
+    println!("  Mana paid! Mana pool now: {}", alice_player.mana_pool.total());
     println!("  Stack: Lightning Bolt (targeting Bob)");
 
     println!("\nLightning Bolt resolves:");
     game.deal_damage(bob, 3).expect("Failed to deal damage");
 
-    // Move bolt to graveyard
-    game.stack.remove(bolt_id);
-    game.get_player_zones_mut(alice)
-        .unwrap()
-        .graveyard
-        .add(bolt_id);
+    // Resolve the spell (moves it to graveyard automatically)
+    game.resolve_spell(bolt_id)
+        .expect("Failed to resolve spell");
 
     let bob_player = game.players.get(bob).unwrap();
     println!("  Bob takes 3 damage!");
@@ -175,6 +171,7 @@ fn main() {
     println!("This demonstrates:");
     println!("  ✓ Playing lands");
     println!("  ✓ Tapping for mana");
+    println!("  ✓ Mana payment system");
     println!("  ✓ Casting spells");
     println!("  ✓ Dealing damage");
     println!("  ✓ Tracking life totals");
