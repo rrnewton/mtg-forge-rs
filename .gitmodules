@@ -1,0 +1,3 @@
+[submodule "forge-java"]
+	path = forge-java
+	url = git@github.com:rrnewton/forge.git
