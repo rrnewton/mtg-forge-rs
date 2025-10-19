@@ -3,7 +3,7 @@
 //! Demonstrates a simple MTG game with just Mountains and Lightning Bolts.
 //! This is the minimal viable product for the game engine.
 
-use mtg_forge_rs::core::{Card, CardType, Color, ManaCost};
+use mtg_forge_rs::core::{Card, CardType, Color, Effect, ManaCost, TargetRef};
 use mtg_forge_rs::game::GameState;
 
 fn main() {
@@ -45,6 +45,11 @@ fn main() {
         card.mana_cost = ManaCost::from_string("R");
         card.colors.push(Color::Red);
         card.text = "Lightning Bolt deals 3 damage to any target.".to_string();
+        // Add effect that deals 3 damage to target (targeting Bob for this demo)
+        card.effects.push(Effect::DealDamage {
+            target: TargetRef::Player(bob),
+            amount: 3,
+        });
         game.cards.insert(card_id, card);
 
         // Add to hand
@@ -141,9 +146,7 @@ fn main() {
     println!("  Stack: Lightning Bolt (targeting Bob)");
 
     println!("\nLightning Bolt resolves:");
-    game.deal_damage(bob, 3).expect("Failed to deal damage");
-
-    // Resolve the spell (moves it to graveyard automatically)
+    // Resolve the spell (executes effects and moves to graveyard)
     game.resolve_spell(bolt_id)
         .expect("Failed to resolve spell");
 
@@ -173,6 +176,8 @@ fn main() {
     println!("  ✓ Tapping for mana");
     println!("  ✓ Mana payment system");
     println!("  ✓ Casting spells");
+    println!("  ✓ Card effect system (DealDamage)");
+    println!("  ✓ Spell resolution with effects");
     println!("  ✓ Dealing damage");
     println!("  ✓ Tracking life totals");
     println!("  ✓ Game state management");

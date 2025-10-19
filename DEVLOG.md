@@ -28,7 +28,7 @@ CardID = EntityID<Card>
 Note I have also updated Claude.md to reflect the emphasis on strong typing and include some extra requirements on validation and commit messages.
 
 
--- 
+-------------------------------- 
 
 I also noticed weakly typed indices into maps:
 
@@ -37,6 +37,10 @@ pub subtypes: SmallVec<[String; 2]>,
 ```
 
 Let's get rid of all of those and use more specific types (enums, newtypes, or at least aliases).
+
+
+
+----------------------------------------
 
 
 

@@ -1,6 +1,6 @@
 //! Card types and definitions
 
-use crate::core::{CardId, CardName, Color, CounterType, GameEntity, ManaCost, PlayerId, Subtype};
+use crate::core::{CardId, CardName, Color, CounterType, Effect, GameEntity, ManaCost, PlayerId, Subtype};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -61,6 +61,11 @@ pub struct Card {
     /// Counters on this card (using SmallVec for efficiency)
     /// Common counters: +1/+1, -1/-1, charge, loyalty
     pub counters: SmallVec<[(CounterType, u8); 2]>,
+
+    /// Effects that execute when this card resolves
+    /// For spells: effects execute when spell resolves
+    /// For permanents: effects may be triggered or activated abilities
+    pub effects: Vec<Effect>,
 }
 
 impl Card {
@@ -79,6 +84,7 @@ impl Card {
             controller: owner,
             tapped: false,
             counters: SmallVec::new(),
+            effects: Vec::new(),
         }
     }
 

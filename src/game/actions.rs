@@ -1,6 +1,6 @@
 //! Game actions and mechanics
 
-use crate::core::{CardId, CardType, PlayerId};
+use crate::core::{CardId, CardType, Effect, PlayerId, TargetRef};
 use crate::game::GameState;
 use crate::zones::Zone;
 use crate::{MtgError, Result};
@@ -115,19 +115,73 @@ impl GameState {
 
     /// Resolve a spell from the stack
     pub fn resolve_spell(&mut self, card_id: CardId) -> Result<()> {
-        let card = self.cards.get(card_id)?;
-        let owner = card.owner;
+        // Execute the card's effects before moving it
+        let effects = {
+            let card = self.cards.get(card_id)?;
+            card.effects.clone()
+        };
+
+        for effect in effects {
+            self.execute_effect(&effect)?;
+        }
 
         // Determine destination based on card type
-        let destination = if card.is_type(&CardType::Instant) || card.is_type(&CardType::Sorcery) {
-            Zone::Graveyard
-        } else {
-            Zone::Battlefield
+        let destination = {
+            let card = self.cards.get(card_id)?;
+            if card.is_type(&CardType::Instant) || card.is_type(&CardType::Sorcery) {
+                Zone::Graveyard
+            } else {
+                Zone::Battlefield
+            }
         };
 
         // Move card from stack to destination
+        let owner = self.cards.get(card_id)?.owner;
         self.move_card(card_id, Zone::Stack, destination, owner)?;
 
+        Ok(())
+    }
+
+    /// Execute a single effect
+    pub fn execute_effect(&mut self, effect: &Effect) -> Result<()> {
+        match effect {
+            Effect::DealDamage { target, amount } => {
+                match target {
+                    TargetRef::Player(player_id) => {
+                        self.deal_damage(*player_id, *amount)?;
+                    }
+                    TargetRef::Permanent(card_id) => {
+                        self.deal_damage_to_creature(*card_id, *amount)?;
+                    }
+                    TargetRef::None => {
+                        return Err(MtgError::InvalidAction(
+                            "DealDamage effect requires a target".to_string(),
+                        ));
+                    }
+                }
+            }
+            Effect::DrawCards { player, count } => {
+                for _ in 0..*count {
+                    self.draw_card(*player)?;
+                }
+            }
+            Effect::GainLife { player, amount } => {
+                let p = self.players.get_mut(*player)?;
+                p.gain_life(*amount);
+            }
+            Effect::DestroyPermanent { target } => {
+                let owner = self.cards.get(*target)?.owner;
+                self.move_card(*target, Zone::Battlefield, Zone::Graveyard, owner)?;
+            }
+            Effect::TapPermanent { target } => {
+                let card = self.cards.get_mut(*target)?;
+                card.tap();
+            }
+            Effect::UntapPermanent { target } => {
+                let card = self.cards.get_mut(*target)?;
+                card.untap();
+            }
+        }
         Ok(())
     }
 
@@ -407,5 +461,91 @@ mod tests {
 
         // Check card is on stack
         assert!(game.stack.contains(spell_id));
+    }
+
+    #[test]
+    fn test_execute_damage_effect_to_player() {
+        use crate::core::{Effect, TargetRef};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let p2_id = players[1];
+
+        let effect = Effect::DealDamage {
+            target: TargetRef::Player(p2_id),
+            amount: 3,
+        };
+
+        assert!(game.execute_effect(&effect).is_ok());
+
+        let p2 = game.players.get(p2_id).unwrap();
+        assert_eq!(p2.life, 17);
+    }
+
+    #[test]
+    fn test_execute_draw_effect() {
+        use crate::core::Effect;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = *game.players.iter().next().unwrap().0;
+
+        // Add cards to library
+        for i in 0..5 {
+            let card_id = game.next_card_id();
+            let card = Card::new(card_id, format!("Card {}", i), p1_id);
+            game.cards.insert(card_id, card);
+            if let Some(zones) = game.get_player_zones_mut(p1_id) {
+                zones.library.add(card_id);
+            }
+        }
+
+        let effect = Effect::DrawCards {
+            player: p1_id,
+            count: 2,
+        };
+
+        assert!(game.execute_effect(&effect).is_ok());
+
+        // Check cards were drawn
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert_eq!(zones.hand.cards.len(), 2);
+            assert_eq!(zones.library.cards.len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_resolve_spell_with_effects() {
+        use crate::core::{Effect, ManaCost, TargetRef};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // Create Lightning Bolt with damage effect
+        let bolt_id = game.next_card_id();
+        let mut bolt = Card::new(bolt_id, "Lightning Bolt".to_string(), p1_id);
+        bolt.types.push(CardType::Instant);
+        bolt.mana_cost = ManaCost::from_string("R");
+        bolt.effects.push(Effect::DealDamage {
+            target: TargetRef::Player(p2_id),
+            amount: 3,
+        });
+        game.cards.insert(bolt_id, bolt);
+
+        // Put it on the stack (simulating cast)
+        game.stack.add(bolt_id);
+
+        // Resolve the spell
+        assert!(game.resolve_spell(bolt_id).is_ok());
+
+        // Check damage was dealt
+        let p2 = game.players.get(p2_id).unwrap();
+        assert_eq!(p2.life, 17);
+
+        // Check spell went to graveyard
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(zones.graveyard.contains(bolt_id));
+        }
     }
 }
