@@ -20,6 +20,15 @@ Refer to the MTG (Magic the Gathering) rules in the `./rules` directory.
 
 You should mainly use the second, condensed summary for understanding the basic operation of the MTG game. When necessary, refer to the long rules list in the official MTG rules (the first document above).
 
+Coding conventions
+========================================
+
+PREFER STRONG TYPES. Do not use "u32" or "String" where you can have a more specific type or at least a type alias. "String" makes it very unclear which values are legal. We want explicit Enums to lock down the possibilities for our state, and we want separate types for numerical IDs and distinct, non-overlapping uses of basic integers.
+
+Delete trailing spaces. Don't leave empty lines that consist only of whitespace. (Double newline is fine.)
+
+Add README.md files for every major subdirectory/subsystem.  For example `src/core`, `src/game`, etc.
+
 Workflow: Tasks and Commits
 ========================================
 
@@ -45,3 +54,12 @@ Make sure you ACTUALLY run `cargo test` before any commit. Include a Test Result
     test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
+
+Finally, also before committing reanalyze the relationship between (1) what you built and (2) the existing Java implementation, and summarize it. It's ok for the Rust and Java versions to deviate, but there should be a reason for it and we should document it in these commit messages.
+
+```
+## Relationship to Java Forge
+
+- this Rust reimplementation does X
+- the upstream Java version does Y
+```
