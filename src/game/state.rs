@@ -32,18 +32,26 @@ pub struct GameState {
 
     /// Random number generator state (for deterministic replay)
     pub rng_seed: u64,
+
+    /// Unified entity ID generator (shared across all entity types)
+    next_entity_id: u32,
 }
 
 impl GameState {
     /// Create a new game with two players
     pub fn new_two_player(player1_name: String, player2_name: String, starting_life: i32) -> Self {
-        let mut players = EntityStore::new();
-        let p1_id = players.next_id();
-        let p2_id = players.next_id();
+        let mut next_id = 0;
+
+        // Create players with unified IDs
+        let p1_id = EntityId::new(next_id);
+        next_id += 1;
+        let p2_id = EntityId::new(next_id);
+        next_id += 1;
 
         let player1 = Player::new(p1_id, player1_name, starting_life);
         let player2 = Player::new(p2_id, player2_name, starting_life);
 
+        let mut players = EntityStore::new();
         players.insert(p1_id, player1);
         players.insert(p2_id, player2);
 
@@ -52,8 +60,9 @@ impl GameState {
             (p2_id, PlayerZones::new(p2_id)),
         ];
 
-        // Use a dummy EntityId for shared zones (battlefield, stack)
-        let shared_id = EntityId::new(9999);
+        // Use a unified EntityId for shared zones (battlefield, stack)
+        let shared_id = EntityId::new(next_id);
+        next_id += 1;
 
         GameState {
             cards: EntityStore::new(),
@@ -63,7 +72,15 @@ impl GameState {
             stack: CardZone::new(Zone::Stack, shared_id),
             turn: TurnStructure::new(p1_id),
             rng_seed: 0,
+            next_entity_id: next_id,
         }
+    }
+
+    /// Get next entity ID (unified across all entity types)
+    pub fn next_entity_id(&mut self) -> EntityId {
+        let id = EntityId::new(self.next_entity_id);
+        self.next_entity_id += 1;
+        id
     }
 
     /// Get player zones for a specific player
@@ -212,7 +229,7 @@ mod tests {
 
         // Create a card and add it to library
         let p1_id = *game.players.iter().next().unwrap().0; // Copy the ID
-        let card_id = game.cards.next_id();
+        let card_id = game.next_entity_id();
         let card = Card::new(card_id, "Test Card".to_string(), p1_id);
         game.cards.insert(card_id, card);
 
