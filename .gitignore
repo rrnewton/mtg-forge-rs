@@ -1,3 +1,10 @@
 *~
 .DS_Store
 ._.DS_Store
+\#*\#
+.unison.*
+
+# Added by cargo
+
+/target
+Cargo.lock
