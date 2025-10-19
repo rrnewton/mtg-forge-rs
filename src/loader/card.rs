@@ -2,7 +2,7 @@
 //!
 //! Loads card definitions from Forge's cardsfolder format
 
-use crate::core::{Card, CardType, Color, ManaCost};
+use crate::core::{Card, CardName, CardType, Color, ManaCost, Subtype};
 use crate::{MtgError, Result};
 use smallvec::SmallVec;
 use std::fs;
@@ -20,7 +20,7 @@ impl CardLoader {
 
     /// Parse a card from its text content
     pub fn parse(content: &str) -> Result<CardDefinition> {
-        let mut name = String::new();
+        let mut name = None;
         let mut mana_cost = ManaCost::new();
         let mut types = Vec::new();
         let mut subtypes = Vec::new();
@@ -40,7 +40,7 @@ impl CardLoader {
                 let value = value.trim();
 
                 match key {
-                    "Name" => name = value.to_string(),
+                    "Name" => name = Some(CardName::new(value)),
                     "ManaCost" => mana_cost = ManaCost::from_string(value),
                     "Types" => {
                         for part in value.split_whitespace() {
@@ -52,7 +52,7 @@ impl CardLoader {
                                 "Artifact" => types.push(CardType::Artifact),
                                 "Land" => types.push(CardType::Land),
                                 "Planeswalker" => types.push(CardType::Planeswalker),
-                                _ => subtypes.push(part.to_string()),
+                                _ => subtypes.push(Subtype::new(part)),
                             }
                         }
                     }
@@ -88,9 +88,7 @@ impl CardLoader {
             colors.push(Color::Colorless);
         }
 
-        if name.is_empty() {
-            return Err(MtgError::InvalidCardFormat("Missing card name".to_string()));
-        }
+        let name = name.ok_or(MtgError::InvalidCardFormat("Missing card name".to_string()))?;
 
         Ok(CardDefinition {
             name,
@@ -108,10 +106,10 @@ impl CardLoader {
 /// Card definition (not yet instantiated in a game)
 #[derive(Debug, Clone)]
 pub struct CardDefinition {
-    pub name: String,
+    pub name: CardName,
     pub mana_cost: ManaCost,
     pub types: Vec<CardType>,
-    pub subtypes: Vec<String>,
+    pub subtypes: Vec<Subtype>,
     pub colors: Vec<Color>,
     pub power: Option<i8>,
     pub toughness: Option<i8>,
@@ -147,7 +145,7 @@ Oracle:Lightning Bolt deals 3 damage to any target.
 "#;
 
         let def = CardLoader::parse(content).unwrap();
-        assert_eq!(def.name, "Lightning Bolt");
+        assert_eq!(def.name.as_str(), "Lightning Bolt");
         assert_eq!(def.mana_cost.red, 1);
         assert_eq!(def.types.len(), 1);
         assert!(def.types.contains(&CardType::Instant));
@@ -165,11 +163,11 @@ Oracle:
 "#;
 
         let def = CardLoader::parse(content).unwrap();
-        assert_eq!(def.name, "Grizzly Bears");
+        assert_eq!(def.name.as_str(), "Grizzly Bears");
         assert_eq!(def.mana_cost.generic, 1);
         assert_eq!(def.mana_cost.green, 1);
         assert!(def.types.contains(&CardType::Creature));
-        assert!(def.subtypes.contains(&"Bear".to_string()));
+        assert!(def.subtypes.contains(&Subtype::new("Bear")));
         assert_eq!(def.power, Some(2));
         assert_eq!(def.toughness, Some(2));
     }

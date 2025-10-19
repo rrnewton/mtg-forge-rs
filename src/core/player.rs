@@ -1,6 +1,6 @@
 //! Player representation
 
-use crate::core::{GameEntity, ManaPool, PlayerId};
+use crate::core::{GameEntity, ManaPool, PlayerId, PlayerName};
 use serde::{Deserialize, Serialize};
 
 /// Represents a player in the game
@@ -10,7 +10,7 @@ pub struct Player {
     pub id: PlayerId,
 
     /// Player name
-    pub name: String,
+    pub name: PlayerName,
 
     /// Life total
     pub life: i32,
@@ -29,10 +29,10 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: PlayerId, name: String, starting_life: i32) -> Self {
+    pub fn new(id: PlayerId, name: impl Into<PlayerName>, starting_life: i32) -> Self {
         Player {
             id,
-            name,
+            name: name.into(),
             life: starting_life,
             mana_pool: ManaPool::new(),
             has_lost: false,
@@ -75,7 +75,7 @@ impl GameEntity<Player> for Player {
     }
 
     fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 }
 
@@ -86,10 +86,10 @@ mod tests {
     #[test]
     fn test_player_creation() {
         let id = PlayerId::new(1);
-        let player = Player::new(id, "Alice".to_string(), 20);
+        let player = Player::new(id, "Alice", 20);
 
         assert_eq!(player.id, id);
-        assert_eq!(player.name, "Alice");
+        assert_eq!(player.name.as_str(), "Alice");
         assert_eq!(player.life, 20);
         assert!(!player.has_lost);
     }
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_player_life() {
         let id = PlayerId::new(1);
-        let mut player = Player::new(id, "Bob".to_string(), 20);
+        let mut player = Player::new(id, "Bob", 20);
 
         player.lose_life(5);
         assert_eq!(player.life, 15);
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn test_land_playing() {
         let id = PlayerId::new(1);
-        let mut player = Player::new(id, "Charlie".to_string(), 20);
+        let mut player = Player::new(id, "Charlie", 20);
 
         assert!(player.can_play_land());
         player.play_land();

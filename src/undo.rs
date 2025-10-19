@@ -3,7 +3,7 @@
 //! This module provides a transaction log of game actions that can be
 //! rewound to efficiently explore the game tree without expensive deep copies.
 
-use crate::core::{CardId, PlayerId};
+use crate::core::{CardId, CounterType, PlayerId};
 use crate::zones::Zone;
 use serde::{Deserialize, Serialize};
 
@@ -36,14 +36,14 @@ pub enum GameAction {
     /// Add counter to card
     AddCounter {
         card_id: CardId,
-        counter_type: String,
+        counter_type: CounterType,
         amount: u8,
     },
 
     /// Remove counter from card
     RemoveCounter {
         card_id: CardId,
-        counter_type: String,
+        counter_type: CounterType,
         amount: u8,
     },
 

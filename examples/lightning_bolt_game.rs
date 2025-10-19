@@ -126,7 +126,7 @@ fn main() {
         .iter()
         .find(|&id| {
             let card = game.cards.get(*id).unwrap();
-            card.name.contains("Lightning Bolt")
+            card.name.as_str().contains("Lightning Bolt")
         })
         .copied()
         .expect("No Lightning Bolt in hand");

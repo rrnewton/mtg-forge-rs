@@ -1,6 +1,6 @@
 //! Card types and definitions
 
-use crate::core::{CardId, Color, GameEntity, ManaCost, PlayerId};
+use crate::core::{CardId, CardName, Color, CounterType, GameEntity, ManaCost, PlayerId, Subtype};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -26,7 +26,7 @@ pub struct Card {
     pub id: CardId,
 
     /// Card name (e.g., "Lightning Bolt")
-    pub name: String,
+    pub name: CardName,
 
     /// Mana cost
     pub mana_cost: ManaCost,
@@ -35,7 +35,7 @@ pub struct Card {
     pub types: SmallVec<[CardType; 2]>,
 
     /// Card subtypes (e.g., "Goblin", "Warrior")
-    pub subtypes: SmallVec<[String; 2]>,
+    pub subtypes: SmallVec<[Subtype; 2]>,
 
     /// Colors of the card
     pub colors: SmallVec<[Color; 2]>,
@@ -60,14 +60,14 @@ pub struct Card {
 
     /// Counters on this card (using SmallVec for efficiency)
     /// Common counters: +1/+1, -1/-1, charge, loyalty
-    pub counters: SmallVec<[(String, u8); 2]>,
+    pub counters: SmallVec<[(CounterType, u8); 2]>,
 }
 
 impl Card {
-    pub fn new(id: CardId, name: String, owner: PlayerId) -> Self {
+    pub fn new(id: CardId, name: impl Into<CardName>, owner: PlayerId) -> Self {
         Card {
             id,
-            name,
+            name: name.into(),
             mana_cost: ManaCost::new(),
             types: SmallVec::new(),
             subtypes: SmallVec::new(),
@@ -102,7 +102,8 @@ impl Card {
         self.tapped = false;
     }
 
-    pub fn add_counter(&mut self, counter_type: String, amount: u8) {
+    pub fn add_counter(&mut self, counter_type: impl Into<CounterType>, amount: u8) {
+        let counter_type = counter_type.into();
         if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &counter_type) {
             *count += amount;
         } else {
@@ -110,10 +111,11 @@ impl Card {
         }
     }
 
-    pub fn get_counter(&self, counter_type: &str) -> u8 {
+    pub fn get_counter(&self, counter_type: impl Into<CounterType>) -> u8 {
+        let counter_type = counter_type.into();
         self.counters
             .iter()
-            .find(|(t, _)| t == counter_type)
+            .find(|(t, _)| t == &counter_type)
             .map(|(_, count)| *count)
             .unwrap_or(0)
     }
@@ -141,7 +143,7 @@ impl GameEntity<Card> for Card {
     }
 
     fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 }
 
@@ -153,10 +155,10 @@ mod tests {
     fn test_card_creation() {
         let id = CardId::new(1);
         let owner = PlayerId::new(100);
-        let card = Card::new(id, "Lightning Bolt".to_string(), owner);
+        let card = Card::new(id, "Lightning Bolt", owner);
 
         assert_eq!(card.id, id);
-        assert_eq!(card.name, "Lightning Bolt");
+        assert_eq!(card.name.as_str(), "Lightning Bolt");
         assert_eq!(card.owner, owner);
         assert_eq!(card.controller, owner);
         assert!(!card.tapped);
@@ -166,7 +168,7 @@ mod tests {
     fn test_card_counters() {
         let id = CardId::new(1);
         let owner = PlayerId::new(100);
-        let mut card = Card::new(id, "Test Creature".to_string(), owner);
+        let mut card = Card::new(id, "Test Creature", owner);
 
         card.power = Some(2);
         card.toughness = Some(2);
@@ -174,11 +176,11 @@ mod tests {
         assert_eq!(card.current_power(), 2);
         assert_eq!(card.current_toughness(), 2);
 
-        card.add_counter("+1/+1".to_string(), 2);
+        card.add_counter("+1/+1", 2);
         assert_eq!(card.current_power(), 4);
         assert_eq!(card.current_toughness(), 4);
 
-        card.add_counter("-1/-1".to_string(), 1);
+        card.add_counter("-1/-1", 1);
         assert_eq!(card.current_power(), 3);
         assert_eq!(card.current_toughness(), 3);
     }
