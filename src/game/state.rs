@@ -2,6 +2,7 @@
 
 use crate::core::{Card, CardId, EntityId, EntityStore, Player, PlayerId};
 use crate::game::TurnStructure;
+use crate::undo::UndoLog;
 use crate::zones::{CardZone, PlayerZones, Zone};
 use crate::Result;
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,9 @@ pub struct GameState {
 
     /// Unified entity ID generator (shared across all entity types)
     next_entity_id: u32,
+
+    /// Undo log for tracking all game actions
+    pub undo_log: UndoLog,
 }
 
 impl GameState {
@@ -74,6 +78,7 @@ impl GameState {
             turn: TurnStructure::new(p1_id),
             rng_seed: 0,
             next_entity_id: next_id,
+            undo_log: UndoLog::new(),
         }
     }
 
@@ -162,6 +167,14 @@ impl GameState {
             }
         }
 
+        // Log the action
+        self.undo_log.log(crate::undo::GameAction::MoveCard {
+            card_id,
+            from_zone: from,
+            to_zone: to,
+            owner,
+        });
+
         Ok(())
     }
 
@@ -180,8 +193,13 @@ impl GameState {
     pub fn untap_all(&mut self, player_id: PlayerId) -> Result<()> {
         for card_id in self.battlefield.cards.iter() {
             if let Ok(card) = self.cards.get_mut(*card_id) {
-                if card.controller == player_id {
+                if card.controller == player_id && card.tapped {
                     card.untap();
+                    // Log the untap action
+                    self.undo_log.log(crate::undo::GameAction::TapCard {
+                        card_id: *card_id,
+                        tapped: false,
+                    });
                 }
             }
         }
@@ -190,15 +208,33 @@ impl GameState {
 
     /// Advance the game to the next step
     pub fn advance_step(&mut self) -> Result<()> {
+        let from_step = self.turn.current_step;
+
         if !self.turn.advance_step() {
             // End of turn, move to next player
+            let from_player = self.turn.active_player;
             let next_player = self.get_next_player(self.turn.active_player)?;
+            let old_turn_number = self.turn.turn_number;
+
             self.turn.next_turn(next_player);
+
+            // Log the turn change
+            self.undo_log.log(crate::undo::GameAction::ChangeTurn {
+                from_player,
+                to_player: next_player,
+                turn_number: old_turn_number + 1,
+            });
 
             // Reset per-turn state
             if let Ok(player) = self.players.get_mut(next_player) {
                 player.reset_lands_played();
             }
+        } else {
+            // Log the step advance
+            self.undo_log.log(crate::undo::GameAction::AdvanceStep {
+                from_step,
+                to_step: self.turn.current_step,
+            });
         }
         Ok(())
     }
@@ -289,5 +325,45 @@ mod tests {
         assert!(game.is_game_over());
         let winner = game.get_winner().unwrap();
         assert_ne!(winner, p1_id);
+    }
+
+    #[test]
+    fn test_undo_log_integration() {
+        use crate::core::CardType;
+
+        let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+        let p1_id = *game.players.iter().next().unwrap().0;
+
+        assert_eq!(game.undo_log.len(), 0);
+
+        // Create and play a land
+        let card_id = game.next_card_id();
+        let mut card = Card::new(card_id, "Mountain", p1_id);
+        card.types.push(CardType::Land);
+        game.cards.insert(card_id, card);
+
+        if let Some(zones) = game.get_player_zones_mut(p1_id) {
+            zones.hand.add(card_id);
+        }
+
+        // Play the land - should log MoveCard
+        game.play_land(p1_id, card_id).unwrap();
+        assert_eq!(game.undo_log.len(), 1);
+        matches!(game.undo_log.peek().unwrap(), crate::undo::GameAction::MoveCard { .. });
+
+        // Tap for mana - should log TapCard and AddMana
+        game.tap_for_mana(p1_id, card_id).unwrap();
+        assert_eq!(game.undo_log.len(), 3); // MoveCard, TapCard, AddMana
+
+        // Untap all - should log TapCard for untap
+        game.untap_all(p1_id).unwrap();
+        assert_eq!(game.undo_log.len(), 4); // + TapCard (untapped)
+
+        // Verify all actions are logged
+        let actions = game.undo_log.actions();
+        assert!(matches!(actions[0], crate::undo::GameAction::MoveCard { .. }));
+        assert!(matches!(actions[1], crate::undo::GameAction::TapCard { tapped: true, .. }));
+        assert!(matches!(actions[2], crate::undo::GameAction::AddMana { .. }));
+        assert!(matches!(actions[3], crate::undo::GameAction::TapCard { tapped: false, .. }));
     }
 }

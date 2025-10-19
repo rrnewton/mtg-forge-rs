@@ -181,4 +181,12 @@ fn main() {
     println!("  ✓ Dealing damage");
     println!("  ✓ Tracking life totals");
     println!("  ✓ Game state management");
+
+    // Display undo log
+    println!("\n=== Undo Log ===");
+    println!("Total actions logged: {}", game.undo_log.len());
+    println!("\nAction history:");
+    for (i, action) in game.undo_log.actions().iter().enumerate() {
+        println!("  {}: {:?}", i + 1, action);
+    }
 }

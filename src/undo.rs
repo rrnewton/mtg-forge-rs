@@ -21,8 +21,8 @@ pub enum GameAction {
     /// Tap/untap a permanent
     TapCard { card_id: CardId, tapped: bool },
 
-    /// Modify life total
-    ModifyLife { player_id: PlayerId, amount: i32 },
+    /// Modify life total (delta is the change, not absolute value)
+    ModifyLife { player_id: PlayerId, delta: i32 },
 
     /// Add mana to pool
     AddMana {
@@ -167,7 +167,7 @@ mod tests {
 
         let action = GameAction::ModifyLife {
             player_id: PlayerId::new(1),
-            amount: -3,
+            delta: -3,
         };
 
         log.log(action.clone());
@@ -184,22 +184,22 @@ mod tests {
 
         log.log(GameAction::ModifyLife {
             player_id: PlayerId::new(1),
-            amount: -1,
+            delta: -1,
         });
         log.log(GameAction::ModifyLife {
             player_id: PlayerId::new(1),
-            amount: -1,
+            delta: -1,
         });
 
         log.mark_choice_point();
 
         log.log(GameAction::ModifyLife {
             player_id: PlayerId::new(1),
-            amount: -1,
+            delta: -1,
         });
         log.log(GameAction::ModifyLife {
             player_id: PlayerId::new(1),
-            amount: -1,
+            delta: -1,
         });
 
         assert_eq!(log.len(), 4);
@@ -214,7 +214,7 @@ mod tests {
 
         log.log(GameAction::ModifyLife {
             player_id: PlayerId::new(1),
-            amount: -1,
+            delta: -1,
         });
 
         assert_eq!(log.len(), 0); // Nothing logged when disabled

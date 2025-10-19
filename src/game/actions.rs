@@ -168,6 +168,12 @@ impl GameState {
             Effect::GainLife { player, amount } => {
                 let p = self.players.get_mut(*player)?;
                 p.gain_life(*amount);
+
+                // Log the life gain
+                self.undo_log.log(crate::undo::GameAction::ModifyLife {
+                    player_id: *player,
+                    delta: *amount,
+                });
             }
             Effect::DestroyPermanent { target } => {
                 let owner = self.cards.get(*target)?.owner;
@@ -176,10 +182,22 @@ impl GameState {
             Effect::TapPermanent { target } => {
                 let card = self.cards.get_mut(*target)?;
                 card.tap();
+
+                // Log the tap
+                self.undo_log.log(crate::undo::GameAction::TapCard {
+                    card_id: *target,
+                    tapped: true,
+                });
             }
             Effect::UntapPermanent { target } => {
                 let card = self.cards.get_mut(*target)?;
                 card.untap();
+
+                // Log the untap
+                self.undo_log.log(crate::undo::GameAction::TapCard {
+                    card_id: *target,
+                    tapped: false,
+                });
             }
         }
         Ok(())
@@ -191,6 +209,13 @@ impl GameState {
         if self.players.contains(target_id) {
             let player = self.players.get_mut(target_id)?;
             player.lose_life(amount);
+
+            // Log the life change
+            self.undo_log.log(crate::undo::GameAction::ModifyLife {
+                player_id: target_id,
+                delta: -amount,
+            });
+
             return Ok(());
         }
 
@@ -236,21 +261,39 @@ impl GameState {
         // Tap the land
         card.tap();
 
+        // Log the tap
+        self.undo_log.log(crate::undo::GameAction::TapCard {
+            card_id,
+            tapped: true,
+        });
+
         // Add mana to player's pool based on land type
         // For now, simplified - just check land name
         let player = self.players.get_mut(player_id)?;
 
         let land_name = card.name.to_lowercase();
-        if land_name.contains("mountain") {
-            player.mana_pool.add_color(crate::core::Color::Red);
+        let color = if land_name.contains("mountain") {
+            Some(crate::core::Color::Red)
         } else if land_name.contains("island") {
-            player.mana_pool.add_color(crate::core::Color::Blue);
+            Some(crate::core::Color::Blue)
         } else if land_name.contains("swamp") {
-            player.mana_pool.add_color(crate::core::Color::Black);
+            Some(crate::core::Color::Black)
         } else if land_name.contains("forest") {
-            player.mana_pool.add_color(crate::core::Color::Green);
+            Some(crate::core::Color::Green)
         } else if land_name.contains("plains") {
-            player.mana_pool.add_color(crate::core::Color::White);
+            Some(crate::core::Color::White)
+        } else {
+            None
+        };
+
+        if let Some(color) = color {
+            player.mana_pool.add_color(color);
+
+            // Log the mana addition
+            self.undo_log.log(crate::undo::GameAction::AddMana {
+                player_id,
+                color,
+            });
         }
 
         Ok(())
