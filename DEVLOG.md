@@ -47,6 +47,17 @@ First, a minor refactor. In ModifyLife let's rename `amount` `delta` instead so 
 Next, let's finish and test this undo log. It looks like the types are there, but that it is not actually USED by the game logic. Let's start to remedy that. We need to insure that EVERY mutable method on `GameState` (i.e. which takes a `&mut self`) also adds to an UndoLog stored in the `GameState`. Ensure this is the case. Then, as a first test, at the end of the lightning bolt example, report the length of the undo log and print the list of actions stored in it.
 
 
+----------------------------------------
+
+When printing EntityIDs, let's print them more concisely. Right now, we have a very ugly printout of the _phantom field in the Action history:
+
+```
+Action history:
+  1: MoveCard { card_id: EntityId { id: 3, _phantom: PhantomData<mtg_forge_rs::core::card::Card> }, from_zone: Hand, to_zone: Battlefield, owner: EntityId { id: 0, _phantom: PhantomData<mtg_forge_rs::core::player::Player> } }
+```
+
+Let's simply print IDs as "3" "0" etc.
+
 TODO: Add all the counter types
 ----------------------------------------
 

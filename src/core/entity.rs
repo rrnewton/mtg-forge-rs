@@ -15,7 +15,6 @@ use std::marker::PhantomData;
 ///
 /// Keeps IDs simple and contiguous for human readability and dense storage.
 /// These IDs are stable throughout a game - entities don't get deallocated.
-#[derive(Debug)]
 pub struct EntityId<T> {
     id: u32,
     _phantom: PhantomData<T>,
@@ -54,6 +53,13 @@ impl<T> EntityId<T> {
 
     pub fn as_u32(&self) -> u32 {
         self.id
+    }
+}
+
+// Custom Debug implementation to print just the ID number
+impl<T> fmt::Debug for EntityId<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.id)
     }
 }
 
