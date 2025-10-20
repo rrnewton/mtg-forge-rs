@@ -49,8 +49,10 @@ Every time we do a git commit, update TODO.md to reflect:
 - Any new issues discovered
 
 The TODO.md serves as our primary tracking document, so if we lose conversation history we can start again from there.
-
 You should periodically do documentation work, usually before committing, to make sure TODO.md is up-to-date.
+
+Other pre-commit checks
+----------------------------------------
 
 Make sure you ACTUALLY run `cargo test` before any commit. Include a Test Results Summary section in every commit message like this:
 
@@ -66,6 +68,14 @@ Make sure you ACTUALLY run `cargo test` before any commit. Include a Test Result
     test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
+Also run a full `make validate` and ensure that everything passees. Check that `make examples` is up-to-date, i.e. is actually running all examples. You can check the list of available examples with the following command.  The `make examples` target (called by `make validate`) should explicitly call `cargo run --example` for EACH of the listed examples.
+
+```
+$ cargo run --example
+error: "--example" takes one argument.
+Available examples:
+    ...
+```
 
 Finally, also before committing reanalyze the relationship between (1) what you built and (2) the existing Java implementation, and summarize it. It's ok for the Rust and Java versions to deviate, but there should be a reason for it and we should document it in these commit messages.
 

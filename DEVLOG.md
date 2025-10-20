@@ -112,6 +112,35 @@ Create a third variant of the lightning bolt test -- in this case use the new de
 Build a main binary entrypoint (the default target of `cargo run`) which implements what will become our main CLI command. For now, it will just have one subcommand `mtg tui <deck1> <deck2>`.  We won't implement the full interactive TUI yet, but for now set both players to the random AI player and execute the game till completion. Give both players the basic lightning bolt deck for an initial test.
 
 
+Minor vcs history surgery
+----------------------------------------
+
+AI Accidentally committed extra stuff, so had to split resulting in this:
+
+    commit 179b2e88d1ff7d8d2597505ce46b5028ec13c5ea (HEAD, main)
+    Author: Claude Code <claude@anthropic.com>
+    Date:   Mon Oct 20 08:27:06 2025 -0400
+
+        Update beads and add Cargo.lock
+
+
+SWITCH off of beads to a single TODO.md file
+----------------------------------------
+
+It's having an install problem in a container and it isn't worth
+messing with because right now the agent is just using a SINGLE issue
+as a tracking list. That is no better than a single TODO.md. Maybe
+when things get more complicated we could explode the task graph into
+lots of small beads issues.
+
+Actually, will just ask the agent to do this for now:
+
+Let's migrate off of beads (`bd`) for now. Move the single tracking
+issue to a top-level TODO.md file instead. Remove beads from version
+control and update Claude.md appropriately to explain the new issue
+tracking.
+
+
 TODO: Fix github CI
 ----------------------------------------
 
@@ -123,6 +152,62 @@ The CI is failing on clippy and formatting. Make sure `make validate` runs these
 --------------------
 
 After the message `Loaded 31438 cards`, print the amount of time it took in milliseconds.
+
+
+Fix the infinite loop in AI-vs-AiI example
+----------------------------------------
+This seems to be an infinite loop. Running the ai_vs_ai_game example does not terminate for me and just prints this message again and again. Please analyze the code for its looping behavior and fix the bug.
+
+```
+$ cargo run --example ai_vs_ai_game
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running `/home/newton/work/mtg-forge-rs/target/debug/examples/ai_vs_ai_game`
+=== MTG Forge - AI vs AI Game ===
+
+Demonstrating:
+  - Complete game loop with turn phases
+  - Priority system
+  - Random AI controllers
+  - Win condition checking
+
+Warning: cardsfolder not found, using simplified manual cards
+Running simplified game with manual card creation...
+
+Created simplified decks:
+  - 20 Mountains per player
+  - 20 Lightning Bolts per player
+
+Starting hands drawn:
+  - Alice: 7 cards
+  - Bob: 7 cards
+
+=== Starting Game Loop ===
+
+Warning: Priority round exceeded max actions, forcing exit
+Warning: Priority round exceeded max actions, forcing exit
+Warning: Priority round exceeded max actions, forcing exit
+Warning: Priority round exceeded max actions, forcing exit
+Warning: Priority round exceeded max actions, forcing exit
+Warning: Priority round exceeded max actions, forcing exit
+```
+
+
+Use the Java TUI 
+----------------------------------------
+
+The Java TUI is incomplete, but the underlying engine is much more
+complete than what we've implemented in Rust so far.
+
+```
+[node@e9df094c0507 /workspace/forge-java]  $ decks=`pwd`/forge-headless/test_decks/
+
+# Run the TUI but always choose the first option for P1:
+yes 0 | ./headless.sh sim -d $decks/monored.dck $decks/monored.dck
+
+# Run an AI-vs-AI simulation that prints more minimal log output.
+./headless.sh sim -d $decks/monored.dck $decks/monored.dck
+```
+
 
 
 TODO: async card loading
@@ -137,3 +222,5 @@ Comparison to transcript of Java forge-headless games
 ```
 sudo dnf install 
 ```
+
+

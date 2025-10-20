@@ -1,12 +1,20 @@
-FROM node:20
+# FROM node:25
+FROM ubuntu:25.10
 
 ARG TZ
 ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
 
+# Installs a TON of stufF:
+RUN apt-get update && apt-get install -y npm
+
+# Stolen from the nodejs/docker/node Dockerfile:
+# RUN groupadd --gid 1000 node \
+#   && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
+
 # Install basic development tools and iptables/ipset
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get install -y --no-install-recommends \
   less \
   git \
   procps \
@@ -28,11 +36,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
   # && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# ENV MYUSER=node
+ENV MYUSER=ubuntu
+
 # Ensure default node user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && \
-  chown -R node:node /usr/local/share
+  chown -R $MYUSER:$MYUSER /usr/local/share
 
-ARG USERNAME=node
+ARG USERNAME=$MYUSER
 
 # Persist bash history.
 RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
@@ -44,11 +55,12 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/node/.claude && \
-  chown -R node:node /workspace /home/node/.claude
+RUN mkdir -p /workspace /home/$MYUSER/.claude && \
+  chown -R $MYUSER:$MYUSER /workspace /home/$MYUSER/.claude
 
 WORKDIR /workspace
 
+RUN apt-get install -y wget curl
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
   wget "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
@@ -56,7 +68,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
 # Set up non-root user
-USER node
+USER $MYUSER
 
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
@@ -89,17 +101,22 @@ USER root
 RUN chmod +x /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall
-USER node
-
+USER $MYUSER
 
 # Install Dependencies
 USER root
 # RUN apt-get update
 RUN apt-get install -y maven time
-RUN apt-get install -y cargo
+
+# RUN apt-get install -y cargo
+# RUN cargo install rustfmt-nightly
+
+RUN apt-get install rustup
+RUN rustup toolchain install stable
+
 # RUN apt-get install -y golang
 # RUN go install github.com/steveyegge/beads/cmd/bd@latest
-ENV PATH="$PATH:$HOME/go/bin"
+ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
 
 # ADD --chown=node:node dot-claude-init /home/node/.claude/
 # Share the config directory from the host:
@@ -109,4 +126,4 @@ ENV PATH="$PATH:$HOME/go/bin"
 # Hobble what Claude can install:
 # RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-USER node
+USER $MYUSER
