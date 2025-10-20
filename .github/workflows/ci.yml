@@ -43,7 +43,7 @@ jobs:
         run: cargo test --verbose
 
       - name: Run examples
-        run: cargo run --example lightning_bolt_game
+        run: ./run_examples.sh
 
   fmt:
     name: Format
