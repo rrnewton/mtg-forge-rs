@@ -3,7 +3,6 @@
 //! Demonstrates game initialization from decks and mid-game scenarios.
 //! Uses the CardDatabase and GameInitializer to set up a game state.
 
-use mtg_forge_rs::core::{Effect, TargetRef};
 use mtg_forge_rs::loader::{CardDatabase, DeckLoader, GameInitializer};
 use std::path::PathBuf;
 
@@ -142,13 +141,8 @@ fn main() {
         }
         println!("  Alice has Lightning Bolt in hand");
 
-        // Add the damage effect targeting Bob
-        if let Ok(card) = game.cards.get_mut(bolt_id) {
-            card.effects.push(Effect::DealDamage {
-                target: TargetRef::Player(bob),
-                amount: 3,
-            });
-        }
+        // Note: Lightning Bolt now has its DealDamage effect automatically parsed
+        // from the card definition, so we don't need to manually add it
     }
 
     println!("\n=== Alice's Turn - Casting Lightning Bolt ===\n");

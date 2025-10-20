@@ -115,11 +115,34 @@ impl GameState {
 
     /// Resolve a spell from the stack
     pub fn resolve_spell(&mut self, card_id: CardId) -> Result<()> {
-        // Execute the card's effects before moving it
-        let effects = {
+        // Get card owner and effects
+        let (card_owner, mut effects) = {
             let card = self.cards.get(card_id)?;
-            card.effects.clone()
+            (card.owner, card.effects.clone())
         };
+
+        // Fill in missing targets for effects
+        // For now, target an opponent for DealDamage effects with no target
+        for effect in &mut effects {
+            if let Effect::DealDamage {
+                target: TargetRef::None,
+                amount,
+            } = effect
+            {
+                // Find an opponent
+                if let Some(opponent_id) = self
+                    .players
+                    .iter()
+                    .map(|(id, _)| *id)
+                    .find(|id| *id != card_owner)
+                {
+                    *effect = Effect::DealDamage {
+                        target: TargetRef::Player(opponent_id),
+                        amount: *amount,
+                    };
+                }
+            }
+        }
 
         for effect in effects {
             self.execute_effect(&effect)?;

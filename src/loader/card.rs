@@ -136,7 +136,40 @@ impl CardDefinition {
         card.power = self.power;
         card.toughness = self.toughness;
         card.text = self.oracle.clone();
+
+        // Parse abilities into effects (simplified parser for common cases)
+        card.effects = self.parse_effects();
+
         card
+    }
+
+    /// Parse raw abilities into Effect objects (simplified)
+    /// This is a temporary solution until we have a full ability parser
+    fn parse_effects(&self) -> Vec<crate::core::Effect> {
+        use crate::core::{Effect, TargetRef};
+
+        let mut effects = Vec::new();
+
+        for ability in &self.raw_abilities {
+            // Parse DealDamage abilities
+            // Format: "A:SP$ DealDamage | ValidTgts$ Any | NumDmg$ 3 | ..."
+            if ability.contains("DealDamage") {
+                // Extract damage amount
+                if let Some(dmg_str) = ability.split("NumDmg$").nth(1) {
+                    if let Some(dmg_part) = dmg_str.trim().split(['|', ' ']).next() {
+                        if let Ok(amount) = dmg_part.trim().parse::<i32>() {
+                            // For now, use TargetRef::None - targeting will be filled in at cast time
+                            effects.push(Effect::DealDamage {
+                                target: TargetRef::None,
+                                amount,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        effects
     }
 }
 

@@ -4,7 +4,7 @@
 
 **Latest Commit:** 375df56 - Add end-to-end test infrastructure for TUI
 
-**Tests:** 80 passing ✅ (77 unit + 3 e2e)
+**Tests:** 81 passing ✅ (77 unit + 4 e2e)
 
 ---
 
@@ -15,13 +15,18 @@
   * Main binary `mtg` with `tui` subcommand
   * CLI arguments: deck paths, --p1/--p2 agent types, --seed
   * ZeroController: always chooses first meaningful action (filters out mana tap)
-  * Successfully runs games to completion with zero controllers
+  * Successfully runs games to completion with zero and random controllers
   * Loads decks and card database from cardsfolder
   * Displays game results (winner, turns, life totals)
-  * End-to-end test suite (3 tests) verifying:
+  * **Basic ability parser for DealDamage effects**
+    - Parses "NumDmg$" from card ability scripts
+    - Auto-targets opponents for effects with no target
+    - RandomController successfully casts Lightning Bolts and deals damage!
+  * End-to-end test suite (4 tests) verifying:
     - Game completion with deterministic seeds
     - Reproducible results with same seed
     - Game state validation
+    - Random vs Random successfully deals damage and wins by player death
 
 - ✅ **Creature combat system (COMPLETE!)**
   * Combat state tracking (attackers, blockers, damage assignment)
@@ -176,5 +181,5 @@ None currently - all tests passing!
 **Performance/Search:** 📋 Planned
 **Advanced Features:** 📝 Future
 
-**Total Tests:** 80 passing (77 unit + 3 e2e)
+**Total Tests:** 81 passing (77 unit + 4 e2e)
 **Test Coverage:** Good (core functionality)

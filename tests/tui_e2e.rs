@@ -187,3 +187,80 @@ fn test_tui_runs_to_completion() -> Result<()> {
 
     Ok(())
 }
+
+/// Test that random controllers successfully play lands and cast spells
+#[test]
+fn test_tui_random_vs_random_deals_damage() -> Result<()> {
+    // Load card database
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+
+    // Load test deck with Mountains and Lightning Bolts
+    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck = DeckLoader::load_from_file(&deck_path)?;
+
+    // Run a game with random controllers
+    let game_init = GameInitializer::new(&card_db);
+    let mut game = game_init.init_game(
+        "Player 1".to_string(),
+        &deck,
+        "Player 2".to_string(),
+        &deck,
+        20,
+    )?;
+    game.rng_seed = 42;
+
+    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let p1_id = players[0];
+    let p2_id = players[1];
+
+    let mut controller1 = mtg_forge_rs::game::RandomController::new(p1_id);
+    let mut controller2 = mtg_forge_rs::game::RandomController::new(p2_id);
+
+    let mut game_loop = GameLoop::new(&mut game);
+    let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+    // Verify game completed
+    assert!(result.winner.is_some(), "Game should have a winner");
+
+    // Verify that damage was dealt (at least one player should have life != 20)
+    let p1_life = game.players.get(p1_id)?.life;
+    let p2_life = game.players.get(p2_id)?.life;
+
+    assert!(
+        p1_life != 20 || p2_life != 20,
+        "At least one player should have taken damage. P1: {}, P2: {}",
+        p1_life,
+        p2_life
+    );
+
+    // With the simple bolt deck and random controllers, someone should die
+    // (not just deck out)
+    assert!(
+        matches!(
+            result.end_reason,
+            mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
+        ),
+        "Game should end by player death with random controllers casting bolts: {:?}",
+        result.end_reason
+    );
+
+    // Verify at least one player has <= 0 life
+    let winner = result.winner.unwrap();
+    let loser = if winner == p1_id { p2_id } else { p1_id };
+    let loser_life = game.players.get(loser)?.life;
+    assert!(
+        loser_life <= 0,
+        "Loser should have <= 0 life, got {}",
+        loser_life
+    );
+
+    // Note: Winner may also have negative life if both players dealt lethal
+    // damage in the same priority round. The game picks the first dead player
+    // as the loser.
+
+    Ok(())
+}
