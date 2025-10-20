@@ -59,8 +59,7 @@ clippy:
 examples:
 	@echo "=== Running examples ==="
 	@echo ""
-	@echo "--- Lightning Bolt Game Example ---"
-	cargo run --example lightning_bolt_game
+	@./run_examples.sh
 
 # Comprehensive pre-commit validation
 # Runs all tests, examples, and checks

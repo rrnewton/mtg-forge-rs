@@ -194,7 +194,39 @@ Warning: Priority round exceeded max actions, forcing exit
 ```
 
 
-Use the Java TUI 
+Run ALL examples and add one for combat
+----------------------------------------
+
+Both `make examples` and the Github CI script are running ONLY one
+lightning bolt example. As mentioned in Claude.md, we need to keep
+our examples all running as part of testing. 
+
+To this end, rather than try to keep our Makefile and our github CI
+always up-to-date let's dynamically run ALL examples. It's possible to
+list which are available by running with no argument:
+
+```
+$ cargo run --example
+error: "--example" takes one argument.
+Available examples:
+    ai_vs_ai_game
+    lightning_bolt_game
+    lightning_bolt_game_v2
+    lightning_bolt_game_v3
+```
+
+So let's have a little shell script, `run_examples.sh`, which
+dynamically discovers the examples and runs them all, only exiting
+with a success code if all examples do.
+
+After you've got this working, commit it, and then write one more
+example with a controlled starting point which demonstrates an attack,
+blocking, and combat damage. You may select the cards in the starting
+state to use, but for all examples use basic older cards from limited
+to fourth edition (set "4ED").
+
+
+TODO: Use the Java TUI 
 ----------------------------------------
 
 The Java TUI is incomplete, but the underlying engine is much more
@@ -216,6 +248,8 @@ And we can optionally use the `headless.sh` script to invoke the TUI.
 root@c8d7e426b2af:/workspace/forge-java# 
 ./headless.sh tui `pwd`/forge-headless/test_decks/monored.dck `pwd`/forge-headless/test_decks/monored.dck
 ```
+
+
 
 
 
