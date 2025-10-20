@@ -108,8 +108,7 @@ impl Card {
         self.tapped = false;
     }
 
-    pub fn add_counter(&mut self, counter_type: impl Into<CounterType>, amount: u8) {
-        let counter_type = counter_type.into();
+    pub fn add_counter(&mut self, counter_type: CounterType, amount: u8) {
         if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &counter_type) {
             *count += amount;
         } else {
@@ -117,8 +116,7 @@ impl Card {
         }
     }
 
-    pub fn get_counter(&self, counter_type: impl Into<CounterType>) -> u8 {
-        let counter_type = counter_type.into();
+    pub fn get_counter(&self, counter_type: CounterType) -> u8 {
         self.counters
             .iter()
             .find(|(t, _)| t == &counter_type)
@@ -129,16 +127,16 @@ impl Card {
     /// Get current power (including counters)
     pub fn current_power(&self) -> i8 {
         let base = self.power.unwrap_or(0);
-        let plus_counters = self.get_counter("+1/+1") as i8;
-        let minus_counters = self.get_counter("-1/-1") as i8;
+        let plus_counters = self.get_counter(CounterType::P1P1) as i8;
+        let minus_counters = self.get_counter(CounterType::M1M1) as i8;
         base + plus_counters - minus_counters
     }
 
     /// Get current toughness (including counters)
     pub fn current_toughness(&self) -> i8 {
         let base = self.toughness.unwrap_or(0);
-        let plus_counters = self.get_counter("+1/+1") as i8;
-        let minus_counters = self.get_counter("-1/-1") as i8;
+        let plus_counters = self.get_counter(CounterType::P1P1) as i8;
+        let minus_counters = self.get_counter(CounterType::M1M1) as i8;
         base + plus_counters - minus_counters
     }
 }
@@ -182,11 +180,11 @@ mod tests {
         assert_eq!(card.current_power(), 2);
         assert_eq!(card.current_toughness(), 2);
 
-        card.add_counter("+1/+1", 2);
+        card.add_counter(CounterType::P1P1, 2);
         assert_eq!(card.current_power(), 4);
         assert_eq!(card.current_toughness(), 4);
 
-        card.add_counter("-1/-1", 1);
+        card.add_counter(CounterType::M1M1, 1);
         assert_eq!(card.current_power(), 3);
         assert_eq!(card.current_toughness(), 3);
     }
