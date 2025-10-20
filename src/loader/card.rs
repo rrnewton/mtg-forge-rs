@@ -28,6 +28,7 @@ impl CardLoader {
         let mut power = None;
         let mut toughness = None;
         let mut oracle = String::new();
+        let mut raw_abilities = Vec::new();
 
         for line in content.lines() {
             let line = line.trim();
@@ -63,6 +64,10 @@ impl CardLoader {
                         }
                     }
                     "Oracle" => oracle = value.to_string(),
+                    // Ability lines (A:, S:, T:, etc.)
+                    "A" | "S" | "T" => {
+                        raw_abilities.push(format!("{}:{}", key, value));
+                    }
                     _ => {} // Ignore other fields for now
                 }
             }
@@ -99,6 +104,7 @@ impl CardLoader {
             power,
             toughness,
             oracle,
+            raw_abilities,
         })
     }
 }
@@ -114,6 +120,9 @@ pub struct CardDefinition {
     pub power: Option<i8>,
     pub toughness: Option<i8>,
     pub oracle: String,
+    /// Raw ability scripts from the card file (A:, S:, T: lines)
+    /// We'll parse these into actual effects later
+    pub raw_abilities: Vec<String>,
 }
 
 impl CardDefinition {
@@ -170,5 +179,43 @@ Oracle:
         assert!(def.subtypes.contains(&Subtype::new("Bear")));
         assert_eq!(def.power, Some(2));
         assert_eq!(def.toughness, Some(2));
+    }
+
+    #[test]
+    fn test_load_from_cardsfolder() {
+        use std::path::PathBuf;
+
+        // Try to load Lightning Bolt from the cardsfolder
+        let path = PathBuf::from("cardsfolder/l/lightning_bolt.txt");
+
+        // Only run this test if the cardsfolder exists
+        if !path.exists() {
+            return;
+        }
+
+        let def = CardLoader::load_from_file(&path).unwrap();
+        assert_eq!(def.name.as_str(), "Lightning Bolt");
+        assert_eq!(def.mana_cost.red, 1);
+        assert!(def.types.contains(&CardType::Instant));
+        assert!(def.colors.contains(&Color::Red));
+        assert_eq!(def.raw_abilities.len(), 1);
+        assert!(def.raw_abilities[0].contains("DealDamage"));
+    }
+
+    #[test]
+    fn test_parse_with_abilities() {
+        let content = r#"
+Name:Lightning Bolt
+ManaCost:R
+Types:Instant
+A:SP$ DealDamage | ValidTgts$ Any | NumDmg$ 3 | SpellDescription$ CARDNAME deals 3 damage to any target.
+Oracle:Lightning Bolt deals 3 damage to any target.
+"#;
+
+        let def = CardLoader::parse(content).unwrap();
+        assert_eq!(def.name.as_str(), "Lightning Bolt");
+        assert_eq!(def.raw_abilities.len(), 1);
+        assert!(def.raw_abilities[0].starts_with("A:"));
+        assert!(def.raw_abilities[0].contains("DealDamage"));
     }
 }

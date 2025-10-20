@@ -50,16 +50,16 @@ impl<'a> GameStateView<'a> {
     }
 
     /// Get cards in this player's hand
-    pub fn hand(&self) -> Vec<CardId> {
+    pub fn hand(&self) -> &[CardId] {
         self.game
             .get_player_zones(self.player_id)
-            .map(|zones| zones.hand.cards.clone())
-            .unwrap_or_default()
+            .map(|zones| zones.hand.cards.as_slice())
+            .unwrap_or(&[])
     }
 
     /// Get cards on the battlefield
-    pub fn battlefield(&self) -> Vec<CardId> {
-        self.game.battlefield.cards.clone()
+    pub fn battlefield(&self) -> &[CardId] {
+        &self.game.battlefield.cards
     }
 
     /// Check if a card is in a specific zone
