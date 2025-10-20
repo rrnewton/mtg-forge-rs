@@ -242,10 +242,6 @@ asked what blockers and it declares two blockers.
 
 
 
-Use real cards and make card loading fully async
-----------------------------------------------
-
-
 Start adding TUI support
 ----------------------------------------
 
@@ -348,13 +344,74 @@ Note that if two random agents play eachother, they should succeed in casting mo
 
 You didn't explain how to run the e2e tests or whether they are consistently run by `make validate` and `github workflows`.  How do you run them?
 
+Let's be more verbose in e2e tests
+--------------
+
+If I run one of your e2e tests I noly see the final outcome of the game:
+
+```
+$ cargo test test_tui_random_vs_random_deals_damage -- --nocapture
+...
+running 1 test
+Random AI loses with -4 life.
+Random AI wins with 2 life!
+test test_tui_random_vs_random_deals_damage ... ok
+```
+
+Above, you successfully ran the Forge Java TUI and saw that it has verbose output for every action taken, every turn (including listing battlefield state), every step within the turn. Let's start adding incrementally to this GameLoop and TUI to more closely match the Java TUI and also see more of what is happening with our agents during the game.
 
 
 Study the ability syntax (DSL) and document it
 ----------------------------------------------
 
-You took many shortcuts and hardcoded certain things above to push the lightning bolt example through. That's fine, but we need to keep track of where we're at relative to the larger goal of parsing ALL cards accurately and playing full games of MTG.
+Above, when it came to parsing the ability syntax in the lightning bolt card, you took many shortcuts and hardcoded certain things above to push the lightning bolt example through. That's fine, but we need to keep track of where we're at relative to the larger goal of parsing ALL cards accurately and playing full games of MTG.
 
+Study the syntax used for cards in a sample of >30,000 cards stored here:
+
+```
+./forge-java/forge-gui/res/cardsfolder/
+```
+
+Also study the ability parser in the Java version. In a design doc somewhere in this repository, write a description of the syntax for the card description language. Or reference such a spec in the Java repository if it exsists.  Then, in the TODO file you can reference this spec and summarize what works and what we have left to implement in our basic initial parser.
+
+---
+
+After we have a clear notion of what remains on card parsing, do the next increment of work by selecting 10 random cards of the 30,000 and pushing through a generalization of the parser until they all parse. This will require separate tests for card loading.  Eventually, we will test the card loading of all the cards stored in that folder.
+
+
+TODO: Implement discard phase
+----------------------------------------
+
+```
+$ cargo test test_tui_random_vs_random_deals_damage -- --nocapture
+  Player 1: 11 life, 39 cards in hand, 19 in library
+```
+
+
+TODO: Bad choice tree - combinatorial explosion of blocker/attackers
+--------------------------------------------
+
+It is silly to enumerate ALL possible (blocker,attackers) mappings. If
+there are 10 attackers and 10 blockers this would quickly grow to many
+possibilities.
+
+First of all, why does `DeclareBlocker` allow multiple attackers? In MTG more than one blocker can block an attacker, but a single blocker cannot block MULTIPLE attackers.  Unless there is some special card with this ability. Is there? If so what is it called.
+
+Look at how the Java TUI structures combat as a tree of choices. For each declared attacker, you can assign 0 blockers or you can add one additional blocker. After you add one, you can assign a second or be done (always option 0) and leave it at a single blocker. Then the process repeats for the second attacker.
+
+
+TODO: Overhaul Controller choice framework and split into two layers
+----------------------------------------
+
+
+
+
+Skip-ahead choice to reduce depth of tree
+----------------------------------------
+
+
+TODO: Use real cards and make card loading fully async
+----------------------------------------------
 
 
 
