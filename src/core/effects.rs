@@ -19,42 +19,27 @@ pub enum TargetRef {
 pub enum Effect {
     /// Deal damage to a target
     /// Example: "Lightning Bolt deals 3 damage to any target"
-    DealDamage {
-        target: TargetRef,
-        amount: i32,
-    },
+    DealDamage { target: TargetRef, amount: i32 },
 
     /// Draw cards
     /// Example: "Draw a card"
-    DrawCards {
-        player: PlayerId,
-        count: u8,
-    },
+    DrawCards { player: PlayerId, count: u8 },
 
     /// Gain life
     /// Example: "You gain 3 life"
-    GainLife {
-        player: PlayerId,
-        amount: i32,
-    },
+    GainLife { player: PlayerId, amount: i32 },
 
     /// Destroy a permanent
     /// Example: "Destroy target creature"
-    DestroyPermanent {
-        target: CardId,
-    },
+    DestroyPermanent { target: CardId },
 
     /// Tap a permanent
     /// Example: "Tap target creature"
-    TapPermanent {
-        target: CardId,
-    },
+    TapPermanent { target: CardId },
 
     /// Untap a permanent
     /// Example: "Untap target land"
-    UntapPermanent {
-        target: CardId,
-    },
+    UntapPermanent { target: CardId },
 }
 
 #[cfg(test)]
@@ -92,9 +77,7 @@ mod tests {
             _ => panic!("Wrong effect type"),
         }
 
-        let destroy_effect = Effect::DestroyPermanent {
-            target: card_id,
-        };
+        let destroy_effect = Effect::DestroyPermanent { target: card_id };
 
         match destroy_effect {
             Effect::DestroyPermanent { target } => {

@@ -105,7 +105,7 @@ impl GameState {
         player
             .mana_pool
             .pay_cost(&mana_cost)
-            .map_err(|e| MtgError::InvalidAction(e))?;
+            .map_err(MtgError::InvalidAction)?;
 
         // Move card to stack
         self.move_card(card_id, Zone::Hand, Zone::Stack, player_id)?;
@@ -145,21 +145,19 @@ impl GameState {
     /// Execute a single effect
     pub fn execute_effect(&mut self, effect: &Effect) -> Result<()> {
         match effect {
-            Effect::DealDamage { target, amount } => {
-                match target {
-                    TargetRef::Player(player_id) => {
-                        self.deal_damage(*player_id, *amount)?;
-                    }
-                    TargetRef::Permanent(card_id) => {
-                        self.deal_damage_to_creature(*card_id, *amount)?;
-                    }
-                    TargetRef::None => {
-                        return Err(MtgError::InvalidAction(
-                            "DealDamage effect requires a target".to_string(),
-                        ));
-                    }
+            Effect::DealDamage { target, amount } => match target {
+                TargetRef::Player(player_id) => {
+                    self.deal_damage(*player_id, *amount)?;
                 }
-            }
+                TargetRef::Permanent(card_id) => {
+                    self.deal_damage_to_creature(*card_id, *amount)?;
+                }
+                TargetRef::None => {
+                    return Err(MtgError::InvalidAction(
+                        "DealDamage effect requires a target".to_string(),
+                    ));
+                }
+            },
             Effect::DrawCards { player, count } => {
                 for _ in 0..*count {
                     self.draw_card(*player)?;
@@ -224,7 +222,6 @@ impl GameState {
 
     /// Deal damage to a creature
     pub fn deal_damage_to_creature(&mut self, target_id: CardId, amount: i32) -> Result<()> {
-
         // Get info about the creature first (without holding the borrow)
         let (is_creature, toughness, owner) = {
             let card = self.cards.get(target_id)?;
@@ -290,10 +287,8 @@ impl GameState {
             player.mana_pool.add_color(color);
 
             // Log the mana addition
-            self.undo_log.log(crate::undo::GameAction::AddMana {
-                player_id,
-                color,
-            });
+            self.undo_log
+                .log(crate::undo::GameAction::AddMana { player_id, color });
         }
 
         Ok(())
@@ -416,7 +411,11 @@ mod tests {
 
         // Deal 2 damage (should kill it)
         let result = game.deal_damage_to_creature(card_id, 2);
-        assert!(result.is_ok(), "deal_damage_to_creature failed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "deal_damage_to_creature failed: {:?}",
+            result
+        );
 
         // Check it's in graveyard
         assert!(

@@ -4,7 +4,9 @@
 //! This shows how the engine drives the game through callbacks to the controller.
 
 use mtg_forge_rs::core::{Card, CardType, Color, Effect, ManaCost, TargetRef};
-use mtg_forge_rs::game::{GameState, GameStateView, PlayerAction, PlayerController, ScriptedController};
+use mtg_forge_rs::game::{
+    GameState, GameStateView, PlayerAction, PlayerController, ScriptedController,
+};
 
 /// Print the current game state in a readable format
 fn print_game_state(game: &GameState, label: &str) {
@@ -22,7 +24,10 @@ fn print_game_state(game: &GameState, label: &str) {
     if battlefield_count == 0 {
         println!("(empty)");
     } else {
-        let cards: Vec<String> = game.battlefield.cards.iter()
+        let cards: Vec<String> = game
+            .battlefield
+            .cards
+            .iter()
             .filter_map(|id| game.cards.get(*id).ok())
             .map(|c| c.name.as_str().to_string())
             .collect();
@@ -35,7 +40,10 @@ fn print_game_state(game: &GameState, label: &str) {
     if stack_count == 0 {
         println!("(empty)");
     } else {
-        let cards: Vec<String> = game.stack.cards.iter()
+        let cards: Vec<String> = game
+            .stack
+            .cards
+            .iter()
             .filter_map(|id| game.cards.get(*id).ok())
             .map(|c| c.name.as_str().to_string())
             .collect();
@@ -52,11 +60,7 @@ fn print_game_state(game: &GameState, label: &str) {
 }
 
 /// Simple game loop that asks the controller for actions
-fn run_game_loop(
-    game: &mut GameState,
-    controller: &mut dyn PlayerController,
-    max_actions: usize,
-) {
+fn run_game_loop(game: &mut GameState, controller: &mut dyn PlayerController, max_actions: usize) {
     let player_id = controller.player_id();
 
     for action_num in 1..=max_actions {
@@ -93,7 +97,10 @@ fn run_game_loop(
                     println!("  Mana pool: {} red", player.mana_pool.red);
                 }
             }
-            Some(PlayerAction::CastSpell { card_id, targets: _ }) => {
+            Some(PlayerAction::CastSpell {
+                card_id,
+                targets: _,
+            }) => {
                 println!("\n--- Action {}: Cast Spell ---", action_num);
                 if let Ok(card) = game.cards.get(card_id) {
                     println!("Alice casts {}", card.name);

@@ -178,7 +178,8 @@ where
                         }
                     }
                 }
-                let entities = entities.ok_or_else(|| serde::de::Error::missing_field("entities"))?;
+                let entities =
+                    entities.ok_or_else(|| serde::de::Error::missing_field("entities"))?;
                 let next_id = next_id.ok_or_else(|| serde::de::Error::missing_field("next_id"))?;
                 Ok(EntityStore { entities, next_id })
             }

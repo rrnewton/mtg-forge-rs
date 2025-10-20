@@ -481,7 +481,10 @@ mod tests {
         // Play the land - should log MoveCard
         game.play_land(p1_id, card_id).unwrap();
         assert_eq!(game.undo_log.len(), 1);
-        matches!(game.undo_log.peek().unwrap(), crate::undo::GameAction::MoveCard { .. });
+        matches!(
+            game.undo_log.peek().unwrap(),
+            crate::undo::GameAction::MoveCard { .. }
+        );
 
         // Tap for mana - should log TapCard and AddMana
         game.tap_for_mana(p1_id, card_id).unwrap();
@@ -493,9 +496,21 @@ mod tests {
 
         // Verify all actions are logged
         let actions = game.undo_log.actions();
-        assert!(matches!(actions[0], crate::undo::GameAction::MoveCard { .. }));
-        assert!(matches!(actions[1], crate::undo::GameAction::TapCard { tapped: true, .. }));
-        assert!(matches!(actions[2], crate::undo::GameAction::AddMana { .. }));
-        assert!(matches!(actions[3], crate::undo::GameAction::TapCard { tapped: false, .. }));
+        assert!(matches!(
+            actions[0],
+            crate::undo::GameAction::MoveCard { .. }
+        ));
+        assert!(matches!(
+            actions[1],
+            crate::undo::GameAction::TapCard { tapped: true, .. }
+        ));
+        assert!(matches!(
+            actions[2],
+            crate::undo::GameAction::AddMana { .. }
+        ));
+        assert!(matches!(
+            actions[3],
+            crate::undo::GameAction::TapCard { tapped: false, .. }
+        ));
     }
 }

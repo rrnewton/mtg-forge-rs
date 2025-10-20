@@ -48,19 +48,19 @@ impl From<&str> for Subtype {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CounterType {
     // Power/Toughness Modifiers
-    M1M1,      // -1/-1
-    P1P1,      // +1/+1
-    M0M1,      // -0/-1
-    M0M2,      // -0/-2
-    M1M0,      // -1/-0
-    M2M1,      // -2/-1
-    M2M2,      // -2/-2
-    P0P1,      // +0/+1
-    P0P2,      // +0/+2
-    P1P0,      // +1/+0
-    P1P2,      // +1/+2
-    P2P0,      // +2/+0
-    P2P2,      // +2/+2
+    M1M1, // -1/-1
+    P1P1, // +1/+1
+    M0M1, // -0/-1
+    M0M2, // -0/-2
+    M1M0, // -1/-0
+    M2M1, // -2/-1
+    M2M2, // -2/-2
+    P0P1, // +0/+1
+    P0P2, // +0/+2
+    P1P0, // +1/+0
+    P1P2, // +1/+2
+    P2P0, // +2/+0
+    P2P2, // +2/+2
 
     // Planeswalker
     Loyalty,
@@ -516,7 +516,10 @@ impl CounterType {
     /// Parse a counter type from a string
     ///
     /// Handles the special cases for power/toughness counters like "+1/+1" -> P1P1
-    pub fn from_str(s: &str) -> Option<Self> {
+    ///
+    /// Note: We use `parse` instead of implementing `FromStr` to return `Option<Self>`
+    /// rather than `Result<Self, Error>`, which is more convenient for our use case.
+    pub fn parse(s: &str) -> Option<Self> {
         // Replace special characters for power/toughness counters
         let normalized = s
             .replace('/', "")
@@ -903,14 +906,14 @@ mod tests {
 
     #[test]
     fn test_counter_type_parsing() {
-        assert_eq!(CounterType::from_str("+1/+1"), Some(CounterType::P1P1));
-        assert_eq!(CounterType::from_str("-1/-1"), Some(CounterType::M1M1));
-        assert_eq!(CounterType::from_str("charge"), Some(CounterType::Charge));
-        assert_eq!(CounterType::from_str("CHARG"), Some(CounterType::Charge));
-        assert_eq!(CounterType::from_str("loyalty"), Some(CounterType::Loyalty));
-        assert_eq!(CounterType::from_str("LOYAL"), Some(CounterType::Loyalty));
-        assert_eq!(CounterType::from_str("poison"), Some(CounterType::Poison));
-        assert_eq!(CounterType::from_str("unknown"), None);
+        assert_eq!(CounterType::parse("+1/+1"), Some(CounterType::P1P1));
+        assert_eq!(CounterType::parse("-1/-1"), Some(CounterType::M1M1));
+        assert_eq!(CounterType::parse("charge"), Some(CounterType::Charge));
+        assert_eq!(CounterType::parse("CHARG"), Some(CounterType::Charge));
+        assert_eq!(CounterType::parse("loyalty"), Some(CounterType::Loyalty));
+        assert_eq!(CounterType::parse("LOYAL"), Some(CounterType::Loyalty));
+        assert_eq!(CounterType::parse("poison"), Some(CounterType::Poison));
+        assert_eq!(CounterType::parse("unknown"), None);
     }
 
     #[test]

@@ -120,6 +120,9 @@ The CI is failing on clippy and formatting. Make sure `make validate` runs these
 - `cargo fmt --all -- --check`
 - `cargo clippy --all-targets --all-features -- -D warnings`
 
+--------------------
+
+After the message `Loaded 31438 cards`, print the amount of time it took in milliseconds.
 
 
 TODO: async card loading

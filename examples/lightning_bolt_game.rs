@@ -22,7 +22,10 @@ fn print_game_state(game: &GameState, label: &str) {
     if battlefield_count == 0 {
         println!("(empty)");
     } else {
-        let cards: Vec<String> = game.battlefield.cards.iter()
+        let cards: Vec<String> = game
+            .battlefield
+            .cards
+            .iter()
             .filter_map(|id| game.cards.get(*id).ok())
             .map(|c| c.name.as_str().to_string())
             .collect();
@@ -35,7 +38,10 @@ fn print_game_state(game: &GameState, label: &str) {
     if stack_count == 0 {
         println!("(empty)");
     } else {
-        let cards: Vec<String> = game.stack.cards.iter()
+        let cards: Vec<String> = game
+            .stack
+            .cards
+            .iter()
             .filter_map(|id| game.cards.get(*id).ok())
             .map(|c| c.name.as_str().to_string())
             .collect();
@@ -187,7 +193,10 @@ fn main() {
         .expect("Failed to cast Lightning Bolt");
 
     let alice_player = game.players.get(alice).unwrap();
-    println!("  Mana paid! Mana pool now: {}", alice_player.mana_pool.total());
+    println!(
+        "  Mana paid! Mana pool now: {}",
+        alice_player.mana_pool.total()
+    );
     println!("  Stack: Lightning Bolt (targeting Bob)");
 
     println!("\nLightning Bolt resolves:");
@@ -243,7 +252,14 @@ fn main() {
     for i in 0..total_actions {
         if let Ok(undone) = game.undo() {
             if undone {
-                print_game_state(&game, &format!("After undo #{} (actions remaining: {})", i + 1, game.undo_log.len()));
+                print_game_state(
+                    &game,
+                    &format!(
+                        "After undo #{} (actions remaining: {})",
+                        i + 1,
+                        game.undo_log.len()
+                    ),
+                );
             } else {
                 break;
             }

@@ -43,17 +43,17 @@ check:
 # Format code
 fmt:
 	@echo "=== Formatting code ==="
-	cargo fmt
+	cargo fmt --all
 
 # Check formatting without modifying files
 fmt-check:
 	@echo "=== Checking code formatting ==="
-	cargo fmt -- --check
+	cargo fmt --all -- --check
 
 # Run clippy linter
 clippy:
 	@echo "=== Running clippy ==="
-	cargo clippy -- -D warnings
+	cargo clippy --all-targets --all-features -- -D warnings
 
 # Run all examples
 examples:

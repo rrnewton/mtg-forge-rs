@@ -123,7 +123,7 @@ mod tests {
         let db = CardDatabase::load_from_cardsfolder(&cardsfolder).unwrap();
 
         // Should have loaded many cards
-        assert!(db.len() > 0);
+        assert!(!db.is_empty());
 
         // Check that Lightning Bolt is in the database
         assert!(db.contains("Lightning Bolt"));

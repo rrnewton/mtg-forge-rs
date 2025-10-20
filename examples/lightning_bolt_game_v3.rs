@@ -24,9 +24,15 @@ fn main() {
     }
 
     println!("Loading card database from cardsfolder...");
-    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)
-        .expect("Failed to load card database");
-    println!("Loaded {} cards\n", card_db.len());
+    let start = std::time::Instant::now();
+    let card_db =
+        CardDatabase::load_from_cardsfolder(&cardsfolder).expect("Failed to load card database");
+    let elapsed = start.elapsed();
+    println!(
+        "Loaded {} cards in {} ms\n",
+        card_db.len(),
+        elapsed.as_millis()
+    );
 
     // Create simple decks (just Mountains and Lightning Bolts)
     let deck_content = r#"
@@ -220,10 +226,7 @@ fn main() {
     println!("  Stack: {} cards", game.stack.cards.len());
 
     if let Some(zones) = game.get_player_zones(alice) {
-        println!(
-            "  Alice's graveyard: {} cards",
-            zones.graveyard.cards.len()
-        );
+        println!("  Alice's graveyard: {} cards", zones.graveyard.cards.len());
     }
 
     println!("\n=== Demo Complete ===");

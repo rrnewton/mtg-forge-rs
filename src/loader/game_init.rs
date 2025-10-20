@@ -52,15 +52,12 @@ impl<'a> GameInitializer<'a> {
     ) -> Result<()> {
         for entry in &deck.main_deck {
             // Look up the card definition
-            let card_def = self
-                .card_db
-                .get_card(&entry.card_name)
-                .ok_or_else(|| {
-                    MtgError::InvalidCardFormat(format!(
-                        "Card not found in database: {}",
-                        entry.card_name
-                    ))
-                })?;
+            let card_def = self.card_db.get_card(&entry.card_name).ok_or_else(|| {
+                MtgError::InvalidCardFormat(format!(
+                    "Card not found in database: {}",
+                    entry.card_name
+                ))
+            })?;
 
             // Create the requested number of copies
             for _ in 0..entry.count {
@@ -110,13 +107,7 @@ mod tests {
         // Initialize game
         let initializer = GameInitializer::new(&db);
         let game = initializer
-            .init_game(
-                "Alice".to_string(),
-                &deck,
-                "Bob".to_string(),
-                &deck,
-                20,
-            )
+            .init_game("Alice".to_string(), &deck, "Bob".to_string(), &deck, 20)
             .unwrap();
 
         // Verify game state
@@ -145,13 +136,8 @@ mod tests {
         };
 
         let initializer = GameInitializer::new(&db);
-        let result = initializer.init_game(
-            "Alice".to_string(),
-            &deck,
-            "Bob".to_string(),
-            &deck,
-            20,
-        );
+        let result =
+            initializer.init_game("Alice".to_string(), &deck, "Bob".to_string(), &deck, 20);
 
         assert!(result.is_err());
     }

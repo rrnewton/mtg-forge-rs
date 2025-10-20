@@ -1,6 +1,8 @@
 //! Card types and definitions
 
-use crate::core::{CardId, CardName, Color, CounterType, Effect, GameEntity, ManaCost, PlayerId, Subtype};
+use crate::core::{
+    CardId, CardName, Color, CounterType, Effect, GameEntity, ManaCost, PlayerId, Subtype,
+};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
