@@ -47,7 +47,16 @@ First, a minor refactor. In ModifyLife let's rename `amount` `delta` instead so 
 Next, let's finish and test this undo log. It looks like the types are there, but that it is not actually USED by the game logic. Let's start to remedy that. We need to insure that EVERY mutable method on `GameState` (i.e. which takes a `&mut self`) also adds to an UndoLog stored in the `GameState`. Ensure this is the case. Then, as a first test, at the end of the lightning bolt example, report the length of the undo log and print the list of actions stored in it.
 
 
+CURRENT INTERNAL TODO
 ----------------------------------------
+
+    ✻ Refactoring ModifyLife… (esc to interrupt · ctrl+t to hide todos)
+      ⎿  ☐ Rename amount to delta in ModifyLife action
+         ☐ Add UndoLog field to GameState
+         ☐ Add undo logging to all mutable GameState methods
+         ☐ Print undo log at end of lightning bolt example
+
+--------------------
 
 When printing EntityIDs, let's print them more concisely. Right now, we have a very ugly printout of the _phantom field in the Action history:
 
@@ -58,32 +67,63 @@ Action history:
 
 Let's simply print IDs as "3" "0" etc.
 
-TODO: Add all the counter types
+--------------------
+
+Now that the UndoLog is integrated, let's actually use it. At the end of the lightning game, unwind the state by applying the UndoLog one action at a time, printing the Game State in the normal human readable format each time.
+
+Add all the counter types
 ----------------------------------------
 
 Our `CounterType` is currently a newtype wrapper around a String. This is not faithful to `CounterEnumType` in the Java implementation. An enum is more efficient than a string, more complete, and more typesafe. Port the entire `CounterEnumType` over to an analogous enum in our Rust codebase.
 
+-----
 
-CURRENT INTERNAL TODO
+You can delete the code having to do with colors and graphical display. There will be no graphical display for this game engine.
+
+
+Create a Makefile
 ----------------------------------------
 
-    ✻ Refactoring ModifyLife… (esc to interrupt · ctrl+t to hide todos)
-      ⎿  ☐ Rename amount to delta in ModifyLife action
-         ☐ Add UndoLog field to GameState
-         ☐ Add undo logging to all mutable GameState methods
-         ☐ Print undo log at end of lightning bolt example
+Create a Makefile just as a simple reminder of the basic actions to take on this repository.
+For example, `make build` can run `cargo build`. And `make test` can run cargo test, but `make validate` should be the more expensive, pre-commit validation and should run both the unit tests and any e2e examples like the lightning_bolt_game.
 
-Implement more of an engine driving the game with callbacks
------------------------------------------------------------
+
+DONE: Implement more of an engine driving the game with callbacks to the player/controller
+------------------------------------------------------------------------------------
 
 Right now our `lightning_bolt_game.rs` example directly mutates the game by calling a series of methods on it (play_land, tap_for_mana, cast_spell, etc).
 
 We need to move toward a state where the engine drives the game and the player (AI or human) drives the CHOICES through either a UI (such as the text UI) or through an API.
 
-Let's start to move towards that. The lightning bolt example should 
+Let's start to move towards that. The lightning bolt example should set up the initial game state, but then it should pass control to the engine. Examine how the Java version does this and make informed choices. There should be some kind of callbacks passed into the engine for as an instance of the controller. In this case, we want to make a simplistic controller that just plays a mountain, taps a mountain, then plays a lighting bolt.
+
+But this means that we already need to begin developing the API for how the gamestate (including battlefield/hand) is presented to the PlayerController, and how that player chooses from available actions. First, explain how we would implement this Lightning Bolt example in the Java APIs, and then come up with a suitable version for our Rust reimplementation.
+
+--------------------
+
+Improvement: I notice in the current GameStateView, there are some clone() calls in `battlefield()` and `hand()`. Let's avoid copying `Vec`s into freshly allocated heap objects where possible. Instead, return an iterator with the same lifetime as the original reference to the GameStateView.
+
+--------------------
+
+Create a third variant of the lightning bolt test -- in this case use the new deck loading capability to read in an intiial state where both players already have a land on the battlefield (and are at life 11 and 12 respectively). It's P1's second turn and they have a Lighting Bolt in their hand, which they then cast. We don't complete the game but we verify that P2's life total dropped to 19.
+
+--------------------
+
+Build a main binary entrypoint (the default target of `cargo run`) which implements what will become our main CLI command. For now, it will just have one subcommand `mtg tui <deck1> <deck2>`.  We won't implement the full interactive TUI yet, but for now set both players to the random AI player and execute the game till completion. Give both players the basic lightning bolt deck for an initial test.
+
+
+TODO: Fix github CI
+----------------------------------------
+
+The CI is failing on clippy and formatting. Make sure `make validate` runs these and that therefore they get allocated before we make any commit.
+
+- `cargo fmt --all -- --check`
+- `cargo clippy --all-targets --all-features -- -D warnings`
 
 
 
+TODO: async card loading
+----------------------------------------
 
 
 

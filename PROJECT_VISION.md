@@ -73,7 +73,7 @@ We will keep on the lookout for sources of dynamic allocation:
  - CardDamageMap, CardZoneTable, GameEntityCounterTable, CardCollection
  - Combat, ManaCostBeingPaid, CostPayment, CostPaymentStack
 
-Some heap allocation is probably unavoidable, but where possible we should unbox objects and use stack-allocation. For instance, a basic advantage of Rust is that a vector of enum values (even including data fields / full tagged unions), remain unboxed, rather than being a vector of pointers to objects like in Java.
+Some heap allocation is probably unavoidable, but where possible we should unbox objects and use stack-allocation. For instance, a basic advantage of Rust is that a vector of enum values (even including data fields / full tagged unions), remain unboxed, rather than being a vector of pointers to objects like in Java. Another example of a performance anti-pattern to avoid is return a freshly allocated `Vec<T>` when it is better to simply retrieve an iterator over the existing memory (whose lifetime matches the original reference containing the collection in question).
 
 ## Incrementally growing the engine and gameplay
 

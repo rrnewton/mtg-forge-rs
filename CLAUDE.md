@@ -29,6 +29,8 @@ Delete trailing spaces. Don't leave empty lines that consist only of whitespace.
 
 Add README.md files for every major subdirectory/subsystem.  For example `src/core`, `src/game`, etc.
 
+Read the PROJECT_VISION description of coding conventions we should follow for high-performance Rust (unboxing, minimizing allocation, etc).
+
 Workflow: Tasks and Commits
 ========================================
 
