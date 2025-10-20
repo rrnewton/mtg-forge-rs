@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** 714eaba - Add TUI support with zero controller
+**Latest Commit:** 375df56 - Add end-to-end test infrastructure for TUI
 
 **Tests:** 80 passing ✅ (77 unit + 3 e2e)
 
