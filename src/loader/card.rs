@@ -66,7 +66,7 @@ impl CardLoader {
                     "Oracle" => oracle = value.to_string(),
                     // Ability lines (A:, S:, T:, etc.)
                     "A" | "S" | "T" => {
-                        raw_abilities.push(format!("{}:{}", key, value));
+                        raw_abilities.push(format!("{key}:{value}"));
                     }
                     _ => {} // Ignore other fields for now
                 }

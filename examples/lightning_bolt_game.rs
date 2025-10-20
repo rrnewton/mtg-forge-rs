@@ -8,7 +8,7 @@ use mtg_forge_rs::game::GameState;
 
 /// Print the current game state in a readable format
 fn print_game_state(game: &GameState, label: &str) {
-    println!("\n{}", label);
+    println!("\n{label}");
 
     // Print player life totals
     for (_id, player) in game.players.iter() {

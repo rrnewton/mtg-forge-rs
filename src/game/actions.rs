@@ -381,7 +381,7 @@ mod tests {
         // Test move_card directly
         let result = game.move_card(card_id, Zone::Battlefield, Zone::Graveyard, p1_id);
         if let Err(e) = &result {
-            panic!("move_card failed: {:?}", e);
+            panic!("move_card failed: {e:?}");
         }
 
         // Check it moved
@@ -411,11 +411,7 @@ mod tests {
 
         // Deal 2 damage (should kill it)
         let result = game.deal_damage_to_creature(card_id, 2);
-        assert!(
-            result.is_ok(),
-            "deal_damage_to_creature failed: {:?}",
-            result
-        );
+        assert!(result.is_ok(), "deal_damage_to_creature failed: {result:?}");
 
         // Check it's in graveyard
         assert!(
@@ -456,7 +452,7 @@ mod tests {
 
         // Now cast should succeed
         let result = game.cast_spell(p1_id, bolt_id, vec![]);
-        assert!(result.is_ok(), "cast_spell failed: {:?}", result);
+        assert!(result.is_ok(), "cast_spell failed: {result:?}");
 
         // Check mana was deducted
         let player = game.players.get(p1_id).unwrap();
@@ -493,7 +489,7 @@ mod tests {
 
         // Cast spell - should use 1R for R, and 2R for generic 2
         let result = game.cast_spell(p1_id, spell_id, vec![]);
-        assert!(result.is_ok(), "cast_spell failed: {:?}", result);
+        assert!(result.is_ok(), "cast_spell failed: {result:?}");
 
         // Check mana was deducted properly (should have 1 blue left)
         let player = game.players.get(p1_id).unwrap();
@@ -534,7 +530,7 @@ mod tests {
         // Add cards to library
         for i in 0..5 {
             let card_id = game.next_card_id();
-            let card = Card::new(card_id, format!("Card {}", i), p1_id);
+            let card = Card::new(card_id, format!("Card {i}"), p1_id);
             game.cards.insert(card_id, card);
             if let Some(zones) = game.get_player_zones_mut(p1_id) {
                 zones.library.add(card_id);

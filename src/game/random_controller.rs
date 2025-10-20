@@ -60,9 +60,9 @@ impl PlayerController for RandomController {
         // Could log game result here for statistics
         let life = view.life();
         if won {
-            println!("Random AI wins with {} life!", life);
+            println!("Random AI wins with {life} life!");
         } else {
-            println!("Random AI loses with {} life.", life);
+            println!("Random AI loses with {life} life.");
         }
     }
 }

@@ -18,7 +18,7 @@ fn main() {
     // Load the card database from cardsfolder
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
-        eprintln!("Error: cardsfolder not found at {:?}", cardsfolder);
+        eprintln!("Error: cardsfolder not found at {cardsfolder:?}");
         eprintln!("This example requires the cardsfolder to be present.");
         return;
     }
@@ -169,10 +169,10 @@ fn main() {
     if let Some(mountain_id) = alice_mountain {
         println!("Alice taps Mountain for mana");
         if let Err(e) = game.tap_for_mana(alice, mountain_id) {
-            println!("  Error: {:?}", e);
+            println!("  Error: {e:?}");
         } else {
             let mana = game.players.get(alice).unwrap().mana_pool.red;
-            println!("  Alice now has {} red mana\n", mana);
+            println!("  Alice now has {mana} red mana\n");
         }
     }
 
@@ -198,7 +198,7 @@ fn main() {
 
         // Cast the spell
         if let Err(e) = game.cast_spell(alice, bolt_id, vec![]) {
-            println!("  Error: {:?}", e);
+            println!("  Error: {e:?}");
         } else {
             println!("  Lightning Bolt is on the stack");
             println!("  Bob: {} life", game.players.get(bob).unwrap().life);
@@ -206,11 +206,11 @@ fn main() {
             // Resolve the spell
             println!("\nLightning Bolt resolves:");
             if let Err(e) = game.resolve_spell(bolt_id) {
-                println!("  Error: {:?}", e);
+                println!("  Error: {e:?}");
             } else {
                 let bob_life = game.players.get(bob).unwrap().life;
                 println!("  Lightning Bolt deals 3 damage to Bob");
-                println!("  Bob: {} life", bob_life);
+                println!("  Bob: {bob_life} life");
 
                 // Verify the expected outcome
                 assert_eq!(bob_life, 9, "Bob should be at 9 life (12 - 3)");

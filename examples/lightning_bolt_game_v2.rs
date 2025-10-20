@@ -10,7 +10,7 @@ use mtg_forge_rs::game::{
 
 /// Print the current game state in a readable format
 fn print_game_state(game: &GameState, label: &str) {
-    println!("\n{}", label);
+    println!("\n{label}");
 
     // Print player life totals
     for (_id, player) in game.players.iter() {
@@ -73,25 +73,25 @@ fn run_game_loop(game: &mut GameState, controller: &mut dyn PlayerController, ma
 
         match action {
             Some(PlayerAction::PlayLand(card_id)) => {
-                println!("\n--- Action {}: Play Land ---", action_num);
+                println!("\n--- Action {action_num}: Play Land ---");
                 if let Ok(card) = game.cards.get(card_id) {
                     println!("Alice plays {}", card.name);
                 }
 
                 if let Err(e) = game.play_land(player_id, card_id) {
-                    println!("  Error: {:?}", e);
+                    println!("  Error: {e:?}");
                 } else {
                     print_game_state(game, "After playing land");
                 }
             }
             Some(PlayerAction::TapForMana(card_id)) => {
-                println!("\n--- Action {}: Tap for Mana ---", action_num);
+                println!("\n--- Action {action_num}: Tap for Mana ---");
                 if let Ok(card) = game.cards.get(card_id) {
                     println!("Alice taps {} for mana", card.name);
                 }
 
                 if let Err(e) = game.tap_for_mana(player_id, card_id) {
-                    println!("  Error: {:?}", e);
+                    println!("  Error: {e:?}");
                 } else {
                     let player = game.players.get(player_id).unwrap();
                     println!("  Mana pool: {} red", player.mana_pool.red);
@@ -101,14 +101,14 @@ fn run_game_loop(game: &mut GameState, controller: &mut dyn PlayerController, ma
                 card_id,
                 targets: _,
             }) => {
-                println!("\n--- Action {}: Cast Spell ---", action_num);
+                println!("\n--- Action {action_num}: Cast Spell ---");
                 if let Ok(card) = game.cards.get(card_id) {
                     println!("Alice casts {}", card.name);
                 }
 
                 // Cast the spell
                 if let Err(e) = game.cast_spell(player_id, card_id, vec![]) {
-                    println!("  Error: {:?}", e);
+                    println!("  Error: {e:?}");
                 } else {
                     println!("  Spell is on the stack");
                     print_game_state(game, "After casting spell");
@@ -116,14 +116,14 @@ fn run_game_loop(game: &mut GameState, controller: &mut dyn PlayerController, ma
                     // Resolve the spell immediately (no priority passes for now)
                     println!("\nSpell resolves:");
                     if let Err(e) = game.resolve_spell(card_id) {
-                        println!("  Error resolving: {:?}", e);
+                        println!("  Error resolving: {e:?}");
                     } else {
                         print_game_state(game, "After spell resolution");
                     }
                 }
             }
             Some(PlayerAction::PassPriority) => {
-                println!("\n--- Action {}: Pass Priority ---", action_num);
+                println!("\n--- Action {action_num}: Pass Priority ---");
                 controller.on_priority_passed(&view);
                 break; // End of this player's actions
             }
@@ -237,8 +237,8 @@ fn main() {
     let bob_life = game.players.get(bob).unwrap().life;
 
     println!("\nFinal life totals:");
-    println!("  Alice: {}", alice_life);
-    println!("  Bob: {}", bob_life);
+    println!("  Alice: {alice_life}");
+    println!("  Bob: {bob_life}");
 
     if game.is_game_over() {
         if let Some(winner_id) = game.get_winner() {

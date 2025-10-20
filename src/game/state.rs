@@ -149,8 +149,7 @@ impl GameState {
 
         if !removed {
             return Err(crate::MtgError::InvalidAction(format!(
-                "Card {} not found in source zone",
-                card_id
+                "Card {card_id} not found in source zone"
             )));
         }
 

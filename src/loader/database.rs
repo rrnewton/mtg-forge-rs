@@ -28,7 +28,7 @@ impl CardDatabase {
         if !cardsfolder_path.exists() {
             return Err(MtgError::IoError(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                format!("Cardsfolder not found: {:?}", cardsfolder_path),
+                format!("Cardsfolder not found: {cardsfolder_path:?}"),
             )));
         }
 
