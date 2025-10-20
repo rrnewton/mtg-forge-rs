@@ -25,6 +25,9 @@ rand = "0.8"
 # Hashing (for fast lookups)
 rustc-hash = "1.1"
 
+# CLI argument parsing
+clap = { version = "4.5", features = ["derive"] }
+
 [dev-dependencies]
 criterion = "0.5"
 

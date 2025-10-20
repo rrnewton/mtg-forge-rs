@@ -2,15 +2,23 @@
 
 ## Current Status
 
-**Latest Commit:** 88d0e95 - Implement complete creature combat system
+**Latest Commit:** [pending] - Add TUI support with zero controller
 
-**Tests:** 75 passing ✅
+**Tests:** 77 passing ✅
 
 ---
 
 ## ✅ Phase 3 Started: Gameplay Expansion
 
 ### Completed Features:
+- ✅ **TUI support - Basic implementation**
+  * Main binary `mtg` with `tui` subcommand
+  * CLI arguments: deck paths, --p1/--p2 agent types, --seed
+  * ZeroController: always chooses first meaningful action (filters out mana tap)
+  * Successfully runs games to completion with zero controllers
+  * Loads decks and card database from cardsfolder
+  * Displays game results (winner, turns, life totals)
+
 - ✅ **Creature combat system (COMPLETE!)**
   * Combat state tracking (attackers, blockers, damage assignment)
   * Declare attackers step with attacker selection
@@ -60,10 +68,22 @@
     - DeckLoader parses .dck deck files
     - GameInitializer creates games from two decks
 15. RandomController AI - baseline AI for testing
+16. ZeroController - always chooses first meaningful action (for testing)
+17. Main binary with TUI subcommand
+    - Command-line interface with clap
+    - Zero and random controller support
+    - Seed-based deterministic games
 
 ---
 
 ### Next Priorities:
+
+- [ ] **Enhanced TUI features**
+  * Add random controller support (--p1=random)
+  * Add interactive TUI controller (--p1=tui) for human play
+  * Display game state during play (life, hand, battlefield)
+  * Show available actions to player
+  * Better formatting and colors in output
 
 - [ ] **Enhanced creature support**
   * Summoning sickness tracking (needs turn-entered-battlefield tracking)
@@ -152,5 +172,5 @@ None currently - all tests passing!
 **Performance/Search:** 📋 Planned
 **Advanced Features:** 📝 Future
 
-**Total Tests:** 67 passing
+**Total Tests:** 77 passing
 **Test Coverage:** Good (core functionality)
