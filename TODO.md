@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** c6028dd - Implement complete game loop with turn phases and priority
+**Latest Commit:** [pending] - Fix infinite loop in AI-vs-AI game example
 
 **Tests:** 67 passing ✅
 
@@ -123,6 +123,9 @@
 ## 🐛 Known Issues
 
 None currently - all tests passing!
+
+**Recently Fixed:**
+- ✅ AI vs AI infinite loop (RandomController kept tapping lands indefinitely)
 
 ---
 

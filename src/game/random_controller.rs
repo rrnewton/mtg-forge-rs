@@ -46,9 +46,45 @@ impl PlayerController for RandomController {
             // No actions available, pass priority
             None
         } else {
-            // Randomly choose from available actions
-            let index = self.rng.gen_range(0..available_actions.len());
-            Some(available_actions[index].clone())
+            // Filter out PassPriority to see what actual actions are available
+            let non_pass_actions: Vec<&PlayerAction> = available_actions
+                .iter()
+                .filter(|a| !matches!(a, PlayerAction::PassPriority))
+                .collect();
+
+            // If only PassPriority is available, pass
+            if non_pass_actions.is_empty() {
+                return None;
+            }
+
+            // Strategy: Prefer meaningful actions over just tapping for mana
+            // If we have spells to cast or lands to play, prioritize those
+            let high_priority_actions: Vec<&PlayerAction> = non_pass_actions
+                .iter()
+                .filter(|a| {
+                    matches!(
+                        a,
+                        PlayerAction::CastSpell { .. } | PlayerAction::PlayLand(_)
+                    )
+                })
+                .copied()
+                .collect();
+
+            // 70% chance to pass if only mana tapping is available
+            // This prevents infinite mana-tapping loops
+            if high_priority_actions.is_empty() && self.rng.gen_bool(0.7) {
+                return None;
+            }
+
+            // Choose from high priority actions if available, otherwise from all actions
+            let action_pool = if !high_priority_actions.is_empty() {
+                high_priority_actions
+            } else {
+                non_pass_actions
+            };
+
+            let index = self.rng.gen_range(0..action_pool.len());
+            Some(action_pool[index].clone())
         }
     }
 
