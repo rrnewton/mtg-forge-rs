@@ -102,7 +102,10 @@ impl PlayerController for BobController {
         view: &GameStateView,
         available_actions: &[PlayerAction],
     ) -> Option<PlayerAction> {
-        println!("  Bob is choosing blocking actions among {} available actions", available_actions.len());
+        println!(
+            "  Bob is choosing blocking actions among {} available actions",
+            available_actions.len()
+        );
         // During declare blockers step, block according to our plan
         if view.current_step() == Step::DeclareBlockers {
             // Find first blocking assignment we can make

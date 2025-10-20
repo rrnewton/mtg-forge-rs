@@ -8,7 +8,7 @@ pub mod player;
 pub mod types;
 
 pub use card::{Card, CardType};
-pub use effects::{Effect, TargetRef};
+pub use effects::{Effect, Keyword, TargetRef};
 pub use entity::{EntityId, EntityStore, GameEntity};
 pub use mana::{Color, ManaCost, ManaPool};
 pub use player::Player;

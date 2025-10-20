@@ -799,7 +799,10 @@ impl<'a> GameLoop<'a> {
                     .iter()
                     .filter_map(|id| self.game.cards.get(*id).ok().map(|c| c.name.as_str()))
                     .collect();
-                format!("blocks with {} (blocking {:?})", blocker_name, attacker_names)
+                format!(
+                    "blocks with {} (blocking {:?})",
+                    blocker_name, attacker_names
+                )
             }
             PlayerAction::FinishDeclareAttackers => "finishes declaring attackers".to_string(),
             PlayerAction::FinishDeclareBlockers => "finishes declaring blockers".to_string(),

@@ -2,7 +2,7 @@
 //!
 //! Loads card definitions from Forge's cardsfolder format
 
-use crate::core::{Card, CardName, CardType, Color, ManaCost, Subtype};
+use crate::core::{Card, CardName, CardType, Color, Keyword, ManaCost, Subtype};
 use crate::{MtgError, Result};
 use smallvec::SmallVec;
 use std::fs;
@@ -29,6 +29,7 @@ impl CardLoader {
         let mut toughness = None;
         let mut oracle = String::new();
         let mut raw_abilities = Vec::new();
+        let mut raw_keywords = Vec::new();
 
         for line in content.lines() {
             let line = line.trim();
@@ -64,6 +65,10 @@ impl CardLoader {
                         }
                     }
                     "Oracle" => oracle = value.to_string(),
+                    // Keyword lines (K:)
+                    "K" => {
+                        raw_keywords.push(value.to_string());
+                    }
                     // Ability lines (A:, S:, T:, etc.)
                     "A" | "S" | "T" => {
                         raw_abilities.push(format!("{key}:{value}"));
@@ -105,6 +110,7 @@ impl CardLoader {
             toughness,
             oracle,
             raw_abilities,
+            raw_keywords,
         })
     }
 }
@@ -123,6 +129,8 @@ pub struct CardDefinition {
     /// Raw ability scripts from the card file (A:, S:, T: lines)
     /// We'll parse these into actual effects later
     pub raw_abilities: Vec<String>,
+    /// Raw keyword scripts from the card file (K: lines)
+    pub raw_keywords: Vec<String>,
 }
 
 impl CardDefinition {
@@ -137,10 +145,65 @@ impl CardDefinition {
         card.toughness = self.toughness;
         card.text = self.oracle.clone();
 
+        // Parse keywords
+        card.keywords = self.parse_keywords();
+
         // Parse abilities into effects (simplified parser for common cases)
         card.effects = self.parse_effects();
 
         card
+    }
+
+    /// Parse raw keywords into Keyword objects
+    fn parse_keywords(&self) -> Vec<Keyword> {
+        let mut keywords = Vec::new();
+
+        for keyword_str in &self.raw_keywords {
+            // Check if keyword has a parameter (colon separated)
+            if let Some((kw, param)) = keyword_str.split_once(':') {
+                let kw = kw.trim();
+                let param = param.trim();
+
+                // Keywords with parameters
+                let keyword = match kw {
+                    "Madness" => Keyword::Madness(param.to_string()),
+                    "Flashback" => Keyword::Flashback(param.to_string()),
+                    "Enchant" => Keyword::Enchant(param.to_string()),
+                    _ => Keyword::Other(keyword_str.clone()),
+                };
+                keywords.push(keyword);
+            } else {
+                // Simple keywords (no parameters)
+                let kw = keyword_str.trim();
+                let keyword = match kw {
+                    "Flying" => Keyword::Flying,
+                    "First Strike" => Keyword::FirstStrike,
+                    "Double Strike" => Keyword::DoubleStrike,
+                    "Deathtouch" => Keyword::Deathtouch,
+                    "Haste" => Keyword::Haste,
+                    "Hexproof" => Keyword::Hexproof,
+                    "Indestructible" => Keyword::Indestructible,
+                    "Lifelink" => Keyword::Lifelink,
+                    "Menace" => Keyword::Menace,
+                    "Reach" => Keyword::Reach,
+                    "Trample" => Keyword::Trample,
+                    "Vigilance" => Keyword::Vigilance,
+                    "Defender" => Keyword::Defender,
+                    "Shroud" => Keyword::Shroud,
+                    "Choose a Background" => Keyword::ChooseABackground,
+                    // Protection variants
+                    "Protection from red" => Keyword::ProtectionFromRed,
+                    "Protection from blue" => Keyword::ProtectionFromBlue,
+                    "Protection from black" => Keyword::ProtectionFromBlack,
+                    "Protection from white" => Keyword::ProtectionFromWhite,
+                    "Protection from green" => Keyword::ProtectionFromGreen,
+                    _ => Keyword::Other(keyword_str.clone()),
+                };
+                keywords.push(keyword);
+            }
+        }
+
+        keywords
     }
 
     /// Parse raw abilities into Effect objects (simplified)

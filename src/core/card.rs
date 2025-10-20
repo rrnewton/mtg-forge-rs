@@ -1,7 +1,7 @@
 //! Card types and definitions
 
 use crate::core::{
-    CardId, CardName, Color, CounterType, Effect, GameEntity, ManaCost, PlayerId, Subtype,
+    CardId, CardName, Color, CounterType, Effect, GameEntity, Keyword, ManaCost, PlayerId, Subtype,
 };
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -64,6 +64,9 @@ pub struct Card {
     /// Common counters: +1/+1, -1/-1, charge, loyalty
     pub counters: SmallVec<[(CounterType, u8); 2]>,
 
+    /// Keyword abilities (Flying, First Strike, etc.)
+    pub keywords: Vec<Keyword>,
+
     /// Effects that execute when this card resolves
     /// For spells: effects execute when spell resolves
     /// For permanents: effects may be triggered or activated abilities
@@ -86,6 +89,7 @@ impl Card {
             controller: owner,
             tapped: false,
             counters: SmallVec::new(),
+            keywords: Vec::new(),
             effects: Vec::new(),
         }
     }
@@ -100,6 +104,14 @@ impl Card {
 
     pub fn is_land(&self) -> bool {
         self.is_type(&CardType::Land)
+    }
+
+    pub fn has_keyword(&self, keyword: &Keyword) -> bool {
+        self.keywords.contains(keyword)
+    }
+
+    pub fn has_flying(&self) -> bool {
+        self.has_keyword(&Keyword::Flying)
     }
 
     pub fn tap(&mut self) {

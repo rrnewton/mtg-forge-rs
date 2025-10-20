@@ -150,6 +150,7 @@ mod tests {
             toughness: None,
             oracle: "Test card".to_string(),
             raw_abilities: vec![],
+            raw_keywords: vec![],
         };
 
         db.add_card(def);

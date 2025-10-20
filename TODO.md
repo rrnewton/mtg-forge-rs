@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Latest Commit:** ecb6257 - Add basic ability parser for DealDamage effects
+**Latest Commit:** [PENDING] - Add keyword parsing support (K: lines)
 
-**Tests:** 81 passing ✅ (77 unit + 4 e2e)
+**Tests:** 91 passing ✅ (77 unit + 10 card loading + 4 e2e)
 
 ---
 
@@ -18,15 +18,25 @@
   * Successfully runs games to completion with zero and random controllers
   * Loads decks and card database from cardsfolder
   * Displays game results (winner, turns, life totals)
-  * **Basic ability parser for DealDamage effects**
-    - Parses "NumDmg$" from card ability scripts
-    - Auto-targets opponents for effects with no target
-    - RandomController successfully casts Lightning Bolts and deals damage!
   * End-to-end test suite (4 tests) verifying:
     - Game completion with deterministic seeds
     - Reproducible results with same seed
     - Game state validation
     - Random vs Random successfully deals damage and wins by player death
+
+- ✅ **Keyword ability support (K: lines)**
+  * Keyword enum with 15+ evergreen keywords (Flying, Vigilance, etc.)
+  * Protection variants (from red, blue, black, white, green)
+  * Keywords with parameters: Madness, Flashback, Enchant
+  * Parser handles both simple and parameterized keywords
+  * Card struct has `keywords` field with helper methods (has_keyword, has_flying)
+  * Comprehensive test suite (10 tests) for keyword loading
+  * Tested on 10 diverse cards from cardsfolder
+
+- ✅ **Basic ability parser for spell effects**
+  * Parses "NumDmg$" from DealDamage abilities (A:SP$ DealDamage)
+  * Auto-targets opponents for effects with no target
+  * RandomController successfully casts Lightning Bolts and deals damage!
 
 - ✅ **Creature combat system (COMPLETE!)**
   * Combat state tracking (attackers, blockers, damage assignment)
@@ -107,11 +117,14 @@
   - [ ] Artifact cards
   - [ ] Planeswalker cards (lower priority)
 
-- [ ] **Ability system**
-  - [ ] Triggered abilities (on cast, on enter, on death, etc.)
-  - [ ] Activated abilities (tap abilities, mana abilities)
-  - [ ] Static abilities (continuous effects)
-  - [ ] Ability parser for card scripts (A:, S:, T: lines)
+- [ ] **Ability system expansion** (see CARD_SCRIPT_SPEC.md for full DSL documentation)
+  - [x] Keywords (K:) - Flying, First Strike, Protection, Madness, Flashback, Enchant, etc.
+  - [x] Basic DealDamage parsing (A:SP$ DealDamage with NumDmg$)
+  - [ ] More spell effects (A:SP$) - Draw, Counter, Destroy, Pump, GainLife
+  - [ ] Activated abilities (A:AB$ with Cost$) - tap abilities, mana abilities
+  - [ ] Triggered abilities (T:) - ETB, phase triggers, combat triggers
+  - [ ] Static abilities (S:) - continuous effects
+  - [ ] SVar resolution (DB$ sub-abilities)
 
 - [ ] **Complex targeting**
   - [ ] Target validation (legal targets)
@@ -176,10 +189,12 @@ None currently - all tests passing!
 **Architecture:** ✅ Complete
 **Core Game Engine:** ✅ Complete
 **Game Loop:** ✅ Complete
-**Combat:** 🚧 Next priority
-**Abilities:** 🚧 Next priority
+**Combat:** ✅ Complete
+**Keywords:** ✅ Complete (K: lines)
+**Spell Effects:** 🚧 In Progress (DealDamage done, more needed)
+**Triggered/Static Abilities:** 📋 Planned (T:, S: lines)
 **Performance/Search:** 📋 Planned
 **Advanced Features:** 📝 Future
 
-**Total Tests:** 81 passing (77 unit + 4 e2e)
-**Test Coverage:** Good (core functionality)
+**Total Tests:** 91 passing (77 unit + 10 card loading + 4 e2e)
+**Test Coverage:** Good (core functionality + keyword parsing)

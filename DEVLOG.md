@@ -404,6 +404,20 @@ TODO: Overhaul Controller choice framework and split into two layers
 ----------------------------------------
 
 
+TODO: use a popular and appropriate parser library
+----------------------------------------
+
+The 
+
+
+TODO: get rid of any silent failure / ignoring in parser
+--------------------------------------------------------
+
+Therefore if it gets ANYTHING it doesn't recognize.
+
+Parallel card loader test.
+
+
 
 
 Skip-ahead choice to reduce depth of tree
@@ -415,9 +429,22 @@ TODO: Use real cards and make card loading fully async
 
 
 
-
-TODO: async card loading
+TODO: fine-grained async card loading
 ----------------------------------------
+
+
+TODO: port heuristic AI from Java
+----------------------------------------
+
+
+
+TODO: agentic LLM for playing the TUI directly
+----------------------------------------
+
+TODO: begin researching OpenSpiel for understanding requirements
+----------------------------------------------------------------
+
+
 
 
 
