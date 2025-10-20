@@ -4,7 +4,7 @@
 
 **Latest Commit:** 714eaba - Add TUI support with zero controller
 
-**Tests:** 77 passing ✅
+**Tests:** 80 passing ✅ (77 unit + 3 e2e)
 
 ---
 
@@ -18,6 +18,10 @@
   * Successfully runs games to completion with zero controllers
   * Loads decks and card database from cardsfolder
   * Displays game results (winner, turns, life totals)
+  * End-to-end test suite (3 tests) verifying:
+    - Game completion with deterministic seeds
+    - Reproducible results with same seed
+    - Game state validation
 
 - ✅ **Creature combat system (COMPLETE!)**
   * Combat state tracking (attackers, blockers, damage assignment)
@@ -172,5 +176,5 @@ None currently - all tests passing!
 **Performance/Search:** 📋 Planned
 **Advanced Features:** 📝 Future
 
-**Total Tests:** 77 passing
+**Total Tests:** 80 passing (77 unit + 3 e2e)
 **Test Coverage:** Good (core functionality)
