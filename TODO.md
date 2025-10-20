@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** [pending] - Implement complete creature combat system
+**Latest Commit:** 88d0e95 - Implement complete creature combat system
 
 **Tests:** 75 passing ✅
 
