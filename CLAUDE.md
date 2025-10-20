@@ -77,6 +77,11 @@ Available examples:
     ...
 ```
 
+The bottom line is TESTING CONSISTENCY. If you validate some changes with a new manual or temporary test, that test should be added to either the unit tests, examples, or e2e tests and it should be called consistently from both `make validate` and Github CI.
+
+Commit message documents relationship to original Java version
+--------------------------------------------------------------
+
 Finally, also before committing reanalyze the relationship between (1) what you built and (2) the existing Java implementation, and summarize it. It's ok for the Rust and Java versions to deviate, but there should be a reason for it and we should document it in these commit messages.
 
 ```

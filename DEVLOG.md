@@ -344,6 +344,18 @@ there by invoking the TUi.
 
 Note that if two random agents play eachother, they should succeed in casting mountains and casting lightning bolts to damage eachother before their respective decks run out. Keep iterating until enough of the Controller choice framework works that this outcome is possible (successfully playing mountains and bolts via deterministic random actions for both agents p0 and p1).
 
+---
+
+You didn't explain how to run the e2e tests or whether they are consistently run by `make validate` and `github workflows`.  How do you run them?
+
+
+
+Study the ability syntax (DSL) and document it
+----------------------------------------------
+
+You took many shortcuts and hardcoded certain things above to push the lightning bolt example through. That's fine, but we need to keep track of where we're at relative to the larger goal of parsing ALL cards accurately and playing full games of MTG.
+
+
 
 
 
