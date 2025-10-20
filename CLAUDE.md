@@ -85,3 +85,5 @@ Finally, also before committing reanalyze the relationship between (1) what you 
 - this Rust reimplementation does X
 - the upstream Java version does Y
 ```
+
+Do NOT bother making an extra commit just to update TODO.md with a commit hash. Don't even bother with having a "Latest Commit" field in TODO.md, because that is clear in the version history.

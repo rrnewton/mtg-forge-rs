@@ -252,14 +252,18 @@ Start adding TUI support
 The main binary entrypoint for this project should be an `mtg` binary
 with an `mtg tui` subcommand.  At minumum the tui CLI takes two deck files.
 
-we will iterate on this TUI implementation until it has feature parity
-with the current Java one, described below.
+We will iterate on this TUI implementation until it has feature parity
+with the current Java one, described below. A first milestone will be
+to be able to execute a game to completion betwoon two decks, while
+always naively making the first choice in every menu (e.g. the `--p1=zero
+--p2=zero` options described below).
 
 ### Use the Java TUI for comparison
 
 The Java TUI is incomplete, but the underlying engine is much more
 complete than what we've implemented in Rust so far. Thus you should
-run the Java TUI and examine its output to understand the gap between what it does and 
+run the Java TUI and examine its output to understand the gap between
+what it does and
 
 ```
 [node@e9df094c0507 /workspace/forge-java]  $ decks=`pwd`/forge-headless/test_decks/
@@ -330,6 +334,15 @@ Interactive commands during gameplay:
   s  - View current stack
 ```
 
+[Continuing]
+----------------------------------------
+
+Above it looks like there was a bit of manual testing (test_deck.dck). But let's actually add that test deck to ./test_decks/ and add an e2e test that replicates the result
+there by invoking the TUi.
+
+--
+
+Note that if two random agents play eachother, they should succeed in casting mountains and casting lightning bolts to damage eachother before their respective decks run out. Keep iterating until enough of the Controller choice framework works that this outcome is possible (successfully playing mountains and bolts via deterministic random actions for both agents p0 and p1).
 
 
 
