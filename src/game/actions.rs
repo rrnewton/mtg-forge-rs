@@ -293,6 +293,177 @@ impl GameState {
 
         Ok(())
     }
+
+    /// Declare a creature as an attacker
+    pub fn declare_attacker(&mut self, player_id: PlayerId, card_id: CardId) -> Result<()> {
+        // Validate creature can attack
+        let card = self.cards.get(card_id)?;
+
+        // Must be a creature
+        if !card.is_creature() {
+            return Err(MtgError::InvalidAction(
+                "Only creatures can attack".to_string(),
+            ));
+        }
+
+        // Must be controlled by the attacking player
+        if card.controller != player_id {
+            return Err(MtgError::InvalidAction(
+                "Can't attack with opponent's creatures".to_string(),
+            ));
+        }
+
+        // Must be on battlefield
+        if !self.battlefield.contains(card_id) {
+            return Err(MtgError::InvalidAction(
+                "Creature must be on battlefield to attack".to_string(),
+            ));
+        }
+
+        // Must not be tapped
+        if card.tapped {
+            return Err(MtgError::InvalidAction(
+                "Creature is tapped and can't attack".to_string(),
+            ));
+        }
+
+        // TODO: Check for summoning sickness (needs turn entered battlefield tracking)
+
+        // Get defending player (for 2-player, it's the other player)
+        let defending_player = self
+            .players
+            .iter()
+            .find(|(id, _)| **id != player_id)
+            .map(|(id, _)| *id)
+            .ok_or_else(|| MtgError::InvalidAction("No opponent found".to_string()))?;
+
+        // Declare attacker in combat state
+        self.combat.declare_attacker(card_id, defending_player);
+
+        // Tap the creature (unless it has vigilance - TODO)
+        let card = self.cards.get_mut(card_id)?;
+        card.tap();
+
+        // Log the action
+        self.undo_log.log(crate::undo::GameAction::TapCard {
+            card_id,
+            tapped: true,
+        });
+
+        Ok(())
+    }
+
+    /// Declare a creature as a blocker
+    pub fn declare_blocker(
+        &mut self,
+        player_id: PlayerId,
+        blocker_id: CardId,
+        attackers: Vec<CardId>,
+    ) -> Result<()> {
+        // Validate blocker can block
+        let blocker = self.cards.get(blocker_id)?;
+
+        // Must be a creature
+        if !blocker.is_creature() {
+            return Err(MtgError::InvalidAction(
+                "Only creatures can block".to_string(),
+            ));
+        }
+
+        // Must be controlled by the defending player
+        if blocker.controller != player_id {
+            return Err(MtgError::InvalidAction(
+                "Can't block with opponent's creatures".to_string(),
+            ));
+        }
+
+        // Must be on battlefield
+        if !self.battlefield.contains(blocker_id) {
+            return Err(MtgError::InvalidAction(
+                "Creature must be on battlefield to block".to_string(),
+            ));
+        }
+
+        // Must not be tapped
+        if blocker.tapped {
+            return Err(MtgError::InvalidAction(
+                "Creature is tapped and can't block".to_string(),
+            ));
+        }
+
+        // Validate all attackers are actually attacking
+        for &attacker in &attackers {
+            if !self.combat.is_attacking(attacker) {
+                return Err(MtgError::InvalidAction(format!(
+                    "Card {:?} is not attacking",
+                    attacker
+                )));
+            }
+        }
+
+        // MTG rule: normally a creature can only block one attacker
+        // (unless it has an ability that allows it to block multiple)
+        if attackers.len() > 1 {
+            // TODO: Check for abilities that allow blocking multiple
+            return Err(MtgError::InvalidAction(
+                "Creature can only block one attacker".to_string(),
+            ));
+        }
+
+        // Declare blocker
+        let mut attackers_vec = smallvec::SmallVec::new();
+        for &attacker in &attackers {
+            attackers_vec.push(attacker);
+        }
+        self.combat.declare_blocker(blocker_id, attackers_vec);
+
+        Ok(())
+    }
+
+    /// Assign and deal combat damage
+    pub fn assign_combat_damage(&mut self) -> Result<()> {
+        // Get all attackers
+        let attackers = self.combat.get_attackers();
+
+        for attacker_id in attackers {
+            let attacker = self.cards.get(attacker_id)?;
+            let power = attacker.current_power();
+
+            if power <= 0 {
+                continue; // 0 or negative power deals no damage
+            }
+
+            // Check if attacker is blocked
+            if self.combat.is_blocked(attacker_id) {
+                // Attacker deals damage to blockers
+                let blockers = self.combat.get_blockers(attacker_id);
+
+                // For now, simplified: distribute damage evenly among blockers
+                // TODO: Allow attacker's controller to order blockers and assign damage
+                let damage_per_blocker = power / blockers.len() as i8;
+
+                for blocker_id in &blockers {
+                    if damage_per_blocker > 0 {
+                        self.deal_damage_to_creature(*blocker_id, damage_per_blocker as i32)?;
+                    }
+
+                    // Blocker deals damage back to attacker
+                    let blocker = self.cards.get(*blocker_id)?;
+                    let blocker_power = blocker.current_power();
+                    if blocker_power > 0 {
+                        self.deal_damage_to_creature(attacker_id, blocker_power as i32)?;
+                    }
+                }
+            } else {
+                // Unblocked attacker deals damage to defending player
+                if let Some(defending_player) = self.combat.get_defending_player(attacker_id) {
+                    self.deal_damage(defending_player, power as i32)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -585,5 +756,157 @@ mod tests {
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert!(zones.graveyard.contains(bolt_id));
         }
+    }
+
+    #[test]
+    fn test_declare_attacker() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let p1_id = players[0];
+
+        // Create a creature
+        let creature_id = game.next_card_id();
+        let mut creature = Card::new(creature_id, "Grizzly Bears".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(2);
+        creature.toughness = Some(2);
+        creature.controller = p1_id;
+        game.cards.insert(creature_id, creature);
+
+        // Put creature on battlefield
+        game.battlefield.add(creature_id);
+
+        // Declare attacker
+        let result = game.declare_attacker(p1_id, creature_id);
+        assert!(result.is_ok(), "Failed to declare attacker: {result:?}");
+
+        // Check creature is attacking
+        assert!(game.combat.is_attacking(creature_id));
+
+        // Check creature is tapped
+        let creature = game.cards.get(creature_id).unwrap();
+        assert!(creature.tapped);
+    }
+
+    #[test]
+    fn test_declare_blocker() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // Create an attacker
+        let attacker_id = game.next_card_id();
+        let mut attacker = Card::new(attacker_id, "Goblin".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(2);
+        attacker.toughness = Some(1);
+        attacker.controller = p1_id;
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // Declare as attacker
+        game.combat.declare_attacker(attacker_id, p2_id);
+
+        // Create a blocker
+        let blocker_id = game.next_card_id();
+        let mut blocker = Card::new(blocker_id, "Wall".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(0);
+        blocker.toughness = Some(3);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare blocker
+        let result = game.declare_blocker(p2_id, blocker_id, vec![attacker_id]);
+        assert!(result.is_ok(), "Failed to declare blocker: {result:?}");
+
+        // Check blocker is blocking
+        assert!(game.combat.is_blocking(blocker_id));
+        assert!(game.combat.is_blocked(attacker_id));
+
+        let blockers = game.combat.get_blockers(attacker_id);
+        assert_eq!(blockers.len(), 1);
+        assert!(blockers.contains(&blocker_id));
+    }
+
+    #[test]
+    fn test_combat_damage_unblocked() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // Create an attacker
+        let attacker_id = game.next_card_id();
+        let mut attacker = Card::new(attacker_id, "Dragon".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(5);
+        attacker.toughness = Some(5);
+        attacker.controller = p1_id;
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // Declare as attacker (unblocked)
+        game.combat.declare_attacker(attacker_id, p2_id);
+
+        // Assign combat damage
+        let result = game.assign_combat_damage();
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Check defending player took damage
+        let p2 = game.players.get(p2_id).unwrap();
+        assert_eq!(p2.life, 15); // 20 - 5 = 15
+    }
+
+    #[test]
+    fn test_combat_damage_blocked() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // Create an attacker (3/3)
+        let attacker_id = game.next_card_id();
+        let mut attacker = Card::new(attacker_id, "Bear".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(3);
+        attacker.toughness = Some(3);
+        attacker.controller = p1_id;
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // Create a blocker (2/2)
+        let blocker_id = game.next_card_id();
+        let mut blocker = Card::new(blocker_id, "Wolf".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare attacker and blocker
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let blocker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, blocker_vec);
+
+        // Assign combat damage
+        let result = game.assign_combat_damage();
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Check defending player took no damage (blocked)
+        let p2 = game.players.get(p2_id).unwrap();
+        assert_eq!(p2.life, 20);
+
+        // Check blocker died (took 3 damage, toughness 2)
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(zones.graveyard.contains(blocker_id));
+        }
+
+        // Check attacker died (took 2 damage, toughness 2... wait, 3-2=1, so it should survive)
+        // Actually the attacker took 2 damage but has toughness 3, so it survives
+        assert!(game.battlefield.contains(attacker_id));
     }
 }

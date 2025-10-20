@@ -1,7 +1,7 @@
 //! Main game state structure
 
 use crate::core::{Card, CardId, EntityId, EntityStore, Player, PlayerId};
-use crate::game::TurnStructure;
+use crate::game::{CombatState, TurnStructure};
 use crate::undo::UndoLog;
 use crate::zones::{CardZone, PlayerZones, Zone};
 use crate::Result;
@@ -30,6 +30,9 @@ pub struct GameState {
 
     /// Turn structure
     pub turn: TurnStructure,
+
+    /// Combat state (active during combat phase)
+    pub combat: CombatState,
 
     /// Random number generator state (for deterministic replay)
     pub rng_seed: u64,
@@ -76,6 +79,7 @@ impl GameState {
             battlefield: CardZone::new(Zone::Battlefield, shared_id),
             stack: CardZone::new(Zone::Stack, shared_id),
             turn: TurnStructure::new(p1_id),
+            combat: CombatState::new(),
             rng_seed: 0,
             next_entity_id: next_id,
             undo_log: UndoLog::new(),

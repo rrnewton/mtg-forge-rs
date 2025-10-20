@@ -2,11 +2,23 @@
 
 ## Current Status
 
-**Latest Commit:** e11c9ac - Fix infinite loop in AI vs AI game example
+**Latest Commit:** [pending] - Implement complete creature combat system
 
-**Tests:** 67 passing ✅
+**Tests:** 75 passing ✅
 
 ---
+
+## ✅ Phase 3 Started: Gameplay Expansion
+
+### Completed Features:
+- ✅ **Creature combat system (COMPLETE!)**
+  * Combat state tracking (attackers, blockers, damage assignment)
+  * Declare attackers step with attacker selection
+  * Declare blockers step with blocker assignment
+  * Combat damage calculation (blocked and unblocked)
+  * Automatic creature death when damage >= toughness
+  * Full integration with game loop
+  * Comprehensive tests (4 new combat tests)
 
 ## ✅ Phase 2 Complete: Game Loop Implementation
 
@@ -17,6 +29,7 @@
   * Win condition checking (life <= 0, empty library)
   * Turn-based state management
   * Safety limits to prevent infinite loops
+  * Fixed RandomController infinite loop bug
 
 - ✅ **AI vs AI example game**
   * Demonstrates complete game from start to finish
@@ -50,14 +63,14 @@
 
 ---
 
-## 🚧 Phase 3: Gameplay Expansion (NEXT)
+### Next Priorities:
 
-### Immediate Priorities:
-- [ ] **Implement creature combat system**
-  - [ ] Declare attackers step
-  - [ ] Declare blockers step
-  - [ ] Combat damage calculation and assignment
-  - [ ] Death state-based actions for creatures
+- [ ] **Enhanced creature support**
+  * Summoning sickness tracking (needs turn-entered-battlefield tracking)
+  * Vigilance keyword (attacking without tapping)
+  * Flying/reach for combat restrictions
+  * Multiple blockers support
+  * Damage assignment order
 
 - [ ] **More card types**
   - [ ] Creature cards (currently partially supported)

@@ -127,6 +127,13 @@ fn run_game_loop(game: &mut GameState, controller: &mut dyn PlayerController, ma
                 controller.on_priority_passed(&view);
                 break; // End of this player's actions
             }
+            Some(PlayerAction::DeclareAttacker(_))
+            | Some(PlayerAction::DeclareBlocker { .. })
+            | Some(PlayerAction::FinishDeclareAttackers)
+            | Some(PlayerAction::FinishDeclareBlockers) => {
+                println!("\n--- Combat action not supported in this demo ---");
+                break;
+            }
             None => {
                 println!("\n--- No more actions from controller ---");
                 break;

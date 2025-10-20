@@ -25,6 +25,21 @@ pub enum PlayerAction {
     /// Activate a mana ability (tap land for mana)
     TapForMana(CardId),
 
+    /// Declare a creature as an attacker
+    DeclareAttacker(CardId),
+
+    /// Declare a creature as a blocker for one or more attackers
+    DeclareBlocker {
+        blocker: CardId,
+        attackers: Vec<CardId>,
+    },
+
+    /// Finish declaring attackers (pass to next step)
+    FinishDeclareAttackers,
+
+    /// Finish declaring blockers (pass to next step)
+    FinishDeclareBlockers,
+
     /// Pass priority (do nothing)
     PassPriority,
 }

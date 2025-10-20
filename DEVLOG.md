@@ -1,5 +1,7 @@
 
-Dependencies
+Look at TODO.md, Claude.md, and PROJECT_VISION and get ready to work.
+
+Dependencies:
 
 ```
 sudo dnf install -y golang
@@ -141,7 +143,7 @@ control and update Claude.md appropriately to explain the new issue
 tracking.
 
 
-TODO: Fix github CI
+done? Fix github CI
 ----------------------------------------
 
 The CI is failing on clippy and formatting. Make sure `make validate` runs these and that therefore they get allocated before we make any commit.
@@ -154,7 +156,7 @@ The CI is failing on clippy and formatting. Make sure `make validate` runs these
 After the message `Loaded 31438 cards`, print the amount of time it took in milliseconds.
 
 
-Fix the infinite loop in AI-vs-AiI example
+Fix the infinite loop in AI-vs-AI example
 ----------------------------------------
 This seems to be an infinite loop. Running the ai_vs_ai_game example does not terminate for me and just prints this message again and again. Please analyze the code for its looping behavior and fix the bug.
 
@@ -207,6 +209,14 @@ yes 0 | ./headless.sh sim -d $decks/monored.dck $decks/monored.dck
 # Run an AI-vs-AI simulation that prints more minimal log output.
 ./headless.sh sim -d $decks/monored.dck $decks/monored.dck
 ```
+
+And we can optionally use the `headless.sh` script to invoke the TUI.
+
+```
+root@c8d7e426b2af:/workspace/forge-java# 
+./headless.sh tui `pwd`/forge-headless/test_decks/monored.dck `pwd`/forge-headless/test_decks/monored.dck
+```
+
 
 
 

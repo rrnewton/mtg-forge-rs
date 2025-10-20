@@ -276,19 +276,103 @@ impl<'a> GameLoop<'a> {
 
     fn declare_attackers_step(
         &mut self,
-        _controller1: &mut dyn PlayerController,
-        _controller2: &mut dyn PlayerController,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
     ) -> Result<()> {
-        // TODO: Implement attacker declaration
+        // Active player declares attackers
+        let active_player = self.game.turn.active_player;
+        let controller: &mut dyn PlayerController = if active_player == controller1.player_id() {
+            controller1
+        } else {
+            controller2
+        };
+
+        // Loop: let active player declare attackers until they finish
+        loop {
+            // Get available actions (attackers they can declare)
+            let available_actions = self.get_available_attackers(active_player);
+
+            if available_actions.is_empty() {
+                // No creatures to attack with, skip
+                break;
+            }
+
+            let view = GameStateView::new(self.game, active_player);
+            let action = controller.choose_action(&view, &available_actions);
+
+            match action {
+                Some(PlayerAction::DeclareAttacker(card_id)) => {
+                    self.execute_action(active_player, &PlayerAction::DeclareAttacker(card_id))?;
+                }
+                Some(PlayerAction::FinishDeclareAttackers)
+                | Some(PlayerAction::PassPriority)
+                | None => {
+                    // Done declaring attackers
+                    break;
+                }
+                _ => {
+                    // Invalid action during declare attackers
+                    break;
+                }
+            }
+        }
+
         Ok(())
     }
 
     fn declare_blockers_step(
         &mut self,
-        _controller1: &mut dyn PlayerController,
-        _controller2: &mut dyn PlayerController,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
     ) -> Result<()> {
-        // TODO: Implement blocker declaration
+        // Defending player declares blockers
+        let active_player = self.game.turn.active_player;
+        let players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
+        let defending_player = if active_player == players[0] {
+            players[1]
+        } else {
+            players[0]
+        };
+
+        let controller: &mut dyn PlayerController = if defending_player == controller1.player_id() {
+            controller1
+        } else {
+            controller2
+        };
+
+        // Loop: let defending player declare blockers until they finish
+        loop {
+            // Get available actions (blockers they can declare)
+            let available_actions = self.get_available_blockers(defending_player);
+
+            if available_actions.is_empty() {
+                // No creatures to block with, skip
+                break;
+            }
+
+            let view = GameStateView::new(self.game, defending_player);
+            let action = controller.choose_action(&view, &available_actions);
+
+            match action {
+                Some(PlayerAction::DeclareBlocker { blocker, attackers }) => {
+                    self.execute_action(
+                        defending_player,
+                        &PlayerAction::DeclareBlocker { blocker, attackers },
+                    )?;
+                }
+                Some(PlayerAction::FinishDeclareBlockers)
+                | Some(PlayerAction::PassPriority)
+                | None => {
+                    // Done declaring blockers
+                    break;
+                }
+                _ => {
+                    // Invalid action during declare blockers
+                    break;
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -297,7 +381,10 @@ impl<'a> GameLoop<'a> {
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
     ) -> Result<()> {
-        // TODO: Implement combat damage
+        // Assign and deal combat damage (this is automatic, no player choices)
+        self.game.assign_combat_damage()?;
+
+        // After damage is dealt, players get priority
         self.priority_round(controller1, controller2)?;
         Ok(())
     }
@@ -307,6 +394,10 @@ impl<'a> GameLoop<'a> {
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
     ) -> Result<()> {
+        // Clear combat state at end of combat
+        self.game.combat.clear();
+
+        // Players get priority
         self.priority_round(controller1, controller2)?;
         Ok(())
     }
@@ -400,6 +491,66 @@ impl<'a> GameLoop<'a> {
         Ok(())
     }
 
+    /// Get available attackers for a player
+    fn get_available_attackers(&self, player_id: PlayerId) -> Vec<PlayerAction> {
+        let mut actions = Vec::new();
+
+        // Add finish action
+        actions.push(PlayerAction::FinishDeclareAttackers);
+
+        // Find creatures that can attack
+        for &card_id in &self.game.battlefield.cards {
+            if let Ok(card) = self.game.cards.get(card_id) {
+                if card.controller == player_id
+                    && card.is_creature()
+                    && !card.tapped
+                    && !self.game.combat.is_attacking(card_id)
+                {
+                    // TODO: Check for summoning sickness
+                    actions.push(PlayerAction::DeclareAttacker(card_id));
+                }
+            }
+        }
+
+        actions
+    }
+
+    /// Get available blockers for a player
+    fn get_available_blockers(&self, player_id: PlayerId) -> Vec<PlayerAction> {
+        let mut actions = Vec::new();
+
+        // Add finish action
+        actions.push(PlayerAction::FinishDeclareBlockers);
+
+        // Get all attacking creatures
+        let attackers = self.game.combat.get_attackers();
+        if attackers.is_empty() {
+            return actions;
+        }
+
+        // Find creatures that can block
+        for &card_id in &self.game.battlefield.cards {
+            if let Ok(card) = self.game.cards.get(card_id) {
+                if card.controller == player_id
+                    && card.is_creature()
+                    && !card.tapped
+                    && !self.game.combat.is_blocking(card_id)
+                {
+                    // For each potential blocker, offer to block each attacker
+                    // (For simplicity, we only support blocking one attacker at a time)
+                    for &attacker in &attackers {
+                        actions.push(PlayerAction::DeclareBlocker {
+                            blocker: card_id,
+                            attackers: vec![attacker],
+                        });
+                    }
+                }
+            }
+        }
+
+        actions
+    }
+
     /// Get available actions for a player at current game state
     fn get_available_actions(&self, player_id: PlayerId) -> Vec<PlayerAction> {
         let mut actions = Vec::new();
@@ -472,6 +623,16 @@ impl<'a> GameLoop<'a> {
                 self.game.cast_spell(player_id, *card_id, targets.clone())?;
                 // Immediately resolve spell (simplified - no stack interaction yet)
                 self.game.resolve_spell(*card_id)?;
+            }
+            PlayerAction::DeclareAttacker(card_id) => {
+                self.game.declare_attacker(player_id, *card_id)?;
+            }
+            PlayerAction::DeclareBlocker { blocker, attackers } => {
+                self.game
+                    .declare_blocker(player_id, *blocker, attackers.clone())?;
+            }
+            PlayerAction::FinishDeclareAttackers | PlayerAction::FinishDeclareBlockers => {
+                // Handled by the combat step logic, not here
             }
             PlayerAction::PassPriority => {
                 // Nothing to do

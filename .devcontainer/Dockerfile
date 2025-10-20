@@ -116,6 +116,8 @@ RUN rustup toolchain install stable
 
 # RUN apt-get install -y golang
 # RUN go install github.com/steveyegge/beads/cmd/bd@latest
+
+ENV IS_SANDBOX=1
 ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
 
 # ADD --chown=node:node dot-claude-init /home/node/.claude/
