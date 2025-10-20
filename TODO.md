@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** [pending] - Add TUI support with zero controller
+**Latest Commit:** 714eaba - Add TUI support with zero controller
 
 **Tests:** 77 passing ✅
 
