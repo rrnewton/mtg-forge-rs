@@ -226,11 +226,40 @@ state to use, but for all examples use basic older cards from limited
 to fourth edition (set "4ED").
 
 
-TODO: Use the Java TUI 
+Upgrade combat damage demo to use game loop
 ----------------------------------------
 
+The current demo demonstrates the basic building blocks of attackin /
+declaring blockers and assigning damage. But this and future demos
+need to be written at a high level where they use the GameLoop to
+drive the logic (like the ai_vs_ai_game demo).
+
+A demo like this should pass in a custom Controller with specialized
+logic for the particular example. The engine needs to ask the Alice/P1
+Controller to declare attackers, to which it responds by declaring two
+attackers (bear and ogre). After which the hardcoded P2 controller is
+asked what blockers and it declares two blockers.
+
+
+
+Use real cards and make card loading fully async
+----------------------------------------------
+
+
+Start adding TUI support
+----------------------------------------
+
+The main binary entrypoint for this project should be an `mtg` binary
+with an `mtg tui` subcommand.  At minumum the tui CLI takes two deck files.
+
+we will iterate on this TUI implementation until it has feature parity
+with the current Java one, described below.
+
+### Use the Java TUI for comparison
+
 The Java TUI is incomplete, but the underlying engine is much more
-complete than what we've implemented in Rust so far.
+complete than what we've implemented in Rust so far. Thus you should
+run the Java TUI and examine its output to understand the gap between what it does and 
 
 ```
 [node@e9df094c0507 /workspace/forge-java]  $ decks=`pwd`/forge-headless/test_decks/
@@ -249,6 +278,57 @@ root@c8d7e426b2af:/workspace/forge-java#
 ./headless.sh tui `pwd`/forge-headless/test_decks/monored.dck `pwd`/forge-headless/test_decks/monored.dck
 ```
 
+You can see the full CLI options for the Java forge-headless TUI here:
+
+```
+$ cd forge/
+$ ./headless.sh tui -h
+=== Forge Text UI Mode ===
+Text UI Mode - Interactive Forge Gameplay
+
+Usage: forge-headless tui <player1_deck> <player2_deck> [options]
+       forge-headless tui -h | --help
+
+Arguments:
+  player1_deck  - Deck file (.dck) or deck name for player 1
+  player2_deck  - Deck file (.dck) or deck name for player 2
+
+Options:
+  -h, --help             - Show this help message
+  -f <format>            - Game format (default: Constructed)
+  --p1 <type>            - Player 1 agent type (default: tui)
+  --p2 <type>            - Player 2 agent type (default: ai)
+                           Agent types: tui, ai, random, zero
+                           - tui: Interactive via stdin
+                           - ai: Forge built-in AI
+                           - random: Random valid choices
+                           - zero: Always pass (choose 0)
+  --askmana [true/false] - Prompt for mana abilities (default: false)
+  --numeric-choices      - Use numeric-only input (no text commands)
+  --seed <long>          - Set random seed for deterministic testing
+  --start-state <file>   - Load game state from .pzl file
+
+Note: Flags support both --flag=value and --flag value syntax
+
+Examples:
+  forge-headless tui --help
+  forge-headless tui a.dck b.dck
+  forge-headless tui deck1.dck deck2.dck --p1=ai --p2=ai
+  forge-headless tui deck1.dck deck2.dck --p2=tui
+  forge-headless tui deck1.dck deck2.dck --p1=random --seed=12345
+  forge-headless tui deck1.dck deck2.dck --start-state=puzzle.pzl
+
+During gameplay, you will be prompted with options:
+  0. Pass priority (do nothing)
+  1-N. Play lands, cast spells, etc.
+
+Interactive commands during gameplay:
+  ?  - Show help
+  v  - View cards in detail
+  g  - View graveyards
+  b  - View battlefield/game state
+  s  - View current stack
+```
 
 
 

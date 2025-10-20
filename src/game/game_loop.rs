@@ -39,7 +39,7 @@ pub enum GameEndReason {
 /// Handles turn progression, priority, and win condition checking
 pub struct GameLoop<'a> {
     /// The game state
-    game: &'a mut GameState,
+    pub game: &'a mut GameState,
     /// Maximum turns before forcing a draw
     max_turns: u32,
     /// Turn counter for the loop
@@ -132,10 +132,8 @@ impl<'a> GameLoop<'a> {
 
         // Run through all steps of the turn
         loop {
-            let current_step = self.game.turn.current_step;
-
             // Execute the step
-            self.execute_step(current_step, controller1, controller2)?;
+            self.execute_step(controller1, controller2)?;
 
             // Try to advance to next step
             if !self.game.turn.advance_step() {
@@ -176,12 +174,12 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Execute a single step
-    fn execute_step(
+    pub fn execute_step(
         &mut self,
-        step: Step,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
     ) -> Result<()> {
+        let step = self.game.turn.current_step;
         match step {
             Step::Untap => self.untap_step(),
             Step::Upkeep => self.upkeep_step(controller1, controller2),

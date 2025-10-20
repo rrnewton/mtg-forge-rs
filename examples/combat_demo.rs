@@ -1,22 +1,155 @@
 //! Combat Demonstration Example
 //!
-//! Demonstrates the complete combat system including:
-//! - Declaring attackers
-//! - Declaring blockers
-//! - Combat damage assignment
+//! Demonstrates the complete combat system using the game loop and controllers.
+//! Shows how combat integrates with the full game engine:
+//! - Custom controllers for Alice and Bob
+//! - Declaring attackers through the game loop
+//! - Declaring blockers through the game loop
+//! - Automatic combat damage assignment
 //! - Creature death from combat damage
 //!
 //! Uses classic cards from Limited/Alpha/Beta/4th Edition
 
-use mtg_forge_rs::core::{Card, CardType, EntityId, Player};
-use mtg_forge_rs::game::GameState;
+use mtg_forge_rs::core::{Card, CardId, CardType, EntityId, Player, PlayerId};
+use mtg_forge_rs::game::{
+    GameLoop, GameState, GameStateView, PlayerAction, PlayerController, Step,
+};
+
+/// Alice's controller - attacks with all creatures
+struct AliceController {
+    player_id: PlayerId,
+    creatures_to_attack: Vec<CardId>,
+}
+
+impl AliceController {
+    fn new(player_id: PlayerId) -> Self {
+        AliceController {
+            player_id,
+            creatures_to_attack: Vec::new(),
+        }
+    }
+
+    fn set_creatures(&mut self, creatures: Vec<CardId>) {
+        self.creatures_to_attack = creatures;
+    }
+}
+
+impl PlayerController for AliceController {
+    fn player_id(&self) -> PlayerId {
+        self.player_id
+    }
+
+    fn choose_action(
+        &mut self,
+        view: &GameStateView,
+        available_actions: &[PlayerAction],
+    ) -> Option<PlayerAction> {
+        // During declare attackers step, attack with our creatures
+        if view.current_step() == Step::DeclareAttackers {
+            // Find first attacker we can declare from our list
+            for action in available_actions {
+                if let PlayerAction::DeclareAttacker(card_id) = action {
+                    if self.creatures_to_attack.contains(card_id) {
+                        println!(
+                            "  Alice declares {} as attacker",
+                            view.get_card_name(*card_id)
+                                .unwrap_or_else(|| "Unknown".to_string())
+                        );
+                        return Some(PlayerAction::DeclareAttacker(*card_id));
+                    }
+                }
+            }
+            // Done declaring attackers
+            println!("  Alice finishes declaring attackers");
+            Some(PlayerAction::FinishDeclareAttackers)
+        } else {
+            // Pass priority in all other situations
+            None
+        }
+    }
+
+    fn on_priority_passed(&mut self, _view: &GameStateView) {}
+
+    fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {}
+}
+
+/// Bob's controller - blocks with specific assignments
+struct BobController {
+    player_id: PlayerId,
+    blocking_assignments: Vec<(CardId, CardId)>, // (blocker, attacker)
+}
+
+impl BobController {
+    fn new(player_id: PlayerId) -> Self {
+        BobController {
+            player_id,
+            blocking_assignments: Vec::new(),
+        }
+    }
+
+    fn set_blocks(&mut self, blocks: Vec<(CardId, CardId)>) {
+        self.blocking_assignments = blocks;
+    }
+}
+
+impl PlayerController for BobController {
+    fn player_id(&self) -> PlayerId {
+        self.player_id
+    }
+
+    fn choose_action(
+        &mut self,
+        view: &GameStateView,
+        available_actions: &[PlayerAction],
+    ) -> Option<PlayerAction> {
+        // During declare blockers step, block according to our plan
+        if view.current_step() == Step::DeclareBlockers {
+            // Find first blocking assignment we can make
+            for (blocker, attacker) in &self.blocking_assignments {
+                // Check if this blocking action is available
+                for action in available_actions {
+                    if let PlayerAction::DeclareBlocker {
+                        blocker: b,
+                        attackers,
+                    } = action
+                    {
+                        if b == blocker && attackers.contains(attacker) {
+                            println!(
+                                "  Bob: {} blocks {}",
+                                view.get_card_name(*blocker)
+                                    .unwrap_or_else(|| "Unknown".to_string()),
+                                view.get_card_name(*attacker)
+                                    .unwrap_or_else(|| "Unknown".to_string())
+                            );
+                            return Some(PlayerAction::DeclareBlocker {
+                                blocker: *blocker,
+                                attackers: vec![*attacker],
+                            });
+                        }
+                    }
+                }
+            }
+            // Done declaring blockers
+            println!("  Bob finishes declaring blockers");
+            Some(PlayerAction::FinishDeclareBlockers)
+        } else {
+            // Pass priority in all other situations
+            None
+        }
+    }
+
+    fn on_priority_passed(&mut self, _view: &GameStateView) {}
+
+    fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {}
+}
 
 fn main() {
     println!("=== MTG Forge - Combat System Demo ===\n");
     println!("Demonstrating:");
-    println!("  - Creature combat with attacking and blocking");
-    println!("  - Combat damage assignment");
-    println!("  - Creature death from lethal damage");
+    println!("  - Game loop integration with combat");
+    println!("  - Custom controllers for combat decisions");
+    println!("  - Declaring attackers and blockers");
+    println!("  - Combat damage and creature death");
     println!("  - Using classic 4ED cards\n");
 
     // Create a two-player game
@@ -26,229 +159,263 @@ fn main() {
     let alice = players[0];
     let bob = players[1];
 
-    println!("=== Initial Setup ===");
-    println!("Alice: 20 life");
-    println!("Bob: 20 life\n");
+    println!("=== Game Setup ===");
+    println!("Alice: 20 life (will be attacking)");
+    println!("Bob: 20 life (will be defending)\n");
 
     // Create creatures for Alice (the attacker)
     println!("=== Creating Creatures ===");
 
     // Alice gets a Grizzly Bears (2/2) and a Gray Ogre (2/2)
-    let bears_id = game.next_card_id();
-    let mut bears = Card::new(bears_id, "Grizzly Bears".to_string(), alice);
-    bears.types.push(CardType::Creature);
-    bears.power = Some(2);
-    bears.toughness = Some(2);
-    bears.controller = alice;
-    game.cards.insert(bears_id, bears);
-    game.battlefield.add(bears_id);
-    println!("  Alice: Grizzly Bears (2/2) [4ED]");
-
-    let ogre_id = game.next_card_id();
-    let mut ogre = Card::new(ogre_id, "Gray Ogre".to_string(), alice);
-    ogre.types.push(CardType::Creature);
-    ogre.power = Some(2);
-    ogre.toughness = Some(2);
-    ogre.controller = alice;
-    game.cards.insert(ogre_id, ogre);
-    game.battlefield.add(ogre_id);
-    println!("  Alice: Gray Ogre (2/2) [4ED]");
+    let bears_id = create_creature(
+        &mut game,
+        alice,
+        "Grizzly Bears",
+        2,
+        2,
+        "Alice's 2/2 creature [4ED]",
+    );
+    let ogre_id = create_creature(
+        &mut game,
+        alice,
+        "Gray Ogre",
+        2,
+        2,
+        "Alice's 2/2 creature [4ED]",
+    );
 
     // Bob gets a Wall of Stone (0/8) and a Hill Giant (3/3)
-    let wall_id = game.next_card_id();
-    let mut wall = Card::new(wall_id, "Wall of Stone".to_string(), bob);
-    wall.types.push(CardType::Creature);
-    wall.power = Some(0);
-    wall.toughness = Some(8);
-    wall.controller = bob;
-    game.cards.insert(wall_id, wall);
-    game.battlefield.add(wall_id);
-    println!("  Bob: Wall of Stone (0/8) [4ED]");
+    let wall_id = create_creature(
+        &mut game,
+        bob,
+        "Wall of Stone",
+        0,
+        8,
+        "Bob's 0/8 defender [4ED]",
+    );
+    let giant_id = create_creature(
+        &mut game,
+        bob,
+        "Hill Giant",
+        3,
+        3,
+        "Bob's 3/3 creature [4ED]",
+    );
 
-    let giant_id = game.next_card_id();
-    let mut giant = Card::new(giant_id, "Hill Giant".to_string(), bob);
-    giant.types.push(CardType::Creature);
-    giant.power = Some(3);
-    giant.toughness = Some(3);
-    giant.controller = bob;
-    game.cards.insert(giant_id, giant);
-    game.battlefield.add(giant_id);
-    println!("  Bob: Hill Giant (3/3) [4ED]\n");
-
-    print_battlefield(&game, alice, bob);
-
-    // === Combat Phase ===
-    println!("\n=== Beginning Combat Phase ===");
-    println!("Alice is the active player and will attack\n");
-
-    // Alice declares both creatures as attackers
-    println!("--- Declare Attackers Step ---");
-    println!("Alice declares attackers:");
-
-    // Declare Grizzly Bears as attacker
-    match game.declare_attacker(alice, bears_id) {
-        Ok(_) => {
-            println!("  ✓ Grizzly Bears attacks (and taps)");
-        }
-        Err(e) => {
-            println!("  ✗ Failed to declare Grizzly Bears as attacker: {e:?}");
-        }
-    }
-
-    // Declare Gray Ogre as attacker
-    match game.declare_attacker(alice, ogre_id) {
-        Ok(_) => {
-            println!("  ✓ Gray Ogre attacks (and taps)");
-        }
-        Err(e) => {
-            println!("  ✗ Failed to declare Gray Ogre as attacker: {e:?}");
-        }
-    }
-
-    println!("\nAttacking creatures: 2");
-    println!("  - Grizzly Bears (2/2)");
-    println!("  - Gray Ogre (2/2)\n");
-
-    // Bob declares blockers
-    println!("--- Declare Blockers Step ---");
-    println!("Bob declares blockers:");
-
-    // Wall of Stone blocks Grizzly Bears
-    match game.declare_blocker(bob, wall_id, vec![bears_id]) {
-        Ok(_) => {
-            println!("  ✓ Wall of Stone blocks Grizzly Bears");
-        }
-        Err(e) => {
-            println!("  ✗ Failed to block: {e:?}");
-        }
-    }
-
-    // Hill Giant blocks Gray Ogre
-    match game.declare_blocker(bob, giant_id, vec![ogre_id]) {
-        Ok(_) => {
-            println!("  ✓ Hill Giant blocks Gray Ogre");
-        }
-        Err(e) => {
-            println!("  ✗ Failed to block: {e:?}");
-        }
-    }
-
-    println!("\nBlocking assignments:");
-    println!("  - Grizzly Bears (2/2) is blocked by Wall of Stone (0/8)");
-    println!("  - Gray Ogre (2/2) is blocked by Hill Giant (3/3)\n");
-
-    // Combat Damage Step
-    println!("--- Combat Damage Step ---");
-    println!("Assigning combat damage...\n");
-
-    match game.assign_combat_damage() {
-        Ok(_) => {
-            println!("Combat damage assigned successfully!");
-        }
-        Err(e) => {
-            println!("Error assigning combat damage: {e:?}");
-            return;
-        }
-    }
-
-    println!("\nCombat damage dealt:");
-    println!("  Combat 1: Grizzly Bears (2/2) vs Wall of Stone (0/8)");
-    println!("    - Bears deals 2 damage to Wall");
-    println!("    - Wall deals 0 damage to Bears");
-    println!("    - Wall survives (2 damage < 8 toughness)");
-    println!("    - Bears survives (0 damage)");
     println!();
-    println!("  Combat 2: Gray Ogre (2/2) vs Hill Giant (3/3)");
-    println!("    - Ogre deals 2 damage to Giant");
-    println!("    - Giant deals 3 damage to Ogre");
-    println!("    - Giant survives (2 damage < 3 toughness)");
-    println!("    - Ogre dies (3 damage >= 2 toughness) 💀");
-
-    println!("\n=== After Combat ===");
     print_battlefield(&game, alice, bob);
 
-    // Check life totals
-    let alice_life = game.players.get(alice).unwrap().life;
-    let bob_life = game.players.get(bob).unwrap().life;
+    // Set up controllers with combat plans
+    let mut alice_controller = AliceController::new(alice);
+    alice_controller.set_creatures(vec![bears_id, ogre_id]);
+
+    let mut bob_controller = BobController::new(bob);
+    bob_controller.set_blocks(vec![
+        (wall_id, bears_id), // Wall blocks Bears
+        (giant_id, ogre_id), // Giant blocks Ogre
+    ]);
+
+    println!("\n=== Combat Plan ===");
+    println!("Alice will attack with:");
+    println!("  - Grizzly Bears (2/2)");
+    println!("  - Gray Ogre (2/2)");
+    println!("\nBob will block:");
+    println!("  - Wall of Stone (0/8) blocks Grizzly Bears");
+    println!("  - Hill Giant (3/3) blocks Gray Ogre");
+
+    // Run the game loop through combat
+    println!("\n=== Starting Combat Phase ===");
+    println!("(Game loop will coordinate the combat steps)\n");
+
+    // Advance to combat phase
+    // We need to skip to Alice's turn, main phase 1, then enter combat
+    game.turn.current_step = Step::Main1;
+    game.turn.active_player = alice;
+
+    let mut game_loop = GameLoop::new(&mut game);
+
+    // Execute one step at a time through combat
+    let steps_to_run = vec![
+        Step::BeginCombat,
+        Step::DeclareAttackers,
+        Step::DeclareBlockers,
+        Step::CombatDamage,
+        Step::EndCombat,
+    ];
+
+    for expected_step in steps_to_run {
+        // Advance to next step
+        game_loop.game.turn.current_step = expected_step;
+
+        println!("--- {} ---", step_name(expected_step));
+
+        // Execute the step
+        match game_loop.execute_step(&mut alice_controller, &mut bob_controller) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("Error executing step: {e:?}");
+                return;
+            }
+        }
+
+        // Show what happened based on the step
+        match expected_step {
+            Step::BeginCombat => {
+                println!("  Players receive priority before attackers are declared");
+            }
+            Step::DeclareAttackers => {
+                println!();
+                let attackers = game_loop.game.combat.get_attackers();
+                if attackers.is_empty() {
+                    println!("  No attackers declared");
+                } else {
+                    println!("  Attacking: {} creature(s)", attackers.len());
+                    for attacker in &attackers {
+                        if let Ok(card) = game_loop.game.cards.get(*attacker) {
+                            println!(
+                                "    - {} ({}/{})",
+                                card.name,
+                                card.power.unwrap_or(0),
+                                card.toughness.unwrap_or(0)
+                            );
+                        }
+                    }
+                }
+            }
+            Step::DeclareBlockers => {
+                println!();
+                let blockers = game_loop.game.combat.get_blockers_list();
+                if blockers.is_empty() {
+                    println!("  No blockers declared");
+                } else {
+                    println!("  Blocking: {} creature(s)", blockers.len());
+                    for blocker_id in &blockers {
+                        if let Ok(blocker) = game_loop.game.cards.get(*blocker_id) {
+                            println!(
+                                "    - {} ({}/{}) is blocking",
+                                blocker.name,
+                                blocker.power.unwrap_or(0),
+                                blocker.toughness.unwrap_or(0)
+                            );
+                        }
+                    }
+                }
+            }
+            Step::CombatDamage => {
+                println!("  Combat damage dealt:");
+                println!("    Grizzly Bears (2/2) vs Wall of Stone (0/8):");
+                println!("      - Bears deals 2 damage to Wall");
+                println!("      - Wall deals 0 damage to Bears");
+                println!("      - Result: Both survive");
+                println!();
+                println!("    Gray Ogre (2/2) vs Hill Giant (3/3):");
+                println!("      - Ogre deals 2 damage to Giant");
+                println!("      - Giant deals 3 damage to Ogre");
+                println!("      - Result: Ogre dies (3 >= 2 toughness) 💀");
+            }
+            Step::EndCombat => {
+                println!("  Combat phase ends, creatures removed from combat");
+            }
+            _ => {}
+        }
+
+        println!();
+    }
+
+    println!("=== After Combat ===");
+    print_battlefield(game_loop.game, alice, bob);
+
+    // Check results
+    let alice_life = game_loop.game.players.get(alice).unwrap().life;
+    let bob_life = game_loop.game.players.get(bob).unwrap().life;
 
     println!("\n=== Final State ===");
-    println!("Alice: {alice_life} life (no damage taken - all attackers blocked)");
-    println!("Bob: {bob_life} life (no damage taken - all attackers blocked)");
-
-    // Check graveyards
-    let alice_graveyard = game
-        .get_player_zones(alice)
-        .map(|z| z.graveyard.cards.len())
-        .unwrap_or(0);
-    let bob_graveyard = game
-        .get_player_zones(bob)
-        .map(|z| z.graveyard.cards.len())
-        .unwrap_or(0);
-
-    println!("\nGraveyards:");
-    println!("  Alice: {alice_graveyard} cards");
-    println!("  Bob: {bob_graveyard} cards");
+    println!("Alice: {alice_life} life (no damage - all attackers blocked)");
+    println!("Bob: {bob_life} life (no damage - all attackers blocked)");
 
     // Verify expected outcome
     println!("\n=== Verification ===");
     let mut success = true;
 
     // Gray Ogre should be dead
-    if let Some(zones) = game.get_player_zones(alice) {
+    if let Some(zones) = game_loop.game.get_player_zones(alice) {
         if zones.graveyard.contains(ogre_id) {
-            println!("✓ Gray Ogre correctly died and went to graveyard");
+            println!("✓ Gray Ogre died from combat damage");
         } else {
-            println!("✗ Gray Ogre should be in graveyard but isn't");
+            println!("✗ Gray Ogre should be in graveyard");
             success = false;
         }
     }
 
     // Grizzly Bears should still be alive
-    if game.battlefield.contains(bears_id) {
-        println!("✓ Grizzly Bears correctly survived");
+    if game_loop.game.battlefield.contains(bears_id) {
+        println!("✓ Grizzly Bears survived");
     } else {
-        println!("✗ Grizzly Bears should still be on battlefield");
+        println!("✗ Grizzly Bears should be alive");
         success = false;
     }
 
     // Wall should still be alive
-    if game.battlefield.contains(wall_id) {
-        println!("✓ Wall of Stone correctly survived");
+    if game_loop.game.battlefield.contains(wall_id) {
+        println!("✓ Wall of Stone survived");
     } else {
-        println!("✗ Wall of Stone should still be on battlefield");
+        println!("✗ Wall of Stone should be alive");
         success = false;
     }
 
     // Hill Giant should still be alive
-    if game.battlefield.contains(giant_id) {
-        println!("✓ Hill Giant correctly survived");
+    if game_loop.game.battlefield.contains(giant_id) {
+        println!("✓ Hill Giant survived");
     } else {
-        println!("✗ Hill Giant should still be on battlefield");
+        println!("✗ Hill Giant should be alive");
         success = false;
     }
 
     // No player damage
     if alice_life == 20 && bob_life == 20 {
-        println!("✓ Life totals unchanged (all attackers were blocked)");
+        println!("✓ Life totals unchanged (all blocked)");
     } else {
-        println!("✗ Life totals should be unchanged");
+        println!("✗ Life totals should be 20 each");
         success = false;
     }
 
     println!("\n=== Combat Demo Complete ===");
     if success {
         println!("✅ All combat mechanics working correctly!");
-        println!("\nKey features demonstrated:");
-        println!("  ✓ Declaring multiple attackers");
-        println!("  ✓ Declaring blockers for each attacker");
-        println!("  ✓ Combat damage calculation");
-        println!("  ✓ Creature death from lethal damage");
-        println!("  ✓ Creatures surviving non-lethal damage");
-        println!("  ✓ Blocked attackers don't damage defending player");
+        println!("\nKey architecture demonstrated:");
+        println!("  ✓ Game loop coordinates combat steps");
+        println!("  ✓ Controllers make combat decisions");
+        println!("  ✓ Attackers declared via controller");
+        println!("  ✓ Blockers declared via controller");
+        println!("  ✓ Engine handles damage automatically");
+        println!("  ✓ State-based actions (creature death)");
     } else {
-        println!("❌ Some combat mechanics failed verification");
+        println!("❌ Some verifications failed");
         std::process::exit(1);
     }
+}
+
+/// Create a creature and add it to the battlefield
+fn create_creature(
+    game: &mut GameState,
+    owner: PlayerId,
+    name: &str,
+    power: i8,
+    toughness: i8,
+    description: &str,
+) -> CardId {
+    let card_id = game.next_card_id();
+    let mut card = Card::new(card_id, name.to_string(), owner);
+    card.types.push(CardType::Creature);
+    card.power = Some(power);
+    card.toughness = Some(toughness);
+    card.controller = owner;
+    game.cards.insert(card_id, card);
+    game.battlefield.add(card_id);
+
+    println!("  {}: {} ({}/{})", description, name, power, toughness);
+
+    card_id
 }
 
 /// Print the current battlefield state
@@ -323,5 +490,22 @@ fn print_battlefield(game: &GameState, alice: EntityId<Player>, bob: EntityId<Pl
             print!("{name} ({pow}/{tou}){tap_str}");
         }
         println!();
+    }
+}
+
+fn step_name(step: Step) -> &'static str {
+    match step {
+        Step::Untap => "Untap Step",
+        Step::Upkeep => "Upkeep Step",
+        Step::Draw => "Draw Step",
+        Step::Main1 => "Main Phase 1",
+        Step::BeginCombat => "Beginning of Combat Step",
+        Step::DeclareAttackers => "Declare Attackers Step",
+        Step::DeclareBlockers => "Declare Blockers Step",
+        Step::CombatDamage => "Combat Damage Step",
+        Step::EndCombat => "End of Combat Step",
+        Step::Main2 => "Main Phase 2",
+        Step::End => "End Step",
+        Step::Cleanup => "Cleanup Step",
     }
 }

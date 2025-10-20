@@ -124,6 +124,16 @@ impl<'a> GameStateView<'a> {
             .unwrap_or(false)
     }
 
+    /// Get the current step
+    pub fn current_step(&self) -> crate::game::Step {
+        self.game.turn.current_step
+    }
+
+    /// Get a card's name (convenience method)
+    pub fn get_card_name(&self, card_id: CardId) -> Option<String> {
+        self.card_name(card_id)
+    }
+
     /// Check if a card is tapped
     pub fn is_tapped(&self, card_id: CardId) -> bool {
         self.game
