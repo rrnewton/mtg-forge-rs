@@ -44,6 +44,8 @@ pub struct GameLoop<'a> {
     max_turns: u32,
     /// Turn counter for the loop
     turns_elapsed: u32,
+    /// Enable verbose output (logs turns, steps, actions)
+    pub verbose: bool,
 }
 
 impl<'a> GameLoop<'a> {
@@ -53,12 +55,19 @@ impl<'a> GameLoop<'a> {
             game,
             max_turns: 1000, // Default maximum turns
             turns_elapsed: 0,
+            verbose: false,
         }
     }
 
     /// Set maximum turns before forcing a draw
     pub fn with_max_turns(mut self, max_turns: u32) -> Self {
         self.max_turns = max_turns;
+        self
+    }
+
+    /// Enable verbose output
+    pub fn with_verbose(mut self, verbose: bool) -> Self {
+        self.verbose = verbose;
         self
     }
 
@@ -127,6 +136,14 @@ impl<'a> GameLoop<'a> {
     ) -> Result<()> {
         let active_player = self.game.turn.active_player;
 
+        if self.verbose {
+            let player_name = self.get_player_name(active_player);
+            println!("\n========================================");
+            println!("Turn {} - {}", self.turns_elapsed + 1, player_name);
+            println!("========================================");
+            self.print_game_state();
+        }
+
         // Reset turn-based state
         self.reset_turn_state(active_player)?;
 
@@ -155,6 +172,76 @@ impl<'a> GameLoop<'a> {
         Ok(())
     }
 
+    /// Get player name for display
+    fn get_player_name(&self, player_id: PlayerId) -> String {
+        self.game
+            .players
+            .get(player_id)
+            .map(|p| p.name.to_string())
+            .unwrap_or_else(|_| format!("Player {:?}", player_id))
+    }
+
+    /// Get step name for display
+    fn step_name(&self, step: Step) -> &'static str {
+        match step {
+            Step::Untap => "Untap Step",
+            Step::Upkeep => "Upkeep Step",
+            Step::Draw => "Draw Step",
+            Step::Main1 => "Main Phase 1",
+            Step::BeginCombat => "Beginning of Combat",
+            Step::DeclareAttackers => "Declare Attackers Step",
+            Step::DeclareBlockers => "Declare Blockers Step",
+            Step::CombatDamage => "Combat Damage Step",
+            Step::EndCombat => "End of Combat Step",
+            Step::Main2 => "Main Phase 2",
+            Step::End => "End Step",
+            Step::Cleanup => "Cleanup Step",
+        }
+    }
+
+    /// Print current game state (life totals, battlefield)
+    fn print_game_state(&self) {
+        for (_id, player) in self.game.players.iter() {
+            let hand_size = self
+                .game
+                .get_player_zones(player.id)
+                .map(|z| z.hand.cards.len())
+                .unwrap_or(0);
+            let library_size = self
+                .game
+                .get_player_zones(player.id)
+                .map(|z| z.library.cards.len())
+                .unwrap_or(0);
+
+            println!(
+                "  {}: {} life, {} cards in hand, {} in library",
+                player.name, player.life, hand_size, library_size
+            );
+        }
+
+        // Show battlefield
+        let battlefield_cards: Vec<_> = self
+            .game
+            .battlefield
+            .cards
+            .iter()
+            .filter_map(|&card_id| {
+                self.game.cards.get(card_id).ok().map(|card| {
+                    let controller_name = self.get_player_name(card.controller);
+                    let tapped_str = if card.tapped { " (tapped)" } else { "" };
+                    format!("{}: {}{}", controller_name, card.name, tapped_str)
+                })
+            })
+            .collect();
+
+        if !battlefield_cards.is_empty() {
+            println!("  Battlefield:");
+            for card_desc in battlefield_cards {
+                println!("    - {}", card_desc);
+            }
+        }
+    }
+
     /// Reset turn-based state for the active player
     fn reset_turn_state(&mut self, active_player: PlayerId) -> Result<()> {
         // Reset lands played this turn
@@ -180,6 +267,11 @@ impl<'a> GameLoop<'a> {
         controller2: &mut dyn PlayerController,
     ) -> Result<()> {
         let step = self.game.turn.current_step;
+
+        if self.verbose {
+            println!("\n--- {} ---", self.step_name(step));
+        }
+
         match step {
             Step::Untap => self.untap_step(),
             Step::Upkeep => self.upkeep_step(controller1, controller2),
@@ -242,11 +334,19 @@ impl<'a> GameLoop<'a> {
 
         // Skip draw on first turn (player going first doesn't draw)
         if self.game.turn.turn_number == 1 {
+            if self.verbose {
+                println!("  (First turn - no draw)");
+            }
             return Ok(());
         }
 
         // Draw a card
         self.game.draw_card(active_player)?;
+
+        if self.verbose {
+            let player_name = self.get_player_name(active_player);
+            println!("  {} draws a card", player_name);
+        }
 
         Ok(())
     }
@@ -610,6 +710,12 @@ impl<'a> GameLoop<'a> {
 
     /// Execute a player action
     fn execute_action(&mut self, player_id: PlayerId, action: &PlayerAction) -> Result<()> {
+        if self.verbose && !matches!(action, PlayerAction::PassPriority) {
+            let player_name = self.get_player_name(player_id);
+            let action_desc = self.describe_action(action);
+            println!("  {} {}", player_name, action_desc);
+        }
+
         match action {
             PlayerAction::PlayLand(card_id) => {
                 self.game.play_land(player_id, *card_id)?;
@@ -621,6 +727,10 @@ impl<'a> GameLoop<'a> {
                 self.game.cast_spell(player_id, *card_id, targets.clone())?;
                 // Immediately resolve spell (simplified - no stack interaction yet)
                 self.game.resolve_spell(*card_id)?;
+
+                if self.verbose {
+                    println!("    → Spell resolves");
+                }
             }
             PlayerAction::DeclareAttacker(card_id) => {
                 self.game.declare_attacker(player_id, *card_id)?;
@@ -637,6 +747,64 @@ impl<'a> GameLoop<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Describe an action for verbose output
+    fn describe_action(&self, action: &PlayerAction) -> String {
+        match action {
+            PlayerAction::PlayLand(card_id) => {
+                let card_name = self
+                    .game
+                    .cards
+                    .get(*card_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                format!("plays {}", card_name)
+            }
+            PlayerAction::TapForMana(card_id) => {
+                let card_name = self
+                    .game
+                    .cards
+                    .get(*card_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                format!("taps {} for mana", card_name)
+            }
+            PlayerAction::CastSpell { card_id, .. } => {
+                let card_name = self
+                    .game
+                    .cards
+                    .get(*card_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                format!("casts {}", card_name)
+            }
+            PlayerAction::DeclareAttacker(card_id) => {
+                let card_name = self
+                    .game
+                    .cards
+                    .get(*card_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                format!("declares {} as attacker", card_name)
+            }
+            PlayerAction::DeclareBlocker { blocker, attackers } => {
+                let blocker_name = self
+                    .game
+                    .cards
+                    .get(*blocker)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                let attacker_names: Vec<_> = attackers
+                    .iter()
+                    .filter_map(|id| self.game.cards.get(*id).ok().map(|c| c.name.as_str()))
+                    .collect();
+                format!("blocks with {} (blocking {:?})", blocker_name, attacker_names)
+            }
+            PlayerAction::FinishDeclareAttackers => "finishes declaring attackers".to_string(),
+            PlayerAction::FinishDeclareBlockers => "finishes declaring blockers".to_string(),
+            PlayerAction::PassPriority => "passes priority".to_string(),
+        }
     }
 
     /// Check if the game has reached a win condition

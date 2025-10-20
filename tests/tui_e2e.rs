@@ -220,7 +220,7 @@ fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     let mut controller1 = mtg_forge_rs::game::RandomController::new(p1_id);
     let mut controller2 = mtg_forge_rs::game::RandomController::new(p2_id);
 
-    let mut game_loop = GameLoop::new(&mut game);
+    let mut game_loop = GameLoop::new(&mut game).with_verbose(true);
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
     // Verify game completed
