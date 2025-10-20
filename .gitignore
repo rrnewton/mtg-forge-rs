@@ -4,6 +4,12 @@
 \#*\#
 .unison.*
 
+# Issue tracking
+.beads/
+
+# Development environment
+.devcontainer/
+
 # Added by cargo
 
 /target

@@ -36,11 +36,21 @@ Workflow: Tasks and Commits
 
 Commit to git as described in the PROJECT_VISION.
 
-We track work in Beads instead of Markdown. Run `bd quickstart` to see how.
+We track work in TODO.md at the repository root. This file contains:
+- Current status and latest commit
+- Completed features organized by phase
+- Next priorities with checkboxes
+- Known issues
+- Progress summary
 
-There is an initial issue (mtg-1) which will serve as our primary tracking issue for what we're currently working on. Every time we do a git commit let's make sure the tracking issue tracks our medium-term TODO list, so that if we lose our current conversation history we can start again from there.
+Every time we do a git commit, update TODO.md to reflect:
+- What was just completed (check off items, move to completed section)
+- What's next (update priorities)
+- Any new issues discovered
 
-You should periodically do documentation work, usually before committing, to make sure the issues are up-to-date.
+The TODO.md serves as our primary tracking document, so if we lose conversation history we can start again from there.
+
+You should periodically do documentation work, usually before committing, to make sure TODO.md is up-to-date.
 
 Make sure you ACTUALLY run `cargo test` before any commit. Include a Test Results Summary section in every commit message like this:
 
