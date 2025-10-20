@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** 375df56 - Add end-to-end test infrastructure for TUI
+**Latest Commit:** ecb6257 - Add basic ability parser for DealDamage effects
 
 **Tests:** 81 passing ✅ (77 unit + 4 e2e)
 
