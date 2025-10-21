@@ -88,7 +88,7 @@ enum Commands {
         load_all_cards: bool,
 
         /// Verbosity level for game output (0=silent, 1=minimal, 2=normal, 3=verbose)
-        #[arg(long, default_value = "normal")]
+        #[arg(long, default_value = "normal", short = 'v')]
         verbosity: VerbosityArg,
     },
 }

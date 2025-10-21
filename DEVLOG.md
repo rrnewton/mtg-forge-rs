@@ -693,7 +693,7 @@ self.print_step_header_if_needed();
 println!(...);
 ```
 
-This is ugly. Instead wrap into a helper function the process of logging an action line, and let that helper function encapsulate
+This is ugly. Instead wrap into a helper function the process of logging an action line, and let that helper function encapsulate the check if the lazy-header-printing is needed. This is probably a good time to factor the logging support into separate, modular code, rather than just using naked println! calls throughout the code.
 
 
 
