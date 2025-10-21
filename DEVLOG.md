@@ -513,16 +513,101 @@ $ perf report | head -n50
 ```
 
 
-TODO: Fine-grained async card loading
+DONE Fine-grained async card loading
 ----------------------------------------
 
-It's pretty silly that we load all 31438 cards even when we don't need to. Rust has excellent support for async programming.
+It's pretty silly that we load all 31438 cards even when we don't need to. Rust has excellent support for async programming. Let's rework the CardDatabase to support on-demand async loading.
 
+The idea is that when we load a deck, we will call `get_card` on each card in the deck (say, 20 distinct cards) and each one will return an async future. That will begin the IO process that uses tokio::fs to perform file operations in parallel (on Linux this should automatically use tokio-uring). Then, to complete deck loading, we will force all the futures waiting for the IO to complete and resulting in all our `CardDefinition`s residing in memory.
+
+When doing this kind of "sparse" access to the on disk cardsfolder, we can rely on the known layou of `./cardsfolder`. So when we want to fetch card "Lightning Bolt" we don't need to search through directories, because we know it will reside in `cardsfolder/l/lightning_bolt.txt` (i.e. convert to lower case, space to underscores, and at an intermediate directory based on first letter).
+
+Each time we load a deck in this way print timing for deck loading:
+
+```
+Loaded deck of 20 distinct cards in <TIME>
+```
+
+Mainly for testing purposes, let's ALSO have a flag --eager-load-cards which uses tokio (and tokio::fs) to recursively walk the `cardsfolder` directory and load everything it finds. This should also be maximally parallel and use all available system resources, and it should print a timing message when it completes:
+
+```
+Loaded card database with 31438 cards in 339.79ms
+```
+
+----
+
+Let's rename deck_async's load_deck_cards as prefetch_deck_cards. With the new async database it should be FINE to let the cards load the first time we access them. This method is essentially just a prefetching hint. We could even asynchronously combine it with other initialization work.
+
+Update the profile.rs example to use this prefetching method and NOT load the entire card database. It should still report how long teh deck prefetch took.
+
+
+: Can we name the binary "mtg" while keeping the package name?
+------------------------------------------------
+
+The repository and folder are named `mtg-forge-rs`.
+But I would like the binary to be simply `target/release/mtg` 
+instead of `target/release/mtg-forge-rs`.
+
+Is this possible?
+
+
+Use streaming for card file discovery 
+--------------------------------------------
+
+The following code waits until we walk the directory (probably about 10ms)
+before we begin loading any card, which is unnecessarily synchronous:
+
+        // Recursively collect all .txt file paths
+        let paths = Self::collect_card_paths(&self.cardsfolder)?;
+
+Instead, we should asynchronously perform the tree-walking IO in
+parallel.  There may be a good library function to use for
+this. Probably try jwalk.  For example, when there are multiple
+children the tree walking process can fork and proceed in parallel,
+asynchronously merging the substreams of results. It should return a
+stream of paths that we can start consuming and loading immediately.
+
+Thus it is important that the individual card loading and parsing
+begin while the directory traversal is still going. Creating optimal
+performance for the combined workloads may be a bit tricky. Jwalk will
+spawn its own workers and use Rayon. Async_walkdir would work along
+with the tokio async runtime we're already using but it does NOT use
+parallelism for multiple children (subdirectories).
+
+Eagerly load all cards
+----------------------------------------
+
+As noted in the TODO, finish --eager-load-cards. Switch the default
+for `mtg tui` to load only the cards for the two input decks.  But
+provide the option to load all cards.  Actually, name the flag
+`--load-all-cards` instead.
+
+
+
+TODO: Reduce the TODO.md description of past work
+----------------------------------------
+
+Let's leave a very short description of phase 1 & phase 2, and compress the description of the already completed portions of phase 3. Leave the descriptions of future work.
+
+
+TODO: Make card load errors fatal
+----------------------------------------
+
+We should in general NOT have Warnings and non-fatal errors in our system. We want to fail fast if anything is wrong.
+
+```
+eprintln!("Warning: Failed to parse card {}: {}", name, e);
+```
+
+Make this warning fatal and add TODO items to our backlog for any
+other places you see silent failures.
 
 
 
 TODO: Eliminate unnecessary calls to collect or clone
 -----------------------------------------------
+
+We have far too much allocation right now, and, as we cover in CLAUDE.md, one of our design goals is to really minimize allocation.  Note that current cargo flamegraph profiling results show a lot of time spent in free/malloc and drop_in_place. And if you look through our top allocation sites:
 
 ```
 heaptrack_print heaptrack.profile.67034.gz | grep -E '( calls with | at src | at /workspace)' | head -n50
@@ -548,6 +633,18 @@ heaptrack_print heaptrack.profile.67034.gz | grep -E '( calls with | at src | at
       at /workspace/src/core/mana.rs:68
       at /workspace/src/loader/database.rs:54
 ```
+
+The culprits are generally calls to `.collect()`. For example:
+
+```
+let players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
+```
+
+Calls to `.clone()` are also problematic as well.  These can both
+usually be replaced with a zero copy
+
+Create a sectionin oth
+
 
 
 

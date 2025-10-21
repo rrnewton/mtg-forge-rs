@@ -8,139 +8,26 @@
 
 ---
 
-## ✅ Phase 3 Started: Gameplay Expansion
+## ✅ Completed Work
 
-### Completed Features:
-- ✅ **TUI support - Basic implementation**
-  * Main binary `mtg` with `tui` subcommand
-  * CLI arguments: deck paths, --p1/--p2 agent types, --seed
-  * ZeroController: always chooses first meaningful action (filters out mana tap)
-  * Successfully runs games to completion with zero and random controllers
-  * Loads decks and card database from cardsfolder
-  * Displays game results (winner, turns, life totals)
-  * End-to-end test suite (4 tests) verifying:
-    - Game completion with deterministic seeds
-    - Reproducible results with same seed
-    - Game state validation
-    - Random vs Random successfully deals damage and wins by player death
+### Phase 3: Gameplay Expansion (In Progress)
+- ✅ TUI support: `mtg tui` command with --p1/--p2 agent types, --seed for deterministic games
+- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
+- ✅ Basic spell effects: DealDamage parsing, Lightning Bolt works
+- ✅ Creature combat: attackers, blockers, damage calculation, creature death
+- ✅ Cleanup/discard phase: players discard to max hand size
+- ✅ Benchmarking: Criterion.rs infrastructure (~7,000 games/sec, 82KB/game allocation)
+- ✅ Async card loading: jwalk streaming discovery, deck-only or --load-all-cards modes
 
-- ✅ **Keyword ability support (K: lines)**
-  * Keyword enum with 15+ evergreen keywords (Flying, Vigilance, etc.)
-  * Protection variants (from red, blue, black, white, green)
-  * Keywords with parameters: Madness, Flashback, Enchant
-  * Parser handles both simple and parameterized keywords
-  * Card struct has `keywords` field with helper methods (has_keyword, has_flying)
-  * Comprehensive test suite (10 tests) for keyword loading
-  * Tested on 10 diverse cards from cardsfolder
+### Phase 2: Game Loop
+- ✅ Complete turn system: all 11 steps, priority passing, win conditions
+- ✅ AI vs AI demo with RandomController
 
-- ✅ **Basic ability parser for spell effects**
-  * Parses "NumDmg$" from DealDamage abilities (A:SP$ DealDamage)
-  * Auto-targets opponents for effects with no target
-  * RandomController successfully casts Lightning Bolts and deals damage!
-
-- ✅ **Creature combat system (COMPLETE!)**
-  * Combat state tracking (attackers, blockers, damage assignment)
-  * Declare attackers step with attacker selection
-  * Declare blockers step with blocker assignment
-  * Combat damage calculation (blocked and unblocked)
-  * Automatic creature death when damage >= toughness
-  * Full integration with game loop
-  * Comprehensive tests (4 new combat tests)
-
-- ✅ **Discard phase in cleanup step**
-  * Players discard down to maximum hand size (default 7)
-  * Added max_hand_size field to Player struct
-  * Cleanup step calls controller.choose_cards_to_discard()
-  * All controllers implement discard logic (Zero, Random, Scripted, combat_demo)
-  * Active player discards first, then non-active players
-  * Cards move from hand to graveyard
-  * Comprehensive test verifies discard functionality
-  * Fixes issue where players accumulated 39+ cards in hand
-
-- ✅ **Performance benchmarking with Criterion.rs**
-  * Comprehensive benchmark infrastructure with allocation tracking
-  * **Fresh mode**: Allocate new game each iteration (~143µs per game)
-  * **Snapshot mode**: Clone initial state each iteration (~131µs per game, 8% faster!)
-  * **Rewind mode**: Placeholder for future undo() implementation
-  * GameMetrics tracking:
-    - Execution time, turns, actions
-    - games/sec (~7,000), actions/sec (~400,000), turns/sec (~430,000)
-    - Allocation tracking: bytes allocated/deallocated/net per game
-    - ~374KB allocated, ~292KB deallocated, ~82KB net per game
-    - ~4.2KB allocated per turn
-  * Uses stats_alloc for allocation tracking
-  * Profiling support:
-    - Dedicated `profile` binary with CLI argument for iteration count
-    - `make profile` - CPU time profiling with cargo-flamegraph (1000 games)
-    - `make heapprofile` - Allocation profiling with cargo-heaptrack (100 games)
-    - Flexible iteration count: `cargo run --bin profile -- 50`
-    - Cleaner profiles without Criterion overhead
-  * Run with `cargo bench` or `make bench`
-  * Disabled RandomController stdout output for quiet benchmarking
-
-- ✅ **Async card loading infrastructure**
-  * AsyncCardDatabase with tokio-based parallel I/O
-  * Streaming card file discovery with jwalk:
-    - Parallel directory traversal using jwalk + rayon
-    - Cards begin loading while directory tree is still being walked
-    - Optimal performance through concurrent I/O operations
-  * Two loading modes:
-    - **Default**: Load only cards from the two input decks (fast startup)
-    - **--load-all-cards**: Parallel async loading of all cards from cardsfolder
-  * Lazy on-demand loading: Load individual cards when requested
-  * Card name to path conversion: "Lightning Bolt" → "cardsfolder/l/lightning_bolt.txt"
-  * Thread-safe caching with Arc<RwLock<HashMap>>
-  * Timing metrics:
-    - Eager load (all cards): ~364ms for 31,438 cards (parallel)
-    - Deck-only load: ~0.08ms for deck-specific cards
-  * Comprehensive tests for async loading and caching
-  * CLI flag: `--load-all-cards` for parallel loading mode
-
-## ✅ Phase 2 Complete: Game Loop Implementation
-
-### Completed Features:
-- ✅ **Complete game loop with turn phases and priority system**
-  * All 11 turn steps (Untap, Upkeep, Draw, Main1, Combat steps, Main2, End, Cleanup)
-  * Priority passing system with round-robin
-  * Win condition checking (life <= 0, empty library)
-  * Turn-based state management
-  * Safety limits to prevent infinite loops
-  * Fixed RandomController infinite loop bug
-
-- ✅ **AI vs AI example game**
-  * Demonstrates complete game from start to finish
-  * Uses RandomController for both players
-  * Loads decks from cardsfolder
-  * Games complete successfully with win conditions
-
-### Previously Completed (Phase 1):
-1. Core entity system with unified EntityID generator
-2. Card, Player, Mana, and GameState types
-3. Game zones and turn structure
-4. Game actions (play land, cast spells, deal damage, tap for mana)
-5. Lightning Bolt MVP demo - fully playable!
-6. Phantom types for EntityId<T> - type-safe IDs
-7. Strong string types (CardName, PlayerName, Subtype)
-8. Comprehensive CounterType enum (220+ counter types)
-9. Proper mana payment system
-10. Card effect system (6 basic effects)
-11. Integrated undo log system
-12. Development Makefile (build, test, validate)
-13. Controller-driven game architecture
-    - PlayerController trait for polymorphic controllers
-    - GameStateView with zero-copy access
-    - ScriptedController for testing
-14. Card loading and database system
-    - CardLoader parses .txt files from cardsfolder
-    - CardDatabase indexes all cards (case-insensitive lookup)
-    - DeckLoader parses .dck deck files
-    - GameInitializer creates games from two decks
-15. RandomController AI - baseline AI for testing
-16. ZeroController - always chooses first meaningful action (for testing)
-17. Main binary with TUI subcommand
-    - Command-line interface with clap
-    - Zero and random controller support
-    - Seed-based deterministic games
+### Phase 1: Core Architecture
+- ✅ Entity system, game state, zones, actions, mana payment
+- ✅ Type-safe IDs, strong types, undo logging
+- ✅ Controller architecture: PlayerController trait, GameStateView, Random/Zero/Scripted controllers
+- ✅ Card/deck loading from cardsfolder .txt and .dck files
 
 ---
 
@@ -235,20 +122,10 @@ None currently - all tests passing!
 
 ## 📊 Progress Summary
 
-**Architecture:** ✅ Complete
-**Core Game Engine:** ✅ Complete
-**Game Loop:** ✅ Complete (including cleanup/discard phase)
-**Combat:** ✅ Complete
-**Keywords:** ✅ Complete (K: lines)
-**Spell Effects:** 🚧 In Progress (DealDamage done, more needed)
-**Triggered/Static Abilities:** 📋 Planned (T:, S: lines)
-**Performance/Benchmarking:** ✅ Complete (Criterion.rs benchmarks)
-**Tree Search:** 📋 Planned (needs undo() implementation)
-**Advanced Features:** 📝 Future
+**Phase 1 (Core Architecture):** ✅ Complete
+**Phase 2 (Game Loop):** ✅ Complete
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, Benchmarking ✅, Async Loading ✅
+**Phase 4 (Performance/AI):** 📋 Planned
+**Phase 5 (Advanced Features):** 📝 Future
 
-**Total Tests:** 95 passing (80 unit + 10 card loading + 5 e2e)
-**Test Coverage:** Good (core functionality + keyword parsing + discard phase + async loading)
-**Performance:**
-  - Fresh mode: ~143µs per game (~7,000 games/sec)
-  - Snapshot mode: ~131µs per game (~7,600 games/sec, 8% faster)
-  - Memory: ~82KB net allocation per game (~4.2KB per turn)
+**Tests:** 92 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
