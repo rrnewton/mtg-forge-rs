@@ -147,11 +147,8 @@ async fn run_tui(
         unique_names.extend(deck2.unique_card_names());
         card_db.load_cards(&unique_names).await?
     };
-    println!(
-        "  Loaded {} cards in {:.2}ms\n",
-        count,
-        duration.as_secs_f64() * 1000.0
-    );
+    println!("  Loaded {} cards", count);
+    eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
 
     // Initialize game
     println!("Initializing game...");
