@@ -9,7 +9,7 @@ use std::process::Command;
 /// Helper to run the mtg binary and capture stdout
 fn run_game_with_seed(deck_path: &str, seed: u64, verbosity: &str) -> String {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--quiet",
             "--bin",
@@ -128,7 +128,7 @@ fn test_determinism_all_decks() {
         println!("Testing determinism for deck: {}", deck_str);
 
         let seed = 42;
-        let verbosity = "normal";
+        let verbosity = "verbose";
 
         // Run twice and compare
         let run1 = run_game_with_seed(deck_str, seed, verbosity);
