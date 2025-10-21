@@ -160,9 +160,13 @@ where
     game.rng_seed = seed;
 
     // Create random controllers
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-    let p1_id = players[0];
-    let p2_id = players[1];
+    let (p1_id, p2_id) = {
+        let mut players_iter = game.players.iter().map(|(id, _)| *id);
+        (
+            players_iter.next().expect("Should have player 1"),
+            players_iter.next().expect("Should have player 2"),
+        )
+    };
 
     let mut controller1 = RandomController::with_seed(p1_id, seed);
     let mut controller2 = RandomController::with_seed(p2_id, seed + 1);

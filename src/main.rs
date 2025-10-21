@@ -174,9 +174,13 @@ async fn run_tui(
     println!("  Player 2: Player 2 ({:?})\n", p2_type);
 
     // Create controllers based on agent types
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-    let p1_id = players[0];
-    let p2_id = players[1];
+    let (p1_id, p2_id) = {
+        let mut players_iter = game.players.iter().map(|(id, _)| *id);
+        (
+            players_iter.next().expect("Should have player 1"),
+            players_iter.next().expect("Should have player 2"),
+        )
+    };
 
     let mut controller1: Box<dyn mtg_forge_rs::game::PlayerController> = match p1_type {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),

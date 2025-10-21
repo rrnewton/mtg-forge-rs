@@ -120,6 +120,44 @@ None currently - all tests passing!
 
 ---
 
+## ⚡ Performance Optimization Backlog
+
+### Recently Completed:
+- ✅ **Eliminated player ID collect() calls** in game loop hot paths
+  - Replaced 10+ `collect()` calls with direct iterator access
+  - Used `.find()` instead of collecting Vec then indexing
+  - **Result:** Fresh mode 1.2-2.2% faster, Snapshot mode 11-13% faster
+  - Files: game_loop.rs, main.rs, benches/game_benchmark.rs
+
+### High Priority - Allocation Hot Spots:
+- [ ] **CardDatabase::get_card() returns references** (Major)
+  - Currently clones CardDefinition on every access (line 52, database_async.rs)
+  - Heaptrack shows this as top allocation site
+  - Requires adding lifetime parameters to return `&CardDefinition`
+  - Would eliminate ~50% of Card struct clones
+
+- [ ] **Eliminate GameStateView clones** (Medium)
+  - Created on every controller decision
+  - Consider borrowing instead of cloning where possible
+
+- [ ] **String allocation optimization** (Medium)
+  - Card names, player names cloned frequently
+  - Consider using Arc<str> or &'static str where appropriate
+  - Log messages allocate heavily - consider conditional compilation
+
+### Lower Priority - Legitimate Uses:
+- These collect() calls are necessary for borrow checker but documented for awareness:
+  - reset_turn_state (line 298): collect player IDs before mutating
+  - untap_step (line 357): collect card IDs before mutating
+  - get_next_player (state.rs:247): could optimize for 2-player case
+
+### Measurement Notes:
+- Benchmark before: Fresh ~162µs/game, Snapshot ~166µs/game
+- Benchmark after: Fresh ~159µs/game, Snapshot ~147µs/game
+- Heaptrack showed ~4GB allocations per 10k games before optimizations
+
+---
+
 ## 📊 Progress Summary
 
 **Phase 1 (Core Architecture):** ✅ Complete

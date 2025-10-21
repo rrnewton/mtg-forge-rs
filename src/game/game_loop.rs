@@ -107,16 +107,22 @@ impl<'a> GameLoop<'a> {
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
     ) -> Result<GameResult> {
-        // Verify controllers match players
-        let players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
-        if players.len() != 2 {
-            return Err(MtgError::InvalidAction(
-                "Game loop requires exactly 2 players".to_string(),
-            ));
-        }
-
-        let player1_id = players[0];
-        let player2_id = players[1];
+        // Verify controllers match players (extract exactly 2 player IDs without allocating)
+        let (player1_id, player2_id) = {
+            let mut players_iter = self.game.players.iter().map(|(id, _)| *id);
+            let player1_id = players_iter.next().ok_or_else(|| {
+                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
+            })?;
+            let player2_id = players_iter.next().ok_or_else(|| {
+                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
+            })?;
+            if players_iter.next().is_some() {
+                return Err(MtgError::InvalidAction(
+                    "Game loop requires exactly 2 players".to_string(),
+                ));
+            }
+            (player1_id, player2_id)
+        };
 
         if controller1.player_id() != player1_id || controller2.player_id() != player2_id {
             return Err(MtgError::InvalidAction(
@@ -200,13 +206,14 @@ impl<'a> GameLoop<'a> {
             }
         }
 
-        // Move to next player's turn
-        let players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
-        let next_player = if active_player == players[0] {
-            players[1]
-        } else {
-            players[0]
-        };
+        // Move to next player's turn (find the other player without allocating)
+        let next_player = self
+            .game
+            .players
+            .iter()
+            .map(|(id, _)| *id)
+            .find(|&id| id != active_player)
+            .expect("Should have another player");
 
         self.game.turn.next_turn(next_player);
 
@@ -471,12 +478,13 @@ impl<'a> GameLoop<'a> {
     ) -> Result<()> {
         // Defending player declares blockers
         let active_player = self.game.turn.active_player;
-        let players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
-        let defending_player = if active_player == players[0] {
-            players[1]
-        } else {
-            players[0]
-        };
+        let defending_player = self
+            .game
+            .players
+            .iter()
+            .map(|(id, _)| *id)
+            .find(|&id| id != active_player)
+            .expect("Should have defending player");
 
         let controller: &mut dyn PlayerController = if defending_player == controller1.player_id() {
             controller1
@@ -563,19 +571,17 @@ impl<'a> GameLoop<'a> {
     ) -> Result<()> {
         let active_player = self.game.turn.active_player;
 
-        // Active player discards to hand size first
-        let player_ids = [active_player];
-
-        // Then non-active players (in a 2-player game, just one other player)
-        let all_players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
-        let other_players: Vec<_> = all_players
+        // Get non-active player without allocating
+        let non_active_player = self
+            .game
+            .players
             .iter()
-            .filter(|&&p| p != active_player)
-            .copied()
-            .collect();
+            .map(|(id, _)| *id)
+            .find(|&id| id != active_player)
+            .expect("Should have non-active player");
 
-        // Process active player first, then others
-        for &player_id in player_ids.iter().chain(other_players.iter()) {
+        // Process active player first, then non-active player
+        for &player_id in &[active_player, non_active_player] {
             let hand_size = self
                 .game
                 .get_player_zones(player_id)
@@ -641,7 +647,7 @@ impl<'a> GameLoop<'a> {
         }
 
         // Empty mana pools
-        for player_id in all_players {
+        for &player_id in &[active_player, non_active_player] {
             if let Ok(player) = self.game.players.get_mut(player_id) {
                 player.mana_pool.clear();
             }
@@ -659,12 +665,13 @@ impl<'a> GameLoop<'a> {
         controller2: &mut dyn PlayerController,
     ) -> Result<()> {
         let active_player = self.game.turn.active_player;
-        let players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
-        let non_active_player = if active_player == players[0] {
-            players[1]
-        } else {
-            players[0]
-        };
+        let non_active_player = self
+            .game
+            .players
+            .iter()
+            .map(|(id, _)| *id)
+            .find(|&id| id != active_player)
+            .expect("Should have non-active player");
 
         // Active player gets priority first
         let mut current_priority = active_player;
@@ -959,15 +966,12 @@ impl<'a> GameLoop<'a> {
 
     /// Check if the game has reached a win condition
     fn check_win_condition(&self) -> Option<GameResult> {
-        let players: Vec<_> = self.game.players.iter().map(|(id, p)| (*id, p)).collect();
-
         // Check for player death (life <= 0)
-        for (player_id, player) in &players {
+        for (player_id, player) in self.game.players.iter() {
             if player.life <= 0 {
-                let winner = players
-                    .iter()
-                    .find(|(id, _)| id != player_id)
-                    .map(|(id, _)| *id);
+                let winner = self.game.players.iter()
+                    .map(|(id, _)| *id)
+                    .find(|&id| id != *player_id);
                 return Some(GameResult {
                     winner,
                     turns_played: self.turns_elapsed,
@@ -977,13 +981,12 @@ impl<'a> GameLoop<'a> {
         }
 
         // Check for decking (empty library when trying to draw)
-        for (player_id, _) in &players {
+        for (player_id, _) in self.game.players.iter() {
             if let Some(zones) = self.game.get_player_zones(*player_id) {
                 if zones.library.is_empty() {
-                    let winner = players
-                        .iter()
-                        .find(|(id, _)| id != player_id)
-                        .map(|(id, _)| *id);
+                    let winner = self.game.players.iter()
+                        .map(|(id, _)| *id)
+                        .find(|&id| id != *player_id);
                     return Some(GameResult {
                         winner,
                         turns_played: self.turns_elapsed,
@@ -1010,8 +1013,9 @@ mod tests {
     #[test]
     fn test_untap_step() {
         let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-        let alice = players[0];
+        let alice = {
+            game.players.iter().map(|(id, _)| *id).next().expect("Should have player 1")
+        };
 
         // Create a tapped land on battlefield
         let land_id = game.next_card_id();
@@ -1033,8 +1037,9 @@ mod tests {
     #[test]
     fn test_draw_step() {
         let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-        let alice = players[0];
+        let alice = {
+            game.players.iter().map(|(id, _)| *id).next().expect("Should have player 1")
+        };
 
         // Add a card to Alice's library
         let card_id = game.next_card_id();
@@ -1061,8 +1066,11 @@ mod tests {
     #[test]
     fn test_check_win_condition_life() {
         let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-        let bob = players[1];
+        let bob = {
+            let mut players_iter = game.players.iter().map(|(id, _)| *id);
+            let _alice = players_iter.next().expect("Should have player 1");
+            players_iter.next().expect("Should have player 2")
+        };
 
         // Set Bob's life to 0
         game.players.get_mut(bob).unwrap().life = 0;
