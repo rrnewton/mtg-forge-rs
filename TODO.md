@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Latest Commit:** 3675967 - Fix make profile with dedicated profiling binary
+**Latest Commit:** [pending] - Implement async card loading with eager and lazy modes
 
-**Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
+**Tests:** 95 passing ✅ (80 unit + 10 card loading + 5 e2e)
 
 ---
 
@@ -77,6 +77,20 @@
     - Cleaner profiles without Criterion overhead
   * Run with `cargo bench` or `make bench`
   * Disabled RandomController stdout output for quiet benchmarking
+
+- ✅ **Async card loading infrastructure**
+  * AsyncCardDatabase with tokio-based parallel I/O
+  * Two loading modes:
+    - **Default (sync)**: Traditional synchronous loading for compatibility
+    - **Eager async (--eager-load-cards)**: Parallel async loading of all cards
+  * Lazy on-demand loading: Load only cards needed for decks
+  * Card name to path conversion: "Lightning Bolt" → "cardsfolder/l/lightning_bolt.txt"
+  * Thread-safe caching with Arc<RwLock<HashMap>>
+  * Timing metrics:
+    - Eager load: ~364ms for 31,438 cards (parallel)
+    - Deck load: ~0.08ms for deck-specific cards (after eager load)
+  * Comprehensive tests for async loading and caching
+  * CLI flag: `--eager-load-cards` for parallel loading mode
 
 ## ✅ Phase 2 Complete: Game Loop Implementation
 
@@ -228,8 +242,8 @@ None currently - all tests passing!
 **Tree Search:** 📋 Planned (needs undo() implementation)
 **Advanced Features:** 📝 Future
 
-**Total Tests:** 92 passing (77 unit + 10 card loading + 5 e2e)
-**Test Coverage:** Good (core functionality + keyword parsing + discard phase)
+**Total Tests:** 95 passing (80 unit + 10 card loading + 5 e2e)
+**Test Coverage:** Good (core functionality + keyword parsing + discard phase + async loading)
 **Performance:**
   - Fresh mode: ~143µs per game (~7,000 games/sec)
   - Snapshot mode: ~131µs per game (~7,600 games/sec, 8% faster)
