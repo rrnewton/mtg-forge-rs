@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_choose_from_empty_actions() {
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = *game.players.iter().next().unwrap().0;
+        let player_id = game.players.first().unwrap().id;
 
         let mut controller = RandomController::with_seed(player_id, 42);
         let view = GameStateView::new(&game, player_id);
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn test_choose_from_actions() {
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = *game.players.iter().next().unwrap().0;
+        let player_id = game.players.first().unwrap().id;
 
         let mut controller = RandomController::with_seed(player_id, 42);
         let view = GameStateView::new(&game, player_id);
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn test_seeded_determinism() {
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = *game.players.iter().next().unwrap().0;
+        let player_id = game.players.first().unwrap().id;
 
         let mut controller1 = RandomController::with_seed(player_id, 42);
         let mut controller2 = RandomController::with_seed(player_id, 42);

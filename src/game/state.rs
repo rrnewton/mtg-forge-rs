@@ -16,8 +16,8 @@ pub struct GameState {
     /// All cards in the game
     pub cards: EntityStore<Card>,
 
-    /// All players in the game
-    pub players: EntityStore<Player>,
+    /// All players in the game (Vec for stable ordering, small count)
+    pub players: Vec<Player>,
 
     /// Zones for each player
     pub player_zones: Vec<(PlayerId, PlayerZones)>,
@@ -58,9 +58,7 @@ impl GameState {
         let player1 = Player::new(p1_id, player1_name, starting_life);
         let player2 = Player::new(p2_id, player2_name, starting_life);
 
-        let mut players = EntityStore::new();
-        players.insert(p1_id, player1);
-        players.insert(p2_id, player2);
+        let players = vec![player1, player2];
 
         let player_zones = vec![
             (p1_id, PlayerZones::new(p1_id)),
@@ -78,7 +76,7 @@ impl GameState {
             player_zones,
             battlefield: CardZone::new(Zone::Battlefield, shared_id),
             stack: CardZone::new(Zone::Stack, shared_id),
-            turn: TurnStructure::new(p1_id),
+            turn: TurnStructure::new_with_idx(p1_id, 0), // Player 1 starts at index 0
             combat: CombatState::new(),
             rng_seed: 0,
             next_entity_id: next_id,
@@ -124,6 +122,63 @@ impl GameState {
             .iter_mut()
             .find(|(id, _)| *id == player_id)
             .map(|(_, zones)| zones)
+    }
+
+    /// Get a player by ID
+    pub fn get_player(&self, id: PlayerId) -> Result<&Player> {
+        self.players
+            .iter()
+            .find(|p| p.id == id)
+            .ok_or(crate::MtgError::EntityNotFound(id.as_u32()))
+    }
+
+    /// Get a mutable player by ID
+    pub fn get_player_mut(&mut self, id: PlayerId) -> Result<&mut Player> {
+        self.players
+            .iter_mut()
+            .find(|p| p.id == id)
+            .ok_or(crate::MtgError::EntityNotFound(id.as_u32()))
+    }
+
+    /// Get player by index (for stable turn order)
+    pub fn get_player_by_idx(&self, idx: usize) -> Option<&Player> {
+        self.players.get(idx)
+    }
+
+    /// Get mutable player by index
+    pub fn get_player_by_idx_mut(&mut self, idx: usize) -> Option<&mut Player> {
+        self.players.get_mut(idx)
+    }
+
+    /// Get the index of a player by ID
+    pub fn get_player_idx(&self, id: PlayerId) -> Option<usize> {
+        self.players.iter().position(|p| p.id == id)
+    }
+
+    /// Get the next player in turn order (for 2+ players)
+    pub fn get_next_player_idx(&self, current_idx: usize) -> usize {
+        (current_idx + 1) % self.players.len()
+    }
+
+    /// For 2-player games, get the other player's index
+    pub fn get_other_player_idx(&self, player_idx: usize) -> Option<usize> {
+        if self.players.len() == 2 {
+            Some(1 - player_idx)
+        } else {
+            None
+        }
+    }
+
+    /// For 2-player games, get the other player's ID
+    pub fn get_other_player_id(&self, player_id: PlayerId) -> Option<PlayerId> {
+        if self.players.len() == 2 {
+            self.players
+                .iter()
+                .find(|p| p.id != player_id)
+                .map(|p| p.id)
+        } else {
+            None
+        }
     }
 
     /// Move a card from one zone to another
@@ -229,7 +284,7 @@ impl GameState {
             });
 
             // Reset per-turn state
-            if let Ok(player) = self.players.get_mut(next_player) {
+            if let Ok(player) = self.get_player_mut(next_player) {
                 player.reset_lands_played();
             }
         } else {
@@ -244,19 +299,16 @@ impl GameState {
 
     /// Get the next player in turn order
     fn get_next_player(&self, current_player: PlayerId) -> Result<PlayerId> {
-        let player_ids: Vec<PlayerId> = self.players.iter().map(|(id, _)| *id).collect();
-        let current_idx = player_ids
-            .iter()
-            .position(|&id| id == current_player)
+        let current_idx = self
+            .get_player_idx(current_player)
             .ok_or(crate::MtgError::EntityNotFound(current_player.as_u32()))?;
-
-        let next_idx = (current_idx + 1) % player_ids.len();
-        Ok(player_ids[next_idx])
+        let next_idx = self.get_next_player_idx(current_idx);
+        Ok(self.players[next_idx].id)
     }
 
     /// Check if the game is over
     pub fn is_game_over(&self) -> bool {
-        self.players.iter().filter(|(_, p)| !p.has_lost).count() <= 1
+        self.players.iter().filter(|p| !p.has_lost).count() <= 1
     }
 
     /// Get the winner (if game is over)
@@ -264,10 +316,7 @@ impl GameState {
         if !self.is_game_over() {
             return None;
         }
-        self.players
-            .iter()
-            .find(|(_, p)| !p.has_lost)
-            .map(|(id, _)| *id)
+        self.players.iter().find(|p| !p.has_lost).map(|p| p.id)
     }
 
     /// Undo the most recent action
@@ -327,7 +376,7 @@ impl GameState {
                 }
                 crate::undo::GameAction::ModifyLife { player_id, delta } => {
                     // Apply the negative of the delta
-                    if let Ok(player) = self.players.get_mut(player_id) {
+                    if let Ok(player) = self.get_player_mut(player_id) {
                         if delta > 0 {
                             player.lose_life(delta);
                         } else {
@@ -341,7 +390,7 @@ impl GameState {
                 }
                 crate::undo::GameAction::AddMana { player_id, color } => {
                     // Remove the mana that was added
-                    if let Ok(player) = self.players.get_mut(player_id) {
+                    if let Ok(player) = self.get_player_mut(player_id) {
                         match color {
                             crate::core::Color::White => {
                                 if player.mana_pool.white > 0 {
@@ -423,7 +472,7 @@ mod tests {
         let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
 
         // Create a card and add it to library
-        let p1_id = *game.players.iter().next().unwrap().0; // Copy the ID
+        let p1_id = game.players.first().unwrap().id; // Copy the ID
         let card_id = game.next_entity_id();
         let card = Card::new(card_id, "Test Card".to_string(), p1_id);
         game.cards.insert(card_id, card);
@@ -452,8 +501,8 @@ mod tests {
         assert_eq!(game.get_winner(), None);
 
         // Make player 1 lose
-        let p1_id = *game.players.iter().next().unwrap().0; // Copy the ID
-        if let Ok(player) = game.players.get_mut(p1_id) {
+        let p1_id = game.players.first().unwrap().id; // Copy the ID
+        if let Ok(player) = game.get_player_mut(p1_id) {
             player.lose_life(20);
         }
 
@@ -467,7 +516,7 @@ mod tests {
         use crate::core::CardType;
 
         let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         assert_eq!(game.undo_log.len(), 0);
 

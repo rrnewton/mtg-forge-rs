@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_zero_controller_chooses_first() {
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = *game.players.iter().next().unwrap().0;
+        let player_id = game.players.first().unwrap().id;
 
         let mut controller = ZeroController::new(player_id);
         let view = GameStateView::new(&game, player_id);
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_zero_controller_empty_actions() {
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = *game.players.iter().next().unwrap().0;
+        let player_id = game.players.first().unwrap().id;
 
         let mut controller = ZeroController::new(player_id);
         let view = GameStateView::new(&game, player_id);

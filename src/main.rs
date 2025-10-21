@@ -175,11 +175,9 @@ async fn run_tui(
 
     // Create controllers based on agent types
     let (p1_id, p2_id) = {
-        let mut players_iter = game.players.iter().map(|(id, _)| *id);
-        (
-            players_iter.next().expect("Should have player 1"),
-            players_iter.next().expect("Should have player 2"),
-        )
+        let p1 = game.get_player_by_idx(0).expect("Should have player 1");
+        let p2 = game.get_player_by_idx(1).expect("Should have player 2");
+        (p1.id, p2.id)
     };
 
     let mut controller1: Box<dyn mtg_forge_rs::game::PlayerController> = match p1_type {
@@ -218,7 +216,7 @@ async fn run_tui(
         println!("\n=== Game Over ===");
         match result.winner {
             Some(winner_id) => {
-                let winner = game.players.get(winner_id)?;
+                let winner = game.get_player(winner_id)?;
                 println!("Winner: {}", winner.name);
             }
             None => {
@@ -230,7 +228,7 @@ async fn run_tui(
 
         // Final state
         println!("\n=== Final State ===");
-        for (_player_id, player) in game.players.iter() {
+        for player in game.players.iter() {
             println!("  {}: {} life", player.name, player.life);
         }
     }

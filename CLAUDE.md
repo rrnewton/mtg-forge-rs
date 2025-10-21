@@ -40,6 +40,8 @@ Workflow: Tasks and Commits
 
 Commit to git as described in the PROJECT_VISION.
 
+Always RUN THE TESTS (`make test` and the full `make validate` that includes it).
+
 We track work in TODO.md at the repository root. This file contains:
 - Current status and latest commit
 - Completed features organized by phase
@@ -52,8 +54,7 @@ Every time we do a git commit, update TODO.md to reflect:
 - What's next (update priorities)
 - Any new issues discovered
 
-The TODO.md serves as our primary tracking document, so if we lose conversation history we can start again from there.
-You should periodically do documentation work, usually before committing, to make sure TODO.md is up-to-date.
+The TODO.md serves as our primary tracking document, so if we lose conversation history we can start again from there.  You should periodically do documentation work, usually before committing, to make sure TODO.md is up-to-date.
 
 Other pre-commit checks
 ----------------------------------------

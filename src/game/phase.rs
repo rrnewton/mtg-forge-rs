@@ -95,6 +95,9 @@ pub struct TurnStructure {
     /// Active player (whose turn it is)
     pub active_player: crate::core::PlayerId,
 
+    /// Active player's index in GameState::players Vec (for O(1) next player lookup)
+    pub active_player_idx: usize,
+
     /// Priority player (who currently has priority)
     pub priority_player: Option<crate::core::PlayerId>,
 }
@@ -105,6 +108,17 @@ impl TurnStructure {
             turn_number: 1,
             current_step: Step::Untap,
             active_player: starting_player,
+            active_player_idx: 0, // Default to first player, should be set by GameState
+            priority_player: None,
+        }
+    }
+
+    pub fn new_with_idx(starting_player: crate::core::PlayerId, starting_idx: usize) -> Self {
+        TurnStructure {
+            turn_number: 1,
+            current_step: Step::Untap,
+            active_player: starting_player,
+            active_player_idx: starting_idx,
             priority_player: None,
         }
     }

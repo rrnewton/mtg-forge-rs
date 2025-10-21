@@ -42,7 +42,7 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
     game.rng_seed = 42;
 
     // Create zero controllers
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
     let p2_id = players[1];
 
@@ -79,12 +79,12 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
 
     // Verify both players still have 20 life (no damage dealt in this setup)
     assert_eq!(
-        game.players.get(p1_id)?.life,
+        game.get_player(p1_id)?.life,
         20,
         "Player 1 should have 20 life"
     );
     assert_eq!(
-        game.players.get(p2_id)?.life,
+        game.get_player(p2_id)?.life,
         20,
         "Player 2 should have 20 life"
     );
@@ -122,7 +122,7 @@ async fn test_tui_deterministic_with_seed() -> Result<()> {
             .await?;
         game.rng_seed = 12345;
 
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
         let p2_id = players[1];
 
@@ -172,7 +172,7 @@ async fn test_tui_runs_to_completion() -> Result<()> {
         .await?;
     game.rng_seed = 54321;
 
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
     let p2_id = players[1];
 
@@ -191,8 +191,8 @@ async fn test_tui_runs_to_completion() -> Result<()> {
     );
 
     // Both players should still exist
-    assert!(game.players.contains(p1_id));
-    assert!(game.players.contains(p2_id));
+    assert!(game.get_player(p1_id).is_ok());
+    assert!(game.get_player(p2_id).is_ok());
 
     Ok(())
 }
@@ -225,7 +225,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
         .await?;
     game.rng_seed = 42;
 
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
     let p2_id = players[1];
 
@@ -239,8 +239,8 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     assert!(result.winner.is_some(), "Game should have a winner");
 
     // Verify that damage was dealt (at least one player should have life != 20)
-    let p1_life = game.players.get(p1_id)?.life;
-    let p2_life = game.players.get(p2_id)?.life;
+    let p1_life = game.get_player(p1_id)?.life;
+    let p2_life = game.get_player(p2_id)?.life;
 
     assert!(
         p1_life != 20 || p2_life != 20,
@@ -263,7 +263,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     // Verify at least one player has <= 0 life
     let winner = result.winner.unwrap();
     let loser = if winner == p1_id { p2_id } else { p1_id };
-    let loser_life = game.players.get(loser)?.life;
+    let loser_life = game.get_player(loser)?.life;
     assert!(
         loser_life <= 0,
         "Loser should have <= 0 life, got {}",
@@ -306,7 +306,7 @@ async fn test_discard_to_hand_size() -> Result<()> {
         )
         .await?;
 
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
     let p2_id = players[1];
 

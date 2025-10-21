@@ -127,6 +127,10 @@ profile:
 	@echo "Flamegraph saved to: flamegraph.svg"
 	@echo "Open with: firefox flamegraph.svg (or your browser of choice)"
 
+profile2: build-release
+	perf record -g --call-graph dwarf -- target/release/profile 5000
+	perf report
+
 # Profile allocations with heaptrack
 # Requires cargo-heaptrack: cargo install cargo-heaptrack
 # Also requires heaptrack: apt-get install heaptrack (or equivalent)

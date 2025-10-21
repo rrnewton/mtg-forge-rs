@@ -171,9 +171,8 @@ fn main() {
     // Create a two-player game
     let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
 
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-    let alice = players[0];
-    let bob = players[1];
+    let alice = game.players[0].id;
+    let bob = game.players[1].id;
 
     println!("=== Game Setup ===");
     println!("Alice: 20 life (will be attacking)");
@@ -342,8 +341,8 @@ fn main() {
     print_battlefield(game_loop.game, alice, bob);
 
     // Check results
-    let alice_life = game_loop.game.players.get(alice).unwrap().life;
-    let bob_life = game_loop.game.players.get(bob).unwrap().life;
+    let alice_life = game_loop.game.players[alice.as_u32() as usize].life;
+    let bob_life = game_loop.game.players[bob.as_u32() as usize].life;
 
     println!("\n=== Final State ===");
     println!("Alice: {alice_life} life (no damage - all attackers blocked)");

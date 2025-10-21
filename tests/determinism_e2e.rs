@@ -56,11 +56,7 @@ fn test_deck_determinism(fixture: Fixture<&str>) {
     let run2 = run_game_with_seed(deck_path, seed, verbosity);
 
     // Verify output is not empty
-    assert!(
-        !run1.is_empty(),
-        "Deck {} produced empty output",
-        deck_path
-    );
+    assert!(!run1.is_empty(), "Deck {} produced empty output", deck_path);
 
     // Verify both runs produce identical output
     assert_eq!(
@@ -106,4 +102,3 @@ fn test_different_seeds_consistency() {
         "Different seeds produced identical output (highly unlikely)"
     );
 }
-

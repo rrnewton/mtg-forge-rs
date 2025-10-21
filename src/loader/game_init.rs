@@ -30,9 +30,8 @@ impl<'a> GameInitializer<'a> {
         let mut game = GameState::new_two_player(player1_name, player2_name, starting_life);
 
         // Get player IDs
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-        let player1_id = players[0];
-        let player2_id = players[1];
+        let player1_id = game.players[0].id;
+        let player2_id = game.players[1].id;
 
         // Load player 1's deck
         self.load_deck_into_game(&mut game, player1_id, player1_deck)
@@ -122,8 +121,8 @@ mod tests {
         assert_eq!(game.players.len(), 2);
 
         // Check each player has 60 cards in library
-        for (player_id, _) in game.players.iter() {
-            if let Some(zones) = game.get_player_zones(*player_id) {
+        for player in &game.players {
+            if let Some(zones) = game.get_player_zones(player.id) {
                 assert_eq!(zones.library.cards.len(), 60);
             }
         }

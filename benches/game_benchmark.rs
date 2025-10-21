@@ -161,7 +161,7 @@ where
 
     // Create random controllers
     let (p1_id, p2_id) = {
-        let mut players_iter = game.players.iter().map(|(id, _)| *id);
+        let mut players_iter = game.players.iter().map(|p| p.id);
         (
             players_iter.next().expect("Should have player 1"),
             players_iter.next().expect("Should have player 2"),
@@ -193,22 +193,48 @@ where
 }
 
 /// Helper function to print aggregated metrics
-fn print_aggregated_metrics(mode: &str, seed: u64, aggregated: &GameMetrics, iteration_count: usize) {
-    println!("\n=== Aggregated Metrics - {} Mode (seed {}, {} games) ===", mode, seed, iteration_count);
+fn print_aggregated_metrics(
+    mode: &str,
+    seed: u64,
+    aggregated: &GameMetrics,
+    iteration_count: usize,
+) {
+    println!(
+        "\n=== Aggregated Metrics - {} Mode (seed {}, {} games) ===",
+        mode, seed, iteration_count
+    );
     println!("  Total turns: {}", aggregated.turns);
     println!("  Total actions: {}", aggregated.actions);
     println!("  Total duration: {:?}", aggregated.duration);
-    println!("  Avg turns/game: {:.2}", aggregated.turns as f64 / iteration_count as f64);
-    println!("  Avg actions/game: {:.2}", aggregated.actions as f64 / iteration_count as f64);
-    println!("  Avg duration/game: {:.2?}", aggregated.duration / iteration_count as u32);
-    println!("  Games/sec: {:.2}", aggregated.avg_games_per_sec(iteration_count));
+    println!(
+        "  Avg turns/game: {:.2}",
+        aggregated.turns as f64 / iteration_count as f64
+    );
+    println!(
+        "  Avg actions/game: {:.2}",
+        aggregated.actions as f64 / iteration_count as f64
+    );
+    println!(
+        "  Avg duration/game: {:.2?}",
+        aggregated.duration / iteration_count as u32
+    );
+    println!(
+        "  Games/sec: {:.2}",
+        aggregated.avg_games_per_sec(iteration_count)
+    );
     println!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
     println!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
     println!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
     println!("  Total bytes allocated: {}", aggregated.bytes_allocated);
-    println!("  Total bytes deallocated: {}", aggregated.bytes_deallocated);
+    println!(
+        "  Total bytes deallocated: {}",
+        aggregated.bytes_deallocated
+    );
     println!("  Net bytes: {}", aggregated.net_bytes_allocated());
-    println!("  Avg bytes/game: {:.2}", aggregated.bytes_allocated as f64 / iteration_count as f64);
+    println!(
+        "  Avg bytes/game: {:.2}",
+        aggregated.bytes_allocated as f64 / iteration_count as f64
+    );
     println!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
     println!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
 }
@@ -228,7 +254,7 @@ fn bench_game_fresh(c: &mut Criterion) {
 
     // Configure for long-running benchmarks
     group.sample_size(10); // Reduce sample size since games can be long
-    group.measurement_time(Duration::from_secs(30)); // 30 seconds per benchmark
+    group.measurement_time(Duration::from_secs(10)); // 30 seconds per benchmark
 
     let seed = 42u64;
 

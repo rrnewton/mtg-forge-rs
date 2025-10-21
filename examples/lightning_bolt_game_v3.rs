@@ -3,6 +3,7 @@
 //! Demonstrates game initialization from decks and mid-game scenarios.
 //! Uses the AsyncCardDatabase and GameInitializer to set up a game state.
 
+use mtg_forge_rs::core::PlayerId;
 use mtg_forge_rs::loader::{
     prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer,
 };
@@ -63,9 +64,8 @@ async fn main() {
         .expect("Failed to initialize game");
 
     println!("Game initialized!");
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-    let alice = players[0];
-    let bob = players[1];
+    let alice = PlayerId::new(0);
+    let bob = PlayerId::new(1);
 
     // Set up the mid-game scenario:
     // - Alice at 11 life
@@ -76,8 +76,8 @@ async fn main() {
     println!("\n=== Setting up mid-game scenario ===");
 
     // Set life totals
-    game.players.get_mut(alice).unwrap().life = 11;
-    game.players.get_mut(bob).unwrap().life = 12;
+    game.players[alice.as_u32() as usize].life = 11;
+    game.players[bob.as_u32() as usize].life = 12;
     println!("  Alice: 11 life");
     println!("  Bob: 12 life");
 
@@ -110,7 +110,7 @@ async fn main() {
             }
             game.battlefield.add(mountain_id);
 
-            let player_name = game.players.get(*player_id).unwrap().name.clone();
+            let player_name = game.players[player_id.as_u32() as usize].name.clone();
             if let Ok(card) = game.cards.get(mountain_id) {
                 println!("  {} has {} on battlefield", player_name, card.name);
             }
@@ -170,7 +170,7 @@ async fn main() {
         if let Err(e) = game.tap_for_mana(alice, mountain_id) {
             println!("  Error: {e:?}");
         } else {
-            let mana = game.players.get(alice).unwrap().mana_pool.red;
+            let mana = game.players[alice.as_u32() as usize].mana_pool.red;
             println!("  Alice now has {mana} red mana\n");
         }
     }
@@ -200,14 +200,14 @@ async fn main() {
             println!("  Error: {e:?}");
         } else {
             println!("  Lightning Bolt is on the stack");
-            println!("  Bob: {} life", game.players.get(bob).unwrap().life);
+            println!("  Bob: {} life", game.players[bob.as_u32() as usize].life);
 
             // Resolve the spell
             println!("\nLightning Bolt resolves:");
             if let Err(e) = game.resolve_spell(bolt_id) {
                 println!("  Error: {e:?}");
             } else {
-                let bob_life = game.players.get(bob).unwrap().life;
+                let bob_life = game.players[bob.as_u32() as usize].life;
                 println!("  Lightning Bolt deals 3 damage to Bob");
                 println!("  Bob: {bob_life} life");
 
@@ -219,8 +219,11 @@ async fn main() {
     }
 
     println!("\n=== Final Game State ===");
-    println!("  Alice: {} life", game.players.get(alice).unwrap().life);
-    println!("  Bob: {} life", game.players.get(bob).unwrap().life);
+    println!(
+        "  Alice: {} life",
+        game.players[alice.as_u32() as usize].life
+    );
+    println!("  Bob: {} life", game.players[bob.as_u32() as usize].life);
     println!("  Battlefield: {} cards", game.battlefield.cards.len());
     println!("  Stack: {} cards", game.stack.cards.len());
 

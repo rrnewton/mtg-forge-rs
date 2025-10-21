@@ -154,8 +154,8 @@ impl<'a> GameStateView<'a> {
     /// Get player's current life total
     pub fn life(&self) -> i32 {
         self.game
-            .players
-            .get(self.player_id)
+            .get_player(self.player_id)
+            .ok()
             .map(|p| p.life)
             .unwrap_or(0)
     }
@@ -164,8 +164,8 @@ impl<'a> GameStateView<'a> {
     pub fn available_mana(&self) -> (u8, u8, u8, u8, u8, u8) {
         // Returns (white, blue, black, red, green, colorless)
         self.game
-            .players
-            .get(self.player_id)
+            .get_player(self.player_id)
+            .ok()
             .map(|p| {
                 (
                     p.mana_pool.white,
@@ -182,8 +182,8 @@ impl<'a> GameStateView<'a> {
     /// Check if player can play lands this turn
     pub fn can_play_land(&self) -> bool {
         self.game
-            .players
-            .get(self.player_id)
+            .get_player(self.player_id)
+            .ok()
             .map(|p| p.can_play_land())
             .unwrap_or(false)
     }

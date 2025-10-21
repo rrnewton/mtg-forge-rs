@@ -475,8 +475,7 @@ game_execution/fresh/42 time:   [146.60 µs 147.20 µs 147.92 µs]
 ```
 
 
-
-TODO: why do we spend soo much time in the loader
+why do we spend soo much time in the loader
 ------------------------------------------------
 
 [It's simply because we're loading all 31438 cards even though we don't
@@ -729,7 +728,7 @@ The test `test_determinism_all_decks` lumps all decks together in one test. But 
 
 ---
 
-Wait, this is NOT a very nice solution with `test_all_decks_have_dedicated_tests`. It doesn't even have any access to ground truth on WHICH tests exist, just a hardcode list of `known_tested_decks` which would require manual updating.
+Wait, regarding the determinism tests, this is NOT a very nice solution with `test_all_decks_have_dedicated_tests`. It doesn't even have any access to ground truth on WHICH tests exist, just a hardcode list of `known_tested_decks` which would require manual updating.
 
 Search the web for methods of compile-time metaprogramming in Rust which would allow us to essentially read the test_decks directory at compile time and produce/register code for separate tests that call the helper.
 
@@ -737,7 +736,7 @@ Search the web for methods of compile-time metaprogramming in Rust which would a
 
 
 
-: Report aggregated metrics in benchmark
+Report aggregated metrics in benchmark
 ----------------------------------------
 
 Each call to run_game_with_metrics below returns GameMetrics but we throw them away:
@@ -757,10 +756,11 @@ snapshot modes of these benchmarks.  Please factor out the pieces
 where `run_game_with_metrics` can take a function as an input that
 initializes the game. For the fresh case this will allocated new, and
 for the snapshot case this will perform a .clone().  Everything else
-should be shared between the two setups.
+should be shared between the two setups, including the code to print
+the metrics.
 
 
-TODO: Eliminate unnecessary calls to collect or clone
+: Eliminate unnecessary calls to collect or clone
 -----------------------------------------------
 
 We have far too much allocation right now, and, as we cover in CLAUDE.md, one of our design goals is to really minimize allocation.  Note that current cargo flamegraph profiling results show a lot of time spent in free/malloc and drop_in_place. And if you look through our top allocation sites:
@@ -812,6 +812,59 @@ Fix what you can in this initial optimization commit, and report what
 change it has on benchmark results. Create a section in the TODO list
 to document a backlog of any extra optimization opportunities that you
 do not fix in your first commit.
+
+----
+
+Many of these accesses to `game.players.iter()` actually don't make
+sense. We should not assume a stable ordering for hashmap iteration.
+There will never be very many players, so Vec seems like a far more
+logical data structure for storing the GameState::players. 
+
+Let's change that type and refactor references. But let's go one step
+further.  We can abstract some of these searches for the "next player"
+or "other players" into helper functions. If we track not just the
+turn number and active player (ID) but also the active players index
+in the Vec of players.. well, then a `next_player()` method could be
+as simple as incrementing the counter (mod vector length).
+
+--- 
+
+Continue on your backlog of eliminating extra copies (collect and
+clone).  If you check the `make bench` output we are still allocating
+over 4000 bytes/turn on average. 
+
+
+---- FORK JOIN IN CLAUDE ----
+
+This is amaziing, it did a fork-join on its own.
+
+    ● Since there are still several test files with issues, let me use Task agents to fix them in parallel:
+
+    ● Task(Fix tui_e2e test file)
+      ⎿  Bash(cargo test --test tui_e2e 2>&1 | head -50)
+         Waiting…
+            Compiling mtg-forge-rs v0.1.0 (/workspace)
+         error[E0308]: mismatched types
+            --> src/main.rs:231:13
+         … +11 lines (ctrl+o to expand)
+         +7 more tool uses
+
+    ● Task(Fix src/main.rs)
+      ⎿  Update(src/main.rs)
+         Updated src/main.rs with 1 addition and 1 removal
+         +7 more tool uses
+
+    ● Task(Fix bin/profile.rs)
+      ⎿  Bash(cargo test 2>&1 | grep -E '(test result: |Running |Doc-tests )')
+         Waiting…
+         No matches found
+         +6 more tool uses
+
+
+
+TODO: Make a test deck with grizzly bears
+----------------------------------------
+
 
 
 

@@ -11,7 +11,7 @@ fn print_game_state(game: &GameState, label: &str) {
     println!("\n{label}");
 
     // Print player life totals
-    for (_id, player) in game.players.iter() {
+    for player in &game.players {
         let status = if player.has_lost { " (LOST)" } else { "" };
         println!("  {}: {} life{}", player.name, player.life, status);
     }
@@ -49,8 +49,8 @@ fn print_game_state(game: &GameState, label: &str) {
     }
 
     // Print player zones for first player
-    if let Some((player_id, _)) = game.players.iter().next() {
-        if let Some(zones) = game.get_player_zones(*player_id) {
+    if let Some(player) = game.players.first() {
+        if let Some(zones) = game.get_player_zones(player.id) {
             println!("  Alice's hand: {} cards", zones.hand.cards.len());
             println!("  Alice's graveyard: {} cards", zones.graveyard.cards.len());
         }
@@ -63,9 +63,8 @@ fn main() {
     // Create a two-player game
     let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
 
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
-    let alice = players[0];
-    let bob = players[1];
+    let alice = game.players[0].id;
+    let bob = game.players[1].id;
 
     println!("Players:");
     println!("  Alice (P1): 20 life");
@@ -138,7 +137,7 @@ fn main() {
     println!("Alice draws a card (skipped in demo)");
 
     // Reset land counter for new turn
-    game.players.get_mut(alice).unwrap().reset_lands_played();
+    game.get_player_mut(alice).unwrap().reset_lands_played();
 
     println!("Alice plays Mountain 2");
 
@@ -153,7 +152,7 @@ fn main() {
     println!("Alice draws a card (skipped in demo)");
 
     // Reset land counter for new turn
-    game.players.get_mut(alice).unwrap().reset_lands_played();
+    game.get_player_mut(alice).unwrap().reset_lands_played();
 
     println!("Alice plays Mountain 3");
 
@@ -168,7 +167,7 @@ fn main() {
     game.tap_for_mana(alice, mountains[0])
         .expect("Failed to tap for mana");
 
-    let alice_player = game.players.get(alice).unwrap();
+    let alice_player = game.get_player(alice).unwrap();
     println!("  Mana pool: {} red", alice_player.mana_pool.red);
 
     println!("\nAlice casts Lightning Bolt (cost: R) targeting Bob!");
@@ -192,7 +191,7 @@ fn main() {
     game.cast_spell(alice, bolt_id, vec![])
         .expect("Failed to cast Lightning Bolt");
 
-    let alice_player = game.players.get(alice).unwrap();
+    let alice_player = game.get_player(alice).unwrap();
     println!(
         "  Mana paid! Mana pool now: {}",
         alice_player.mana_pool.total()
@@ -204,20 +203,20 @@ fn main() {
     game.resolve_spell(bolt_id)
         .expect("Failed to resolve spell");
 
-    let bob_player = game.players.get(bob).unwrap();
+    let bob_player = game.get_player(bob).unwrap();
     println!("  Bob takes 3 damage!");
     println!("  Bob's life: {}", bob_player.life);
 
     // Check game state
     println!("\n=== Game State ===");
-    for (_id, player) in game.players.iter() {
+    for player in &game.players {
         let status = if player.has_lost { " (LOST)" } else { "" };
         println!("{}: {} life{}", player.name, player.life, status);
     }
 
     if game.is_game_over() {
         if let Some(winner_id) = game.get_winner() {
-            let winner = game.players.get(winner_id).unwrap();
+            let winner = game.get_player(winner_id).unwrap();
             println!("\n{} wins!", winner.name);
         }
     } else {

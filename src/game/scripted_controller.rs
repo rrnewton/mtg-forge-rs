@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn test_scripted_controller() {
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = *game.players.iter().next().unwrap().0;
+        let player_id = game.players.first().unwrap().id;
 
         let card_id = EntityId::new(10);
         let actions = vec![

@@ -72,7 +72,7 @@ async fn main() {
         game.rng_seed = seed;
 
         // Create random controllers
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
         let p2_id = players[1];
 

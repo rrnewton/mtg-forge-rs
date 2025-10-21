@@ -13,7 +13,7 @@ fn print_game_state(game: &GameState, label: &str) {
     println!("\n{label}");
 
     // Print player life totals
-    for (_id, player) in game.players.iter() {
+    for player in &game.players {
         let status = if player.has_lost { " (LOST)" } else { "" };
         println!("  {}: {} life{}", player.name, player.life, status);
     }
@@ -51,8 +51,8 @@ fn print_game_state(game: &GameState, label: &str) {
     }
 
     // Print player zones for first player
-    if let Some((player_id, _)) = game.players.iter().next() {
-        if let Some(zones) = game.get_player_zones(*player_id) {
+    if let Some(player) = game.players.first() {
+        if let Some(zones) = game.get_player_zones(player.id) {
             println!("  Alice's hand: {} cards", zones.hand.cards.len());
             println!("  Alice's graveyard: {} cards", zones.graveyard.cards.len());
         }
@@ -93,7 +93,7 @@ fn run_game_loop(game: &mut GameState, controller: &mut dyn PlayerController, ma
                 if let Err(e) = game.tap_for_mana(player_id, card_id) {
                     println!("  Error: {e:?}");
                 } else {
-                    let player = game.players.get(player_id).unwrap();
+                    let player = game.get_player(player_id).unwrap();
                     println!("  Mana pool: {} red", player.mana_pool.red);
                 }
             }
@@ -150,7 +150,7 @@ fn main() {
     // Create a two-player game
     let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
 
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let alice = players[0];
     let bob = players[1];
 
@@ -230,7 +230,7 @@ fn main() {
     let mut controller = ScriptedController::new(alice, script);
 
     // Reset lands played counter before running
-    game.players.get_mut(alice).unwrap().reset_lands_played();
+    game.get_player_mut(alice).unwrap().reset_lands_played();
 
     // Run the game loop - the controller drives the game!
     println!("=== Game Loop Starting ===");
@@ -240,8 +240,8 @@ fn main() {
     println!("\n=== Game Result ===");
     print_game_state(&game, "Final Game State");
 
-    let alice_life = game.players.get(alice).unwrap().life;
-    let bob_life = game.players.get(bob).unwrap().life;
+    let alice_life = game.get_player(alice).unwrap().life;
+    let bob_life = game.get_player(bob).unwrap().life;
 
     println!("\nFinal life totals:");
     println!("  Alice: {alice_life}");
@@ -249,7 +249,7 @@ fn main() {
 
     if game.is_game_over() {
         if let Some(winner_id) = game.get_winner() {
-            let winner = game.players.get(winner_id).unwrap();
+            let winner = game.get_player(winner_id).unwrap();
             println!("\n{} wins!", winner.name);
         }
     } else {

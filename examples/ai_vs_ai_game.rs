@@ -76,7 +76,7 @@ async fn main() {
     let players: Vec<_> = game
         .players
         .iter()
-        .map(|(id, p)| (*id, p.name.to_string()))
+        .map(|p| (p.id, p.name.to_string()))
         .collect();
     println!("  - {}: 20 life", players[0].1);
     println!("  - {}: 20 life\n", players[1].1);
@@ -104,8 +104,7 @@ async fn main() {
 
     if let Some(winner_id) = result.winner {
         let winner_name = game
-            .players
-            .get(winner_id)
+            .get_player(winner_id)
             .map(|p| p.name.as_str())
             .unwrap_or("Unknown");
         println!("Winner: {winner_name}");
@@ -114,7 +113,7 @@ async fn main() {
     }
 
     println!("\nFinal life totals:");
-    for (_player_id, player) in game.players.iter() {
+    for player in game.players.iter() {
         println!("  - {}: {} life", player.name, player.life);
     }
 
@@ -174,7 +173,7 @@ fn run_simplified_game() {
 
     let mut game = GameState::new_two_player("Alice (AI)".to_string(), "Bob (AI)".to_string(), 20);
 
-    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let alice = players[0];
     let bob = players[1];
 
@@ -256,8 +255,7 @@ fn run_simplified_game() {
 
     if let Some(winner_id) = result.winner {
         let winner_name = game
-            .players
-            .get(winner_id)
+            .get_player(winner_id)
             .map(|p| p.name.as_str())
             .unwrap_or("Unknown");
         println!("Winner: {winner_name}");
@@ -266,7 +264,7 @@ fn run_simplified_game() {
     }
 
     println!("\nFinal life totals:");
-    for (_player_id, player) in game.players.iter() {
+    for player in game.players.iter() {
         println!("  - {}: {} life", player.name, player.life);
     }
 }

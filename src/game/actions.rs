@@ -48,7 +48,7 @@ impl GameState {
     /// Play a land from hand to battlefield
     pub fn play_land(&mut self, player_id: PlayerId, card_id: CardId) -> Result<()> {
         // Check if player can play a land
-        let player = self.players.get(player_id)?;
+        let player = self.get_player(player_id)?;
         if !player.can_play_land() {
             return Err(MtgError::InvalidAction(
                 "Cannot play more lands this turn".to_string(),
@@ -72,7 +72,7 @@ impl GameState {
         self.move_card(card_id, Zone::Hand, Zone::Battlefield, player_id)?;
 
         // Increment lands played
-        let player = self.players.get_mut(player_id)?;
+        let player = self.get_player_mut(player_id)?;
         player.play_land();
 
         Ok(())
@@ -101,7 +101,7 @@ impl GameState {
         };
 
         // Pay the mana cost
-        let player = self.players.get_mut(player_id)?;
+        let player = self.get_player_mut(player_id)?;
         player
             .mana_pool
             .pay_cost(&mana_cost)
@@ -133,7 +133,7 @@ impl GameState {
                 if let Some(opponent_id) = self
                     .players
                     .iter()
-                    .map(|(id, _)| *id)
+                    .map(|p| p.id)
                     .find(|id| *id != card_owner)
                 {
                     *effect = Effect::DealDamage {
@@ -187,7 +187,7 @@ impl GameState {
                 }
             }
             Effect::GainLife { player, amount } => {
-                let p = self.players.get_mut(*player)?;
+                let p = self.get_player_mut(*player)?;
                 p.gain_life(*amount);
 
                 // Log the life gain
@@ -227,8 +227,8 @@ impl GameState {
     /// Deal damage to a player target
     pub fn deal_damage(&mut self, target_id: PlayerId, amount: i32) -> Result<()> {
         // Check if target is a player
-        if self.players.contains(target_id) {
-            let player = self.players.get_mut(target_id)?;
+        if self.players.iter().any(|p| p.id == target_id) {
+            let player = self.get_player_mut(target_id)?;
             player.lose_life(amount);
 
             // Log the life change
@@ -278,6 +278,9 @@ impl GameState {
             ));
         }
 
+        // Get land name before tapping (to avoid borrow conflicts)
+        let land_name = card.name.to_lowercase();
+
         // Tap the land
         card.tap();
 
@@ -289,9 +292,7 @@ impl GameState {
 
         // Add mana to player's pool based on land type
         // For now, simplified - just check land name
-        let player = self.players.get_mut(player_id)?;
-
-        let land_name = card.name.to_lowercase();
+        let player = self.get_player_mut(player_id)?;
         let color = if land_name.contains("mountain") {
             Some(crate::core::Color::Red)
         } else if land_name.contains("island") {
@@ -356,8 +357,8 @@ impl GameState {
         let defending_player = self
             .players
             .iter()
-            .find(|(id, _)| **id != player_id)
-            .map(|(id, _)| *id)
+            .find(|p| p.id != player_id)
+            .map(|p| p.id)
             .ok_or_else(|| MtgError::InvalidAction("No opponent found".to_string()))?;
 
         // Declare attacker in combat state
@@ -498,7 +499,7 @@ mod tests {
     fn test_play_land() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
 
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Create a mountain card
         let card_id = game.next_entity_id();
@@ -518,7 +519,7 @@ mod tests {
         assert!(game.battlefield.contains(card_id));
 
         // Check player used their land drop
-        let player = game.players.get(p1_id).unwrap();
+        let player = game.get_player(p1_id).unwrap();
         assert!(!player.can_play_land());
     }
 
@@ -526,7 +527,7 @@ mod tests {
     fn test_tap_for_mana() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
 
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Create a mountain on battlefield
         let card_id = game.next_entity_id();
@@ -539,7 +540,7 @@ mod tests {
         assert!(game.tap_for_mana(p1_id, card_id).is_ok());
 
         // Check mana was added
-        let player = game.players.get(p1_id).unwrap();
+        let player = game.get_player(p1_id).unwrap();
         assert_eq!(player.mana_pool.red, 1);
 
         // Check land is tapped
@@ -551,12 +552,12 @@ mod tests {
     fn test_deal_damage_to_player() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
 
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Deal 3 damage
         assert!(game.deal_damage(p1_id, 3).is_ok());
 
-        let player = game.players.get(p1_id).unwrap();
+        let player = game.get_player(p1_id).unwrap();
         assert_eq!(player.life, 17);
     }
 
@@ -564,7 +565,7 @@ mod tests {
     fn test_move_card_battlefield_to_graveyard() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
 
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Create a creature on battlefield
         let card_id = game.next_entity_id();
@@ -592,7 +593,7 @@ mod tests {
     fn test_deal_damage_to_creature() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
 
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Create a 2/2 creature on battlefield
         let card_id = game.next_card_id();
@@ -622,7 +623,7 @@ mod tests {
         use crate::core::{Color, ManaCost};
 
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Create a Lightning Bolt in hand (cost: R)
         let bolt_id = game.next_card_id();
@@ -641,7 +642,7 @@ mod tests {
         assert!(result.is_err());
 
         // Add mana to pool
-        let player = game.players.get_mut(p1_id).unwrap();
+        let player = game.get_player_mut(p1_id).unwrap();
         player.mana_pool.add_color(Color::Red);
 
         // Now cast should succeed
@@ -649,7 +650,7 @@ mod tests {
         assert!(result.is_ok(), "cast_spell failed: {result:?}");
 
         // Check mana was deducted
-        let player = game.players.get(p1_id).unwrap();
+        let player = game.get_player(p1_id).unwrap();
         assert_eq!(player.mana_pool.red, 0);
 
         // Check card is on stack
@@ -661,7 +662,7 @@ mod tests {
         use crate::core::{Color, ManaCost};
 
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Create a spell with cost 2R
         let spell_id = game.next_card_id();
@@ -676,7 +677,7 @@ mod tests {
         }
 
         // Add mana: 2R + 1U = 4 mana total
-        let player = game.players.get_mut(p1_id).unwrap();
+        let player = game.get_player_mut(p1_id).unwrap();
         player.mana_pool.add_color(Color::Red);
         player.mana_pool.add_color(Color::Red);
         player.mana_pool.add_color(Color::Blue);
@@ -686,7 +687,7 @@ mod tests {
         assert!(result.is_ok(), "cast_spell failed: {result:?}");
 
         // Check mana was deducted properly (should have 1 blue left)
-        let player = game.players.get(p1_id).unwrap();
+        let player = game.get_player(p1_id).unwrap();
         assert_eq!(player.mana_pool.red, 0);
         assert_eq!(player.mana_pool.blue, 0); // Blue was used for generic cost
         assert_eq!(player.mana_pool.total(), 0);
@@ -700,7 +701,7 @@ mod tests {
         use crate::core::{Effect, TargetRef};
 
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p2_id = players[1];
 
         let effect = Effect::DealDamage {
@@ -710,7 +711,7 @@ mod tests {
 
         assert!(game.execute_effect(&effect).is_ok());
 
-        let p2 = game.players.get(p2_id).unwrap();
+        let p2 = game.get_player(p2_id).unwrap();
         assert_eq!(p2.life, 17);
     }
 
@@ -719,7 +720,7 @@ mod tests {
         use crate::core::Effect;
 
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let p1_id = *game.players.iter().next().unwrap().0;
+        let p1_id = game.players.first().unwrap().id;
 
         // Add cards to library
         for i in 0..5 {
@@ -750,7 +751,7 @@ mod tests {
         use crate::core::{Effect, ManaCost, TargetRef};
 
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
         let p2_id = players[1];
 
@@ -772,7 +773,7 @@ mod tests {
         assert!(game.resolve_spell(bolt_id).is_ok());
 
         // Check damage was dealt
-        let p2 = game.players.get(p2_id).unwrap();
+        let p2 = game.get_player(p2_id).unwrap();
         assert_eq!(p2.life, 17);
 
         // Check spell went to graveyard
@@ -784,7 +785,7 @@ mod tests {
     #[test]
     fn test_declare_attacker() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
 
         // Create a creature
@@ -814,7 +815,7 @@ mod tests {
     #[test]
     fn test_declare_blocker() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
         let p2_id = players[1];
 
@@ -857,7 +858,7 @@ mod tests {
     #[test]
     fn test_combat_damage_unblocked() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
         let p2_id = players[1];
 
@@ -879,14 +880,14 @@ mod tests {
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
 
         // Check defending player took damage
-        let p2 = game.players.get(p2_id).unwrap();
+        let p2 = game.get_player(p2_id).unwrap();
         assert_eq!(p2.life, 15); // 20 - 5 = 15
     }
 
     #[test]
     fn test_combat_damage_blocked() {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
-        let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
         let p2_id = players[1];
 
@@ -920,7 +921,7 @@ mod tests {
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
 
         // Check defending player took no damage (blocked)
-        let p2 = game.players.get(p2_id).unwrap();
+        let p2 = game.get_player(p2_id).unwrap();
         assert_eq!(p2.life, 20);
 
         // Check blocker died (took 3 damage, toughness 2)
