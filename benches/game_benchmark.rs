@@ -86,6 +86,36 @@ impl GameMetrics {
     fn bytes_per_sec(&self) -> f64 {
         self.bytes_allocated as f64 / self.duration.as_secs_f64()
     }
+
+    /// Calculate average games per second (for aggregated metrics)
+    fn avg_games_per_sec(&self, num_games: usize) -> f64 {
+        num_games as f64 / self.duration.as_secs_f64()
+    }
+}
+
+/// Implement addition for GameMetrics to support aggregation
+impl std::ops::Add for GameMetrics {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        GameMetrics {
+            turns: self.turns + other.turns,
+            actions: self.actions + other.actions,
+            duration: self.duration + other.duration,
+            bytes_allocated: self.bytes_allocated + other.bytes_allocated,
+            bytes_deallocated: self.bytes_deallocated + other.bytes_deallocated,
+        }
+    }
+}
+
+impl std::ops::AddAssign for GameMetrics {
+    fn add_assign(&mut self, other: Self) {
+        self.turns += other.turns;
+        self.actions += other.actions;
+        self.duration += other.duration;
+        self.bytes_allocated += other.bytes_allocated;
+        self.bytes_deallocated += other.bytes_deallocated;
+    }
 }
 
 /// Setup data needed for benchmarking (loaded once, reused across iterations)
@@ -203,12 +233,43 @@ fn bench_game_fresh(c: &mut Criterion) {
             println!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
         }
 
+        // Accumulator for aggregating metrics across benchmark iterations
+        let mut aggregated = GameMetrics {
+            turns: 0,
+            actions: 0,
+            duration: Duration::ZERO,
+            bytes_allocated: 0,
+            bytes_deallocated: 0,
+        };
+        let mut iteration_count = 0;
+
         group.bench_with_input(BenchmarkId::new("fresh", seed), &seed, |b, &seed| {
             b.iter(|| {
-                run_game_with_metrics(&setup, black_box(seed))
-                    .expect("Game should complete successfully")
+                let metrics = run_game_with_metrics(&setup, black_box(seed))
+                    .expect("Game should complete successfully");
+                aggregated += metrics.clone();
+                iteration_count += 1;
             });
         });
+
+        // Print aggregated metrics from all benchmark iterations
+        println!("\n=== Aggregated Metrics (seed {}, {} games) ===", seed, iteration_count);
+        println!("  Total turns: {}", aggregated.turns);
+        println!("  Total actions: {}", aggregated.actions);
+        println!("  Total duration: {:?}", aggregated.duration);
+        println!("  Avg turns/game: {:.2}", aggregated.turns as f64 / iteration_count as f64);
+        println!("  Avg actions/game: {:.2}", aggregated.actions as f64 / iteration_count as f64);
+        println!("  Avg duration/game: {:.2?}", aggregated.duration / iteration_count as u32);
+        println!("  Games/sec: {:.2}", aggregated.avg_games_per_sec(iteration_count));
+        println!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
+        println!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
+        println!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
+        println!("  Total bytes allocated: {}", aggregated.bytes_allocated);
+        println!("  Total bytes deallocated: {}", aggregated.bytes_deallocated);
+        println!("  Net bytes: {}", aggregated.net_bytes_allocated());
+        println!("  Avg bytes/game: {:.2}", aggregated.bytes_allocated as f64 / iteration_count as f64);
+        println!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
+        println!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
     }
 
     group.finish();
@@ -253,8 +314,21 @@ fn bench_game_snapshot(c: &mut Criterion) {
     println!("\nSnapshot mode (seed {}):", seed);
     println!("  Pre-creating initial game state for cloning...");
 
+    // Accumulator for aggregating metrics across benchmark iterations
+    let mut aggregated = GameMetrics {
+        turns: 0,
+        actions: 0,
+        duration: Duration::ZERO,
+        bytes_allocated: 0,
+        bytes_deallocated: 0,
+    };
+    let mut iteration_count = 0;
+
     group.bench_function(BenchmarkId::new("snapshot", seed), |b| {
         b.iter(|| {
+            let reg = Region::new(GLOBAL);
+            let start = std::time::Instant::now();
+
             // Clone the initial game state (this is the "restore" part)
             let mut game = initial_game.clone();
             game.rng_seed = seed;
@@ -267,11 +341,46 @@ fn bench_game_snapshot(c: &mut Criterion) {
             let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
 
             let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
-            game_loop
+            let result = game_loop
                 .run_game(&mut controller1, &mut controller2)
-                .expect("Game should complete successfully")
+                .expect("Game should complete successfully");
+
+            let duration = start.elapsed();
+            let actions = game_loop.game.undo_log.len();
+            let stats = reg.change();
+
+            let metrics = GameMetrics {
+                turns: result.turns_played,
+                actions,
+                duration,
+                bytes_allocated: stats.bytes_allocated,
+                bytes_deallocated: stats.bytes_deallocated,
+            };
+
+            aggregated += metrics;
+            iteration_count += 1;
+            result
         });
     });
+
+    // Print aggregated metrics from all benchmark iterations
+    println!("\n=== Aggregated Metrics - Snapshot Mode (seed {}, {} games) ===", seed, iteration_count);
+    println!("  Total turns: {}", aggregated.turns);
+    println!("  Total actions: {}", aggregated.actions);
+    println!("  Total duration: {:?}", aggregated.duration);
+    println!("  Avg turns/game: {:.2}", aggregated.turns as f64 / iteration_count as f64);
+    println!("  Avg actions/game: {:.2}", aggregated.actions as f64 / iteration_count as f64);
+    println!("  Avg duration/game: {:.2?}", aggregated.duration / iteration_count as u32);
+    println!("  Games/sec: {:.2}", aggregated.avg_games_per_sec(iteration_count));
+    println!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
+    println!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
+    println!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
+    println!("  Total bytes allocated: {}", aggregated.bytes_allocated);
+    println!("  Total bytes deallocated: {}", aggregated.bytes_deallocated);
+    println!("  Net bytes: {}", aggregated.net_bytes_allocated());
+    println!("  Avg bytes/game: {:.2}", aggregated.bytes_allocated as f64 / iteration_count as f64);
+    println!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
+    println!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
 
     group.finish();
 }
