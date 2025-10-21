@@ -4,7 +4,7 @@
 //! from start to finish with various deck configurations.
 
 use mtg_forge_rs::{
-    game::{zero_controller_v2::ZeroControllerV2, GameLoop, VerbosityLevel},
+    game::{zero_controller::ZeroController, GameLoop, VerbosityLevel},
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
 };
@@ -46,8 +46,8 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
     let p1_id = players[0];
     let p2_id = players[1];
 
-    let mut controller1 = ZeroControllerV2::new(p1_id);
-    let mut controller2 = ZeroControllerV2::new(p2_id);
+    let mut controller1 = ZeroController::new(p1_id);
+    let mut controller2 = ZeroController::new(p2_id);
 
     // Run the game loop
     let mut game_loop = GameLoop::new(&mut game);
@@ -126,8 +126,8 @@ async fn test_tui_deterministic_with_seed() -> Result<()> {
         let p1_id = players[0];
         let p2_id = players[1];
 
-        let mut controller1 = ZeroControllerV2::new(p1_id);
-        let mut controller2 = ZeroControllerV2::new(p2_id);
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
 
         let mut game_loop = GameLoop::new(&mut game);
         let result = game_loop.run_game(&mut controller1, &mut controller2)?;
@@ -176,8 +176,8 @@ async fn test_tui_runs_to_completion() -> Result<()> {
     let p1_id = players[0];
     let p2_id = players[1];
 
-    let mut controller1 = ZeroControllerV2::new(p1_id);
-    let mut controller2 = ZeroControllerV2::new(p2_id);
+    let mut controller1 = ZeroController::new(p1_id);
+    let mut controller2 = ZeroController::new(p2_id);
 
     let mut game_loop = GameLoop::new(&mut game);
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
@@ -229,8 +229,8 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     let p1_id = players[0];
     let p2_id = players[1];
 
-    let mut controller1 = mtg_forge_rs::game::random_controller_v2::RandomControllerV2::new(p1_id);
-    let mut controller2 = mtg_forge_rs::game::random_controller_v2::RandomControllerV2::new(p2_id);
+    let mut controller1 = mtg_forge_rs::game::random_controller::RandomController::new(p1_id);
+    let mut controller2 = mtg_forge_rs::game::random_controller::RandomController::new(p2_id);
 
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Verbose);
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
@@ -333,8 +333,8 @@ async fn test_discard_to_hand_size() -> Result<()> {
     );
 
     // Create controllers and run cleanup step
-    let mut controller1 = mtg_forge_rs::game::zero_controller_v2::ZeroControllerV2::new(p1_id);
-    let mut controller2 = mtg_forge_rs::game::zero_controller_v2::ZeroControllerV2::new(p2_id);
+    let mut controller1 = mtg_forge_rs::game::zero_controller::ZeroController::new(p1_id);
+    let mut controller2 = mtg_forge_rs::game::zero_controller::ZeroController::new(p2_id);
 
     // Set Player 1 as active player
     game.turn.active_player = p1_id;

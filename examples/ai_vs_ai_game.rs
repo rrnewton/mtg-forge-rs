@@ -1,7 +1,7 @@
 //! AI vs AI Game Example
 //!
 //! Demonstrates a complete game loop with two AI players
-//! Uses RandomControllerV2 for both players to play a full game
+//! Uses RandomController for both players to play a full game
 
 use mtg_forge_rs::core::{Card, CardType, Color, Effect, ManaCost, TargetRef};
 use mtg_forge_rs::game::{GameLoop, GameState};
@@ -87,9 +87,9 @@ async fn main() {
 
     // Create AI controllers
     let mut alice_ai =
-        mtg_forge_rs::game::random_controller_v2::RandomControllerV2::with_seed(players[0].0, 42);
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[0].0, 42);
     let mut bob_ai =
-        mtg_forge_rs::game::random_controller_v2::RandomControllerV2::with_seed(players[1].0, 123);
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[1].0, 123);
 
     println!("=== Starting Game Loop ===\n");
 
@@ -240,9 +240,8 @@ fn run_simplified_game() {
 
     // Create AI controllers
     let mut alice_ai =
-        mtg_forge_rs::game::random_controller_v2::RandomControllerV2::with_seed(alice, 42);
-    let mut bob_ai =
-        mtg_forge_rs::game::random_controller_v2::RandomControllerV2::with_seed(bob, 123);
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(alice, 42);
+    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::with_seed(bob, 123);
 
     println!("=== Starting Game Loop ===\n");
 

@@ -1,14 +1,16 @@
-//! Random AI controller for testing and baseline gameplay
+//! Random AI controller implementing the new PlayerController interface
 //!
-//! Makes random choices from available actions.
-//! Serves as a baseline for more sophisticated AI.
+//! This implementation uses specific callback methods instead of
+//! generic action choices. Makes random choices from available options.
 
 use crate::core::{CardId, PlayerId};
-use crate::game::controller::{GameStateView, PlayerAction, PlayerController};
+use crate::game::controller::GameStateView;
+use crate::game::controller::PlayerController;
 use rand::seq::SliceRandom;
 use rand::Rng;
+use smallvec::SmallVec;
 
-/// A controller that makes random choices
+/// A controller that makes random choices using the new callback interface
 pub struct RandomController {
     player_id: PlayerId,
     rng: Box<dyn rand::RngCore>,
@@ -38,62 +40,117 @@ impl PlayerController for RandomController {
         self.player_id
     }
 
-    fn choose_action(
+    fn choose_land_to_play(
         &mut self,
         _view: &GameStateView,
-        available_actions: &[PlayerAction],
-    ) -> Option<PlayerAction> {
-        if available_actions.is_empty() {
-            // No actions available, pass priority
+        lands_in_hand: &[CardId],
+    ) -> Option<CardId> {
+        if lands_in_hand.is_empty() {
             None
         } else {
-            // Filter out PassPriority to see what actual actions are available
-            let non_pass_actions: Vec<&PlayerAction> = available_actions
-                .iter()
-                .filter(|a| !matches!(a, PlayerAction::PassPriority))
-                .collect();
-
-            // If only PassPriority is available, pass
-            if non_pass_actions.is_empty() {
-                return None;
-            }
-
-            // Strategy: Prefer meaningful actions over just tapping for mana
-            // If we have spells to cast or lands to play, prioritize those
-            let high_priority_actions: Vec<&PlayerAction> = non_pass_actions
-                .iter()
-                .filter(|a| {
-                    matches!(
-                        a,
-                        PlayerAction::CastSpell { .. } | PlayerAction::PlayLand(_)
-                    )
-                })
-                .copied()
-                .collect();
-
-            // 70% chance to pass if only mana tapping is available
-            // This prevents infinite mana-tapping loops
-            if high_priority_actions.is_empty() && self.rng.gen_bool(0.7) {
-                return None;
-            }
-
-            // Choose from high priority actions if available, otherwise from all actions
-            let action_pool = if !high_priority_actions.is_empty() {
-                high_priority_actions
-            } else {
-                non_pass_actions
-            };
-
-            let index = self.rng.gen_range(0..action_pool.len());
-            Some(action_pool[index].clone())
+            // Randomly choose a land to play
+            let index = self.rng.gen_range(0..lands_in_hand.len());
+            Some(lands_in_hand[index])
         }
     }
 
-    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
-        // Random controller discards random cards from hand
-        let mut hand: Vec<CardId> = view.player_hand(self.player_id).to_vec();
-        hand.shuffle(&mut self.rng);
-        hand.iter().take(count).copied().collect()
+    fn choose_spell_to_cast(
+        &mut self,
+        _view: &GameStateView,
+        castable_spells: &[CardId],
+    ) -> Option<(CardId, SmallVec<[CardId; 4]>)> {
+        if castable_spells.is_empty() {
+            None
+        } else {
+            // Randomly choose a spell to cast
+            let index = self.rng.gen_range(0..castable_spells.len());
+            let spell_id = castable_spells[index];
+
+            // For now, return empty targets - targeting will be improved later
+            let targets = SmallVec::new();
+
+            Some((spell_id, targets))
+        }
+    }
+
+    fn choose_card_to_tap_for_mana(
+        &mut self,
+        _view: &GameStateView,
+        tappable_cards: &[CardId],
+    ) -> Option<CardId> {
+        if tappable_cards.is_empty() {
+            None
+        } else {
+            // Randomly choose a card to tap for mana
+            let index = self.rng.gen_range(0..tappable_cards.len());
+            Some(tappable_cards[index])
+        }
+    }
+
+    fn choose_attackers(
+        &mut self,
+        _view: &GameStateView,
+        available_creatures: &[CardId],
+    ) -> SmallVec<[CardId; 8]> {
+        // Randomly decide whether each creature attacks
+        let mut attackers = SmallVec::new();
+
+        for &creature_id in available_creatures {
+            // 50% chance each creature attacks
+            if self.rng.gen_bool(0.5) {
+                attackers.push(creature_id);
+            }
+        }
+
+        attackers
+    }
+
+    fn choose_blockers(
+        &mut self,
+        _view: &GameStateView,
+        available_blockers: &[CardId],
+        attackers: &[CardId],
+    ) -> SmallVec<[(CardId, CardId); 8]> {
+        // Randomly assign blockers to attackers
+        let mut blocks = SmallVec::new();
+
+        if attackers.is_empty() {
+            return blocks;
+        }
+
+        for &blocker_id in available_blockers {
+            // 50% chance each creature blocks
+            if self.rng.gen_bool(0.5) {
+                // Pick a random attacker to block
+                let attacker_idx = self.rng.gen_range(0..attackers.len());
+                blocks.push((blocker_id, attackers[attacker_idx]));
+            }
+        }
+
+        blocks
+    }
+
+    fn choose_cards_to_discard(
+        &mut self,
+        _view: &GameStateView,
+        hand: &[CardId],
+        count: usize,
+    ) -> SmallVec<[CardId; 7]> {
+        // Randomly choose cards to discard from hand
+        let mut hand_vec: Vec<CardId> = hand.to_vec();
+        hand_vec.shuffle(&mut self.rng);
+
+        hand_vec
+            .iter()
+            .take(count.min(hand.len()))
+            .copied()
+            .collect()
+    }
+
+    fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
+        // Random controller passes priority with 30% probability
+        // This allows actions to be taken most of the time while still preventing infinite loops
+        self.rng.gen_bool(0.3)
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {
@@ -103,12 +160,6 @@ impl PlayerController for RandomController {
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {
         // Could log game result here for statistics
         // Disabled for quiet operation during benchmarks and batch runs
-        // let life = view.life();
-        // if won {
-        //     println!("Random AI wins with {life} life!");
-        // } else {
-        //     println!("Random AI loses with {life} life.");
-        // }
     }
 }
 
@@ -133,59 +184,89 @@ mod tests {
     }
 
     #[test]
-    fn test_choose_from_empty_actions() {
-        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = game.players.first().unwrap().id;
-
+    fn test_choose_land_to_play_empty() {
+        let player_id = EntityId::new(1);
         let mut controller = RandomController::with_seed(player_id, 42);
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        // With no available actions, should return None
-        let action = controller.choose_action(&view, &[]);
-        assert_eq!(action, None);
+        // With no lands, should return None
+        let land = controller.choose_land_to_play(&view, &[]);
+        assert_eq!(land, None);
     }
 
     #[test]
-    fn test_choose_from_actions() {
-        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = game.players.first().unwrap().id;
-
+    fn test_choose_land_to_play() {
+        let player_id = EntityId::new(1);
         let mut controller = RandomController::with_seed(player_id, 42);
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        let card_id = EntityId::new(10);
-        let actions = vec![
-            PlayerAction::PlayLand(card_id),
-            PlayerAction::TapForMana(card_id),
-            PlayerAction::PassPriority,
-        ];
+        let lands = vec![EntityId::new(10), EntityId::new(11), EntityId::new(12)];
+        let chosen = controller.choose_land_to_play(&view, &lands);
 
-        // Should choose one of the available actions
-        let action = controller.choose_action(&view, &actions);
-        assert!(action.is_some());
-        assert!(actions.contains(&action.unwrap()));
+        // Should choose one of the available lands
+        assert!(chosen.is_some());
+        assert!(lands.contains(&chosen.unwrap()));
     }
 
     #[test]
     fn test_seeded_determinism() {
-        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let player_id = game.players.first().unwrap().id;
-
+        let player_id = EntityId::new(1);
         let mut controller1 = RandomController::with_seed(player_id, 42);
         let mut controller2 = RandomController::with_seed(player_id, 42);
 
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let card_id = EntityId::new(10);
-        let actions = vec![
-            PlayerAction::PlayLand(card_id),
-            PlayerAction::TapForMana(card_id),
-            PlayerAction::PassPriority,
-        ];
+
+        let lands = vec![EntityId::new(10), EntityId::new(11), EntityId::new(12)];
 
         // Same seed should produce same choices
-        let action1 = controller1.choose_action(&view, &actions);
-        let action2 = controller2.choose_action(&view, &actions);
+        let choice1 = controller1.choose_land_to_play(&view, &lands);
+        let choice2 = controller2.choose_land_to_play(&view, &lands);
 
-        assert_eq!(action1, action2);
+        assert_eq!(choice1, choice2);
+    }
+
+    #[test]
+    fn test_choose_attackers() {
+        let player_id = EntityId::new(1);
+        let mut controller = RandomController::with_seed(player_id, 42);
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+        let view = GameStateView::new(&game, player_id);
+
+        let creatures = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
+        let attackers = controller.choose_attackers(&view, &creatures);
+
+        // Should return a SmallVec (possibly empty)
+        // All attackers should be from the available creatures
+        for attacker in attackers.iter() {
+            assert!(creatures.contains(attacker));
+        }
+    }
+
+    #[test]
+    fn test_choose_cards_to_discard() {
+        let player_id = EntityId::new(1);
+        let mut controller = RandomController::with_seed(player_id, 42);
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+        let view = GameStateView::new(&game, player_id);
+
+        let hand = vec![
+            EntityId::new(30),
+            EntityId::new(31),
+            EntityId::new(32),
+            EntityId::new(33),
+        ];
+
+        let discards = controller.choose_cards_to_discard(&view, &hand, 2);
+
+        // Should discard exactly 2 cards
+        assert_eq!(discards.len(), 2);
+
+        // All discarded cards should be from hand
+        for card in discards.iter() {
+            assert!(hand.contains(card));
+        }
     }
 }

@@ -3,11 +3,31 @@
 //! Manages the main game loop, turn progression, and priority system
 
 use crate::core::{CardId, PlayerId};
-use crate::game::controller::{GameStateView, PlayerAction};
-use crate::game::controller_v2::PlayerController;
+use crate::game::controller::GameStateView;
+use crate::game::controller::PlayerController;
 use crate::game::phase::Step;
 use crate::game::GameState;
 use crate::{MtgError, Result};
+
+// Legacy v1 action type (kept for compatibility with dead code)
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+enum PlayerAction {
+    PlayLand(CardId),
+    CastSpell {
+        card_id: CardId,
+        targets: Vec<CardId>,
+    },
+    TapForMana(CardId),
+    DeclareAttacker(CardId),
+    DeclareBlocker {
+        blocker: CardId,
+        attackers: Vec<CardId>,
+    },
+    FinishDeclareAttackers,
+    FinishDeclareBlockers,
+    PassPriority,
+}
 use smallvec::SmallVec;
 
 /// Verbosity level for game output

@@ -7,12 +7,12 @@
 //! 2. **Rewind** - Use undo log to rewind game to start (NOT YET IMPLEMENTED)
 //! 3. **Snapshot** - Save/restore game state each iteration (NOT YET IMPLEMENTED)
 //!
-//! The benchmark is based on RandomControllerV2 vs RandomControllerV2 playing
+//! The benchmark is based on RandomController vs RandomController playing
 //! with simple_bolt.dck (Mountains + Lightning Bolts).
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use mtg_forge_rs::{
-    game::{random_controller_v2::RandomControllerV2, GameLoop, VerbosityLevel},
+    game::{random_controller::RandomController, GameLoop, VerbosityLevel},
     loader::{
         prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckList, DeckLoader,
         GameInitializer,
@@ -168,8 +168,8 @@ where
         )
     };
 
-    let mut controller1 = RandomControllerV2::with_seed(p1_id, seed);
-    let mut controller2 = RandomControllerV2::with_seed(p2_id, seed + 1);
+    let mut controller1 = RandomController::with_seed(p1_id, seed);
+    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
 
     // Run game (still within timing)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);

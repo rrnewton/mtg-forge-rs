@@ -11,7 +11,7 @@
 //! Uses classic cards from Limited/Alpha/Beta/4th Edition
 
 use mtg_forge_rs::core::{Card, CardId, CardType, EntityId, Player, PlayerId};
-use mtg_forge_rs::game::controller_v2::PlayerController;
+use mtg_forge_rs::game::controller::PlayerController;
 use mtg_forge_rs::game::{GameLoop, GameState, GameStateView, Step};
 use smallvec::SmallVec;
 
