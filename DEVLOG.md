@@ -655,6 +655,36 @@ Add a flag to control verbosity levels. At verbosity level 1 we can print the O(
 - actions like which card you draw, and cards added to the stack and resolving
 
 
+---
+
+Right now the printing is pretty wasteful of vertical space with blank lines:
+
+```
+--- Declare Attackers Step ---
+
+--- Declare Blockers Step ---
+
+--- Combat Damage Step ---
+
+--- End of Combat Step ---
+```
+
+Remove these extra newlines. Also, we currently show spells resolving but not going onto the stack. Let's show spells added to the stack as well.
+
+Also, let's move the verbose per-step headers into the top verbosity level (`--verbosity=verbose`). For the normal verbosity level, let's do something complicated. Let's LAZILY print the intra-turn-step section header before the first action / log line that happens in that step. That is, if the lightning bolt is cast, we print the header here so we know which phase it happened in:
+
+```
+--- Upkeep Step ---
+  Lightning Bolt resolves from stack
+```
+
+But if nothing happened we just elide it.
+
+----
+
+If it's feasible, let's allow the numbers 0-3 as settings for `--verbosity` as well. This may require using clap's more advanced features for parsing the CLI argument into the enum.
+
+
 Fix Remaining nondeterminism
 ----------------------------------------
 
@@ -681,6 +711,8 @@ Now that we have more logging of game activities, let's use that to build an e2e
 - For this and other tests let's structure the test be instantiated as a distinct test for every deck under `test_decks/*.dck`. When we add more decks there they should become new test cases automatically.
 
 Keep working until you have this e2e determinism test passing.
+
+----
 
 
 TODO: Eliminate unnecessary calls to collect or clone
