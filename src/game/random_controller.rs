@@ -100,14 +100,15 @@ impl PlayerController for RandomController {
         // Random AI doesn't need to react to priority passes
     }
 
-    fn on_game_end(&mut self, view: &GameStateView, won: bool) {
+    fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {
         // Could log game result here for statistics
-        let life = view.life();
-        if won {
-            println!("Random AI wins with {life} life!");
-        } else {
-            println!("Random AI loses with {life} life.");
-        }
+        // Disabled for quiet operation during benchmarks and batch runs
+        // let life = view.life();
+        // if won {
+        //     println!("Random AI wins with {life} life!");
+        // } else {
+        //     println!("Random AI loses with {life} life.");
+        // }
     }
 }
 

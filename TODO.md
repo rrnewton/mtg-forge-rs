@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** [PENDING] - Implement discard phase in cleanup step
+**Latest Commit:** 48aaf91 - Implement discard phase in cleanup step
 
 **Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
 
@@ -56,6 +56,16 @@
   * Cards move from hand to graveyard
   * Comprehensive test verifies discard functionality
   * Fixes issue where players accumulated 39+ cards in hand
+
+- ✅ **Performance benchmarking with Criterion.rs**
+  * Benchmark infrastructure for measuring game execution performance
+  * Fresh mode: Allocate new game each iteration (~142µs per game)
+  * GameMetrics tracking: turns, actions, duration, actions/sec, turns/sec
+  * Uses UndoLog.len() to count actions (78 actions/88 turns)
+  * Benchmarks load card database once, reuse across iterations
+  * Disabled RandomController stdout output for quiet benchmarking
+  * Run with `cargo bench --bench game_benchmark`
+  * Future work: Rewind mode (undo log) and Snapshot mode (save/restore)
 
 ## ✅ Phase 2 Complete: Game Loop Implementation
 
@@ -203,8 +213,10 @@ None currently - all tests passing!
 **Keywords:** ✅ Complete (K: lines)
 **Spell Effects:** 🚧 In Progress (DealDamage done, more needed)
 **Triggered/Static Abilities:** 📋 Planned (T:, S: lines)
-**Performance/Search:** 📋 Planned
+**Performance/Benchmarking:** ✅ Complete (Criterion.rs benchmarks)
+**Tree Search:** 📋 Planned (needs undo() implementation)
 **Advanced Features:** 📝 Future
 
 **Total Tests:** 92 passing (77 unit + 10 card loading + 5 e2e)
 **Test Coverage:** Good (core functionality + keyword parsing + discard phase)
+**Performance:** ~142µs per game (Fresh mode, simple_bolt.dck, Random vs Random)
