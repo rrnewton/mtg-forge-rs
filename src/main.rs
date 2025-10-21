@@ -2,13 +2,27 @@
 //!
 //! Text-based Magic: The Gathering game engine with TUI support
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{GameLoop, RandomController, ZeroController},
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
 };
 use std::path::PathBuf;
+
+/// Controller type for AI agents
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ControllerType {
+    /// Always chooses first meaningful action (for testing)
+    Zero,
+    /// Makes random choices
+    Random,
+    // TODO: Add these when implemented
+    // /// Interactive text UI controller for human play
+    // Tui,
+    // /// AI controller with strategic decision making
+    // Ai,
+}
 
 #[derive(Parser)]
 #[command(name = "mtg")]
@@ -30,13 +44,13 @@ enum Commands {
         #[arg(value_name = "PLAYER2_DECK")]
         deck2: PathBuf,
 
-        /// Player 1 agent type (tui, ai, random, zero)
-        #[arg(long, default_value = "zero")]
-        p1: String,
+        /// Player 1 controller type
+        #[arg(long, value_enum, default_value = "zero")]
+        p1: ControllerType,
 
-        /// Player 2 agent type (tui, ai, random, zero)
-        #[arg(long, default_value = "zero")]
-        p2: String,
+        /// Player 2 controller type
+        #[arg(long, value_enum, default_value = "zero")]
+        p2: ControllerType,
 
         /// Set random seed for deterministic testing
         #[arg(long)]
@@ -70,8 +84,8 @@ async fn main() -> Result<()> {
 async fn run_tui(
     deck1_path: PathBuf,
     deck2_path: PathBuf,
-    p1_type: String,
-    p2_type: String,
+    p1_type: ControllerType,
+    p2_type: ControllerType,
     seed: Option<u64>,
     load_all_cards: bool,
 ) -> Result<()> {
@@ -125,32 +139,22 @@ async fn run_tui(
     }
 
     println!("Game initialized!");
-    println!("  Player 1: Player 1 ({})", p1_type);
-    println!("  Player 2: Player 2 ({})\n", p2_type);
+    println!("  Player 1: Player 1 ({:?})", p1_type);
+    println!("  Player 2: Player 2 ({:?})\n", p2_type);
 
     // Create controllers based on agent types
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
     let p1_id = players[0];
     let p2_id = players[1];
 
-    let mut controller1: Box<dyn mtg_forge_rs::game::PlayerController> = match p1_type.as_str() {
-        "zero" => Box::new(ZeroController::new(p1_id)),
-        "random" => Box::new(RandomController::new(p1_id)),
-        _ => {
-            eprintln!("Unknown controller type: {p1_type}");
-            eprintln!("Supported types: zero, random");
-            std::process::exit(1);
-        }
+    let mut controller1: Box<dyn mtg_forge_rs::game::PlayerController> = match p1_type {
+        ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
+        ControllerType::Random => Box::new(RandomController::new(p1_id)),
     };
 
-    let mut controller2: Box<dyn mtg_forge_rs::game::PlayerController> = match p2_type.as_str() {
-        "zero" => Box::new(ZeroController::new(p2_id)),
-        "random" => Box::new(RandomController::new(p2_id)),
-        _ => {
-            eprintln!("Unknown controller type: {p2_type}");
-            eprintln!("Supported types: zero, random");
-            std::process::exit(1);
-        }
+    let mut controller2: Box<dyn mtg_forge_rs::game::PlayerController> = match p2_type {
+        ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
+        ControllerType::Random => Box::new(RandomController::new(p2_id)),
     };
 
     println!("=== Starting Game ===\n");

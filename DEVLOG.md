@@ -602,6 +602,16 @@ eprintln!("Warning: Failed to parse card {}: {}", name, e);
 Make this warning fatal and add TODO items to our backlog for any
 other places you see silent failures.
 
+TODO: CLI argument validation should also be fatal and early
+----------------------------------------
+
+I ran this command with a typo and noticed that execution got pretty far BEFORE the error mesage indicating that `tue` is not a valid value for `--p1`:
+
+```
+time cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/simple_bolt.dck --p1=tue
+```
+
+All argument validation should happen early and exit with a help message.  The problem here is that we are using a basic `String` type for CLI arguments `p1` and `p2`. Remember, as per CLAUDE.md, WE HATE STRINGS. Prefer strong types. We want these arguments to be enums and update the clap argument processing appropriately.
 
 
 TODO: Eliminate unnecessary calls to collect or clone
