@@ -60,6 +60,8 @@ pub struct GameLoop<'a> {
     turns_elapsed: u32,
     /// Verbosity level for output
     pub verbosity: VerbosityLevel,
+    /// Track if current step header has been printed (for lazy printing)
+    step_header_printed: bool,
 }
 
 impl<'a> GameLoop<'a> {
@@ -70,6 +72,7 @@ impl<'a> GameLoop<'a> {
             max_turns: 1000, // Default maximum turns
             turns_elapsed: 0,
             verbosity: VerbosityLevel::default(),
+            step_header_printed: false,
         }
     }
 
@@ -237,6 +240,16 @@ impl<'a> GameLoop<'a> {
         }
     }
 
+    /// Print step header lazily (only when first action happens in this step)
+    /// Used for Normal verbosity level
+    fn print_step_header_if_needed(&mut self) {
+        if self.verbosity == VerbosityLevel::Normal && !self.step_header_printed {
+            let step = self.game.turn.current_step;
+            println!("--- {} ---", self.step_name(step));
+            self.step_header_printed = true;
+        }
+    }
+
     /// Reset turn-based state for the active player
     fn reset_turn_state(&mut self, active_player: PlayerId) -> Result<()> {
         // Reset lands played this turn
@@ -263,8 +276,12 @@ impl<'a> GameLoop<'a> {
     ) -> Result<()> {
         let step = self.game.turn.current_step;
 
-        if self.verbosity >= VerbosityLevel::Normal {
-            println!("\n--- {} ---", self.step_name(step));
+        // Reset step header tracking for each new step
+        self.step_header_printed = false;
+
+        // In verbose mode, always print step header immediately
+        if self.verbosity >= VerbosityLevel::Verbose {
+            println!("--- {} ---", self.step_name(step));
         }
 
         match step {
@@ -330,6 +347,7 @@ impl<'a> GameLoop<'a> {
         // Skip draw on first turn (player going first doesn't draw)
         if self.game.turn.turn_number == 1 {
             if self.verbosity >= VerbosityLevel::Normal {
+                self.print_step_header_if_needed();
                 println!("  (First turn - no draw)");
             }
             return Ok(());
@@ -339,6 +357,7 @@ impl<'a> GameLoop<'a> {
         self.game.draw_card(active_player)?;
 
         if self.verbosity >= VerbosityLevel::Normal {
+            self.print_step_header_if_needed();
             let player_name = self.get_player_name(active_player);
             if let Some(zones) = self.game.get_player_zones(active_player) {
                 if let Some(&card_id) = zones.hand.cards.last() {
@@ -545,6 +564,7 @@ impl<'a> GameLoop<'a> {
                 let discard_count = hand_size - max_hand_size;
 
                 if self.verbosity >= VerbosityLevel::Normal {
+                    self.print_step_header_if_needed();
                     let player_name = self.get_player_name(player_id);
                     println!(
                         "  {} must discard {} cards (hand size: {}, max: {})",
@@ -581,6 +601,7 @@ impl<'a> GameLoop<'a> {
                             zones.graveyard.add(card_id);
 
                             if self.verbosity >= VerbosityLevel::Normal {
+                                self.print_step_header_if_needed();
                                 let card_name = self
                                     .game
                                     .cards
@@ -806,6 +827,7 @@ impl<'a> GameLoop<'a> {
         if self.verbosity >= VerbosityLevel::Verbose
             && !matches!(action, PlayerAction::PassPriority)
         {
+            self.print_step_header_if_needed();
             let player_name = self.get_player_name(player_id);
             let action_desc = self.describe_action(action);
             println!("  {} {}", player_name, action_desc);
@@ -819,7 +841,21 @@ impl<'a> GameLoop<'a> {
                 self.game.tap_for_mana(player_id, *card_id)?;
             }
             PlayerAction::CastSpell { card_id, targets } => {
+                // Show spell being cast (added to stack)
+                if self.verbosity >= VerbosityLevel::Normal {
+                    self.print_step_header_if_needed();
+                    let player_name = self.get_player_name(player_id);
+                    let card_name = self
+                        .game
+                        .cards
+                        .get(*card_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown");
+                    println!("  {} casts {}", player_name, card_name);
+                }
+
                 self.game.cast_spell(player_id, *card_id, targets.clone())?;
+
                 // Immediately resolve spell (simplified - no stack interaction yet)
                 self.game.resolve_spell(*card_id)?;
 
@@ -830,7 +866,7 @@ impl<'a> GameLoop<'a> {
                         .get(*card_id)
                         .map(|c| c.name.as_str())
                         .unwrap_or("Unknown");
-                    println!("  {} resolves from stack", card_name);
+                    println!("  {} resolves", card_name);
                 }
             }
             PlayerAction::DeclareAttacker(card_id) => {

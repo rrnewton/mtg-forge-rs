@@ -24,27 +24,30 @@ enum ControllerType {
     // Ai,
 }
 
-/// Verbosity level for game output (re-export with clap support)
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum VerbosityArg {
-    /// Silent - no output during game
-    Silent,
-    /// Minimal - only game outcome
-    Minimal,
-    /// Normal - turns, steps, and key actions (default)
-    Normal,
-    /// Verbose - all actions and state changes
-    Verbose,
+/// Verbosity level for game output (custom parser supporting both names and numbers)
+#[derive(Debug, Clone, Copy)]
+struct VerbosityArg(VerbosityLevel);
+
+impl std::str::FromStr for VerbosityArg {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "silent" | "0" => Ok(VerbosityArg(VerbosityLevel::Silent)),
+            "minimal" | "1" => Ok(VerbosityArg(VerbosityLevel::Minimal)),
+            "normal" | "2" => Ok(VerbosityArg(VerbosityLevel::Normal)),
+            "verbose" | "3" => Ok(VerbosityArg(VerbosityLevel::Verbose)),
+            _ => Err(format!(
+                "invalid verbosity level '{}' (expected: silent/0, minimal/1, normal/2, verbose/3)",
+                s
+            )),
+        }
+    }
 }
 
 impl From<VerbosityArg> for VerbosityLevel {
     fn from(arg: VerbosityArg) -> Self {
-        match arg {
-            VerbosityArg::Silent => VerbosityLevel::Silent,
-            VerbosityArg::Minimal => VerbosityLevel::Minimal,
-            VerbosityArg::Normal => VerbosityLevel::Normal,
-            VerbosityArg::Verbose => VerbosityLevel::Verbose,
-        }
+        arg.0
     }
 }
 
@@ -84,8 +87,8 @@ enum Commands {
         #[arg(long)]
         load_all_cards: bool,
 
-        /// Verbosity level for game output
-        #[arg(long, value_enum, default_value = "normal", short = 'v')]
+        /// Verbosity level for game output (0=silent, 1=minimal, 2=normal, 3=verbose)
+        #[arg(long, default_value = "normal")]
         verbosity: VerbosityArg,
     },
 }

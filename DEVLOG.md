@@ -684,6 +684,18 @@ But if nothing happened we just elide it.
 
 If it's feasible, let's allow the numbers 0-3 as settings for `--verbosity` as well. This may require using clap's more advanced features for parsing the CLI argument into the enum.
 
+---
+
+We are making many checks to `print_step_header_if_needed`:
+
+```
+self.print_step_header_if_needed();
+println!(...);
+```
+
+This is ugly. Instead wrap into a helper function the process of logging an action line, and let that helper function encapsulate
+
+
 
 Fix Remaining nondeterminism
 ----------------------------------------
@@ -713,6 +725,8 @@ Now that we have more logging of game activities, let's use that to build an e2e
 Keep working until you have this e2e determinism test passing.
 
 ----
+
+
 
 
 TODO: Eliminate unnecessary calls to collect or clone
@@ -770,11 +784,26 @@ do not fix in your first commit.
 
 
 
-TODO: Report 
+TODO: Report aggregated metrics in benchmark
 ----------------------------------------
+
+Each call to run_game_with_metrics below returns GameMetrics but we throw them away:
 
             b.iter(|| {
                 run_game_with_metrics(&setup, black_box(seed))
+
+Instead implement (or derive) the addition operation for GameMetrics
+and add together the GameMetrics from each iteration.
+
+At the end of all iterations, print them out, the same as for the "warmup" run.
+
+
+
+TODO: Don't reveal hidden information
+----------------------------------------
+
+IF player one is a human (TUI), and player two is not, then don't reveal what card P2 draws.
+
 
 
 TODO: Eliminate invalid actions from choice list
