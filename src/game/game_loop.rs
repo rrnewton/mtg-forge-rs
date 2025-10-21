@@ -250,6 +250,36 @@ impl<'a> GameLoop<'a> {
         }
     }
 
+    // === Logging Helpers ===
+    // These methods encapsulate lazy header printing + message output
+
+    /// Log a message at Normal verbosity level (with lazy step header)
+    /// Most game events use this level
+    fn log_normal(&mut self, message: &str) {
+        if self.verbosity >= VerbosityLevel::Normal {
+            self.print_step_header_if_needed();
+            println!("  {}", message);
+        }
+    }
+
+    /// Log a message at Verbose verbosity level (with lazy step header)
+    /// Used for detailed action-by-action logging
+    fn log_verbose(&mut self, message: &str) {
+        if self.verbosity >= VerbosityLevel::Verbose {
+            self.print_step_header_if_needed();
+            println!("  {}", message);
+        }
+    }
+
+    /// Log a message at Minimal verbosity level (no step header needed)
+    /// Used for major game events like outcomes
+    #[allow(dead_code)]
+    fn log_minimal(&mut self, message: &str) {
+        if self.verbosity >= VerbosityLevel::Minimal {
+            println!("{}", message);
+        }
+    }
+
     /// Reset turn-based state for the active player
     fn reset_turn_state(&mut self, active_player: PlayerId) -> Result<()> {
         // Reset lands played this turn
@@ -346,29 +376,23 @@ impl<'a> GameLoop<'a> {
 
         // Skip draw on first turn (player going first doesn't draw)
         if self.game.turn.turn_number == 1 {
-            if self.verbosity >= VerbosityLevel::Normal {
-                self.print_step_header_if_needed();
-                println!("  (First turn - no draw)");
-            }
+            self.log_normal("(First turn - no draw)");
             return Ok(());
         }
 
         // Draw a card
         self.game.draw_card(active_player)?;
 
-        if self.verbosity >= VerbosityLevel::Normal {
-            self.print_step_header_if_needed();
-            let player_name = self.get_player_name(active_player);
-            if let Some(zones) = self.game.get_player_zones(active_player) {
-                if let Some(&card_id) = zones.hand.cards.last() {
-                    if let Ok(card) = self.game.cards.get(card_id) {
-                        println!("  {} draws {}", player_name, card.name);
-                        return Ok(());
-                    }
+        let player_name = self.get_player_name(active_player);
+        if let Some(zones) = self.game.get_player_zones(active_player) {
+            if let Some(&card_id) = zones.hand.cards.last() {
+                if let Ok(card) = self.game.cards.get(card_id) {
+                    self.log_normal(&format!("{} draws {}", player_name, card.name));
+                    return Ok(());
                 }
             }
-            println!("  {} draws a card", player_name);
         }
+        self.log_normal(&format!("{} draws a card", player_name));
 
         Ok(())
     }
@@ -563,14 +587,11 @@ impl<'a> GameLoop<'a> {
             if hand_size > max_hand_size {
                 let discard_count = hand_size - max_hand_size;
 
-                if self.verbosity >= VerbosityLevel::Normal {
-                    self.print_step_header_if_needed();
-                    let player_name = self.get_player_name(player_id);
-                    println!(
-                        "  {} must discard {} cards (hand size: {}, max: {})",
-                        player_name, discard_count, hand_size, max_hand_size
-                    );
-                }
+                let player_name = self.get_player_name(player_id);
+                self.log_normal(&format!(
+                    "{} must discard {} cards (hand size: {}, max: {})",
+                    player_name, discard_count, hand_size, max_hand_size
+                ));
 
                 // Get the appropriate controller
                 let controller: &mut dyn PlayerController = if player_id == controller1.player_id()
@@ -600,17 +621,14 @@ impl<'a> GameLoop<'a> {
                             zones.hand.remove(card_id);
                             zones.graveyard.add(card_id);
 
-                            if self.verbosity >= VerbosityLevel::Normal {
-                                self.print_step_header_if_needed();
-                                let card_name = self
-                                    .game
-                                    .cards
-                                    .get(card_id)
-                                    .map(|c| c.name.as_str())
-                                    .unwrap_or("Unknown");
-                                let player_name = self.get_player_name(player_id);
-                                println!("  {} discards {}", player_name, card_name);
-                            }
+                            let card_name = self
+                                .game
+                                .cards
+                                .get(card_id)
+                                .map(|c| c.name.as_str())
+                                .unwrap_or("Unknown");
+                            let player_name = self.get_player_name(player_id);
+                            self.log_normal(&format!("{} discards {}", player_name, card_name));
                         } else {
                             return Err(crate::MtgError::InvalidAction(format!(
                                 "Card {:?} not in player's hand",
@@ -824,13 +842,10 @@ impl<'a> GameLoop<'a> {
 
     /// Execute a player action
     fn execute_action(&mut self, player_id: PlayerId, action: &PlayerAction) -> Result<()> {
-        if self.verbosity >= VerbosityLevel::Verbose
-            && !matches!(action, PlayerAction::PassPriority)
-        {
-            self.print_step_header_if_needed();
+        if !matches!(action, PlayerAction::PassPriority) {
             let player_name = self.get_player_name(player_id);
             let action_desc = self.describe_action(action);
-            println!("  {} {}", player_name, action_desc);
+            self.log_verbose(&format!("{} {}", player_name, action_desc));
         }
 
         match action {
@@ -842,32 +857,27 @@ impl<'a> GameLoop<'a> {
             }
             PlayerAction::CastSpell { card_id, targets } => {
                 // Show spell being cast (added to stack)
-                if self.verbosity >= VerbosityLevel::Normal {
-                    self.print_step_header_if_needed();
-                    let player_name = self.get_player_name(player_id);
-                    let card_name = self
-                        .game
-                        .cards
-                        .get(*card_id)
-                        .map(|c| c.name.as_str())
-                        .unwrap_or("Unknown");
-                    println!("  {} casts {}", player_name, card_name);
-                }
+                let player_name = self.get_player_name(player_id);
+                let card_name = self
+                    .game
+                    .cards
+                    .get(*card_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                self.log_normal(&format!("{} casts {}", player_name, card_name));
 
                 self.game.cast_spell(player_id, *card_id, targets.clone())?;
 
                 // Immediately resolve spell (simplified - no stack interaction yet)
                 self.game.resolve_spell(*card_id)?;
 
-                if self.verbosity >= VerbosityLevel::Normal {
-                    let card_name = self
-                        .game
-                        .cards
-                        .get(*card_id)
-                        .map(|c| c.name.as_str())
-                        .unwrap_or("Unknown");
-                    println!("  {} resolves", card_name);
-                }
+                let card_name = self
+                    .game
+                    .cards
+                    .get(*card_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                self.log_normal(&format!("{} resolves", card_name));
             }
             PlayerAction::DeclareAttacker(card_id) => {
                 self.game.declare_attacker(player_id, *card_id)?;

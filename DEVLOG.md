@@ -584,13 +584,13 @@ provide the option to load all cards.  Actually, name the flag
 
 
 
-TODO: Reduce the TODO.md description of past work
+Reduce the TODO.md description of past work
 ----------------------------------------
 
 Let's leave a very short description of phase 1 & phase 2, and compress the description of the already completed portions of phase 3. Leave the descriptions of future work.
 
 
-TODO: Make card load errors fatal
+Make card load errors fatal
 ----------------------------------------
 
 We should in general NOT have Warnings and non-fatal errors in our system. We want to fail fast if anything is wrong.
@@ -696,7 +696,6 @@ println!(...);
 This is ugly. Instead wrap into a helper function the process of logging an action line, and let that helper function encapsulate the check if the lazy-header-printing is needed. This is probably a good time to factor the logging support into separate, modular code, rather than just using naked println! calls throughout the code.
 
 
-
 Fix Remaining nondeterminism
 ----------------------------------------
 
@@ -719,7 +718,7 @@ There is remaining nondeterminism. Dig into the RNG management and seeding and f
 Now that we have more logging of game activities, let's use that to build an e2e test for determinism:
 
 - Make any printout lines that are nondeterministic (i.e. include time elapsed) go to stderr rather than stdout.
-- Because stdout will be deterministic, we can run the same random game 10 times and diff the logs to see if there was any deviation.
+- Because stdout will be deterministic, we can run the same random game 10 times (with --verbosity=3) and diff the logs to see if there was any deviation.
 - For this and other tests let's structure the test be instantiated as a distinct test for every deck under `test_decks/*.dck`. When we add more decks there they should become new test cases automatically.
 
 Keep working until you have this e2e determinism test passing.
