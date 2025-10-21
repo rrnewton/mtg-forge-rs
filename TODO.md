@@ -2,9 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** 0f02346 - Implement async card loading with eager and lazy modes
-
-**Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
+**Tests:** 93 passing ✅ (77 unit + 9 v2 controller + 10 card loading + 5 e2e)
 
 ---
 
@@ -27,6 +25,11 @@
 - ✅ Entity system, game state, zones, actions, mana payment
 - ✅ Type-safe IDs, strong types, undo logging
 - ✅ Controller architecture: PlayerController trait, GameStateView, Random/Zero/Scripted controllers
+- ✅ **Two-layer controller architecture (v2)**: Specific callbacks (PlayerController) + generic choices (DecisionMaker)
+  - RandomControllerV2 and ZeroControllerV2 with zero-copy patterns (SmallVec, slices)
+  - Specific methods: choose_land_to_play, choose_spell_to_cast, choose_attackers, choose_blockers, etc.
+  - Documentation in CONTROLLER_DESIGN.md
+  - Note: Game loop still uses v1 interface, v2 migration pending
 - ✅ Card/deck loading from cardsfolder .txt and .dck files
 
 ---

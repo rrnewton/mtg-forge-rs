@@ -861,11 +861,122 @@ This is amaziing, it did a fork-join on its own.
          +6 more tool uses
 
 
+[Current heaptrack results after recent changes]
+----------------------------------------
+
+Lots of stupid temporary action lists allocated and returned.
+
+```
+root@fd9a887561de:/workspace# heaptrack_print heaptrack.profile.238080.gz | grep -E '( calls with | at src | at /workspace)' | head -n70
+128900 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:783
+      at /workspace/src/game/game_loop.rs:688
+      at /workspace/src/game/game_loop.rs:160
+8800 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:723
+      at /workspace/src/game/game_loop.rs:440
+      at /workspace/src/game/game_loop.rs:326
+      at /workspace/src/game/game_loop.rs:160
+8800 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:747
+      at /workspace/src/game/game_loop.rs:491
+      at /workspace/src/game/game_loop.rs:327
+      at /workspace/src/game/game_loop.rs:160
+8700 calls with 0B peak consumption from:
+      at /workspace/src/core/types.rs:871
+      at /workspace/src/game/game_loop.rs:224
+      at /workspace/src/game/game_loop.rs:224
+      at /workspace/src/game/game_loop.rs:323
+      at /workspace/src/game/game_loop.rs:160
+6600 calls with 0B peak consumption from:
+      at /workspace/src/core/types.rs:871
+      at /workspace/src/game/game_loop.rs:224
+      at /workspace/src/game/game_loop.rs:224
+      at /workspace/src/game/game_loop.rs:331
+      at /workspace/src/game/game_loop.rs:160
+8800 calls with 0B peak consumption from:
+8800 calls with 0B peak consumption from:
+      at /workspace/src/game/random_controller.rs:54
+      at /workspace/src/game/game_loop.rs:327
+      at /workspace/src/game/game_loop.rs:160
+8800 calls with 0B peak consumption from:
+      at /workspace/src/game/random_controller.rs:54
+      at /workspace/src/game/game_loop.rs:326
+      at /workspace/src/game/game_loop.rs:160
+6600 calls with 0B peak consumption from:
+      at /workspace/src/game/random_controller.rs:96
+      at /workspace/src/game/game_loop.rs:331
+      at /workspace/src/game/game_loop.rs:160
+6600 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:331
+      at /workspace/src/game/game_loop.rs:160
+6600 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:587
+      at /workspace/src/game/game_loop.rs:331
+      at /workspace/src/game/game_loop.rs:160
+6000 calls with 1.75K peak consumption from:
+      at /workspace/src/bin/profile.rs:70
+6000 calls with 622B peak consumption from:
+      at /workspace/src/loader/card.rs:139
+      at /workspace/src/bin/profile.rs:70
+6000 calls with 720B peak consumption from:
+      at /workspace/src/loader/card.rs:139
+      at /workspace/src/bin/profile.rs:70
+6000 calls with 2.06K peak consumption from:
+      at /workspace/src/bin/profile.rs:70
+8700 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:393
+      at /workspace/src/game/game_loop.rs:323
+      at /workspace/src/game/game_loop.rs:160
+8700 calls with 0B peak consumption from:
+      at /workspace/src/core/types.rs:28
+      at /workspace/src/game/game_loop.rs:393
+      at /workspace/src/game/game_loop.rs:323
+      at /workspace/src/game/game_loop.rs:160
+6600 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:627
+      at /workspace/src/game/game_loop.rs:331
+      at /workspace/src/game/game_loop.rs:160
+6600 calls with 0B peak consumption from:
+```
+
+
+: Overhaul Controller choice framework and split into two layers
+----------------------------------------
+
+Now for improvements to the controller interface. We actually want to have TWO different notions of a controller. The Java PlayerController has over 100 methods that have the agent answer very specific questions (which card to play, discard, which creature to block with, etc).
+
+These targetted callback methods are better for implementing a user interface for humans (graphical or otherwise) and ALSO better for implementing the kind of heuristic AI that exists in the Java implementation. We should have a similar layer for the primary player Controller interface. It can start off as a subset of the Java one --- the subset corresponding to the MTG game functionality that our limited prototype implements. We will then grow it over time.
+
+Remember our zero-copy principles. As you look at the Java PlayerController version, there are plenty of examples of methods taking and returning `List` types (i.e. heap allocating collections). As much as possible we want to instead pass around lists by using array slice references or mutable iterators. Or, when all else fails, use SmallVec.
+
+Finally, on top of that we should have a DecisionTree type that wraps a Controller and translates it into a "pick option 0-N" series of decisions, similar to the current `choose_action` method. However, to truly reduce the game to a series of decision branches, we will not have very strong TYPES for those different options. Similar to the Java TUI, each coice will ONLY receive:
+
+(1) a `&str` description of what the choice to make is
+(2) a vector of `&str` descriptions of each option, 0-N.
+
+We want to be careful even here to not allocate. For instance if the options are different cards, then we get a handle on their existing name rather than copying a string.
+
+
+TODO: Bad choice tree - combinatorial explosion of blocker/attackers
+--------------------------------------------
+
+It is silly to enumerate ALL possible (blocker,attackers) mappings. If
+there are 10 attackers and 10 blockers this would quickly grow to many
+possibilities.
+
+First of all, why does `DeclareBlocker` allow multiple attackers? In MTG more than one blocker can block an attacker, but a single blocker cannot block MULTIPLE attackers.  Unless there is some special card with this ability. Is there? If so what is it called.
+
+Look at how the Java TUI structures combat as a tree of choices. For each declared attacker, you can assign 0 blockers or you can add one additional blocker. After you add one, you can assign a second or be done (always option 0) and leave it at a single blocker. Then the process repeats for the second attacker.
+
+
+
+
+
+
 
 TODO: Make a test deck with grizzly bears
 ----------------------------------------
-
-
 
 
 
@@ -894,29 +1005,6 @@ The temporary allocations...
 TODO: Performance Anti-patterns to find and fix
 ----------------------------------------
 
-TODO: Bad choice tree - combinatorial explosion of blocker/attackers
---------------------------------------------
-
-It is silly to enumerate ALL possible (blocker,attackers) mappings. If
-there are 10 attackers and 10 blockers this would quickly grow to many
-possibilities.
-
-First of all, why does `DeclareBlocker` allow multiple attackers? In MTG more than one blocker can block an attacker, but a single blocker cannot block MULTIPLE attackers.  Unless there is some special card with this ability. Is there? If so what is it called.
-
-Look at how the Java TUI structures combat as a tree of choices. For each declared attacker, you can assign 0 blockers or you can add one additional blocker. After you add one, you can assign a second or be done (always option 0) and leave it at a single blocker. Then the process repeats for the second attacker.
-
-
-TODO: Overhaul Controller choice framework and split into two layers
-----------------------------------------
-
-Further continuing with improvements to the controll interface, we actually want to have TWO different notions of a controller. The Java PlayerController has over 100 methods that have the agent answer very specific questions (which card to play, discard, which creature to block with, etc).
-
-These targetted callback methods are better for implementing a user interface for humans (graphical or otherwise) OR for implementing the kind of heuristic AI that exists in the Java implementation. We should have a similar layer for the primary player Controller interface. It can start off as a subset of the Java one --- corresponding to the MTG game functionality that our limited prototype implements. We will then grow it over time.
-
-Finally, on top of that we should have a DecisionTree type that wraps a Controller and translates it into a "pick option 0-N" series of decisions, similar to the current `choose_action` method. However, to truly reduce the game to a series of decision branches, we will not have very strong TYPES for those different options. Similar to the Java TUI, we may only have:
-
-(1) a `&str` description of what the choice to make is
-(2) a vector of `&str` descriptions of each option, 0-N.
 
 
 
