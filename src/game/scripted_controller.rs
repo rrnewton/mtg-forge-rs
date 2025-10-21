@@ -3,7 +3,7 @@
 //! This controller follows a predetermined script of actions,
 //! useful for examples and deterministic testing.
 
-use crate::core::PlayerId;
+use crate::core::{CardId, PlayerId};
 use crate::game::controller::{GameStateView, PlayerAction, PlayerController};
 
 /// A controller that follows a predetermined sequence of actions
@@ -42,6 +42,12 @@ impl PlayerController for ScriptedController {
             // No more scripted actions, pass priority
             None
         }
+    }
+
+    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
+        // Scripted controller discards the first N cards in hand
+        let hand = view.player_hand(self.player_id);
+        hand.iter().take(count).copied().collect()
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {

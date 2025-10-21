@@ -3,8 +3,9 @@
 //! Makes random choices from available actions.
 //! Serves as a baseline for more sophisticated AI.
 
-use crate::core::PlayerId;
+use crate::core::{CardId, PlayerId};
 use crate::game::controller::{GameStateView, PlayerAction, PlayerController};
+use rand::seq::SliceRandom;
 use rand::Rng;
 
 /// A controller that makes random choices
@@ -86,6 +87,13 @@ impl PlayerController for RandomController {
             let index = self.rng.gen_range(0..action_pool.len());
             Some(action_pool[index].clone())
         }
+    }
+
+    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
+        // Random controller discards random cards from hand
+        let mut hand: Vec<CardId> = view.player_hand(self.player_id).to_vec();
+        hand.shuffle(&mut self.rng);
+        hand.iter().take(count).copied().collect()
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {

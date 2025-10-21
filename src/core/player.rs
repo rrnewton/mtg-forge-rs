@@ -26,6 +26,9 @@ pub struct Player {
 
     /// Maximum lands per turn (usually 1)
     pub max_lands_per_turn: u8,
+
+    /// Maximum hand size (usually 7, modified by some effects)
+    pub max_hand_size: usize,
 }
 
 impl Player {
@@ -38,6 +41,7 @@ impl Player {
             has_lost: false,
             lands_played_this_turn: 0,
             max_lands_per_turn: 1,
+            max_hand_size: 7, // Standard MTG hand size limit
         }
     }
 

@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Latest Commit:** [PENDING] - Add keyword parsing support (K: lines)
+**Latest Commit:** [PENDING] - Implement discard phase in cleanup step
 
-**Tests:** 91 passing ✅ (77 unit + 10 card loading + 4 e2e)
+**Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
 
 ---
 
@@ -46,6 +46,16 @@
   * Automatic creature death when damage >= toughness
   * Full integration with game loop
   * Comprehensive tests (4 new combat tests)
+
+- ✅ **Discard phase in cleanup step**
+  * Players discard down to maximum hand size (default 7)
+  * Added max_hand_size field to Player struct
+  * Cleanup step calls controller.choose_cards_to_discard()
+  * All controllers implement discard logic (Zero, Random, Scripted, combat_demo)
+  * Active player discards first, then non-active players
+  * Cards move from hand to graveyard
+  * Comprehensive test verifies discard functionality
+  * Fixes issue where players accumulated 39+ cards in hand
 
 ## ✅ Phase 2 Complete: Game Loop Implementation
 
@@ -188,7 +198,7 @@ None currently - all tests passing!
 
 **Architecture:** ✅ Complete
 **Core Game Engine:** ✅ Complete
-**Game Loop:** ✅ Complete
+**Game Loop:** ✅ Complete (including cleanup/discard phase)
 **Combat:** ✅ Complete
 **Keywords:** ✅ Complete (K: lines)
 **Spell Effects:** 🚧 In Progress (DealDamage done, more needed)
@@ -196,5 +206,5 @@ None currently - all tests passing!
 **Performance/Search:** 📋 Planned
 **Advanced Features:** 📝 Future
 
-**Total Tests:** 91 passing (77 unit + 10 card loading + 4 e2e)
-**Test Coverage:** Good (core functionality + keyword parsing)
+**Total Tests:** 92 passing (77 unit + 10 card loading + 5 e2e)
+**Test Coverage:** Good (core functionality + keyword parsing + discard phase)

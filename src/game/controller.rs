@@ -72,6 +72,14 @@ impl<'a> GameStateView<'a> {
             .unwrap_or(&[])
     }
 
+    /// Get cards in a specific player's hand
+    pub fn player_hand(&self, player_id: PlayerId) -> &[CardId] {
+        self.game
+            .get_player_zones(player_id)
+            .map(|zones| zones.hand.cards.as_slice())
+            .unwrap_or(&[])
+    }
+
     /// Get cards on the battlefield
     pub fn battlefield(&self) -> &[CardId] {
         &self.game.battlefield.cards
@@ -199,6 +207,12 @@ pub trait PlayerController {
         view: &GameStateView,
         available_actions: &[PlayerAction],
     ) -> Option<PlayerAction>;
+
+    /// Choose cards to discard during cleanup step
+    ///
+    /// The controller should return a vector of card IDs from their hand
+    /// to discard. The number of cards should be exactly `count`.
+    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId>;
 
     /// Called when priority passes (for logging/debugging)
     fn on_priority_passed(&mut self, _view: &GameStateView) {}

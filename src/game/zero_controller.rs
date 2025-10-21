@@ -4,7 +4,7 @@
 //! It's useful for automated testing and ensuring games can complete without user input.
 //! Equivalent to the Java Forge "--p1=zero" option.
 
-use crate::core::PlayerId;
+use crate::core::{CardId, PlayerId};
 use crate::game::controller::{GameStateView, PlayerAction, PlayerController};
 
 /// A controller that always chooses the first available action (index 0)
@@ -48,6 +48,12 @@ impl PlayerController for ZeroController {
 
         // Otherwise pass priority (return None)
         None
+    }
+
+    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
+        // Zero controller discards the first N cards in hand
+        let hand = view.player_hand(self.player_id);
+        hand.iter().take(count).copied().collect()
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {

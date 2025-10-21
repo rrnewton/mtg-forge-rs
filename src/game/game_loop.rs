@@ -283,7 +283,7 @@ impl<'a> GameLoop<'a> {
             Step::CombatDamage => self.combat_damage_step(controller1, controller2),
             Step::EndCombat => self.end_combat_step(controller1, controller2),
             Step::End => self.end_step(controller1, controller2),
-            Step::Cleanup => self.cleanup_step(),
+            Step::Cleanup => self.cleanup_step(controller1, controller2),
         }
     }
 
@@ -510,15 +510,103 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Cleanup step - discard to hand size, remove damage
-    fn cleanup_step(&mut self) -> Result<()> {
-        // TODO: Implement cleanup (discard to hand size, remove damage)
+    fn cleanup_step(
+        &mut self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+    ) -> Result<()> {
+        let active_player = self.game.turn.active_player;
+
+        // Active player discards to hand size first
+        let player_ids = [active_player];
+
+        // Then non-active players (in a 2-player game, just one other player)
+        let all_players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
+        let other_players: Vec<_> = all_players
+            .iter()
+            .filter(|&&p| p != active_player)
+            .copied()
+            .collect();
+
+        // Process active player first, then others
+        for &player_id in player_ids.iter().chain(other_players.iter()) {
+            let hand_size = self
+                .game
+                .get_player_zones(player_id)
+                .map(|z| z.hand.cards.len())
+                .unwrap_or(0);
+
+            let max_hand_size = self.game.players.get(player_id)?.max_hand_size;
+
+            if hand_size > max_hand_size {
+                let discard_count = hand_size - max_hand_size;
+
+                if self.verbose {
+                    let player_name = self.get_player_name(player_id);
+                    println!(
+                        "  {} must discard {} cards (hand size: {}, max: {})",
+                        player_name, discard_count, hand_size, max_hand_size
+                    );
+                }
+
+                // Get the appropriate controller
+                let controller: &mut dyn PlayerController = if player_id == controller1.player_id()
+                {
+                    controller1
+                } else {
+                    controller2
+                };
+
+                // Ask controller which cards to discard
+                let view = GameStateView::new(self.game, player_id);
+                let cards_to_discard = controller.choose_cards_to_discard(&view, discard_count);
+
+                // Verify correct number of cards
+                if cards_to_discard.len() != discard_count {
+                    return Err(crate::MtgError::InvalidAction(format!(
+                        "Must discard exactly {} cards, got {}",
+                        discard_count,
+                        cards_to_discard.len()
+                    )));
+                }
+
+                // Move cards to graveyard
+                for card_id in cards_to_discard {
+                    if let Some(zones) = self.game.get_player_zones_mut(player_id) {
+                        if zones.hand.contains(card_id) {
+                            zones.hand.remove(card_id);
+                            zones.graveyard.add(card_id);
+
+                            if self.verbose {
+                                let card_name = self
+                                    .game
+                                    .cards
+                                    .get(card_id)
+                                    .map(|c| c.name.as_str())
+                                    .unwrap_or("Unknown");
+                                let player_name = self.get_player_name(player_id);
+                                println!("  {} discards {}", player_name, card_name);
+                            }
+                        } else {
+                            return Err(crate::MtgError::InvalidAction(format!(
+                                "Card {:?} not in player's hand",
+                                card_id
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+
         // Empty mana pools
-        let player_ids: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
-        for player_id in player_ids {
+        for player_id in all_players {
             if let Ok(player) = self.game.players.get_mut(player_id) {
                 player.mana_pool.clear();
             }
         }
+
+        // TODO: Remove damage from creatures
+
         Ok(())
     }
 

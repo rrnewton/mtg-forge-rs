@@ -68,6 +68,12 @@ impl PlayerController for AliceController {
         }
     }
 
+    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
+        // Alice discards the first N cards in hand
+        let hand = view.player_hand(self.player_id);
+        hand.iter().take(count).copied().collect()
+    }
+
     fn on_priority_passed(&mut self, _view: &GameStateView) {}
 
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {}
@@ -140,6 +146,12 @@ impl PlayerController for BobController {
             // Pass priority in all other situations
             None
         }
+    }
+
+    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
+        // Bob discards the first N cards in hand
+        let hand = view.player_hand(self.player_id);
+        hand.iter().take(count).copied().collect()
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {}

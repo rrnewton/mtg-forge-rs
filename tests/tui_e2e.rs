@@ -264,3 +264,94 @@ fn test_tui_random_vs_random_deals_damage() -> Result<()> {
 
     Ok(())
 }
+
+/// Test that players discard down to 7 cards during cleanup step
+#[test]
+fn test_discard_to_hand_size() -> Result<()> {
+    use mtg_forge_rs::core::{Card, CardType, EntityId};
+
+    // Load card database
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+
+    // Load test deck
+    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck = DeckLoader::load_from_file(&deck_path)?;
+
+    // Initialize game
+    let game_init = GameInitializer::new(&card_db);
+    let mut game = game_init.init_game(
+        "Player 1".to_string(),
+        &deck,
+        "Player 2".to_string(),
+        &deck,
+        20,
+    )?;
+
+    let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
+    let p1_id = players[0];
+    let p2_id = players[1];
+
+    // Give Player 1 10 cards in hand (exceeding max hand size of 7)
+    for i in 0..10 {
+        let card_id = EntityId::<Card>::new(1000 + i);
+        let mut card = Card::new(card_id, "Mountain", p1_id);
+        card.types.push(CardType::Land);
+        game.cards.insert(card_id, card);
+
+        if let Some(zones) = game.get_player_zones_mut(p1_id) {
+            zones.hand.add(card_id);
+        }
+    }
+
+    // Verify Player 1 has 10 cards in hand
+    let hand_size_before = game
+        .get_player_zones(p1_id)
+        .map(|z| z.hand.cards.len())
+        .unwrap_or(0);
+    assert_eq!(
+        hand_size_before, 10,
+        "Player 1 should start with 10 cards in hand"
+    );
+
+    // Create controllers and run cleanup step
+    let mut controller1 = mtg_forge_rs::game::ZeroController::new(p1_id);
+    let mut controller2 = mtg_forge_rs::game::ZeroController::new(p2_id);
+
+    // Set Player 1 as active player
+    game.turn.active_player = p1_id;
+
+    // Run cleanup step through game loop
+    let mut game_loop = GameLoop::new(&mut game).with_verbose(true);
+    game_loop.game.turn.current_step = mtg_forge_rs::game::Step::Cleanup;
+
+    // Execute cleanup step manually
+    game_loop.execute_step(&mut controller1, &mut controller2)?;
+
+    // Verify Player 1 now has exactly 7 cards in hand
+    let hand_size_after = game_loop
+        .game
+        .get_player_zones(p1_id)
+        .map(|z| z.hand.cards.len())
+        .unwrap_or(0);
+    assert_eq!(
+        hand_size_after, 7,
+        "Player 1 should have discarded down to 7 cards"
+    );
+
+    // Verify 3 cards were discarded to graveyard
+    let graveyard_size = game_loop
+        .game
+        .get_player_zones(p1_id)
+        .map(|z| z.graveyard.cards.len())
+        .unwrap_or(0);
+    assert_eq!(
+        graveyard_size, 3,
+        "Player 1 should have 3 cards in graveyard after discarding"
+    );
+
+    Ok(())
+}
