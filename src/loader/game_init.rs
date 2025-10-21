@@ -4,7 +4,7 @@
 
 use crate::core::PlayerId;
 use crate::game::GameState;
-use crate::loader::{CardDatabase, DeckList};
+use crate::loader::{AsyncCardDatabase as CardDatabase, DeckList};
 use crate::{MtgError, Result};
 
 /// Game builder for initializing games from decks
@@ -19,7 +19,7 @@ impl<'a> GameInitializer<'a> {
     }
 
     /// Initialize a two-player game from two decks
-    pub fn init_game(
+    pub async fn init_game(
         &self,
         player1_name: String,
         player1_deck: &DeckList,
@@ -35,16 +35,16 @@ impl<'a> GameInitializer<'a> {
         let player2_id = players[1];
 
         // Load player 1's deck
-        self.load_deck_into_game(&mut game, player1_id, player1_deck)?;
+        self.load_deck_into_game(&mut game, player1_id, player1_deck).await?;
 
         // Load player 2's deck
-        self.load_deck_into_game(&mut game, player2_id, player2_deck)?;
+        self.load_deck_into_game(&mut game, player2_id, player2_deck).await?;
 
         Ok(game)
     }
 
     /// Load a deck into a player's library
-    fn load_deck_into_game(
+    async fn load_deck_into_game(
         &self,
         game: &mut GameState,
         player_id: PlayerId,
@@ -52,12 +52,13 @@ impl<'a> GameInitializer<'a> {
     ) -> Result<()> {
         for entry in &deck.main_deck {
             // Look up the card definition
-            let card_def = self.card_db.get_card(&entry.card_name).ok_or_else(|| {
-                MtgError::InvalidCardFormat(format!(
-                    "Card not found in database: {}",
-                    entry.card_name
-                ))
-            })?;
+            let card_def = self.card_db.get_card(&entry.card_name).await?
+                .ok_or_else(|| {
+                    MtgError::InvalidCardFormat(format!(
+                        "Card not found in database: {}",
+                        entry.card_name
+                    ))
+                })?;
 
             // Create the requested number of copies
             for _ in 0..entry.count {
@@ -84,8 +85,8 @@ mod tests {
     use crate::loader::{DeckEntry, DeckLoader};
     use std::path::PathBuf;
 
-    #[test]
-    fn test_init_simple_game() {
+    #[tokio::test]
+    async fn test_init_simple_game() {
         // Only run if cardsfolder exists
         let cardsfolder = PathBuf::from("cardsfolder");
         if !cardsfolder.exists() {
@@ -93,7 +94,8 @@ mod tests {
         }
 
         // Load card database
-        let db = CardDatabase::load_from_cardsfolder(&cardsfolder).unwrap();
+        let db = CardDatabase::new(cardsfolder);
+        db.eager_load().await.unwrap();
 
         // Create simple decks (all Lightning Bolts and Mountains)
         let deck_content = r#"
@@ -108,6 +110,7 @@ mod tests {
         let initializer = GameInitializer::new(&db);
         let game = initializer
             .init_game("Alice".to_string(), &deck, "Bob".to_string(), &deck, 20)
+            .await
             .unwrap();
 
         // Verify game state
@@ -124,9 +127,11 @@ mod tests {
         assert_eq!(game.cards.len(), 120);
     }
 
-    #[test]
-    fn test_missing_card_error() {
-        let db = CardDatabase::new(); // Empty database
+    #[tokio::test]
+    async fn test_missing_card_error() {
+        use std::path::PathBuf;
+
+        let db = CardDatabase::new(PathBuf::from("cardsfolder")); // Empty database (no eager load)
         let deck = DeckList {
             main_deck: vec![DeckEntry {
                 card_name: "Nonexistent Card".to_string(),
@@ -137,7 +142,7 @@ mod tests {
 
         let initializer = GameInitializer::new(&db);
         let result =
-            initializer.init_game("Alice".to_string(), &deck, "Bob".to_string(), &deck, 20);
+            initializer.init_game("Alice".to_string(), &deck, "Bob".to_string(), &deck, 20).await;
 
         assert!(result.is_err());
     }

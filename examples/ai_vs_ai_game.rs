@@ -5,10 +5,11 @@
 
 use mtg_forge_rs::core::{Card, CardType, Color, Effect, ManaCost, TargetRef};
 use mtg_forge_rs::game::{GameLoop, GameState, RandomController};
-use mtg_forge_rs::loader::{CardDatabase, DeckLoader, GameInitializer};
+use mtg_forge_rs::loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer, prefetch_deck_cards};
 use std::path::PathBuf;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("=== MTG Forge - AI vs AI Game ===\n");
     println!("Demonstrating:");
     println!("  - Complete game loop with turn phases");
@@ -24,22 +25,6 @@ fn main() {
         return;
     }
 
-    println!("Loading card database from cardsfolder...");
-    let start = std::time::Instant::now();
-    let card_db = match CardDatabase::load_from_cardsfolder(&cardsfolder) {
-        Ok(db) => {
-            let elapsed = start.elapsed();
-            println!("Loaded {} cards in {} ms\n", db.len(), elapsed.as_millis());
-            db
-        }
-        Err(e) => {
-            eprintln!("Error loading cardsfolder: {e}");
-            eprintln!("Using simplified manual cards instead\n");
-            run_simplified_game();
-            return;
-        }
-    };
-
     // Create simple decks (20 Mountains, 40 Lightning Bolts)
     let deck_content = r#"
 [Main]
@@ -53,6 +38,25 @@ fn main() {
     println!("  - {} Lightning Bolts", 40);
     println!("  - {} total cards\n", deck.total_cards());
 
+    // Create card database (lazy loading)
+    let card_db = CardDatabase::new(cardsfolder);
+
+    // Prefetch deck cards
+    println!("Prefetching deck cards...");
+    let start = std::time::Instant::now();
+    match prefetch_deck_cards(&card_db, &deck).await {
+        Ok((count, _)) => {
+            let elapsed = start.elapsed();
+            println!("Prefetched {} cards in {} ms\n", count, elapsed.as_millis());
+        }
+        Err(e) => {
+            eprintln!("Error prefetching cards: {e}");
+            eprintln!("Using simplified manual cards instead\n");
+            run_simplified_game();
+            return;
+        }
+    }
+
     // Initialize game
     let initializer = GameInitializer::new(&card_db);
     let mut game = initializer
@@ -63,6 +67,7 @@ fn main() {
             &deck,
             20,
         )
+        .await
         .expect("Failed to initialize game");
 
     println!("Game initialized!");

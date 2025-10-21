@@ -1,6 +1,6 @@
 //! Async deck loading utilities
 //!
-//! Helpers for loading decks with async card database
+//! Helpers for prefetching deck cards with async card database
 
 use crate::loader::database_async::CardDatabase as AsyncCardDatabase;
 use crate::loader::deck::DeckList;
@@ -8,9 +8,10 @@ use crate::Result;
 use std::collections::HashSet;
 use std::time::Duration;
 
-/// Load unique cards from a deck in parallel
+/// Prefetch unique cards from a deck in parallel
+/// This is a hint to load cards ahead of time - cards will still load on-demand if not prefetched
 /// Returns (cards_loaded, duration)
-pub async fn load_deck_cards(
+pub async fn prefetch_deck_cards(
     db: &AsyncCardDatabase,
     deck: &DeckList,
 ) -> Result<(usize, Duration)> {

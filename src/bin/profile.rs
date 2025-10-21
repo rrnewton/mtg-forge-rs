@@ -14,7 +14,7 @@
 use clap::Parser;
 use mtg_forge_rs::{
     game::{GameLoop, RandomController},
-    loader::{CardDatabase, DeckLoader, GameInitializer},
+    loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer, prefetch_deck_cards},
 };
 use std::path::PathBuf;
 
@@ -27,19 +27,24 @@ struct Args {
     iterations: usize,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
 
-    // Load card database and deck once
-    let cardsfolder = PathBuf::from("cardsfolder");
-    let start = std::time::Instant::now();
-    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)
-        .expect("Failed to load card database");
-    let duration = start.elapsed();
-    println!("Loaded card database with {} cards in {:.2?}", card_db.len(), duration);
-
+    // Load deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path).expect("Failed to load deck");
+
+    // Create card database (lazy loading - only loads cards on-demand)
+    let cardsfolder = PathBuf::from("cardsfolder");
+    let card_db = CardDatabase::new(cardsfolder);
+
+    // Prefetch deck cards (not all 31k cards, just what we need)
+    let start = std::time::Instant::now();
+    let (count, _) = prefetch_deck_cards(&card_db, &deck).await
+        .expect("Failed to prefetch deck cards");
+    let duration = start.elapsed();
+    println!("Prefetched {} deck cards in {:.2?}", count, duration);
 
     let iterations = args.iterations;
 
@@ -61,6 +66,7 @@ fn main() {
                 &deck,
                 20,
             )
+            .await
             .expect("Failed to initialize game");
         game.rng_seed = seed;
 

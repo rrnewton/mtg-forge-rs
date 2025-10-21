@@ -5,21 +5,22 @@
 
 use mtg_forge_rs::{
     game::{GameLoop, ZeroController},
-    loader::{CardDatabase, DeckLoader, GameInitializer},
+    loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
 };
 use std::path::PathBuf;
 
 /// Test that two zero controllers can complete a game with simple decks
-#[test]
-fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
+#[tokio::test]
+async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
     // Load card database
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         // Skip test if cardsfolder doesn't exist
         return Ok(());
     }
-    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
 
     // Load test decks
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -33,7 +34,7 @@ fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
         "Player 2".to_string(),
         &deck,
         20, // starting life
-    )?;
+    ).await?;
 
     // Set deterministic seed for reproducible results
     game.rng_seed = 42;
@@ -90,14 +91,15 @@ fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
 }
 
 /// Test that the game respects the deterministic seed
-#[test]
-fn test_tui_deterministic_with_seed() -> Result<()> {
+#[tokio::test]
+async fn test_tui_deterministic_with_seed() -> Result<()> {
     // Load card database
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
-    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -113,7 +115,7 @@ fn test_tui_deterministic_with_seed() -> Result<()> {
             "Player 2".to_string(),
             &deck,
             20,
-        )?;
+        ).await?;
         game.rng_seed = 12345;
 
         let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
@@ -139,14 +141,15 @@ fn test_tui_deterministic_with_seed() -> Result<()> {
 }
 
 /// Test that the game runs to completion without errors (sanity check)
-#[test]
-fn test_tui_runs_to_completion() -> Result<()> {
+#[tokio::test]
+async fn test_tui_runs_to_completion() -> Result<()> {
     // Load card database
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
-    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -160,7 +163,7 @@ fn test_tui_runs_to_completion() -> Result<()> {
         "Player 2".to_string(),
         &deck,
         20,
-    )?;
+    ).await?;
     game.rng_seed = 54321;
 
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
@@ -189,14 +192,15 @@ fn test_tui_runs_to_completion() -> Result<()> {
 }
 
 /// Test that random controllers successfully play lands and cast spells
-#[test]
-fn test_tui_random_vs_random_deals_damage() -> Result<()> {
+#[tokio::test]
+async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     // Load card database
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
-    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
 
     // Load test deck with Mountains and Lightning Bolts
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -210,7 +214,7 @@ fn test_tui_random_vs_random_deals_damage() -> Result<()> {
         "Player 2".to_string(),
         &deck,
         20,
-    )?;
+    ).await?;
     game.rng_seed = 42;
 
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
@@ -266,8 +270,8 @@ fn test_tui_random_vs_random_deals_damage() -> Result<()> {
 }
 
 /// Test that players discard down to 7 cards during cleanup step
-#[test]
-fn test_discard_to_hand_size() -> Result<()> {
+#[tokio::test]
+async fn test_discard_to_hand_size() -> Result<()> {
     use mtg_forge_rs::core::{Card, CardType, EntityId};
 
     // Load card database
@@ -275,7 +279,8 @@ fn test_discard_to_hand_size() -> Result<()> {
     if !cardsfolder.exists() {
         return Ok(());
     }
-    let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -289,7 +294,7 @@ fn test_discard_to_hand_size() -> Result<()> {
         "Player 2".to_string(),
         &deck,
         20,
-    )?;
+    ).await?;
 
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
     let p1_id = players[0];

@@ -13,13 +13,14 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use mtg_forge_rs::{
     game::{GameLoop, RandomController},
-    loader::{CardDatabase, DeckList, DeckLoader, GameInitializer},
+    loader::{AsyncCardDatabase as CardDatabase, DeckList, DeckLoader, GameInitializer, prefetch_deck_cards},
     Result,
 };
 use stats_alloc::{Region, StatsAlloc, INSTRUMENTED_SYSTEM};
 use std::alloc::System;
 use std::path::PathBuf;
 use std::time::Duration;
+use tokio::runtime::Runtime;
 
 #[global_allocator]
 static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
@@ -88,17 +89,25 @@ impl GameMetrics {
 struct BenchmarkSetup {
     card_db: CardDatabase,
     deck: DeckList,
+    runtime: Runtime,
 }
 
 impl BenchmarkSetup {
     fn load() -> Result<Self> {
+        let runtime = Runtime::new().expect("Failed to create tokio runtime");
+
         let cardsfolder = PathBuf::from("cardsfolder");
-        let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)?;
+        let card_db = CardDatabase::new(cardsfolder);
 
         let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
         let deck = DeckLoader::load_from_file(&deck_path)?;
 
-        Ok(BenchmarkSetup { card_db, deck })
+        // Prefetch deck cards
+        runtime.block_on(async {
+            prefetch_deck_cards(&card_db, &deck).await
+        })?;
+
+        Ok(BenchmarkSetup { card_db, deck, runtime })
     }
 }
 
@@ -110,13 +119,15 @@ fn run_game_with_metrics(setup: &BenchmarkSetup, seed: u64) -> Result<GameMetric
 
     // Initialize game
     let game_init = GameInitializer::new(&setup.card_db);
-    let mut game = game_init.init_game(
-        "Player 1".to_string(),
-        &setup.deck,
-        "Player 2".to_string(),
-        &setup.deck,
-        20,
-    )?;
+    let mut game = setup.runtime.block_on(async {
+        game_init.init_game(
+            "Player 1".to_string(),
+            &setup.deck,
+            "Player 2".to_string(),
+            &setup.deck,
+            20,
+        ).await
+    })?;
     game.rng_seed = seed;
 
     // Create random controllers

@@ -1,15 +1,16 @@
 //! Lightning Bolt Game - Deck Loading Version
 //!
 //! Demonstrates game initialization from decks and mid-game scenarios.
-//! Uses the CardDatabase and GameInitializer to set up a game state.
+//! Uses the AsyncCardDatabase and GameInitializer to set up a game state.
 
-use mtg_forge_rs::loader::{CardDatabase, DeckLoader, GameInitializer};
+use mtg_forge_rs::loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer, prefetch_deck_cards};
 use std::path::PathBuf;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("=== MTG Forge - Lightning Bolt Deck Loading Demo ===\n");
     println!("Demonstrates:");
-    println!("  - Loading cards from cardsfolder");
+    println!("  - Loading cards from cardsfolder (async, on-demand)");
     println!("  - Initializing game from deck files");
     println!("  - Setting up mid-game scenarios");
     println!("  - Casting spells with proper state management\n");
@@ -21,17 +22,6 @@ fn main() {
         eprintln!("This example requires the cardsfolder to be present.");
         return;
     }
-
-    println!("Loading card database from cardsfolder...");
-    let start = std::time::Instant::now();
-    let card_db =
-        CardDatabase::load_from_cardsfolder(&cardsfolder).expect("Failed to load card database");
-    let elapsed = start.elapsed();
-    println!(
-        "Loaded {} cards in {} ms\n",
-        card_db.len(),
-        elapsed.as_millis()
-    );
 
     // Create simple decks (just Mountains and Lightning Bolts)
     let deck_content = r#"
@@ -45,6 +35,20 @@ fn main() {
     println!("  - {} Mountains", 20);
     println!("  - {} Lightning Bolts\n", 40);
 
+    // Create card database (lazy loading)
+    let card_db = CardDatabase::new(cardsfolder);
+
+    // Prefetch deck cards
+    println!("Prefetching deck cards...");
+    let start = std::time::Instant::now();
+    let (count, _) = prefetch_deck_cards(&card_db, &deck).await.expect("Failed to prefetch cards");
+    let elapsed = start.elapsed();
+    println!(
+        "Prefetched {} cards in {} ms\n",
+        count,
+        elapsed.as_millis()
+    );
+
     // Initialize the game with custom life totals
     let initializer = GameInitializer::new(&card_db);
     let mut game = initializer
@@ -55,6 +59,7 @@ fn main() {
             &deck,
             20, // Starting life (we'll modify this)
         )
+        .await
         .expect("Failed to initialize game");
 
     println!("Game initialized!");
