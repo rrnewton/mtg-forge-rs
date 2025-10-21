@@ -455,6 +455,31 @@ the results. Use `cargo-flamegraph` to do perf-based profiling.
 
 Then get back to the other benchmark TODO items you mentioned.
 
+Heap profile with heaptrack
+----------------------------------------
+
+We have more allocation per game than we should.  Let's use Linux
+heaptrack to profile our allocation hotspots. Use cargo-heaptrack for
+convenience.
+
+For the heap profiling run we can invoke the profiling binary with
+only, say 1-100 iterations rather than the larger number for Criterion
+time profiling. To that end make it take an optional CLI argument for
+the iterations.
+
+
+```
+game_execution/fresh/42 time:   [146.60 µs 147.20 µs 147.92 µs]
+                        change: [+2.8323% +3.3045% +3.7688%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+```
+
+
+Arena-based allocation for intra-step temporaries
+-------------------------------------------------
+
+The temporary 
+
 
 TODO: Performance Anti-patterns to find and fix
 ----------------------------------------

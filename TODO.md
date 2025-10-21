@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** 625329c - Enhance benchmarks with allocation tracking, games/sec metric, and snapshot mode
+**Latest Commit:** 3675967 - Fix make profile with dedicated profiling binary
 
 **Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
 
@@ -69,7 +69,12 @@
     - ~374KB allocated, ~292KB deallocated, ~82KB net per game
     - ~4.2KB allocated per turn
   * Uses stats_alloc for allocation tracking
-  * Profiling support: `make profile` generates flamegraph.svg
+  * Profiling support:
+    - Dedicated `profile` binary with CLI argument for iteration count
+    - `make profile` - CPU time profiling with cargo-flamegraph (1000 games)
+    - `make heapprofile` - Allocation profiling with cargo-heaptrack (100 games)
+    - Flexible iteration count: `cargo run --bin profile -- 50`
+    - Cleaner profiles without Criterion overhead
   * Run with `cargo bench` or `make bench`
   * Disabled RandomController stdout output for quiet benchmarking
 

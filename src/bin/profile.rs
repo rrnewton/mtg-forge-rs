@@ -1,21 +1,35 @@
 //! Profiling binary for game execution
 //!
-//! This binary runs games in a tight loop for profiling with cargo-flamegraph.
-//! Unlike the Criterion benchmarks, this has minimal overhead and produces
-//! cleaner flamegraphs.
+//! This binary runs games in a tight loop for profiling with cargo-flamegraph
+//! or cargo-heaptrack. Unlike the Criterion benchmarks, this has minimal overhead
+//! and produces cleaner profiles.
 //!
 //! Usage:
-//!   cargo flamegraph --bin profile
+//!   cargo flamegraph --bin profile -- [iterations]
+//!   cargo heaptrack --bin profile -- [iterations]
 //!   # or via makefile:
 //!   make profile
+//!   make heapprofile
 
+use clap::Parser;
 use mtg_forge_rs::{
     game::{GameLoop, RandomController},
     loader::{CardDatabase, DeckLoader, GameInitializer},
 };
 use std::path::PathBuf;
 
+#[derive(Parser, Debug)]
+#[command(name = "profile")]
+#[command(about = "Run games for profiling", long_about = None)]
+struct Args {
+    /// Number of games to run (default: 1000 for time profiling, 100 for heap profiling)
+    #[arg(default_value_t = 1000)]
+    iterations: usize,
+}
+
 fn main() {
+    let args = Args::parse();
+
     // Load card database and deck once
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)
@@ -24,15 +38,10 @@ fn main() {
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path).expect("Failed to load deck");
 
-    // Allow overriding iterations via environment variable
-    let iterations = std::env::var("PROFILE_ITERATIONS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1000);
+    let iterations = args.iterations;
 
     println!("Profiling game execution...");
     println!("Running {} games with seed 42", iterations);
-    println!("Output will be saved to flamegraph.svg");
     println!();
 
     let seed = 42u64;
@@ -74,5 +83,4 @@ fn main() {
 
     println!();
     println!("Profiling complete! {} games executed.", iterations);
-    println!("Flamegraph saved to: flamegraph.svg");
 }
