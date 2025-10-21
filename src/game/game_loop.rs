@@ -2,11 +2,13 @@
 //!
 //! Manages the main game loop, turn progression, and priority system
 
-use crate::core::PlayerId;
-use crate::game::controller::{GameStateView, PlayerAction, PlayerController};
+use crate::core::{CardId, PlayerId};
+use crate::game::controller::{GameStateView, PlayerAction};
+use crate::game::controller_v2::PlayerController;
 use crate::game::phase::Step;
 use crate::game::GameState;
 use crate::{MtgError, Result};
+use smallvec::SmallVec;
 
 /// Verbosity level for game output
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -434,33 +436,35 @@ impl<'a> GameLoop<'a> {
             controller2
         };
 
-        // Loop: let active player declare attackers until they finish
-        loop {
-            // Get available actions (attackers they can declare)
-            let available_actions = self.get_available_attackers(active_player);
+        // Get available creatures that can attack
+        let available_creatures = self.get_available_attacker_creatures(active_player);
 
-            if available_actions.is_empty() {
-                // No creatures to attack with, skip
-                break;
-            }
+        if available_creatures.is_empty() {
+            // No creatures to attack with, skip
+            return Ok(());
+        }
 
-            let view = GameStateView::new(self.game, active_player);
-            let action = controller.choose_action(&view, &available_actions);
+        // Ask controller to choose all attackers at once (v2 interface)
+        let view = GameStateView::new(self.game, active_player);
+        let attackers = controller.choose_attackers(&view, &available_creatures);
 
-            match action {
-                Some(PlayerAction::DeclareAttacker(card_id)) => {
-                    self.execute_action(active_player, &PlayerAction::DeclareAttacker(card_id))?;
-                }
-                Some(PlayerAction::FinishDeclareAttackers)
-                | Some(PlayerAction::PassPriority)
-                | None => {
-                    // Done declaring attackers
-                    break;
-                }
-                _ => {
-                    // Invalid action during declare attackers
-                    break;
-                }
+        // Declare each chosen attacker
+        let defending_player = self
+            .game
+            .get_other_player_id(active_player)
+            .expect("Should have defending player");
+
+        for attacker_id in attackers.iter() {
+            self.game.combat.declare_attacker(*attacker_id, defending_player);
+
+            if self.verbosity >= VerbosityLevel::Verbose {
+                let card_name = self
+                    .game
+                    .cards
+                    .get(*attacker_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!("  {} attacks with {}", self.get_player_name(active_player), card_name);
             }
         }
 
@@ -485,36 +489,44 @@ impl<'a> GameLoop<'a> {
             controller2
         };
 
-        // Loop: let defending player declare blockers until they finish
-        loop {
-            // Get available actions (blockers they can declare)
-            let available_actions = self.get_available_blockers(defending_player);
+        // Get available blockers and attackers
+        let available_blockers = self.get_available_blocker_creatures(defending_player);
+        let attackers = self.get_current_attackers();
 
-            if available_actions.is_empty() {
-                // No creatures to block with, skip
-                break;
-            }
+        if available_blockers.is_empty() || attackers.is_empty() {
+            // No blockers or no attackers, skip
+            return Ok(());
+        }
 
-            let view = GameStateView::new(self.game, defending_player);
-            let action = controller.choose_action(&view, &available_actions);
+        // Ask controller to choose all blocker assignments at once (v2 interface)
+        let view = GameStateView::new(self.game, defending_player);
+        let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
 
-            match action {
-                Some(PlayerAction::DeclareBlocker { blocker, attackers }) => {
-                    self.execute_action(
-                        defending_player,
-                        &PlayerAction::DeclareBlocker { blocker, attackers },
-                    )?;
-                }
-                Some(PlayerAction::FinishDeclareBlockers)
-                | Some(PlayerAction::PassPriority)
-                | None => {
-                    // Done declaring blockers
-                    break;
-                }
-                _ => {
-                    // Invalid action during declare blockers
-                    break;
-                }
+        // Declare each blocking assignment
+        for (blocker_id, attacker_id) in blocks.iter() {
+            let mut attackers_vec = SmallVec::new();
+            attackers_vec.push(*attacker_id);
+            self.game.combat.declare_blocker(*blocker_id, attackers_vec);
+
+            if self.verbosity >= VerbosityLevel::Verbose {
+                let blocker_name = self
+                    .game
+                    .cards
+                    .get(*blocker_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                let attacker_name = self
+                    .game
+                    .cards
+                    .get(*attacker_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {} blocks {} with {}",
+                    self.get_player_name(defending_player),
+                    attacker_name,
+                    blocker_name
+                );
             }
         }
 
@@ -599,7 +611,8 @@ impl<'a> GameLoop<'a> {
 
                 // Ask controller which cards to discard
                 let view = GameStateView::new(self.game, player_id);
-                let cards_to_discard = controller.choose_cards_to_discard(&view, discard_count);
+                let hand = view.hand();
+                let cards_to_discard = controller.choose_cards_to_discard(&view, hand, discard_count);
 
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
@@ -684,24 +697,131 @@ impl<'a> GameLoop<'a> {
                     controller2
                 };
 
-            // Get available actions for current priority player
-            let available_actions = self.get_available_actions(current_priority);
+            // Check if controller wants to pass priority
+            let wants_to_pass = {
+                let view = GameStateView::new(self.game, current_priority);
+                controller.wants_to_pass_priority(&view)
+            };
 
-            // Let controller choose an action
-            let view = GameStateView::new(self.game, current_priority);
-            let action = controller.choose_action(&view, &available_actions);
+            if wants_to_pass {
+                consecutive_passes += 1;
+                let view = GameStateView::new(self.game, current_priority);
+                controller.on_priority_passed(&view);
 
-            match action {
-                Some(action) => {
-                    // Execute the action
-                    self.execute_action(current_priority, &action)?;
-                    consecutive_passes = 0; // Reset pass counter
+                // Switch priority to other player
+                current_priority = if current_priority == active_player {
+                    non_active_player
+                } else {
+                    active_player
+                };
+                continue;
+            }
+
+            // Controller wants to act - try actions in order
+            let mut action_taken = false;
+
+            // 1. Try to play a land (only in main phases)
+            if matches!(
+                self.game.turn.current_step,
+                Step::Main1 | Step::Main2
+            ) {
+                let lands = self.get_lands_in_hand(current_priority);
+                if !lands.is_empty()
+                    && self
+                        .game
+                        .get_player(current_priority)
+                        .ok()
+                        .map(|p| p.can_play_land())
+                        .unwrap_or(false)
+                {
+                    let land_choice = {
+                        let view = GameStateView::new(self.game, current_priority);
+                        controller.choose_land_to_play(&view, &lands)
+                    };
+                    if let Some(land_id) = land_choice {
+                        if let Err(e) = self.game.play_land(current_priority, land_id) {
+                            if self.verbosity >= VerbosityLevel::Normal {
+                                eprintln!("  Error playing land: {}", e);
+                            }
+                        } else {
+                            action_taken = true;
+                            if self.verbosity >= VerbosityLevel::Verbose {
+                                let card_name = self
+                                    .game
+                                    .cards
+                                    .get(land_id)
+                                    .map(|c| c.name.as_str())
+                                    .unwrap_or("Unknown");
+                                println!("  {} plays {}", self.get_player_name(current_priority), card_name);
+                            }
+                        }
+                    }
                 }
-                None => {
-                    // Pass priority
-                    consecutive_passes += 1;
-                    controller.on_priority_passed(&view);
+            }
+
+            // 2. Try to cast a spell
+            if !action_taken {
+                let spells = self.get_castable_spells(current_priority);
+                if !spells.is_empty() {
+                    let spell_choice = {
+                        let view = GameStateView::new(self.game, current_priority);
+                        controller.choose_spell_to_cast(&view, &spells)
+                    };
+                    if let Some((spell_id, targets)) = spell_choice {
+                        // Convert SmallVec to Vec for now
+                        let targets_vec: Vec<CardId> = targets.iter().copied().collect();
+                        if let Err(e) = self.game.cast_spell(
+                            current_priority,
+                            spell_id,
+                            targets_vec,
+                        ) {
+                            if self.verbosity >= VerbosityLevel::Normal {
+                                eprintln!("  Error casting spell: {}", e);
+                            }
+                        } else {
+                            action_taken = true;
+                            if self.verbosity >= VerbosityLevel::Verbose {
+                                let card_name = self
+                                    .game
+                                    .cards
+                                    .get(spell_id)
+                                    .map(|c| c.name.as_str())
+                                    .unwrap_or("Unknown");
+                                println!("  {} casts {}", self.get_player_name(current_priority), card_name);
+                            }
+                        }
+                    }
                 }
+            }
+
+            // 3. Try to tap for mana
+            if !action_taken {
+                let tappable = self.get_tappable_for_mana(current_priority);
+                if !tappable.is_empty() {
+                    let tap_choice = {
+                        let view = GameStateView::new(self.game, current_priority);
+                        controller.choose_card_to_tap_for_mana(&view, &tappable)
+                    };
+                    if let Some(card_id) = tap_choice {
+                        if let Err(e) = self.game.tap_for_mana(current_priority, card_id) {
+                            if self.verbosity >= VerbosityLevel::Normal {
+                                eprintln!("  Error tapping for mana: {}", e);
+                            }
+                        } else {
+                            action_taken = true;
+                            // Mana tapping is verbose, don't log unless very verbose
+                        }
+                    }
+                }
+            }
+
+            if action_taken {
+                consecutive_passes = 0; // Reset pass counter
+            } else {
+                // No action was taken despite wanting to act - treat as pass
+                consecutive_passes += 1;
+                let view = GameStateView::new(self.game, current_priority);
+                controller.on_priority_passed(&view);
             }
 
             // Switch priority to other player
@@ -832,6 +952,105 @@ impl<'a> GameLoop<'a> {
         }
 
         actions
+    }
+
+    /// Get creatures that can attack for a player (v2 interface)
+    fn get_available_attacker_creatures(&self, player_id: PlayerId) -> Vec<CardId> {
+        let mut creatures = Vec::new();
+
+        for &card_id in &self.game.battlefield.cards {
+            if let Ok(card) = self.game.cards.get(card_id) {
+                if card.controller == player_id
+                    && card.is_creature()
+                    && !card.tapped
+                    && !self.game.combat.is_attacking(card_id)
+                {
+                    // TODO: Check for summoning sickness
+                    creatures.push(card_id);
+                }
+            }
+        }
+
+        creatures
+    }
+
+    /// Get creatures that can block for a player (v2 interface)
+    fn get_available_blocker_creatures(&self, player_id: PlayerId) -> Vec<CardId> {
+        let mut creatures = Vec::new();
+
+        for &card_id in &self.game.battlefield.cards {
+            if let Ok(card) = self.game.cards.get(card_id) {
+                if card.controller == player_id
+                    && card.is_creature()
+                    && !card.tapped
+                    && !self.game.combat.is_blocking(card_id)
+                {
+                    creatures.push(card_id);
+                }
+            }
+        }
+
+        creatures
+    }
+
+    /// Get currently attacking creatures (v2 interface)
+    fn get_current_attackers(&self) -> Vec<CardId> {
+        self.game.combat.get_attackers()
+    }
+
+    /// Get lands in player's hand (v2 interface)
+    fn get_lands_in_hand(&self, player_id: PlayerId) -> Vec<CardId> {
+        let mut lands = Vec::new();
+
+        if let Some(zones) = self.game.get_player_zones(player_id) {
+            for &card_id in &zones.hand.cards {
+                if let Ok(card) = self.game.cards.get(card_id) {
+                    if card.is_land() {
+                        lands.push(card_id);
+                    }
+                }
+            }
+        }
+
+        lands
+    }
+
+    /// Get castable spells in player's hand (v2 interface)
+    fn get_castable_spells(&self, player_id: PlayerId) -> Vec<CardId> {
+        let mut spells = Vec::new();
+
+        if let Some(zones) = self.game.get_player_zones(player_id) {
+            for &card_id in &zones.hand.cards {
+                if let Ok(card) = self.game.cards.get(card_id) {
+                    // Check if card is castable (not a land)
+                    if !card.is_land() {
+                        // Check if player has enough mana
+                        if let Ok(player) = self.game.get_player(player_id) {
+                            if player.mana_pool.can_pay(&card.mana_cost) {
+                                spells.push(card_id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        spells
+    }
+
+    /// Get cards that can be tapped for mana (v2 interface)
+    fn get_tappable_for_mana(&self, player_id: PlayerId) -> Vec<CardId> {
+        let mut tappable = Vec::new();
+
+        for &card_id in &self.game.battlefield.cards {
+            if let Ok(card) = self.game.cards.get(card_id) {
+                if card.owner == player_id && card.is_land() && !card.tapped {
+                    tappable.push(card_id);
+                }
+            }
+        }
+
+        tappable
     }
 
     /// Execute a player action
