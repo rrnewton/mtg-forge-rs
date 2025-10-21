@@ -2,7 +2,7 @@
 #
 # Quick reference for common development tasks
 
-.PHONY: help build test validate clean run check fmt clippy doc examples
+.PHONY: help build test validate clean run check fmt clippy doc examples bench profile
 
 # Default target - show available commands
 help:
@@ -12,6 +12,8 @@ help:
 	@echo "  make test       - Run unit tests (cargo test)"
 	@echo "  make validate   - Full pre-commit validation (tests + examples + lint)"
 	@echo "  make examples   - Run all examples"
+	@echo "  make bench      - Run performance benchmarks (cargo bench)"
+	@echo "  make profile    - Profile game execution with flamegraph"
 	@echo "  make clean      - Clean build artifacts (cargo clean)"
 	@echo "  make run        - Run the main binary (cargo run)"
 	@echo "  make check      - Fast compilation check (cargo check)"
@@ -101,3 +103,25 @@ info:
 	@echo "Rust version: $$(rustc --version)"
 	@echo "Cargo version: $$(cargo --version)"
 	@cargo tree --depth 1
+
+# Run performance benchmarks
+bench:
+	@echo "=== Running benchmarks ==="
+	cargo bench --bench game_benchmark
+
+# Profile game execution with flamegraph
+# Requires cargo-flamegraph: cargo install flamegraph
+profile:
+	@echo "=== Profiling game execution with flamegraph ==="
+	@echo "This will run a single game (seed 42) and generate a flamegraph"
+	@echo "Output will be saved to flamegraph.svg"
+	@echo ""
+	@if ! command -v cargo-flamegraph >/dev/null 2>&1; then \
+		echo "Error: cargo-flamegraph not found"; \
+		echo "Install with: cargo install flamegraph"; \
+		exit 1; \
+	fi
+	cargo flamegraph --bench game_benchmark --output flamegraph.svg -- --bench 'fresh/42' --sample-size 10 --warm-up-time 0 --measurement-time 1
+	@echo ""
+	@echo "Flamegraph saved to: flamegraph.svg"
+	@echo "Open with: firefox flamegraph.svg (or your browser of choice)"

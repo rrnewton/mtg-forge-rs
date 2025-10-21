@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** 48aaf91 - Implement discard phase in cleanup step
+**Latest Commit:** f6937e4 - Implement performance benchmarking with Criterion.rs
 
 **Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
 
@@ -58,14 +58,20 @@
   * Fixes issue where players accumulated 39+ cards in hand
 
 - ✅ **Performance benchmarking with Criterion.rs**
-  * Benchmark infrastructure for measuring game execution performance
-  * Fresh mode: Allocate new game each iteration (~142µs per game)
-  * GameMetrics tracking: turns, actions, duration, actions/sec, turns/sec
-  * Uses UndoLog.len() to count actions (78 actions/88 turns)
-  * Benchmarks load card database once, reuse across iterations
+  * Comprehensive benchmark infrastructure with allocation tracking
+  * **Fresh mode**: Allocate new game each iteration (~143µs per game)
+  * **Snapshot mode**: Clone initial state each iteration (~131µs per game, 8% faster!)
+  * **Rewind mode**: Placeholder for future undo() implementation
+  * GameMetrics tracking:
+    - Execution time, turns, actions
+    - games/sec (~7,000), actions/sec (~400,000), turns/sec (~430,000)
+    - Allocation tracking: bytes allocated/deallocated/net per game
+    - ~374KB allocated, ~292KB deallocated, ~82KB net per game
+    - ~4.2KB allocated per turn
+  * Uses stats_alloc for allocation tracking
+  * Profiling support: `make profile` generates flamegraph.svg
+  * Run with `cargo bench` or `make bench`
   * Disabled RandomController stdout output for quiet benchmarking
-  * Run with `cargo bench --bench game_benchmark`
-  * Future work: Rewind mode (undo log) and Snapshot mode (save/restore)
 
 ## ✅ Phase 2 Complete: Game Loop Implementation
 
@@ -219,4 +225,7 @@ None currently - all tests passing!
 
 **Total Tests:** 92 passing (77 unit + 10 card loading + 5 e2e)
 **Test Coverage:** Good (core functionality + keyword parsing + discard phase)
-**Performance:** ~142µs per game (Fresh mode, simple_bolt.dck, Random vs Random)
+**Performance:**
+  - Fresh mode: ~143µs per game (~7,000 games/sec)
+  - Snapshot mode: ~131µs per game (~7,600 games/sec, 8% faster)
+  - Memory: ~82KB net allocation per game (~4.2KB per turn)
