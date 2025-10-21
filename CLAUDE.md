@@ -29,7 +29,11 @@ Delete trailing spaces. Don't leave empty lines that consist only of whitespace.
 
 Add README.md files for every major subdirectory/subsystem.  For example `src/core`, `src/game`, etc.
 
-Read the PROJECT_VISION description of coding conventions we should follow for high-performance Rust (unboxing, minimizing allocation, etc).
+Read the PROJECT_VISION description of coding conventions we should follow for high-performance Rust (unboxing, minimizing allocation, etc). In particular, adhere to the below programming patterns / avoid anti-patterns, which generally fall under the principle of "zero copy":
+
+- Avoid clone: instead take a temporary reference to the object and manage lifetimes appropriately.
+- Avoid collect: instead take an iterator with references to the original collection without copying.
+
 
 Workflow: Tasks and Commits
 ========================================

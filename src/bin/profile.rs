@@ -32,8 +32,11 @@ fn main() {
 
     // Load card database and deck once
     let cardsfolder = PathBuf::from("cardsfolder");
+    let start = std::time::Instant::now();
     let card_db = CardDatabase::load_from_cardsfolder(&cardsfolder)
         .expect("Failed to load card database");
+    let duration = start.elapsed();
+    println!("Loaded card database with {} cards in {:.2?}", card_db.len(), duration);
 
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path).expect("Failed to load deck");

@@ -28,6 +28,9 @@ rustc-hash = "1.1"
 # CLI argument parsing
 clap = { version = "4.5", features = ["derive"] }
 
+# Async runtime
+tokio = { version = "1.0", features = ["rt-multi-thread", "fs", "macros", "time"] }
+
 [dev-dependencies]
 criterion = "0.5"
 stats_alloc = "0.1"
@@ -36,3 +39,6 @@ stats_alloc = "0.1"
 [[bench]]
 name = "game_benchmark"
 harness = false
+
+[profile.release]
+debug = true

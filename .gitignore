@@ -13,3 +13,7 @@
 # Cargo.lock # We would like to track the Cargo.lock for now.
 *.svg
 perf.data*
+*.zst
+perf.data*
+flamegraph.svg
+*.gz

@@ -475,6 +475,82 @@ game_execution/fresh/42 time:   [146.60 µs 147.20 µs 147.92 µs]
 ```
 
 
+
+TODO: why do we spend soo much time in the loader
+------------------------------------------------
+
+[It's simply because we're loading all 31438 cards even though we don't
+need to. And 1000 games was NOT enough to amortize the cost.  5000
+amortizes it more, but this is overall silly.]
+
+```
+$ perf record -g --call-graph dwarf target/release/profile
+$ perf report | head -n50
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 2K of event 'cycles:P'
+# Event count (approx.): 2245400649
+#
+# Children      Self  Command  Shared Object              Symbol
+# ........  ........  .......  .........................  ............................................................................................................................................................................................................................
+#
+    54.32%     0.19%  profile  profile                    [.] mtg_forge_rs::loader::database::CardDatabase::load_directory
+            |
+             --54.27%--mtg_forge_rs::loader::database::CardDatabase::load_directory
+                       |
+                       |--36.29%--mtg_forge_rs::loader::card::CardLoader::load_from_file (inlined)
+                       |          |
+                       |           --36.10%--std::fs::read_to_string (inlined)
+                       |                     std::fs::read_to_string::inner
+                       |                     |
+                       |                     |--16.11%--std::fs::File::open (inlined)
+                       |                     |          std::fs::OpenOptions::open (inlined)
+                       |                     |          |
+                       |                     |           --15.97%--std::fs::OpenOptions::_open
+```
+
+
+TODO: Fine-grained async card loading
+----------------------------------------
+
+It's pretty silly that we load all 31438 cards even when we don't need to. Rust has excellent support for async programming.
+
+
+
+
+TODO: Eliminate unnecessary calls to collect or clone
+-----------------------------------------------
+
+```
+heaptrack_print heaptrack.profile.67034.gz | grep -E '( calls with | at src | at /workspace)' | head -n50
+61600 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:620
+      at /workspace/src/game/game_loop.rs:126
+37147 calls with 209.34K peak consumption from:
+      at /workspace/src/core/types.rs:18
+      at /workspace/src/loader/card.rs:57
+      at /workspace/src/loader/database.rs:54
+32318 calls with 457.21K peak consumption from:
+      at /workspace/src/loader/database.rs:54
+31964 calls with 4.58M peak consumption from:
+      at /workspace/src/loader/card.rs:67
+      at /workspace/src/loader/database.rs:54
+31438 calls with 0B peak consumption from:
+      at /workspace/src/loader/database.rs:54
+128900 calls with 0B peak consumption from:
+      at /workspace/src/game/game_loop.rs:745
+      at /workspace/src/game/game_loop.rs:650
+      at /workspace/src/game/game_loop.rs:126
+25674 calls with 0B peak consumption from:
+      at /workspace/src/core/mana.rs:68
+      at /workspace/src/loader/database.rs:54
+```
+
+
+
 Arena-based allocation for intra-step temporaries
 -------------------------------------------------
 
@@ -534,9 +610,6 @@ TODO: Use real cards and make card loading fully async
 ----------------------------------------------
 
 
-
-TODO: fine-grained async card loading
-----------------------------------------
 
 
 TODO: port heuristic AI from Java
