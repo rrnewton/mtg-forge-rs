@@ -113,7 +113,7 @@ bench:
 # Requires cargo-flamegraph: cargo install flamegraph
 profile:
 	@echo "=== Profiling game execution with flamegraph ==="
-	@echo "This will run a single game (seed 42) and generate a flamegraph"
+	@echo "This will run 1000 games (seed 42) and generate a flamegraph"
 	@echo "Output will be saved to flamegraph.svg"
 	@echo ""
 	@if ! command -v cargo-flamegraph >/dev/null 2>&1; then \
@@ -121,7 +121,7 @@ profile:
 		echo "Install with: cargo install flamegraph"; \
 		exit 1; \
 	fi
-	cargo flamegraph --bench game_benchmark --output flamegraph.svg -- --bench 'fresh/42' --sample-size 10 --warm-up-time 0 --measurement-time 1
+	cargo flamegraph --bin profile --output flamegraph.svg
 	@echo ""
 	@echo "Flamegraph saved to: flamegraph.svg"
 	@echo "Open with: firefox flamegraph.svg (or your browser of choice)"

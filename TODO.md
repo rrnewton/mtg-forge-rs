@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Latest Commit:** f6937e4 - Implement performance benchmarking with Criterion.rs
+**Latest Commit:** 625329c - Enhance benchmarks with allocation tracking, games/sec metric, and snapshot mode
 
 **Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
 

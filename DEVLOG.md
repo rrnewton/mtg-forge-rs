@@ -379,14 +379,85 @@ Also study the ability parser in the Java version. In a design doc somewhere in 
 After we have a clear notion of what remains on card parsing, do the next increment of work by selecting 10 random cards of the 30,000 and pushing through a generalization of the parser until they all parse. This will require separate tests for card loading.  Eventually, we will test the card loading of all the cards stored in that folder.
 
 
-TODO: Implement discard phase
+Implement discard phase
 ----------------------------------------
+
+One missing game mechanic is the discard step. In this test I noticed 39 cards in hand:
 
 ```
 $ cargo test test_tui_random_vs_random_deals_damage -- --nocapture
   Player 1: 11 life, 39 cards in hand, 19 in library
 ```
 
+If a player has more than 7 cards at the end of their turn, they must choose cards to discard down to 7. (Unless their max hand size is modified by the effect of a spell.)
+
+Implement our first benchmark
+----------------------------------------
+
+We are already accumulating some performance anti-patterns that we
+will need to fix. But first, we need to be able to measure how we are
+doing in order to improve it.
+
+We already have enough basic game mechanics working to play random
+games and time them. The `test_tui_random_vs_random_deals_damage` test
+can serve as an initial basis for the benchmark, and later we will
+replace the lightning bolt deck with more complicated decks for better
+coverage.
+
+The basic idea is to run through a random game and see how long it
+takes. Make sure the RNG is deterministically seeded for this
+benchmark so that the test is deterministic. We will want to be able
+to run in a quiet mode where the verbose stdout logging is disabled
+during the game loop and instead we only return the final outcome and
+gamestate.
+
+We will need more instrumentation to count the metrics we want. Return
+
+- average cycles/turn, 
+- actions/sec, 
+- turns/sec. 
+- allocation bytes/turn
+- allocation bytes/sec
+
+For our metrics, "actions" can be a count of everything added to the
+UndoLog. In fact, the UndoLog could do double duty as a counter of
+actions.
+
+The code for the benchmark should be parameterized to take a parameter
+N and run the benchmark N times. We will use Criterion.rs to get a
+more accurate sense of the marginal per-game execution times, exposing
+control of the N parameter to Criterion.
+
+The reason we want control of the loop that runs N iterations is to
+support three different modes for this benchmark:
+
+1. Fresh -- destroy and allocate a fresh game on each loop iteration.
+2. Rewind -- use the undo log to rewind the game from the end all the way back to the beginning before starting the next iteration.
+3. Snapshot -- create a snapshot of the gamestate before we run the
+   game, and restore it at the end of the iteration. (This should be
+   almost identical to the Fresh variant, but there may be
+   opportunities for either optimizations or inefficiencies to make
+   them perform differently.)
+
+Our goal for the project is to achieve very fast single-threaded
+execution, and later we will add parallelism as we explore the game
+tree.
+
+----
+
+This looks good. Keep working to complete it along the lines of what
+you mentioned above. But first, add "games/sec" to the other
+metrics. Then add the allocation tracking.
+
+Also, add a `make profile` target which will run the benchmark (just
+one, not multiple different seeds) with profiling turned on and export
+the results. Use `cargo-flamegraph` to do perf-based profiling.
+
+Then get back to the other benchmark TODO items you mentioned.
+
+
+TODO: Performance Anti-patterns to find and fix
+----------------------------------------
 
 TODO: Bad choice tree - combinatorial explosion of blocker/attackers
 --------------------------------------------
@@ -402,6 +473,16 @@ Look at how the Java TUI structures combat as a tree of choices. For each declar
 
 TODO: Overhaul Controller choice framework and split into two layers
 ----------------------------------------
+
+Further continuing with improvements to the controll interface, we actually want to have TWO different notions of a controller. The Java PlayerController has over 100 methods that have the agent answer very specific questions (which card to play, discard, which creature to block with, etc).
+
+These targetted callback methods are better for implementing a user interface for humans (graphical or otherwise) OR for implementing the kind of heuristic AI that exists in the Java implementation. We should have a similar layer for the primary player Controller interface. It can start off as a subset of the Java one --- corresponding to the MTG game functionality that our limited prototype implements. We will then grow it over time.
+
+Finally, on top of that we should have a DecisionTree type that wraps a Controller and translates it into a "pick option 0-N" series of decisions, similar to the current `choose_action` method. However, to truly reduce the game to a series of decision branches, we will not have very strong TYPES for those different options. Similar to the Java TUI, we may only have:
+
+(1) a `&str` description of what the choice to make is
+(2) a vector of `&str` descriptions of each option, 0-N.
+
 
 
 TODO: use a popular and appropriate parser library
