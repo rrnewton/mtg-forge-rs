@@ -2,6 +2,16 @@
 //!
 //! Verifies that games with the same seed produce identical output across multiple runs.
 //! This test runs the actual binary and compares stdout to ensure deterministic behavior.
+//!
+//! ## Adding tests for new decks
+//!
+//! When adding a new deck file to `test_decks/`, create a corresponding test function:
+//! ```ignore
+//! #[test]
+//! fn test_determinism_your_deck_name() {
+//!     test_deck_determinism("test_decks/your_deck.dck", 42, "verbose");
+//! }
+//! ```
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -30,40 +40,60 @@ fn run_game_with_seed(deck_path: &str, seed: u64, verbosity: &str) -> String {
     String::from_utf8(output.stdout).expect("Invalid UTF-8 in stdout")
 }
 
-/// Test that running the same game with the same seed produces identical output
-#[test]
-fn test_deterministic_game_output() {
-    let deck_path = "test_decks/simple_bolt.dck";
+/// Helper function to test determinism for a specific deck
+/// Runs the game twice with the same seed and verifies identical output
+fn test_deck_determinism(deck_path: &str, seed: u64, verbosity: &str) {
     if !PathBuf::from(deck_path).exists() {
         // Skip test if deck doesn't exist
+        eprintln!("Skipping test: deck {} does not exist", deck_path);
         return;
     }
 
-    let seed = 42;
-    let verbosity = "verbose";
-
-    // Run the game 3 times with the same seed
+    // Run the game twice with the same seed
     let run1 = run_game_with_seed(deck_path, seed, verbosity);
     let run2 = run_game_with_seed(deck_path, seed, verbosity);
-    let run3 = run_game_with_seed(deck_path, seed, verbosity);
 
-    // All runs should produce identical output
+    // Verify output is not empty
+    assert!(
+        !run1.is_empty(),
+        "Deck {} produced empty output",
+        deck_path
+    );
+
+    // Verify both runs produce identical output
     assert_eq!(
         run1, run2,
-        "Run 1 and Run 2 produced different output with same seed"
+        "Deck {} produced different output with same seed (seed={})",
+        deck_path, seed
     );
-    assert_eq!(
-        run1, run3,
-        "Run 1 and Run 3 produced different output with same seed"
-    );
-
-    // Verify the output is not empty
-    assert!(!run1.is_empty(), "Game output should not be empty");
 }
 
-/// Test determinism with different seeds produces different but consistent results
+// ============================================================================
+// Individual deck determinism tests
+// ============================================================================
+// Each deck gets its own test function for clear test output
+// When adding a new deck, add a new test function following this pattern
+
+/// Test determinism for simple_bolt.dck with verbose output
 #[test]
-fn test_different_seeds_produce_different_outputs() {
+fn test_determinism_simple_bolt() {
+    test_deck_determinism("test_decks/simple_bolt.dck", 42, "verbose");
+}
+
+// Add more deck-specific tests here as new decks are added to test_decks/
+// Example:
+// #[test]
+// fn test_determinism_creature_combat() {
+//     test_deck_determinism("test_decks/creature_combat.dck", 42, "verbose");
+// }
+
+// ============================================================================
+// Multi-seed and cross-validation tests
+// ============================================================================
+
+/// Test that different seeds produce consistent but different results
+#[test]
+fn test_different_seeds_consistency() {
     let deck_path = "test_decks/simple_bolt.dck";
     if !PathBuf::from(deck_path).exists() {
         return;
@@ -71,40 +101,38 @@ fn test_different_seeds_produce_different_outputs() {
 
     let verbosity = "verbose";
 
-    // Run with different seeds
-    let output_seed_42 = run_game_with_seed(deck_path, 42, verbosity);
-    let output_seed_100 = run_game_with_seed(deck_path, 100, verbosity);
-
-    // Different seeds should produce different game outcomes
-    // (This might not always be true, but for randomized games it's very likely)
-    // We mainly want to ensure each seed is consistent with itself
-
-    // Verify each seed produces consistent output
-    let output_seed_42_repeat = run_game_with_seed(deck_path, 42, verbosity);
-    let output_seed_100_repeat = run_game_with_seed(deck_path, 100, verbosity);
-
+    // Verify seed 42 is consistent
+    let seed42_run1 = run_game_with_seed(deck_path, 42, verbosity);
+    let seed42_run2 = run_game_with_seed(deck_path, 42, verbosity);
     assert_eq!(
-        output_seed_42, output_seed_42_repeat,
-        "Seed 42 produced different output on repeat run"
-    );
-    assert_eq!(
-        output_seed_100, output_seed_100_repeat,
-        "Seed 100 produced different output on repeat run"
+        seed42_run1, seed42_run2,
+        "Seed 42 produced inconsistent output"
     );
 
-    assert!(
-        output_seed_42 != output_seed_100_repeat,
-        "Seeds 42 and 100 produced exact same verbose output"
+    // Verify seed 100 is consistent
+    let seed100_run1 = run_game_with_seed(deck_path, 100, verbosity);
+    let seed100_run2 = run_game_with_seed(deck_path, 100, verbosity);
+    assert_eq!(
+        seed100_run1, seed100_run2,
+        "Seed 100 produced inconsistent output"
+    );
+
+    // Verify different seeds produce different output
+    assert_ne!(
+        seed42_run1, seed100_run1,
+        "Different seeds produced identical output (highly unlikely)"
     );
 }
 
-/// Test determinism for all available test decks
+/// Discovery test: warns if there are deck files without corresponding tests
 #[test]
-fn test_determinism_all_decks() {
+fn test_all_decks_have_dedicated_tests() {
     let test_decks_dir = PathBuf::from("test_decks");
     if !test_decks_dir.exists() {
         return;
     }
+
+    let known_tested_decks = vec!["simple_bolt.dck"];
 
     let deck_files: Vec<_> = std::fs::read_dir(&test_decks_dir)
         .expect("Failed to read test_decks directory")
@@ -112,32 +140,25 @@ fn test_determinism_all_decks() {
             let entry = entry.ok()?;
             let path = entry.path();
             if path.extension()?.to_str()? == "dck" {
-                Some(path)
+                path.file_name()?.to_str().map(String::from)
             } else {
                 None
             }
         })
         .collect();
 
-    if deck_files.is_empty() {
-        panic!("No .dck files found in test_decks directory");
+    let mut missing_tests = Vec::new();
+    for deck_file in &deck_files {
+        if !known_tested_decks.contains(&deck_file.as_str()) {
+            missing_tests.push(deck_file.clone());
+        }
     }
 
-    for deck_path in deck_files {
-        let deck_str = deck_path.to_str().expect("Invalid deck path");
-        println!("Testing determinism for deck: {}", deck_str);
-
-        let seed = 42;
-        let verbosity = "verbose";
-
-        // Run twice and compare
-        let run1 = run_game_with_seed(deck_str, seed, verbosity);
-        let run2 = run_game_with_seed(deck_str, seed, verbosity);
-
-        assert_eq!(
-            run1, run2,
-            "Deck {} produced different output with same seed",
-            deck_str
+    if !missing_tests.is_empty() {
+        panic!(
+            "Found deck files without dedicated determinism tests: {:?}\n\
+             Please add a test function for each deck in tests/determinism_e2e.rs",
+            missing_tests
         );
     }
 }
