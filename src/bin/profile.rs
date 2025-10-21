@@ -13,7 +13,7 @@
 
 use clap::Parser;
 use mtg_forge_rs::{
-    game::{GameLoop, RandomController},
+    game::{GameLoop, RandomController, VerbosityLevel},
     loader::{prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
 };
 use std::path::PathBuf;
@@ -80,7 +80,7 @@ async fn main() {
         let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
 
         // Run game
-        let mut game_loop = GameLoop::new(&mut game).with_verbose(false);
+        let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
         game_loop
             .run_game(&mut controller1, &mut controller2)
             .expect("Game execution failed");

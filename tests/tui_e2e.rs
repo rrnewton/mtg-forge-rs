@@ -4,7 +4,7 @@
 //! from start to finish with various deck configurations.
 
 use mtg_forge_rs::{
-    game::{GameLoop, ZeroController},
+    game::{GameLoop, VerbosityLevel, ZeroController},
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
 };
@@ -232,7 +232,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     let mut controller1 = mtg_forge_rs::game::RandomController::new(p1_id);
     let mut controller2 = mtg_forge_rs::game::RandomController::new(p2_id);
 
-    let mut game_loop = GameLoop::new(&mut game).with_verbose(true);
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Verbose);
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
     // Verify game completed
@@ -340,7 +340,7 @@ async fn test_discard_to_hand_size() -> Result<()> {
     game.turn.active_player = p1_id;
 
     // Run cleanup step through game loop
-    let mut game_loop = GameLoop::new(&mut game).with_verbose(true);
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Verbose);
     game_loop.game.turn.current_step = mtg_forge_rs::game::Step::Cleanup;
 
     // Execute cleanup step manually

@@ -12,7 +12,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use mtg_forge_rs::{
-    game::{GameLoop, RandomController},
+    game::{GameLoop, RandomController, VerbosityLevel},
     loader::{
         prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckList, DeckLoader,
         GameInitializer,
@@ -146,7 +146,7 @@ fn run_game_with_metrics(setup: &BenchmarkSetup, seed: u64) -> Result<GameMetric
     let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
 
     // Run game (still within timing)
-    let mut game_loop = GameLoop::new(&mut game).with_verbose(false); // Quiet mode
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent); // Quiet mode
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
     let duration = start.elapsed();
@@ -266,7 +266,7 @@ fn bench_game_snapshot(c: &mut Criterion) {
             let mut controller1 = RandomController::with_seed(p1_id, seed);
             let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
 
-            let mut game_loop = GameLoop::new(&mut game).with_verbose(false);
+            let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
             game_loop
                 .run_game(&mut controller1, &mut controller2)
                 .expect("Game should complete successfully")

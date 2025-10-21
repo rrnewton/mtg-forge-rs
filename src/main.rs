@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
-    game::{GameLoop, RandomController, ZeroController},
+    game::{GameLoop, RandomController, VerbosityLevel, ZeroController},
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
 };
@@ -22,6 +22,30 @@ enum ControllerType {
     // Tui,
     // /// AI controller with strategic decision making
     // Ai,
+}
+
+/// Verbosity level for game output (re-export with clap support)
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum VerbosityArg {
+    /// Silent - no output during game
+    Silent,
+    /// Minimal - only game outcome
+    Minimal,
+    /// Normal - turns, steps, and key actions (default)
+    Normal,
+    /// Verbose - all actions and state changes
+    Verbose,
+}
+
+impl From<VerbosityArg> for VerbosityLevel {
+    fn from(arg: VerbosityArg) -> Self {
+        match arg {
+            VerbosityArg::Silent => VerbosityLevel::Silent,
+            VerbosityArg::Minimal => VerbosityLevel::Minimal,
+            VerbosityArg::Normal => VerbosityLevel::Normal,
+            VerbosityArg::Verbose => VerbosityLevel::Verbose,
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -59,6 +83,10 @@ enum Commands {
         /// Load all cards from cardsfolder (default: only load cards in decks)
         #[arg(long)]
         load_all_cards: bool,
+
+        /// Verbosity level for game output
+        #[arg(long, value_enum, default_value = "normal")]
+        verbosity: VerbosityArg,
     },
 }
 
@@ -74,7 +102,8 @@ async fn main() -> Result<()> {
             p2,
             seed,
             load_all_cards,
-        } => run_tui(deck1, deck2, p1, p2, seed, load_all_cards).await?,
+            verbosity,
+        } => run_tui(deck1, deck2, p1, p2, seed, load_all_cards, verbosity).await?,
     }
 
     Ok(())
@@ -88,7 +117,9 @@ async fn run_tui(
     p2_type: ControllerType,
     seed: Option<u64>,
     load_all_cards: bool,
+    verbosity: VerbosityArg,
 ) -> Result<()> {
+    let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
 
     // Load decks
@@ -157,30 +188,34 @@ async fn run_tui(
         ControllerType::Random => Box::new(RandomController::new(p2_id)),
     };
 
-    println!("=== Starting Game ===\n");
+    if verbosity >= VerbosityLevel::Minimal {
+        println!("=== Starting Game ===\n");
+    }
 
     // Run the game loop
-    let mut game_loop = GameLoop::new(&mut game);
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(verbosity);
     let result = game_loop.run_game(&mut *controller1, &mut *controller2)?;
 
     // Display results
-    println!("\n=== Game Over ===");
-    match result.winner {
-        Some(winner_id) => {
-            let winner = game.players.get(winner_id)?;
-            println!("Winner: {}", winner.name);
+    if verbosity >= VerbosityLevel::Minimal {
+        println!("\n=== Game Over ===");
+        match result.winner {
+            Some(winner_id) => {
+                let winner = game.players.get(winner_id)?;
+                println!("Winner: {}", winner.name);
+            }
+            None => {
+                println!("Game ended in a draw");
+            }
         }
-        None => {
-            println!("Game ended in a draw");
-        }
-    }
-    println!("Turns played: {}", result.turns_played);
-    println!("Reason: {:?}", result.end_reason);
+        println!("Turns played: {}", result.turns_played);
+        println!("Reason: {:?}", result.end_reason);
 
-    // Final state
-    println!("\n=== Final State ===");
-    for (_player_id, player) in game.players.iter() {
-        println!("  {}: {} life", player.name, player.life);
+        // Final state
+        println!("\n=== Final State ===");
+        for (_player_id, player) in game.players.iter() {
+            println!("  {}: {} life", player.name, player.life);
+        }
     }
 
     Ok(())

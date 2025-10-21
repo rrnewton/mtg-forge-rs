@@ -8,6 +8,20 @@ use crate::game::phase::Step;
 use crate::game::GameState;
 use crate::{MtgError, Result};
 
+/// Verbosity level for game output
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum VerbosityLevel {
+    /// Silent - no output during game
+    Silent = 0,
+    /// Minimal - only game outcome
+    Minimal = 1,
+    /// Normal - turns, steps, and key actions (default)
+    #[default]
+    Normal = 2,
+    /// Verbose - all actions and state changes
+    Verbose = 3,
+}
+
 /// Result of running a game to completion
 #[derive(Debug, Clone)]
 pub struct GameResult {
@@ -44,8 +58,8 @@ pub struct GameLoop<'a> {
     max_turns: u32,
     /// Turn counter for the loop
     turns_elapsed: u32,
-    /// Enable verbose output (logs turns, steps, actions)
-    pub verbose: bool,
+    /// Verbosity level for output
+    pub verbosity: VerbosityLevel,
 }
 
 impl<'a> GameLoop<'a> {
@@ -55,7 +69,7 @@ impl<'a> GameLoop<'a> {
             game,
             max_turns: 1000, // Default maximum turns
             turns_elapsed: 0,
-            verbose: false,
+            verbosity: VerbosityLevel::default(),
         }
     }
 
@@ -65,9 +79,20 @@ impl<'a> GameLoop<'a> {
         self
     }
 
-    /// Enable verbose output
+    /// Set verbosity level for output
+    pub fn with_verbosity(mut self, verbosity: VerbosityLevel) -> Self {
+        self.verbosity = verbosity;
+        self
+    }
+
+    /// Enable verbose output (deprecated, use with_verbosity)
+    #[deprecated(note = "Use with_verbosity instead")]
     pub fn with_verbose(mut self, verbose: bool) -> Self {
-        self.verbose = verbose;
+        self.verbosity = if verbose {
+            VerbosityLevel::Verbose
+        } else {
+            VerbosityLevel::Silent
+        };
         self
     }
 
@@ -136,12 +161,25 @@ impl<'a> GameLoop<'a> {
     ) -> Result<()> {
         let active_player = self.game.turn.active_player;
 
-        if self.verbose {
+        if self.verbosity >= VerbosityLevel::Normal {
             let player_name = self.get_player_name(active_player);
             println!("\n========================================");
-            println!("Turn {} - {}", self.turns_elapsed + 1, player_name);
+            println!("Turn {} - {}'s turn", self.turns_elapsed + 1, player_name);
+
+            // Print battlefield state at start of turn
+            if let Ok(player) = self.game.players.get(active_player) {
+                println!("  Life: {}", player.life);
+                let hand_size = self
+                    .game
+                    .get_player_zones(active_player)
+                    .map(|z| z.hand.cards.len())
+                    .unwrap_or(0);
+                println!("  Hand: {} cards", hand_size);
+
+                let battlefield_cards = self.game.battlefield.cards.len();
+                println!("  Battlefield: {} cards", battlefield_cards);
+            }
             println!("========================================");
-            self.print_game_state();
         }
 
         // Reset turn-based state
@@ -199,49 +237,6 @@ impl<'a> GameLoop<'a> {
         }
     }
 
-    /// Print current game state (life totals, battlefield)
-    fn print_game_state(&self) {
-        for (_id, player) in self.game.players.iter() {
-            let hand_size = self
-                .game
-                .get_player_zones(player.id)
-                .map(|z| z.hand.cards.len())
-                .unwrap_or(0);
-            let library_size = self
-                .game
-                .get_player_zones(player.id)
-                .map(|z| z.library.cards.len())
-                .unwrap_or(0);
-
-            println!(
-                "  {}: {} life, {} cards in hand, {} in library",
-                player.name, player.life, hand_size, library_size
-            );
-        }
-
-        // Show battlefield
-        let battlefield_cards: Vec<_> = self
-            .game
-            .battlefield
-            .cards
-            .iter()
-            .filter_map(|&card_id| {
-                self.game.cards.get(card_id).ok().map(|card| {
-                    let controller_name = self.get_player_name(card.controller);
-                    let tapped_str = if card.tapped { " (tapped)" } else { "" };
-                    format!("{}: {}{}", controller_name, card.name, tapped_str)
-                })
-            })
-            .collect();
-
-        if !battlefield_cards.is_empty() {
-            println!("  Battlefield:");
-            for card_desc in battlefield_cards {
-                println!("    - {}", card_desc);
-            }
-        }
-    }
-
     /// Reset turn-based state for the active player
     fn reset_turn_state(&mut self, active_player: PlayerId) -> Result<()> {
         // Reset lands played this turn
@@ -268,7 +263,7 @@ impl<'a> GameLoop<'a> {
     ) -> Result<()> {
         let step = self.game.turn.current_step;
 
-        if self.verbose {
+        if self.verbosity >= VerbosityLevel::Normal {
             println!("\n--- {} ---", self.step_name(step));
         }
 
@@ -334,7 +329,7 @@ impl<'a> GameLoop<'a> {
 
         // Skip draw on first turn (player going first doesn't draw)
         if self.game.turn.turn_number == 1 {
-            if self.verbose {
+            if self.verbosity >= VerbosityLevel::Normal {
                 println!("  (First turn - no draw)");
             }
             return Ok(());
@@ -343,8 +338,16 @@ impl<'a> GameLoop<'a> {
         // Draw a card
         self.game.draw_card(active_player)?;
 
-        if self.verbose {
+        if self.verbosity >= VerbosityLevel::Normal {
             let player_name = self.get_player_name(active_player);
+            if let Some(zones) = self.game.get_player_zones(active_player) {
+                if let Some(&card_id) = zones.hand.cards.last() {
+                    if let Ok(card) = self.game.cards.get(card_id) {
+                        println!("  {} draws {}", player_name, card.name);
+                        return Ok(());
+                    }
+                }
+            }
             println!("  {} draws a card", player_name);
         }
 
@@ -541,7 +544,7 @@ impl<'a> GameLoop<'a> {
             if hand_size > max_hand_size {
                 let discard_count = hand_size - max_hand_size;
 
-                if self.verbose {
+                if self.verbosity >= VerbosityLevel::Normal {
                     let player_name = self.get_player_name(player_id);
                     println!(
                         "  {} must discard {} cards (hand size: {}, max: {})",
@@ -577,7 +580,7 @@ impl<'a> GameLoop<'a> {
                             zones.hand.remove(card_id);
                             zones.graveyard.add(card_id);
 
-                            if self.verbose {
+                            if self.verbosity >= VerbosityLevel::Normal {
                                 let card_name = self
                                     .game
                                     .cards
@@ -800,7 +803,9 @@ impl<'a> GameLoop<'a> {
 
     /// Execute a player action
     fn execute_action(&mut self, player_id: PlayerId, action: &PlayerAction) -> Result<()> {
-        if self.verbose && !matches!(action, PlayerAction::PassPriority) {
+        if self.verbosity >= VerbosityLevel::Verbose
+            && !matches!(action, PlayerAction::PassPriority)
+        {
             let player_name = self.get_player_name(player_id);
             let action_desc = self.describe_action(action);
             println!("  {} {}", player_name, action_desc);
@@ -818,8 +823,14 @@ impl<'a> GameLoop<'a> {
                 // Immediately resolve spell (simplified - no stack interaction yet)
                 self.game.resolve_spell(*card_id)?;
 
-                if self.verbose {
-                    println!("    → Spell resolves");
+                if self.verbosity >= VerbosityLevel::Normal {
+                    let card_name = self
+                        .game
+                        .cards
+                        .get(*card_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown");
+                    println!("  {} resolves from stack", card_name);
                 }
             }
             PlayerAction::DeclareAttacker(card_id) => {

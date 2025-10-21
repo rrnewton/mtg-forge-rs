@@ -655,7 +655,7 @@ Add a flag to control verbosity levels. At verbosity level 1 we can print the O(
 - actions like which card you draw, and cards added to the stack and resolving
 
 
-Remaining nondeterminism
+Fix Remaining nondeterminism
 ----------------------------------------
 
 With controlling the seed, random games should be completely deterministic. But I notice if I run this command multiple times I see "5 life" above 5% of the time and "2 life" the other 95%:
@@ -672,10 +672,18 @@ $ time cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_deck
   Player 2: 2 life
 ```
 
-There is remaining nondeterminism.
+There is remaining nondeterminism. Dig into the RNG management and seeding and find the source of this bug.
+
+Now that we have more logging of game activities, let's use that to build an e2e test for determinism:
+
+- Make any printout lines that are nondeterministic (i.e. include time elapsed) go to stderr rather than stdout.
+- Because stdout will be deterministic, we can run the same random game 10 times and diff the logs to see if there was any deviation.
+- For this and other tests let's structure the test be instantiated as a distinct test for every deck under `test_decks/*.dck`. When we add more decks there they should become new test cases automatically.
+
+Keep working until you have this e2e determinism test passing.
 
 
-Eliminate unnecessary calls to collect or clone
+TODO: Eliminate unnecessary calls to collect or clone
 -----------------------------------------------
 
 We have far too much allocation right now, and, as we cover in CLAUDE.md, one of our design goals is to really minimize allocation.  Note that current cargo flamegraph profiling results show a lot of time spent in free/malloc and drop_in_place. And if you look through our top allocation sites:
