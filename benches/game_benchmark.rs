@@ -183,11 +183,12 @@ fn bench_game_fresh(c: &mut Criterion) {
     group.sample_size(10); // Reduce sample size since games can be long
     group.measurement_time(Duration::from_secs(30)); // 30 seconds per benchmark
 
-    // Benchmark with different seeds to get variance
-    for seed in [42u64, 12345u64, 99999u64].iter() {
+    // Previously also used seeds 12345u64, 99999u64, but behavior is similar.
+    let seed = 42u64;
+    {
         // Run a warmup game to print metrics
         println!("\nWarmup game (seed {}):", seed);
-        if let Ok(metrics) = run_game_with_metrics(&setup, *seed) {
+        if let Ok(metrics) = run_game_with_metrics(&setup, seed) {
             println!("  Turns: {}", metrics.turns);
             println!("  Actions: {}", metrics.actions);
             println!("  Duration: {:?}", metrics.duration);
@@ -202,7 +203,7 @@ fn bench_game_fresh(c: &mut Criterion) {
             println!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
         }
 
-        group.bench_with_input(BenchmarkId::new("fresh", seed), seed, |b, &seed| {
+        group.bench_with_input(BenchmarkId::new("fresh", seed), &seed, |b, &seed| {
             b.iter(|| {
                 run_game_with_metrics(&setup, black_box(seed))
                     .expect("Game should complete successfully")

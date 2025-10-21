@@ -614,7 +614,68 @@ time cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/
 All argument validation should happen early and exit with a help message.  The problem here is that we are using a basic `String` type for CLI arguments `p1` and `p2`. Remember, as per CLAUDE.md, WE HATE STRINGS. Prefer strong types. We want these arguments to be enums and update the clap argument processing appropriately.
 
 
-TODO: Eliminate unnecessary calls to collect or clone
+Provide a control for verbosity level when running games
+----------------------------------------
+
+This output is still minimal:
+
+```
+$ cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/simple_bolt.dck --p1=random --p2=random
+=== MTG Forge Rust - Text UI Mode ===
+
+Loading deck files...
+  Player 1: 60 cards
+  Player 2: 60 cards
+
+Loading card database...
+  Loaded 4 cards in 0.70ms
+
+Initializing game...
+Game initialized!
+  Player 1: Player 1 (Random)
+  Player 2: Player 2 (Random)
+
+=== Starting Game ===
+
+
+=== Game Over ===
+Winner: Player 2
+Turns played: 89
+Reason: PlayerDeath(0)
+
+=== Final State ===
+  Player 1: -1 life
+  Player 2: -1 life
+```
+
+Add a flag to control verbosity levels. At verbosity level 1 we can print the O(1) messages above, i.e. game outcome. Let's make verbosity 2 the default, and at that level let's at least print:
+
+- every turn (with battlefield/game state at start of turn)
+- every step of every turn
+- actions like which card you draw, and cards added to the stack and resolving
+
+
+Remaining nondeterminism
+----------------------------------------
+
+With controlling the seed, random games should be completely deterministic. But I notice if I run this command multiple times I see "5 life" above 5% of the time and "2 life" the other 95%:
+
+```
+$ time cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/simple_bolt.dck --p1=random --p2=random --seed=41
+=== Final State ===
+  Player 1: -1 life
+  Player 2: 5 life
+
+$ time cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/simple_bolt.dck --p1=random --p2=random --seed=41
+=== Final State ===
+  Player 1: -1 life
+  Player 2: 2 life
+```
+
+There is remaining nondeterminism.
+
+
+Eliminate unnecessary calls to collect or clone
 -----------------------------------------------
 
 We have far too much allocation right now, and, as we cover in CLAUDE.md, one of our design goals is to really minimize allocation.  Note that current cargo flamegraph profiling results show a lot of time spent in free/malloc and drop_in_place. And if you look through our top allocation sites:
@@ -651,17 +712,44 @@ let players: Vec<_> = self.game.players.iter().map(|(id, _)| *id).collect();
 ```
 
 Calls to `.clone()` are also problematic as well.  These can both
-usually be replaced with a zero copy
+usually be replaced with a zero copy pattern.  For example, you can
+directly use the iterator on the players rather than collecting them
+into a Vec. This may require more careful lifetime management.
 
-Create a sectionin oth
+For example, the function `get_card` returns a freshly allocated
+CardDefinition. Instead, it can return a reference to the
+CardDefinition inside the CardDatabase, and leave it up to the caller
+whether they want to clone it. But this requires a lifetime parameter,
+and that the returned CardDefinition reference have the same lifetime
+as the `self&` reference to the CardDatabase.
+
+Fix what you can in this initial optimization commit, and report what
+change it has on benchmark results. Create a section in the TODO list
+to document a backlog of any extra optimization opportunities that you
+do not fix in your first commit.
 
 
 
+TODO: Report 
+----------------------------------------
 
-Arena-based allocation for intra-step temporaries
+            b.iter(|| {
+                run_game_with_metrics(&setup, black_box(seed))
+
+
+TODO: Eliminate invalid actions from choice list
+----------------------------------------
+
+```
+  Error: InvalidAction("Cannot play more lands this turn")
+```
+
+
+
+TODO: Arena-based allocation for intra-step temporaries
 -------------------------------------------------
 
-The temporary 
+The temporary allocations...
 
 
 TODO: Performance Anti-patterns to find and fix
