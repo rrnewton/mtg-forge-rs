@@ -602,7 +602,7 @@ eprintln!("Warning: Failed to parse card {}: {}", name, e);
 Make this warning fatal and add TODO items to our backlog for any
 other places you see silent failures.
 
-TODO: CLI argument validation should also be fatal and early
+CLI argument validation should also be fatal and early
 ----------------------------------------
 
 I ran this command with a typo and noticed that execution got pretty far BEFORE the error mesage indicating that `tue` is not a valid value for `--p1`:
@@ -725,7 +725,39 @@ Keep working until you have this e2e determinism test passing.
 
 ----
 
+The test `test_determinism_all_decks` lumps all decks together in one test. But `cargo test` has some flexibility in the declaration of tests I think that should allow us to dynamically discover the decks and then produce a series of separate test results titled `test_determinism_simple_bolt` `test_determinism_deckname2` etc.
 
+---
+
+Wait, this is NOT a very nice solution with `test_all_decks_have_dedicated_tests`. It doesn't even have any access to ground truth on WHICH tests exist, just a hardcode list of `known_tested_decks` which would require manual updating.
+
+Search the web for methods of compile-time metaprogramming in Rust which would allow us to essentially read the test_decks directory at compile time and produce/register code for separate tests that call the helper.
+
+---
+
+
+
+: Report aggregated metrics in benchmark
+----------------------------------------
+
+Each call to run_game_with_metrics below returns GameMetrics but we throw them away:
+
+            b.iter(|| {
+                run_game_with_metrics(&setup, black_box(seed))
+
+Instead implement (or derive) the addition operation for GameMetrics
+and add together the GameMetrics from each iteration.
+
+At the end of all iterations, print them out, the same as for the "warmup" run.
+
+---
+
+There is still a fair amount of duplication between the fresh and
+snapshot modes of these benchmarks.  Please factor out the pieces
+where `run_game_with_metrics` can take a function as an input that
+initializes the game. For the fresh case this will allocated new, and
+for the snapshot case this will perform a .clone().  Everything else
+should be shared between the two setups.
 
 
 TODO: Eliminate unnecessary calls to collect or clone
@@ -781,20 +813,6 @@ change it has on benchmark results. Create a section in the TODO list
 to document a backlog of any extra optimization opportunities that you
 do not fix in your first commit.
 
-
-
-TODO: Report aggregated metrics in benchmark
-----------------------------------------
-
-Each call to run_game_with_metrics below returns GameMetrics but we throw them away:
-
-            b.iter(|| {
-                run_game_with_metrics(&setup, black_box(seed))
-
-Instead implement (or derive) the addition operation for GameMetrics
-and add together the GameMetrics from each iteration.
-
-At the end of all iterations, print them out, the same as for the "warmup" run.
 
 
 
