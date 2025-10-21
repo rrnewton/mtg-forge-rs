@@ -5,7 +5,9 @@
 
 use mtg_forge_rs::core::{Card, CardType, Color, Effect, ManaCost, TargetRef};
 use mtg_forge_rs::game::{GameLoop, GameState, RandomController};
-use mtg_forge_rs::loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer, prefetch_deck_cards};
+use mtg_forge_rs::loader::{
+    prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer,
+};
 use std::path::PathBuf;
 
 #[tokio::main]

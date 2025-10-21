@@ -86,6 +86,18 @@ impl DeckList {
     pub fn sideboard_size(&self) -> usize {
         self.sideboard.iter().map(|e| e.count as usize).sum()
     }
+
+    /// Get unique card names from main deck and sideboard
+    pub fn unique_card_names(&self) -> Vec<String> {
+        let mut names = std::collections::HashSet::new();
+        for entry in &self.main_deck {
+            names.insert(entry.card_name.clone());
+        }
+        for entry in &self.sideboard {
+            names.insert(entry.card_name.clone());
+        }
+        names.into_iter().collect()
+    }
 }
 
 #[cfg(test)]

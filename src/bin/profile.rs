@@ -14,7 +14,7 @@
 use clap::Parser;
 use mtg_forge_rs::{
     game::{GameLoop, RandomController},
-    loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer, prefetch_deck_cards},
+    loader::{prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
 };
 use std::path::PathBuf;
 
@@ -41,7 +41,8 @@ async fn main() {
 
     // Prefetch deck cards (not all 31k cards, just what we need)
     let start = std::time::Instant::now();
-    let (count, _) = prefetch_deck_cards(&card_db, &deck).await
+    let (count, _) = prefetch_deck_cards(&card_db, &deck)
+        .await
         .expect("Failed to prefetch deck cards");
     let duration = start.elapsed();
     println!("Prefetched {} deck cards in {:.2?}", count, duration);

@@ -41,6 +41,10 @@ enum Commands {
         /// Set random seed for deterministic testing
         #[arg(long)]
         seed: Option<u64>,
+
+        /// Load all cards from cardsfolder (default: only load cards in decks)
+        #[arg(long)]
+        load_all_cards: bool,
     },
 }
 
@@ -55,7 +59,8 @@ async fn main() -> Result<()> {
             p1,
             p2,
             seed,
-        } => run_tui(deck1, deck2, p1, p2, seed).await?,
+            load_all_cards,
+        } => run_tui(deck1, deck2, p1, p2, seed, load_all_cards).await?,
     }
 
     Ok(())
@@ -68,6 +73,7 @@ async fn run_tui(
     p1_type: String,
     p2_type: String,
     seed: Option<u64>,
+    load_all_cards: bool,
 ) -> Result<()> {
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
 
@@ -82,21 +88,35 @@ async fn run_tui(
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::new(cardsfolder);
 
-    // Eagerly load all cards
+    // Load cards based on mode
     println!("Loading card database...");
-    let (count, duration) = card_db.eager_load().await?;
-    println!("  Loaded {} cards in {:.2}ms\n", count, duration.as_secs_f64() * 1000.0);
+    let (count, duration) = if load_all_cards {
+        // Load all cards from cardsfolder
+        card_db.eager_load().await?
+    } else {
+        // Load only cards needed for the two decks
+        let mut unique_names = deck1.unique_card_names();
+        unique_names.extend(deck2.unique_card_names());
+        card_db.load_cards(&unique_names).await?
+    };
+    println!(
+        "  Loaded {} cards in {:.2}ms\n",
+        count,
+        duration.as_secs_f64() * 1000.0
+    );
 
     // Initialize game
     println!("Initializing game...");
     let game_init = GameInitializer::new(&card_db);
-    let mut game = game_init.init_game(
-        "Player 1".to_string(),
-        &deck1,
-        "Player 2".to_string(),
-        &deck2,
-        20, // starting life
-    ).await?;
+    let mut game = game_init
+        .init_game(
+            "Player 1".to_string(),
+            &deck1,
+            "Player 2".to_string(),
+            &deck2,
+            20, // starting life
+        )
+        .await?;
 
     // Set random seed if provided
     if let Some(seed_value) = seed {

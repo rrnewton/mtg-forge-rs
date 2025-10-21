@@ -86,9 +86,7 @@ impl CardDatabase {
         for name in names {
             let name = name.clone();
             let db = self.clone_handle();
-            tasks.push(tokio::spawn(async move {
-                db.get_card(&name).await
-            }));
+            tasks.push(tokio::spawn(async move { db.get_card(&name).await }));
         }
 
         // Wait for all to complete
@@ -100,42 +98,70 @@ impl CardDatabase {
         }
 
         let duration = start.elapsed();
-        Ok((loaded, duration.into()))
+        Ok((loaded, duration))
     }
 
     /// Eagerly load all cards from cardsfolder (parallel)
+    /// Uses streaming discovery - starts loading cards while still walking directory tree
     /// Returns (cards_loaded, duration)
     pub async fn eager_load(&self) -> Result<(usize, std::time::Duration)> {
         let start = Instant::now();
 
-        // Recursively collect all .txt file paths
-        let paths = Self::collect_card_paths(&self.cardsfolder)?;
+        // Stream card file paths using parallel directory walking (jwalk + rayon)
+        // Key optimization: spawn loading tasks AS paths are discovered, not after
+        let cardsfolder = self.cardsfolder.clone();
 
-        println!("Found {} card files, loading in parallel...", paths.len());
+        let (path_tx, mut path_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (result_tx, mut result_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        // Load all cards in parallel
-        let mut tasks = Vec::new();
-        for path in paths {
-            tasks.push(tokio::spawn(Self::load_card_async(path)));
-        }
-
-        // Collect results
-        let mut cards_map = HashMap::new();
-        for task in tasks {
-            if let Ok(Ok(card_def)) = task.await {
-                let name_lower = card_def.name.to_lowercase();
-                cards_map.insert(name_lower, card_def);
+        // Spawn directory walking in a blocking task (jwalk uses rayon internally)
+        tokio::task::spawn_blocking(move || {
+            for entry in jwalk::WalkDir::new(&cardsfolder)
+                .skip_hidden(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_file() {
+                    if let Some(ext) = entry.path().extension() {
+                        if ext == "txt" {
+                            let _ = path_tx.send(entry.path());
+                        }
+                    }
+                }
             }
+        });
+
+        // Spawn task consumer - starts loading cards immediately as paths arrive
+        tokio::spawn(async move {
+            let mut count = 0;
+            while let Some(path) = path_rx.recv().await {
+                count += 1;
+                let result_tx = result_tx.clone();
+                tokio::spawn(async move {
+                    if let Ok(card_def) = Self::load_card_async(path).await {
+                        let _ = result_tx.send(card_def);
+                    }
+                });
+            }
+            count
+        });
+
+        // Collect loaded cards as they complete
+        let mut cards_map = HashMap::new();
+        while let Some(card_def) = result_rx.recv().await {
+            let name_lower = card_def.name.to_lowercase();
+            cards_map.insert(name_lower, card_def);
         }
 
-        let count = cards_map.len();
+        let loaded = cards_map.len();
+        println!("Loaded {} cards via streaming discovery", loaded);
 
         // Update cache
         let mut cards = self.cards.write().await;
         *cards = cards_map;
 
         let duration = start.elapsed();
-        Ok((count, duration.into()))
+        Ok((loaded, duration))
     }
 
     /// Load a card from a file asynchronously
@@ -145,32 +171,6 @@ impl CardDatabase {
             .map_err(MtgError::IoError)?;
 
         CardLoader::parse(&contents)
-    }
-
-    /// Recursively collect all .txt file paths
-    fn collect_card_paths(dir: &Path) -> Result<Vec<PathBuf>> {
-        let mut paths = Vec::new();
-        Self::collect_card_paths_recursive(dir, &mut paths)?;
-        Ok(paths)
-    }
-
-    fn collect_card_paths_recursive(dir: &Path, paths: &mut Vec<PathBuf>) -> Result<()> {
-        if !dir.is_dir() {
-            return Ok(());
-        }
-
-        for entry in std::fs::read_dir(dir).map_err(MtgError::IoError)? {
-            let entry = entry.map_err(MtgError::IoError)?;
-            let path = entry.path();
-
-            if path.is_dir() {
-                Self::collect_card_paths_recursive(&path, paths)?;
-            } else if path.extension().and_then(|s| s.to_str()) == Some("txt") {
-                paths.push(path);
-            }
-        }
-
-        Ok(())
     }
 
     /// Get a clone of the database handle (shares the cache)

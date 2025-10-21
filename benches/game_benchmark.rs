@@ -13,7 +13,10 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use mtg_forge_rs::{
     game::{GameLoop, RandomController},
-    loader::{AsyncCardDatabase as CardDatabase, DeckList, DeckLoader, GameInitializer, prefetch_deck_cards},
+    loader::{
+        prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckList, DeckLoader,
+        GameInitializer,
+    },
     Result,
 };
 use stats_alloc::{Region, StatsAlloc, INSTRUMENTED_SYSTEM};
@@ -103,30 +106,34 @@ impl BenchmarkSetup {
         let deck = DeckLoader::load_from_file(&deck_path)?;
 
         // Prefetch deck cards
-        runtime.block_on(async {
-            prefetch_deck_cards(&card_db, &deck).await
-        })?;
+        runtime.block_on(async { prefetch_deck_cards(&card_db, &deck).await })?;
 
-        Ok(BenchmarkSetup { card_db, deck, runtime })
+        Ok(BenchmarkSetup {
+            card_db,
+            deck,
+            runtime,
+        })
     }
 }
 
 /// Run a single game and collect metrics
 /// Takes pre-loaded setup data to avoid measuring file I/O
 fn run_game_with_metrics(setup: &BenchmarkSetup, seed: u64) -> Result<GameMetrics> {
-    let reg = Region::new(&GLOBAL);
+    let reg = Region::new(GLOBAL);
     let start = std::time::Instant::now();
 
     // Initialize game
     let game_init = GameInitializer::new(&setup.card_db);
     let mut game = setup.runtime.block_on(async {
-        game_init.init_game(
-            "Player 1".to_string(),
-            &setup.deck,
-            "Player 2".to_string(),
-            &setup.deck,
-            20,
-        ).await
+        game_init
+            .init_game(
+                "Player 1".to_string(),
+                &setup.deck,
+                "Player 2".to_string(),
+                &setup.deck,
+                20,
+            )
+            .await
     })?;
     game.rng_seed = seed;
 
@@ -195,16 +202,12 @@ fn bench_game_fresh(c: &mut Criterion) {
             println!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
         }
 
-        group.bench_with_input(
-            BenchmarkId::new("fresh", seed),
-            seed,
-            |b, &seed| {
-                b.iter(|| {
-                    run_game_with_metrics(&setup, black_box(seed))
-                        .expect("Game should complete successfully")
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("fresh", seed), seed, |b, &seed| {
+            b.iter(|| {
+                run_game_with_metrics(&setup, black_box(seed))
+                    .expect("Game should complete successfully")
+            });
+        });
     }
 
     group.finish();
@@ -231,14 +234,19 @@ fn bench_game_snapshot(c: &mut Criterion) {
 
     // Pre-create the initial game state (the "snapshot")
     let game_init = GameInitializer::new(&setup.card_db);
-    let initial_game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &setup.deck,
-            "Player 2".to_string(),
-            &setup.deck,
-            20,
-        )
+    let initial_game = setup
+        .runtime
+        .block_on(async {
+            game_init
+                .init_game(
+                    "Player 1".to_string(),
+                    &setup.deck,
+                    "Player 2".to_string(),
+                    &setup.deck,
+                    20,
+                )
+                .await
+        })
         .expect("Failed to initialize game");
 
     println!("\nSnapshot mode (seed {}):", seed);
@@ -276,5 +284,10 @@ fn bench_game_rewind(_c: &mut Criterion) {
     eprintln!("TODO: Implement undo() method that processes GameAction in reverse");
 }
 
-criterion_group!(benches, bench_game_fresh, bench_game_snapshot, bench_game_rewind);
+criterion_group!(
+    benches,
+    bench_game_fresh,
+    bench_game_snapshot,
+    bench_game_rewind
+);
 criterion_main!(benches);

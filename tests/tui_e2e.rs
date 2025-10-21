@@ -28,13 +28,15 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
 
     // Initialize game
     let game_init = GameInitializer::new(&card_db);
-    let mut game = game_init.init_game(
-        "Player 1".to_string(),
-        &deck,
-        "Player 2".to_string(),
-        &deck,
-        20, // starting life
-    ).await?;
+    let mut game = game_init
+        .init_game(
+            "Player 1".to_string(),
+            &deck,
+            "Player 2".to_string(),
+            &deck,
+            20, // starting life
+        )
+        .await?;
 
     // Set deterministic seed for reproducible results
     game.rng_seed = 42;
@@ -109,13 +111,15 @@ async fn test_tui_deterministic_with_seed() -> Result<()> {
     let mut results = Vec::new();
     for _ in 0..2 {
         let game_init = GameInitializer::new(&card_db);
-        let mut game = game_init.init_game(
-            "Player 1".to_string(),
-            &deck,
-            "Player 2".to_string(),
-            &deck,
-            20,
-        ).await?;
+        let mut game = game_init
+            .init_game(
+                "Player 1".to_string(),
+                &deck,
+                "Player 2".to_string(),
+                &deck,
+                20,
+            )
+            .await?;
         game.rng_seed = 12345;
 
         let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
@@ -157,13 +161,15 @@ async fn test_tui_runs_to_completion() -> Result<()> {
 
     // Run a game and verify it completes
     let game_init = GameInitializer::new(&card_db);
-    let mut game = game_init.init_game(
-        "Player 1".to_string(),
-        &deck,
-        "Player 2".to_string(),
-        &deck,
-        20,
-    ).await?;
+    let mut game = game_init
+        .init_game(
+            "Player 1".to_string(),
+            &deck,
+            "Player 2".to_string(),
+            &deck,
+            20,
+        )
+        .await?;
     game.rng_seed = 54321;
 
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
@@ -208,13 +214,15 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
 
     // Run a game with random controllers
     let game_init = GameInitializer::new(&card_db);
-    let mut game = game_init.init_game(
-        "Player 1".to_string(),
-        &deck,
-        "Player 2".to_string(),
-        &deck,
-        20,
-    ).await?;
+    let mut game = game_init
+        .init_game(
+            "Player 1".to_string(),
+            &deck,
+            "Player 2".to_string(),
+            &deck,
+            20,
+        )
+        .await?;
     game.rng_seed = 42;
 
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
@@ -288,13 +296,15 @@ async fn test_discard_to_hand_size() -> Result<()> {
 
     // Initialize game
     let game_init = GameInitializer::new(&card_db);
-    let mut game = game_init.init_game(
-        "Player 1".to_string(),
-        &deck,
-        "Player 2".to_string(),
-        &deck,
-        20,
-    ).await?;
+    let mut game = game_init
+        .init_game(
+            "Player 1".to_string(),
+            &deck,
+            "Player 2".to_string(),
+            &deck,
+            20,
+        )
+        .await?;
 
     let players: Vec<_> = game.players.iter().map(|(id, _)| *id).collect();
     let p1_id = players[0];

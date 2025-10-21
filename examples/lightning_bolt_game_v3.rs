@@ -3,7 +3,9 @@
 //! Demonstrates game initialization from decks and mid-game scenarios.
 //! Uses the AsyncCardDatabase and GameInitializer to set up a game state.
 
-use mtg_forge_rs::loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer, prefetch_deck_cards};
+use mtg_forge_rs::loader::{
+    prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer,
+};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -41,13 +43,11 @@ async fn main() {
     // Prefetch deck cards
     println!("Prefetching deck cards...");
     let start = std::time::Instant::now();
-    let (count, _) = prefetch_deck_cards(&card_db, &deck).await.expect("Failed to prefetch cards");
+    let (count, _) = prefetch_deck_cards(&card_db, &deck)
+        .await
+        .expect("Failed to prefetch cards");
     let elapsed = start.elapsed();
-    println!(
-        "Prefetched {} cards in {} ms\n",
-        count,
-        elapsed.as_millis()
-    );
+    println!("Prefetched {} cards in {} ms\n", count, elapsed.as_millis());
 
     // Initialize the game with custom life totals
     let initializer = GameInitializer::new(&card_db);

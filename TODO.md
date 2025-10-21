@@ -4,7 +4,7 @@
 
 **Latest Commit:** 0f02346 - Implement async card loading with eager and lazy modes
 
-**Tests:** 95 passing ✅ (80 unit + 10 card loading + 5 e2e)
+**Tests:** 92 passing ✅ (77 unit + 10 card loading + 5 e2e)
 
 ---
 
@@ -80,17 +80,21 @@
 
 - ✅ **Async card loading infrastructure**
   * AsyncCardDatabase with tokio-based parallel I/O
+  * Streaming card file discovery with jwalk:
+    - Parallel directory traversal using jwalk + rayon
+    - Cards begin loading while directory tree is still being walked
+    - Optimal performance through concurrent I/O operations
   * Two loading modes:
-    - **Default (sync)**: Traditional synchronous loading for compatibility
-    - **Eager async (--eager-load-cards)**: Parallel async loading of all cards
-  * Lazy on-demand loading: Load only cards needed for decks
+    - **Default**: Load only cards from the two input decks (fast startup)
+    - **--load-all-cards**: Parallel async loading of all cards from cardsfolder
+  * Lazy on-demand loading: Load individual cards when requested
   * Card name to path conversion: "Lightning Bolt" → "cardsfolder/l/lightning_bolt.txt"
   * Thread-safe caching with Arc<RwLock<HashMap>>
   * Timing metrics:
-    - Eager load: ~364ms for 31,438 cards (parallel)
-    - Deck load: ~0.08ms for deck-specific cards (after eager load)
+    - Eager load (all cards): ~364ms for 31,438 cards (parallel)
+    - Deck-only load: ~0.08ms for deck-specific cards
   * Comprehensive tests for async loading and caching
-  * CLI flag: `--eager-load-cards` for parallel loading mode
+  * CLI flag: `--load-all-cards` for parallel loading mode
 
 ## ✅ Phase 2 Complete: Game Loop Implementation
 

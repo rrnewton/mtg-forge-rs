@@ -35,10 +35,12 @@ impl<'a> GameInitializer<'a> {
         let player2_id = players[1];
 
         // Load player 1's deck
-        self.load_deck_into_game(&mut game, player1_id, player1_deck).await?;
+        self.load_deck_into_game(&mut game, player1_id, player1_deck)
+            .await?;
 
         // Load player 2's deck
-        self.load_deck_into_game(&mut game, player2_id, player2_deck).await?;
+        self.load_deck_into_game(&mut game, player2_id, player2_deck)
+            .await?;
 
         Ok(game)
     }
@@ -52,7 +54,10 @@ impl<'a> GameInitializer<'a> {
     ) -> Result<()> {
         for entry in &deck.main_deck {
             // Look up the card definition
-            let card_def = self.card_db.get_card(&entry.card_name).await?
+            let card_def = self
+                .card_db
+                .get_card(&entry.card_name)
+                .await?
                 .ok_or_else(|| {
                     MtgError::InvalidCardFormat(format!(
                         "Card not found in database: {}",
@@ -141,8 +146,9 @@ mod tests {
         };
 
         let initializer = GameInitializer::new(&db);
-        let result =
-            initializer.init_game("Alice".to_string(), &deck, "Bob".to_string(), &deck, 20).await;
+        let result = initializer
+            .init_game("Alice".to_string(), &deck, "Bob".to_string(), &deck, 20)
+            .await;
 
         assert!(result.is_err());
     }
