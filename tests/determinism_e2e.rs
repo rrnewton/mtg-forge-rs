@@ -3,16 +3,10 @@
 //! Verifies that games with the same seed produce identical output across multiple runs.
 //! This test runs the actual binary and compares stdout to ensure deterministic behavior.
 //!
-//! ## Adding tests for new decks
-//!
-//! When adding a new deck file to `test_decks/`, create a corresponding test function:
-//! ```ignore
-//! #[test]
-//! fn test_determinism_your_deck_name() {
-//!     test_deck_determinism("test_decks/your_deck.dck", 42, "verbose");
-//! }
-//! ```
+//! Tests are automatically generated for each `.dck` file in the `test_decks/` directory
+//! using the `dir-test` procedural macro. No manual test registration needed!
 
+use dir_test::{dir_test, Fixture};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -40,14 +34,22 @@ fn run_game_with_seed(deck_path: &str, seed: u64, verbosity: &str) -> String {
     String::from_utf8(output.stdout).expect("Invalid UTF-8 in stdout")
 }
 
-/// Helper function to test determinism for a specific deck
-/// Runs the game twice with the same seed and verifies identical output
-fn test_deck_determinism(deck_path: &str, seed: u64, verbosity: &str) {
-    if !PathBuf::from(deck_path).exists() {
-        // Skip test if deck doesn't exist
-        eprintln!("Skipping test: deck {} does not exist", deck_path);
-        return;
-    }
+// ============================================================================
+// Automatic deck determinism tests
+// ============================================================================
+// The dir_test macro automatically generates one test per .dck file
+// No manual test registration needed - just add a .dck file to test_decks/!
+
+/// Test determinism for all deck files in test_decks/
+/// Automatically generates a separate test for each .dck file found
+#[dir_test(
+    dir: "$CARGO_MANIFEST_DIR/test_decks",
+    glob: "**/*.dck",
+)]
+fn test_deck_determinism(fixture: Fixture<&str>) {
+    let deck_path = fixture.path();
+    let seed = 42u64;
+    let verbosity = "verbose";
 
     // Run the game twice with the same seed
     let run1 = run_game_with_seed(deck_path, seed, verbosity);
@@ -67,25 +69,6 @@ fn test_deck_determinism(deck_path: &str, seed: u64, verbosity: &str) {
         deck_path, seed
     );
 }
-
-// ============================================================================
-// Individual deck determinism tests
-// ============================================================================
-// Each deck gets its own test function for clear test output
-// When adding a new deck, add a new test function following this pattern
-
-/// Test determinism for simple_bolt.dck with verbose output
-#[test]
-fn test_determinism_simple_bolt() {
-    test_deck_determinism("test_decks/simple_bolt.dck", 42, "verbose");
-}
-
-// Add more deck-specific tests here as new decks are added to test_decks/
-// Example:
-// #[test]
-// fn test_determinism_creature_combat() {
-//     test_deck_determinism("test_decks/creature_combat.dck", 42, "verbose");
-// }
 
 // ============================================================================
 // Multi-seed and cross-validation tests
@@ -124,41 +107,3 @@ fn test_different_seeds_consistency() {
     );
 }
 
-/// Discovery test: warns if there are deck files without corresponding tests
-#[test]
-fn test_all_decks_have_dedicated_tests() {
-    let test_decks_dir = PathBuf::from("test_decks");
-    if !test_decks_dir.exists() {
-        return;
-    }
-
-    let known_tested_decks = vec!["simple_bolt.dck"];
-
-    let deck_files: Vec<_> = std::fs::read_dir(&test_decks_dir)
-        .expect("Failed to read test_decks directory")
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let path = entry.path();
-            if path.extension()?.to_str()? == "dck" {
-                path.file_name()?.to_str().map(String::from)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let mut missing_tests = Vec::new();
-    for deck_file in &deck_files {
-        if !known_tested_decks.contains(&deck_file.as_str()) {
-            missing_tests.push(deck_file.clone());
-        }
-    }
-
-    if !missing_tests.is_empty() {
-        panic!(
-            "Found deck files without dedicated determinism tests: {:?}\n\
-             Please add a test function for each deck in tests/determinism_e2e.rs",
-            missing_tests
-        );
-    }
-}

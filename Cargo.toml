@@ -41,6 +41,7 @@ jwalk = "0.8"
 [dev-dependencies]
 criterion = "0.5"
 stats_alloc = "0.1"
+dir-test = "0.4"
 
 # Performance benchmarks
 [[bench]]
