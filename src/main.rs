@@ -183,12 +183,25 @@ async fn run_tui(
 
     let mut controller1: Box<dyn mtg_forge_rs::game::PlayerController> = match p1_type {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
-        ControllerType::Random => Box::new(RandomController::new(p1_id)),
+        ControllerType::Random => {
+            if let Some(seed_value) = seed {
+                Box::new(RandomController::with_seed(p1_id, seed_value))
+            } else {
+                Box::new(RandomController::new(p1_id))
+            }
+        }
     };
 
     let mut controller2: Box<dyn mtg_forge_rs::game::PlayerController> = match p2_type {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
-        ControllerType::Random => Box::new(RandomController::new(p2_id)),
+        ControllerType::Random => {
+            if let Some(seed_value) = seed {
+                // Use seed + 1 for player 2 so they have different random sequences
+                Box::new(RandomController::with_seed(p2_id, seed_value + 1))
+            } else {
+                Box::new(RandomController::new(p2_id))
+            }
+        }
     };
 
     if verbosity >= VerbosityLevel::Minimal {
