@@ -69,9 +69,8 @@ impl CardDatabase {
                 Ok(Some(card_def))
             }
             Err(e) => {
-                // Card file exists but failed to parse
-                eprintln!("Warning: Failed to parse card {}: {}", name, e);
-                Ok(None)
+                // Card file exists but failed to parse - this is a fatal error
+                Err(e)
             }
         }
     }
@@ -89,11 +88,23 @@ impl CardDatabase {
             tasks.push(tokio::spawn(async move { db.get_card(&name).await }));
         }
 
-        // Wait for all to complete
+        // Wait for all to complete - fail fast on any error
         let mut loaded = 0;
         for task in tasks {
-            if let Ok(Ok(Some(_))) = task.await {
-                loaded += 1;
+            match task.await {
+                Ok(Ok(Some(_))) => loaded += 1,
+                Ok(Ok(None)) => {
+                    return Err(crate::MtgError::InvalidCardFormat(
+                        "Card file not found".to_string(),
+                    ))
+                }
+                Ok(Err(e)) => return Err(e),
+                Err(e) => {
+                    return Err(crate::MtgError::InvalidCardFormat(format!(
+                        "Task join error: {}",
+                        e
+                    )))
+                }
             }
         }
 
@@ -112,20 +123,32 @@ impl CardDatabase {
         let cardsfolder = self.cardsfolder.clone();
 
         let (path_tx, mut path_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (result_tx, mut result_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (result_tx, mut result_rx) =
+            tokio::sync::mpsc::unbounded_channel::<Result<CardDefinition>>();
 
         // Spawn directory walking in a blocking task (jwalk uses rayon internally)
         tokio::task::spawn_blocking(move || {
             for entry in jwalk::WalkDir::new(&cardsfolder)
                 .skip_hidden(false)
                 .into_iter()
-                .filter_map(|e| e.ok())
             {
-                if entry.file_type().is_file() {
-                    if let Some(ext) = entry.path().extension() {
-                        if ext == "txt" {
-                            let _ = path_tx.send(entry.path());
+                match entry {
+                    Ok(entry) => {
+                        if entry.file_type().is_file() {
+                            if let Some(ext) = entry.path().extension() {
+                                if ext == "txt" {
+                                    // Fail fast: if we can't send, the receiver is gone
+                                    if path_tx.send(entry.path()).is_err() {
+                                        return;
+                                    }
+                                }
+                            }
                         }
+                    }
+                    Err(e) => {
+                        // Fail fast: directory walking errors are fatal
+                        eprintln!("Fatal error walking directory: {}", e);
+                        return;
                     }
                 }
             }
@@ -138,17 +161,21 @@ impl CardDatabase {
                 count += 1;
                 let result_tx = result_tx.clone();
                 tokio::spawn(async move {
-                    if let Ok(card_def) = Self::load_card_async(path).await {
-                        let _ = result_tx.send(card_def);
+                    // Send the result (success or error) - don't filter
+                    let result = Self::load_card_async(path.clone()).await;
+                    if let Err(e) = &result {
+                        eprintln!("Fatal error loading card from {:?}: {}", path, e);
                     }
+                    let _ = result_tx.send(result);
                 });
             }
             count
         });
 
-        // Collect loaded cards as they complete
+        // Collect loaded cards as they complete - fail fast on any error
         let mut cards_map = HashMap::new();
-        while let Some(card_def) = result_rx.recv().await {
+        while let Some(card_result) = result_rx.recv().await {
+            let card_def = card_result?; // Fail fast: propagate card loading errors
             let name_lower = card_def.name.to_lowercase();
             cards_map.insert(name_lower, card_def);
         }

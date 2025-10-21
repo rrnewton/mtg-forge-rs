@@ -634,8 +634,10 @@ impl<'a> GameLoop<'a> {
             // Safety check to prevent infinite loops
             action_count += 1;
             if action_count > MAX_ACTIONS_PER_PRIORITY {
-                eprintln!("Warning: Priority round exceeded max actions, forcing exit");
-                break;
+                return Err(crate::MtgError::InvalidAction(format!(
+                    "Priority round exceeded max actions ({}), possible infinite loop",
+                    MAX_ACTIONS_PER_PRIORITY
+                )));
             }
 
             // Get the appropriate controller
