@@ -148,9 +148,9 @@ impl PlayerController for RandomControllerV2 {
     }
 
     fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
-        // Random controller passes priority with 70% probability
-        // This prevents infinite loops while still allowing some actions
-        self.rng.gen_bool(0.7)
+        // Random controller passes priority with 30% probability
+        // This allows actions to be taken most of the time while still preventing infinite loops
+        self.rng.gen_bool(0.3)
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {

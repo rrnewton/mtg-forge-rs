@@ -15,8 +15,8 @@ pub mod zero_controller_v2;
 
 pub use actions::GameAction;
 pub use combat::CombatState;
-pub use controller::{GameStateView, PlayerAction};
 pub use controller::PlayerController as PlayerControllerV1;
+pub use controller::{GameStateView, PlayerAction};
 pub use game_loop::{GameEndReason, GameLoop, GameResult, VerbosityLevel};
 pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;

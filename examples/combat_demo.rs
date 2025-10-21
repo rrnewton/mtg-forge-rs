@@ -11,9 +11,9 @@
 //! Uses classic cards from Limited/Alpha/Beta/4th Edition
 
 use mtg_forge_rs::core::{Card, CardId, CardType, EntityId, Player, PlayerId};
-use mtg_forge_rs::game::{
-    GameLoop, GameState, GameStateView, PlayerAction, PlayerController, Step,
-};
+use mtg_forge_rs::game::controller_v2::PlayerController;
+use mtg_forge_rs::game::{GameLoop, GameState, GameStateView, Step};
+use smallvec::SmallVec;
 
 /// Alice's controller - attacks with all creatures
 struct AliceController {
@@ -39,39 +39,74 @@ impl PlayerController for AliceController {
         self.player_id
     }
 
-    fn choose_action(
+    fn choose_land_to_play(
         &mut self,
-        view: &GameStateView,
-        available_actions: &[PlayerAction],
-    ) -> Option<PlayerAction> {
-        // During declare attackers step, attack with our creatures
-        if view.current_step() == Step::DeclareAttackers {
-            // Find first attacker we can declare from our list
-            for action in available_actions {
-                if let PlayerAction::DeclareAttacker(card_id) = action {
-                    if self.creatures_to_attack.contains(card_id) {
-                        println!(
-                            "  Alice declares {} as attacker",
-                            view.get_card_name(*card_id)
-                                .unwrap_or_else(|| "Unknown".to_string())
-                        );
-                        return Some(PlayerAction::DeclareAttacker(*card_id));
-                    }
-                }
-            }
-            // Done declaring attackers
-            println!("  Alice finishes declaring attackers");
-            Some(PlayerAction::FinishDeclareAttackers)
-        } else {
-            // Pass priority in all other situations
-            None
-        }
+        _view: &GameStateView,
+        _lands_in_hand: &[CardId],
+    ) -> Option<CardId> {
+        None // Alice doesn't play lands in this demo
     }
 
-    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
+    fn choose_spell_to_cast(
+        &mut self,
+        _view: &GameStateView,
+        _castable_spells: &[CardId],
+    ) -> Option<(CardId, SmallVec<[CardId; 4]>)> {
+        None // Alice doesn't cast spells in this demo
+    }
+
+    fn choose_card_to_tap_for_mana(
+        &mut self,
+        _view: &GameStateView,
+        _tappable_cards: &[CardId],
+    ) -> Option<CardId> {
+        None // Alice doesn't tap for mana in this demo
+    }
+
+    fn choose_attackers(
+        &mut self,
+        view: &GameStateView,
+        available_creatures: &[CardId],
+    ) -> SmallVec<[CardId; 8]> {
+        // Attack with all our creatures that are in the list
+        let mut attackers = SmallVec::new();
+        for &creature_id in available_creatures {
+            if self.creatures_to_attack.contains(&creature_id) {
+                println!(
+                    "  Alice declares {} as attacker",
+                    view.get_card_name(creature_id)
+                        .unwrap_or_else(|| "Unknown".to_string())
+                );
+                attackers.push(creature_id);
+            }
+        }
+        if !attackers.is_empty() {
+            println!("  Alice finishes declaring attackers");
+        }
+        attackers
+    }
+
+    fn choose_blockers(
+        &mut self,
+        _view: &GameStateView,
+        _available_blockers: &[CardId],
+        _attackers: &[CardId],
+    ) -> SmallVec<[(CardId, CardId); 8]> {
+        SmallVec::new() // Alice doesn't block in this demo
+    }
+
+    fn choose_cards_to_discard(
+        &mut self,
+        _view: &GameStateView,
+        hand: &[CardId],
+        count: usize,
+    ) -> SmallVec<[CardId; 7]> {
         // Alice discards the first N cards in hand
-        let hand = view.player_hand(self.player_id);
         hand.iter().take(count).copied().collect()
+    }
+
+    fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
+        true // Alice always passes priority
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {}
@@ -103,55 +138,77 @@ impl PlayerController for BobController {
         self.player_id
     }
 
-    fn choose_action(
+    fn choose_land_to_play(
         &mut self,
-        view: &GameStateView,
-        available_actions: &[PlayerAction],
-    ) -> Option<PlayerAction> {
-        println!(
-            "  Bob is choosing blocking actions among {} available actions",
-            available_actions.len()
-        );
-        // During declare blockers step, block according to our plan
-        if view.current_step() == Step::DeclareBlockers {
-            // Find first blocking assignment we can make
-            for (blocker, attacker) in &self.blocking_assignments {
-                // Check if this blocking action is available
-                for action in available_actions {
-                    if let PlayerAction::DeclareBlocker {
-                        blocker: b,
-                        attackers,
-                    } = action
-                    {
-                        if b == blocker && attackers.contains(attacker) {
-                            println!(
-                                "  Bob: {} blocks {}",
-                                view.get_card_name(*blocker)
-                                    .unwrap_or_else(|| "Unknown".to_string()),
-                                view.get_card_name(*attacker)
-                                    .unwrap_or_else(|| "Unknown".to_string())
-                            );
-                            return Some(PlayerAction::DeclareBlocker {
-                                blocker: *blocker,
-                                attackers: vec![*attacker],
-                            });
-                        }
-                    }
-                }
-            }
-            // Done declaring blockers
-            println!("  Bob finishes declaring blockers");
-            Some(PlayerAction::FinishDeclareBlockers)
-        } else {
-            // Pass priority in all other situations
-            None
-        }
+        _view: &GameStateView,
+        _lands_in_hand: &[CardId],
+    ) -> Option<CardId> {
+        None // Bob doesn't play lands in this demo
     }
 
-    fn choose_cards_to_discard(&mut self, view: &GameStateView, count: usize) -> Vec<CardId> {
+    fn choose_spell_to_cast(
+        &mut self,
+        _view: &GameStateView,
+        _castable_spells: &[CardId],
+    ) -> Option<(CardId, SmallVec<[CardId; 4]>)> {
+        None // Bob doesn't cast spells in this demo
+    }
+
+    fn choose_card_to_tap_for_mana(
+        &mut self,
+        _view: &GameStateView,
+        _tappable_cards: &[CardId],
+    ) -> Option<CardId> {
+        None // Bob doesn't tap for mana in this demo
+    }
+
+    fn choose_attackers(
+        &mut self,
+        _view: &GameStateView,
+        _available_creatures: &[CardId],
+    ) -> SmallVec<[CardId; 8]> {
+        SmallVec::new() // Bob doesn't attack in this demo
+    }
+
+    fn choose_blockers(
+        &mut self,
+        view: &GameStateView,
+        available_blockers: &[CardId],
+        _attackers: &[CardId],
+    ) -> SmallVec<[(CardId, CardId); 8]> {
+        // Block according to our plan
+        let mut blocks = SmallVec::new();
+        for (blocker_id, attacker_id) in &self.blocking_assignments {
+            // Check if blocker is available
+            if available_blockers.contains(blocker_id) {
+                println!(
+                    "  Bob: {} blocks {}",
+                    view.get_card_name(*blocker_id)
+                        .unwrap_or_else(|| "Unknown".to_string()),
+                    view.get_card_name(*attacker_id)
+                        .unwrap_or_else(|| "Unknown".to_string())
+                );
+                blocks.push((*blocker_id, *attacker_id));
+            }
+        }
+        if !blocks.is_empty() {
+            println!("  Bob finishes declaring blockers");
+        }
+        blocks
+    }
+
+    fn choose_cards_to_discard(
+        &mut self,
+        _view: &GameStateView,
+        hand: &[CardId],
+        count: usize,
+    ) -> SmallVec<[CardId; 7]> {
         // Bob discards the first N cards in hand
-        let hand = view.player_hand(self.player_id);
         hand.iter().take(count).copied().collect()
+    }
+
+    fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
+        true // Bob always passes priority
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {}

@@ -4,7 +4,10 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
-    game::{GameLoop, RandomController, VerbosityLevel, ZeroController},
+    game::{
+        random_controller_v2::RandomControllerV2, zero_controller_v2::ZeroControllerV2, GameLoop,
+        VerbosityLevel,
+    },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
 };
@@ -180,28 +183,30 @@ async fn run_tui(
         (p1.id, p2.id)
     };
 
-    let mut controller1: Box<dyn mtg_forge_rs::game::PlayerController> = match p1_type {
-        ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
-        ControllerType::Random => {
-            if let Some(seed_value) = seed {
-                Box::new(RandomController::with_seed(p1_id, seed_value))
-            } else {
-                Box::new(RandomController::new(p1_id))
+    let mut controller1: Box<dyn mtg_forge_rs::game::controller_v2::PlayerController> =
+        match p1_type {
+            ControllerType::Zero => Box::new(ZeroControllerV2::new(p1_id)),
+            ControllerType::Random => {
+                if let Some(seed_value) = seed {
+                    Box::new(RandomControllerV2::with_seed(p1_id, seed_value))
+                } else {
+                    Box::new(RandomControllerV2::new(p1_id))
+                }
             }
-        }
-    };
+        };
 
-    let mut controller2: Box<dyn mtg_forge_rs::game::PlayerController> = match p2_type {
-        ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
-        ControllerType::Random => {
-            if let Some(seed_value) = seed {
-                // Use seed + 1 for player 2 so they have different random sequences
-                Box::new(RandomController::with_seed(p2_id, seed_value + 1))
-            } else {
-                Box::new(RandomController::new(p2_id))
+    let mut controller2: Box<dyn mtg_forge_rs::game::controller_v2::PlayerController> =
+        match p2_type {
+            ControllerType::Zero => Box::new(ZeroControllerV2::new(p2_id)),
+            ControllerType::Random => {
+                if let Some(seed_value) = seed {
+                    // Use seed + 1 for player 2 so they have different random sequences
+                    Box::new(RandomControllerV2::with_seed(p2_id, seed_value + 1))
+                } else {
+                    Box::new(RandomControllerV2::new(p2_id))
+                }
             }
-        }
-    };
+        };
 
     if verbosity >= VerbosityLevel::Minimal {
         println!("=== Starting Game ===\n");

@@ -269,6 +269,7 @@ impl<'a> GameLoop<'a> {
 
     /// Log a message at Verbose verbosity level (with lazy step header)
     /// Used for detailed action-by-action logging
+    #[allow(dead_code)] // Legacy v1 interface, will be removed
     fn log_verbose(&mut self, message: &str) {
         if self.verbosity >= VerbosityLevel::Verbose {
             self.print_step_header_if_needed();
@@ -455,7 +456,9 @@ impl<'a> GameLoop<'a> {
             .expect("Should have defending player");
 
         for attacker_id in attackers.iter() {
-            self.game.combat.declare_attacker(*attacker_id, defending_player);
+            self.game
+                .combat
+                .declare_attacker(*attacker_id, defending_player);
 
             if self.verbosity >= VerbosityLevel::Verbose {
                 let card_name = self
@@ -464,7 +467,11 @@ impl<'a> GameLoop<'a> {
                     .get(*attacker_id)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                println!("  {} attacks with {}", self.get_player_name(active_player), card_name);
+                println!(
+                    "  {} attacks with {}",
+                    self.get_player_name(active_player),
+                    card_name
+                );
             }
         }
 
@@ -612,7 +619,8 @@ impl<'a> GameLoop<'a> {
                 // Ask controller which cards to discard
                 let view = GameStateView::new(self.game, player_id);
                 let hand = view.hand();
-                let cards_to_discard = controller.choose_cards_to_discard(&view, hand, discard_count);
+                let cards_to_discard =
+                    controller.choose_cards_to_discard(&view, hand, discard_count);
 
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
@@ -720,11 +728,29 @@ impl<'a> GameLoop<'a> {
             // Controller wants to act - try actions in order
             let mut action_taken = false;
 
-            // 1. Try to play a land (only in main phases)
-            if matches!(
-                self.game.turn.current_step,
-                Step::Main1 | Step::Main2
-            ) {
+            // 1. Try to tap for mana first (so we have mana available for spells)
+            if !action_taken {
+                let tappable = self.get_tappable_for_mana(current_priority);
+                if !tappable.is_empty() {
+                    let tap_choice = {
+                        let view = GameStateView::new(self.game, current_priority);
+                        controller.choose_card_to_tap_for_mana(&view, &tappable)
+                    };
+                    if let Some(card_id) = tap_choice {
+                        if let Err(e) = self.game.tap_for_mana(current_priority, card_id) {
+                            if self.verbosity >= VerbosityLevel::Normal {
+                                eprintln!("  Error tapping for mana: {}", e);
+                            }
+                        } else {
+                            action_taken = true;
+                            // Mana tapping is verbose, don't log unless very verbose
+                        }
+                    }
+                }
+            }
+
+            // 2. Try to play a land (only in main phases)
+            if !action_taken && matches!(self.game.turn.current_step, Step::Main1 | Step::Main2) {
                 let lands = self.get_lands_in_hand(current_priority);
                 if !lands.is_empty()
                     && self
@@ -752,14 +778,18 @@ impl<'a> GameLoop<'a> {
                                     .get(land_id)
                                     .map(|c| c.name.as_str())
                                     .unwrap_or("Unknown");
-                                println!("  {} plays {}", self.get_player_name(current_priority), card_name);
+                                println!(
+                                    "  {} plays {}",
+                                    self.get_player_name(current_priority),
+                                    card_name
+                                );
                             }
                         }
                     }
                 }
             }
 
-            // 2. Try to cast a spell
+            // 3. Try to cast a spell
             if !action_taken {
                 let spells = self.get_castable_spells(current_priority);
                 if !spells.is_empty() {
@@ -770,11 +800,10 @@ impl<'a> GameLoop<'a> {
                     if let Some((spell_id, targets)) = spell_choice {
                         // Convert SmallVec to Vec for now
                         let targets_vec: Vec<CardId> = targets.iter().copied().collect();
-                        if let Err(e) = self.game.cast_spell(
-                            current_priority,
-                            spell_id,
-                            targets_vec,
-                        ) {
+                        if let Err(e) =
+                            self.game
+                                .cast_spell(current_priority, spell_id, targets_vec)
+                        {
                             if self.verbosity >= VerbosityLevel::Normal {
                                 eprintln!("  Error casting spell: {}", e);
                             }
@@ -787,29 +816,19 @@ impl<'a> GameLoop<'a> {
                                     .get(spell_id)
                                     .map(|c| c.name.as_str())
                                     .unwrap_or("Unknown");
-                                println!("  {} casts {}", self.get_player_name(current_priority), card_name);
+                                println!(
+                                    "  {} casts {}",
+                                    self.get_player_name(current_priority),
+                                    card_name
+                                );
                             }
-                        }
-                    }
-                }
-            }
 
-            // 3. Try to tap for mana
-            if !action_taken {
-                let tappable = self.get_tappable_for_mana(current_priority);
-                if !tappable.is_empty() {
-                    let tap_choice = {
-                        let view = GameStateView::new(self.game, current_priority);
-                        controller.choose_card_to_tap_for_mana(&view, &tappable)
-                    };
-                    if let Some(card_id) = tap_choice {
-                        if let Err(e) = self.game.tap_for_mana(current_priority, card_id) {
-                            if self.verbosity >= VerbosityLevel::Normal {
-                                eprintln!("  Error tapping for mana: {}", e);
+                            // Immediately resolve spell (simplified - no stack interaction yet)
+                            if let Err(e) = self.game.resolve_spell(spell_id) {
+                                if self.verbosity >= VerbosityLevel::Normal {
+                                    eprintln!("  Error resolving spell: {}", e);
+                                }
                             }
-                        } else {
-                            action_taken = true;
-                            // Mana tapping is verbose, don't log unless very verbose
                         }
                     }
                 }
@@ -836,6 +855,7 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Get available attackers for a player
+    #[allow(dead_code)] // Legacy v1 interface, will be removed
     fn get_available_attackers(&self, player_id: PlayerId) -> Vec<PlayerAction> {
         let mut actions = Vec::new();
 
@@ -860,6 +880,7 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Get available blockers for a player
+    #[allow(dead_code)] // Legacy v1 interface, will be removed
     fn get_available_blockers(&self, player_id: PlayerId) -> Vec<PlayerAction> {
         let mut actions = Vec::new();
 
@@ -896,6 +917,7 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Get available actions for a player at current game state
+    #[allow(dead_code)] // Legacy v1 interface, will be removed
     fn get_available_actions(&self, player_id: PlayerId) -> Vec<PlayerAction> {
         let mut actions = Vec::new();
 
@@ -1054,6 +1076,7 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Execute a player action
+    #[allow(dead_code)] // Legacy v1 interface, will be removed
     fn execute_action(&mut self, player_id: PlayerId, action: &PlayerAction) -> Result<()> {
         if !matches!(action, PlayerAction::PassPriority) {
             let player_name = self.get_player_name(player_id);
@@ -1110,6 +1133,7 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Describe an action for verbose output
+    #[allow(dead_code)] // Legacy v1 interface, will be removed
     fn describe_action(&self, action: &PlayerAction) -> String {
         match action {
             PlayerAction::PlayLand(card_id) => {
