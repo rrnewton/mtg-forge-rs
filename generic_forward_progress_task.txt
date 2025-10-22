@@ -1,0 +1,13 @@
+Now you select a task to make forward progress. Review the context:
+
+ - TODO.md
+ - CLAUDE.md
+ - Game rules: rules/02_mtg_rules_condensed_medium_length_gemini.md
+ - PROJECT_VISION.md
+ - Relevent feature of the source material, Java implementation: ./forge-java
+
+Then select a task, make forward progress, and commit it after `make
+validate` passes. As described in the project vision, the goal is to
+keep expanding the implementation until the full game of MTG is
+playable, including all cards and arbitrary decks, including the 6690
+.dck files in forge-java/.

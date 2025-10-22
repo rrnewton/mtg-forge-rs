@@ -306,6 +306,107 @@ impl<'a> GameLoop<'a> {
         }
     }
 
+    /// Log the execution of a spell effect (damage, draw, etc.)
+    fn log_effect_execution(
+        &self,
+        source_name: &str,
+        source_id: CardId,
+        effect: &crate::core::Effect,
+        _source_owner: PlayerId,
+    ) {
+        use crate::core::{Effect, TargetRef};
+
+        match effect {
+            Effect::DealDamage { target, amount } => match target {
+                TargetRef::Player(target_player_id) => {
+                    let target_name = self.get_player_name(*target_player_id);
+                    println!(
+                        "  {} ({}) deals {} damage to {}",
+                        source_name, source_id, amount, target_name
+                    );
+                }
+                TargetRef::Permanent(target_card_id) => {
+                    let target_name = self
+                        .game
+                        .cards
+                        .get(*target_card_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown");
+                    println!(
+                        "  {} ({}) deals {} damage to {} ({})",
+                        source_name, source_id, amount, target_name, target_card_id
+                    );
+                }
+                TargetRef::None => {
+                    // Target will be filled in by resolve_spell - log against opponent
+                    if let Some(opponent_id) = self
+                        .game
+                        .players
+                        .iter()
+                        .map(|p| p.id)
+                        .find(|id| *id != _source_owner)
+                    {
+                        let target_name = self.get_player_name(opponent_id);
+                        println!(
+                            "  {} ({}) deals {} damage to {}",
+                            source_name, source_id, amount, target_name
+                        );
+                    }
+                }
+            },
+            Effect::DrawCards { player, count } => {
+                let player_name = self.get_player_name(*player);
+                println!(
+                    "  {} ({}) causes {} to draw {} card(s)",
+                    source_name, source_id, player_name, count
+                );
+            }
+            Effect::GainLife { player, amount } => {
+                let player_name = self.get_player_name(*player);
+                println!(
+                    "  {} ({}) causes {} to gain {} life",
+                    source_name, source_id, player_name, amount
+                );
+            }
+            Effect::DestroyPermanent { target } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {} ({}) destroys {} ({})",
+                    source_name, source_id, target_name, target
+                );
+            }
+            Effect::TapPermanent { target } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {} ({}) taps {} ({})",
+                    source_name, source_id, target_name, target
+                );
+            }
+            Effect::UntapPermanent { target } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {} ({}) untaps {} ({})",
+                    source_name, source_id, target_name, target
+                );
+            }
+        }
+    }
+
     /// Reset turn-based state for the active player
     fn reset_turn_state(&mut self, active_player: PlayerId) -> Result<()> {
         // Reset lands played this turn
@@ -916,26 +1017,46 @@ impl<'a> GameLoop<'a> {
                                     eprintln!("  Error casting spell: {}", e);
                                 }
                             } else {
+                                // Read card effects before resolution (for logging)
+                                let (card_effects, card_owner) =
+                                    if self.verbosity >= VerbosityLevel::Normal {
+                                        if let Ok(card) = self.game.cards.get(card_id) {
+                                            (Some(card.effects.clone()), card.owner)
+                                        } else {
+                                            (None, self.game.players[0].id)
+                                        }
+                                    } else {
+                                        (None, self.game.players[0].id)
+                                    };
+
                                 // Immediately resolve spell (simplified - no stack interaction yet)
                                 if let Err(e) = self.game.resolve_spell(card_id) {
                                     if self.verbosity >= VerbosityLevel::Normal {
                                         eprintln!("  Error resolving spell: {}", e);
                                     }
                                 } else if self.verbosity >= VerbosityLevel::Normal {
-                                    // Check if it's a permanent (creature, artifact, etc.) entering battlefield
+                                    // Log resolution
+                                    println!("  {} ({}) resolves", card_name, card_id);
+
+                                    // Log effects for instants/sorceries
+                                    if let Some(effects) = card_effects {
+                                        for effect in &effects {
+                                            self.log_effect_execution(
+                                                &card_name, card_id, effect, card_owner,
+                                            );
+                                        }
+                                    }
+
+                                    // Check if it's a permanent entering battlefield
                                     if let Ok(card) = self.game.cards.get(card_id) {
                                         if card.is_creature() {
                                             println!(
-                                                "  {} ({}) resolves, {} ({}) enters the battlefield as a {}/{} creature",
-                                                card_name,
-                                                card_id,
+                                                "  {} ({}) enters the battlefield as a {}/{} creature",
                                                 card_name,
                                                 card_id,
                                                 card.power.unwrap_or(0),
                                                 card.toughness.unwrap_or(0)
                                             );
-                                        } else {
-                                            println!("  {} ({}) resolves", card_name, card_id);
                                         }
                                     }
                                 }

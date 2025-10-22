@@ -1,0 +1,8 @@
+Lightning bolt doesn't show damage
+----------------------------------------
+
+We need to show damage to a player consistently irrespective of source.
+Creature attacks show damage, but lightning bolt doesn't.
+
+    Player 1 casts Lightning Bolt (24) (putting on stack)
+    Lightning Bolt (24) resolves

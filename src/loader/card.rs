@@ -246,6 +246,7 @@ mod tests {
 Name:Lightning Bolt
 ManaCost:R
 Types:Instant
+A:SP$ DealDamage | ValidTgts$ Any | NumDmg$ 3 | SpellDescription$ CARDNAME deals 3 damage to any target.
 Oracle:Lightning Bolt deals 3 damage to any target.
 "#;
 
@@ -255,6 +256,22 @@ Oracle:Lightning Bolt deals 3 damage to any target.
         assert_eq!(def.types.len(), 1);
         assert!(def.types.contains(&CardType::Instant));
         assert!(def.colors.contains(&Color::Red));
+
+        // Check that the effect is parsed
+        let effects = def.parse_effects();
+        assert_eq!(effects.len(), 1, "Lightning Bolt should have 1 effect");
+
+        use crate::core::{Effect, TargetRef};
+        match &effects[0] {
+            Effect::DealDamage { target, amount } => {
+                assert_eq!(*amount, 3, "Should deal 3 damage");
+                assert!(
+                    matches!(target, TargetRef::None),
+                    "Target should be None initially"
+                );
+            }
+            _ => panic!("Expected DealDamage effect"),
+        }
     }
 
     #[test]
