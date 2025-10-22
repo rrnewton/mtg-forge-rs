@@ -817,6 +817,16 @@ impl GameState {
                     }
                 }
 
+                // Trample: If attacker has trample and there's remaining damage after
+                // assigning lethal to all blockers, assign remaining to defending player
+                // MTG Rules 702.19
+                if attacker.has_trample() && remaining_power > 0 {
+                    if let Some(defending_player) = self.combat.get_defending_player(attacker_id) {
+                        *damage_to_players.entry(defending_player).or_insert(0) +=
+                            remaining_power as i32;
+                    }
+                }
+
                 // All blockers deal their damage back to attacker (simultaneously)
                 // But only if they deal damage in this step (same rules as attackers)
                 for blocker_id in &ordered_blockers {
@@ -2451,5 +2461,266 @@ mod tests {
                 "Untap spell should be in graveyard"
             );
         }
+    }
+
+    #[test]
+    fn test_trample_excess_damage_to_player() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 5/5 creature with Trample (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Craw Wurm".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(5);
+        attacker.toughness = Some(5);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Trample);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 2/2 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Grizzly Bears".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Record P2's life before combat
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Blocker should be dead (took 5 damage, toughness 2)
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard"
+            );
+        }
+
+        // P2 should have taken 3 trample damage (5 power - 2 to kill blocker)
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after,
+            p2_life_before - 3,
+            "P2 should have taken 3 trample damage"
+        );
+    }
+
+    #[test]
+    fn test_trample_exact_lethal_no_excess() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 3/3 creature with Trample (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Trained Armodon".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(3);
+        attacker.toughness = Some(3);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Trample);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 3/3 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Hill Giant".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(3);
+        blocker.toughness = Some(3);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Record P2's life before combat
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Blocker should be dead (took 3 damage, toughness 3)
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard"
+            );
+        }
+
+        // P2 should NOT have taken any damage (exact lethal, no excess)
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after, p2_life_before,
+            "P2 should not have taken damage (exact lethal, no excess)"
+        );
+    }
+
+    #[test]
+    fn test_non_trample_blocked_no_player_damage() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 5/5 creature WITHOUT Trample (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Serra Angel".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(5);
+        attacker.toughness = Some(5);
+        attacker.controller = p1_id;
+        // NO Trample keyword
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 1/1 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Llanowar Elves".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(1);
+        blocker.toughness = Some(1);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Record P2's life before combat
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Blocker should be dead
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard"
+            );
+        }
+
+        // P2 should NOT have taken any damage (no trample, so excess is lost)
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after, p2_life_before,
+            "P2 should not have taken damage without trample"
+        );
+    }
+
+    #[test]
+    fn test_trample_multiple_blockers() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 7/7 creature with Trample (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Enormous Baloth".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(7);
+        attacker.toughness = Some(7);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Trample);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create two blockers (2/2 and 3/3)
+        let blocker1_id = game.next_entity_id();
+        let mut blocker1 = Card::new(blocker1_id, "Grizzly Bears".to_string(), p2_id);
+        blocker1.types.push(CardType::Creature);
+        blocker1.power = Some(2);
+        blocker1.toughness = Some(2);
+        blocker1.controller = p2_id;
+        game.cards.insert(blocker1_id, blocker1);
+        game.battlefield.add(blocker1_id);
+
+        let blocker2_id = game.next_entity_id();
+        let mut blocker2 = Card::new(blocker2_id, "Hill Giant".to_string(), p2_id);
+        blocker2.types.push(CardType::Creature);
+        blocker2.power = Some(3);
+        blocker2.toughness = Some(3);
+        blocker2.controller = p2_id;
+        game.cards.insert(blocker2_id, blocker2);
+        game.battlefield.add(blocker2_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat
+            .declare_blocker(blocker1_id, attacker_vec.clone());
+        game.combat.declare_blocker(blocker2_id, attacker_vec);
+
+        // Record P2's life before combat
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Both blockers should be dead
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker1_id),
+                "Blocker 1 should be in graveyard"
+            );
+            assert!(
+                zones.graveyard.contains(blocker2_id),
+                "Blocker 2 should be in graveyard"
+            );
+        }
+
+        // P2 should have taken 2 trample damage (7 power - 2 - 3 = 2)
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after,
+            p2_life_before - 2,
+            "P2 should have taken 2 trample damage"
+        );
     }
 }

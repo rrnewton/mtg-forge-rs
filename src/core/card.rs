@@ -150,6 +150,10 @@ impl Card {
         self.has_double_strike() || !self.has_first_strike()
     }
 
+    pub fn has_trample(&self) -> bool {
+        self.has_keyword(&Keyword::Trample)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }

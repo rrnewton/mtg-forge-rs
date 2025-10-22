@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 137 passing ✅ (119 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 141 passing ✅ (123 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -78,10 +78,16 @@
   - Execution already implemented via `Effect::TapPermanent` and `Effect::UntapPermanent`
   - Target resolution: Tap targets opponent's untapped creatures, Untap targets own tapped permanents
   - Full test coverage (2 tests: tap spell resolution, untap spell resolution)
+- ✅ **Trample keyword** - Excess combat damage tramples over to defending player
+  - Implemented MTG Rules 702.19: damage beyond lethal to blockers goes to player
+  - Added `has_trample()` helper method to Card
+  - Integrated into combat damage assignment in `assign_combat_damage()`
+  - Works with multiple blockers (assigns lethal to each in order, then remaining to player)
+  - Full test coverage (4 tests: excess damage, exact lethal, non-trample comparison, multiple blockers)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
-- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
+- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Protection, Madness, Flashback
 - ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
-- ✅ Creature combat: attackers, blockers, damage calculation, creature death
+- ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample
 - ✅ Cleanup/discard phase: players discard to max hand size
 - ✅ Benchmarking: Criterion.rs infrastructure (~7,000 games/sec, 82KB/game allocation)
 - ✅ Async card loading: jwalk streaming discovery, deck-only or --load-all-cards modes
@@ -115,6 +121,7 @@
 - [ ] **Enhanced creature support**
   * ✅ Summoning sickness tracking
   * ✅ Vigilance keyword
+  * ✅ Trample keyword
   * ✅ Flying/reach for combat restrictions
   * ✅ Multiple blockers support
   * ✅ Damage assignment order
@@ -245,8 +252,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Summoning Sickness ✅, Vigilance ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 137 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 141 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
