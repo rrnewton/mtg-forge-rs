@@ -1352,14 +1352,31 @@ impl<'a> GameLoop<'a> {
         let mut mana_engine = ManaEngine::new(player_id);
         mana_engine.update(self.game);
 
+        // Check if this is the active player (only active player can cast sorceries)
+        let is_active_player = self.game.turn.active_player == player_id;
+
+        // Check if it's sorcery speed (Main1 or Main2)
+        let is_sorcery_speed = self.game.turn.current_step.is_sorcery_speed();
+
         if let Some(zones) = self.game.get_player_zones(player_id) {
             for &card_id in &zones.hand.cards {
                 if let Ok(card) = self.game.cards.get(card_id) {
                     // Check if card is castable (not a land)
                     if !card.is_land() {
-                        // Check if we can pay for this spell's mana cost
-                        if mana_engine.can_pay(&card.mana_cost) {
-                            spells.push(card_id);
+                        // Check timing restrictions
+                        let can_cast_now = if card.is_instant() {
+                            // Instants can be cast anytime with priority
+                            true
+                        } else {
+                            // Creatures and sorceries require sorcery speed AND active player
+                            is_sorcery_speed && is_active_player
+                        };
+
+                        if can_cast_now {
+                            // Check if we can pay for this spell's mana cost
+                            if mana_engine.can_pay(&card.mana_cost) {
+                                spells.push(card_id);
+                            }
                         }
                     }
                 }

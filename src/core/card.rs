@@ -112,6 +112,10 @@ impl Card {
         self.is_type(&CardType::Land)
     }
 
+    pub fn is_instant(&self) -> bool {
+        self.is_type(&CardType::Instant)
+    }
+
     pub fn has_keyword(&self, keyword: &Keyword) -> bool {
         self.keywords.contains(keyword)
     }
