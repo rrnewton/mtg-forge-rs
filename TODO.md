@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 152 passing ✅ (134 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 156 passing ✅ (138 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ### Infrastructure & Tooling
 - ✅ **Validation caching** - `make validate` caches results by commit hash
@@ -119,8 +119,16 @@
   - Validation can only occur after all blockers declared, making it unsuitable for game rules enforcement
   - Controllers should avoid blocking menace creatures with exactly 1 blocker
   - Full test coverage (3 tests: blocked by two creatures, unblocked menace, three or more blockers)
+- ✅ **Hexproof keyword** - Creatures with hexproof can't be targeted by opponent's spells or abilities
+  - Implemented MTG Rules 702.11: "This permanent can't be the target of spells or abilities your opponents control"
+  - Added `has_hexproof()` helper method to Card
+  - Modified target selection for DestroyPermanent, TapPermanent, and PumpCreature effects
+  - Hexproof creatures can't be targeted by opponent's spells (Terror, tap effects, pump spells)
+  - Own creatures with hexproof CAN be targeted by their controller's spells (Giant Growth on own hexproof)
+  - Spells with no valid targets (all have hexproof) fizzle gracefully without error
+  - Full test coverage (4 tests: blocks destroy, blocks tap, allows own spells, no valid targets)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
-- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Protection, Madness, Flashback
+- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Protection, Madness, Flashback
 - ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size
@@ -164,7 +172,7 @@
   * ✅ Damage assignment order
   * ✅ First strike / Double strike combat damage
   * ✅ Menace keyword (requires at least 2 blockers)
-  * [ ] Hexproof keyword (can't be targeted by opponents)
+  * ✅ Hexproof keyword (can't be targeted by opponents)
 
 - [ ] **More card types**
   - [ ] Creature cards (currently partially supported)
@@ -291,8 +299,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/Menace/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/Menace/Hexproof/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 152 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 156 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

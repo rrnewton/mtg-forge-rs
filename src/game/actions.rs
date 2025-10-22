@@ -157,14 +157,16 @@ impl GameState {
                 }
                 Effect::DestroyPermanent { target } if target.as_u32() == 0 => {
                     // Default: destroy an opponent's creature (placeholder card ID 0 means "opponent's creature")
-                    // Find an opponent's creature on the battlefield
+                    // Find an opponent's creature on the battlefield (that doesn't have hexproof)
                     if let Some(creature_id) = self
                         .battlefield
                         .cards
                         .iter()
                         .find(|&card_id| {
                             if let Ok(card) = self.cards.get(*card_id) {
-                                card.owner != card_owner && card.is_creature()
+                                card.owner != card_owner
+                                    && card.is_creature()
+                                    && !card.has_hexproof()
                             } else {
                                 false
                             }
@@ -188,15 +190,22 @@ impl GameState {
                     power_bonus,
                     toughness_bonus,
                 } if target.as_u32() == 0 => {
-                    // Default: target an opponent's creature (placeholder card ID 0 means "target creature")
-                    // For now, find the first creature on the battlefield
+                    // Default: target any creature (placeholder card ID 0 means "target creature")
+                    // Hexproof prevents targeting by opponent's spells/abilities
+                    // Find the first valid target creature on the battlefield
                     if let Some(creature_id) = self
                         .battlefield
                         .cards
                         .iter()
                         .find(|&card_id| {
                             if let Ok(card) = self.cards.get(*card_id) {
-                                card.is_creature()
+                                if card.owner != card_owner {
+                                    // Opponent's creature: can only target if it doesn't have hexproof
+                                    card.is_creature() && !card.has_hexproof()
+                                } else {
+                                    // Own creature: can always target
+                                    card.is_creature()
+                                }
                             } else {
                                 false
                             }
@@ -211,14 +220,17 @@ impl GameState {
                     }
                 }
                 Effect::TapPermanent { target } if target.as_u32() == 0 => {
-                    // Default: target an opponent's untapped creature
+                    // Default: target an opponent's untapped creature (that doesn't have hexproof)
                     if let Some(creature_id) = self
                         .battlefield
                         .cards
                         .iter()
                         .find(|&card_id| {
                             if let Ok(card) = self.cards.get(*card_id) {
-                                card.owner != card_owner && card.is_creature() && !card.tapped
+                                card.owner != card_owner
+                                    && card.is_creature()
+                                    && !card.tapped
+                                    && !card.has_hexproof()
                             } else {
                                 false
                             }
@@ -402,10 +414,20 @@ impl GameState {
                 });
             }
             Effect::DestroyPermanent { target } => {
+                // Skip if target is still placeholder (0) - no valid targets found
+                if target.as_u32() == 0 {
+                    // Spell fizzles - no valid targets
+                    return Ok(());
+                }
                 let owner = self.cards.get(*target)?.owner;
                 self.move_card(*target, Zone::Battlefield, Zone::Graveyard, owner)?;
             }
             Effect::TapPermanent { target } => {
+                // Skip if target is still placeholder (0) - no valid targets found
+                if target.as_u32() == 0 {
+                    // Spell fizzles - no valid targets
+                    return Ok(());
+                }
                 let card = self.cards.get_mut(*target)?;
                 card.tap();
 
@@ -430,6 +452,11 @@ impl GameState {
                 power_bonus,
                 toughness_bonus,
             } => {
+                // Skip if target is still placeholder (0) - no valid targets found
+                if target.as_u32() == 0 {
+                    // Spell fizzles - no valid targets
+                    return Ok(());
+                }
                 let card = self.cards.get_mut(*target)?;
                 card.power_bonus += power_bonus;
                 card.toughness_bonus += toughness_bonus;
@@ -959,7 +986,7 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Card;
+    use crate::core::{Card, ManaCost};
     use crate::game::ZeroController;
     use crate::loader::CardDatabase;
     use std::path::PathBuf;
@@ -3535,5 +3562,223 @@ mod tests {
                 "Third blocker should be dead"
             );
         }
+    }
+
+    #[test]
+    fn test_hexproof_blocks_destroy_spell() {
+        // Test that destroy spells cannot target hexproof creatures controlled by opponent
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P2: Create a hexproof creature
+        let hexproof_creature_id = game.next_entity_id();
+        let mut hexproof_creature =
+            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
+        hexproof_creature.types.push(CardType::Creature);
+        hexproof_creature.power = Some(1);
+        hexproof_creature.toughness = Some(1);
+        hexproof_creature.keywords.push(Keyword::Hexproof);
+        game.cards.insert(hexproof_creature_id, hexproof_creature);
+        game.battlefield.add(hexproof_creature_id);
+
+        // P2: Create a normal creature
+        let normal_creature_id = game.next_entity_id();
+        let mut normal_creature = Card::new(normal_creature_id, "Grizzly Bears".to_string(), p2_id);
+        normal_creature.types.push(CardType::Creature);
+        normal_creature.power = Some(2);
+        normal_creature.toughness = Some(2);
+        game.cards.insert(normal_creature_id, normal_creature);
+        game.battlefield.add(normal_creature_id);
+
+        // P1: Cast a destroy spell (Terror) - should target normal creature, not hexproof one
+        let destroy_spell_id = game.next_entity_id();
+        let mut destroy_spell = Card::new(destroy_spell_id, "Terror".to_string(), p1_id);
+        destroy_spell.types.push(CardType::Instant);
+        destroy_spell.mana_cost = ManaCost::from_string("1B");
+        // Use placeholder card ID 0 which will be replaced with a targetable opponent's creature
+        destroy_spell.effects.push(Effect::DestroyPermanent {
+            target: CardId::new(0),
+        });
+        game.cards.insert(destroy_spell_id, destroy_spell);
+
+        // Put it on the stack (simulating cast)
+        game.stack.add(destroy_spell_id);
+
+        // Resolve the spell
+        let result = game.resolve_spell(destroy_spell_id);
+        assert!(result.is_ok(), "Destroy spell should resolve successfully");
+
+        // Check that the hexproof creature is still alive
+        assert!(
+            game.battlefield.contains(hexproof_creature_id),
+            "Hexproof creature should still be on battlefield"
+        );
+
+        // Check that the normal creature was destroyed
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(normal_creature_id),
+                "Normal creature should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_hexproof_blocks_tap_spell() {
+        // Test that tap spells cannot target hexproof creatures controlled by opponent
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P2: Create a hexproof creature
+        let hexproof_creature_id = game.next_entity_id();
+        let mut hexproof_creature =
+            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
+        hexproof_creature.types.push(CardType::Creature);
+        hexproof_creature.power = Some(1);
+        hexproof_creature.toughness = Some(1);
+        hexproof_creature.keywords.push(Keyword::Hexproof);
+        game.cards.insert(hexproof_creature_id, hexproof_creature);
+        game.battlefield.add(hexproof_creature_id);
+
+        // P2: Create a normal creature
+        let normal_creature_id = game.next_entity_id();
+        let mut normal_creature = Card::new(normal_creature_id, "Grizzly Bears".to_string(), p2_id);
+        normal_creature.types.push(CardType::Creature);
+        normal_creature.power = Some(2);
+        normal_creature.toughness = Some(2);
+        game.cards.insert(normal_creature_id, normal_creature);
+        game.battlefield.add(normal_creature_id);
+
+        // P1: Cast a tap spell - should target normal creature, not hexproof one
+        let tap_spell_id = game.next_entity_id();
+        let mut tap_spell = Card::new(tap_spell_id, "Frost Breath".to_string(), p1_id);
+        tap_spell.types.push(CardType::Instant);
+        tap_spell.mana_cost = ManaCost::from_string("2U");
+        // Use placeholder card ID 0 which will be replaced with a targetable opponent's creature
+        tap_spell.effects.push(Effect::TapPermanent {
+            target: CardId::new(0),
+        });
+        game.cards.insert(tap_spell_id, tap_spell);
+
+        // Put spell on stack (simulating cast)
+        game.stack.add(tap_spell_id);
+
+        // Resolve the spell
+        let result = game.resolve_spell(tap_spell_id);
+        assert!(result.is_ok(), "Tap spell should resolve successfully");
+
+        // Check that the hexproof creature is not tapped
+        let hexproof_card = game.cards.get(hexproof_creature_id).unwrap();
+        assert!(
+            !hexproof_card.tapped,
+            "Hexproof creature should not be tapped"
+        );
+
+        // Check that the normal creature was tapped
+        let normal_card = game.cards.get(normal_creature_id).unwrap();
+        assert!(normal_card.tapped, "Normal creature should be tapped");
+    }
+
+    #[test]
+    fn test_hexproof_allows_own_spells() {
+        // Test that hexproof creatures CAN be targeted by their controller's spells
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let _p2_id = game.players[1].id;
+
+        // P1: Create a hexproof creature
+        let hexproof_creature_id = game.next_entity_id();
+        let mut hexproof_creature =
+            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p1_id);
+        hexproof_creature.types.push(CardType::Creature);
+        hexproof_creature.power = Some(1);
+        hexproof_creature.toughness = Some(1);
+        hexproof_creature.keywords.push(Keyword::Hexproof);
+        game.cards.insert(hexproof_creature_id, hexproof_creature);
+        game.battlefield.add(hexproof_creature_id);
+
+        // P1: Cast Giant Growth on their own hexproof creature - should work!
+        let pump_spell_id = game.next_entity_id();
+        let mut pump_spell = Card::new(pump_spell_id, "Giant Growth".to_string(), p1_id);
+        pump_spell.types.push(CardType::Instant);
+        pump_spell.mana_cost = ManaCost::from_string("G");
+        // Use placeholder card ID 0 which will be replaced with a targetable creature
+        pump_spell.effects.push(Effect::PumpCreature {
+            target: CardId::new(0),
+            power_bonus: 3,
+            toughness_bonus: 3,
+        });
+        game.cards.insert(pump_spell_id, pump_spell);
+
+        // Put spell on stack (simulating cast)
+        game.stack.add(pump_spell_id);
+
+        // Resolve the spell
+        let result = game.resolve_spell(pump_spell_id);
+        assert!(
+            result.is_ok(),
+            "Pump spell on own hexproof creature should resolve successfully"
+        );
+
+        // Check that the hexproof creature got the pump
+        let creature = game.cards.get(hexproof_creature_id).unwrap();
+        assert_eq!(
+            creature.current_power(),
+            4,
+            "Hexproof creature should have boosted power (1+3)"
+        );
+        assert_eq!(
+            creature.current_toughness(),
+            4,
+            "Hexproof creature should have boosted toughness (1+3)"
+        );
+    }
+
+    #[test]
+    fn test_hexproof_no_valid_targets() {
+        // Test that spells fail to find targets if only hexproof creatures exist
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P2: Create only a hexproof creature (no valid targets for opponent)
+        let hexproof_creature_id = game.next_entity_id();
+        let mut hexproof_creature =
+            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
+        hexproof_creature.types.push(CardType::Creature);
+        hexproof_creature.power = Some(1);
+        hexproof_creature.toughness = Some(1);
+        hexproof_creature.keywords.push(Keyword::Hexproof);
+        game.cards.insert(hexproof_creature_id, hexproof_creature);
+        game.battlefield.add(hexproof_creature_id);
+
+        // P1: Try to cast a destroy spell - should fail to find valid target
+        let destroy_spell_id = game.next_entity_id();
+        let mut destroy_spell = Card::new(destroy_spell_id, "Terror".to_string(), p1_id);
+        destroy_spell.types.push(CardType::Instant);
+        destroy_spell.mana_cost = ManaCost::from_string("1B");
+        // Use placeholder card ID 0 which will fail to be replaced with a target
+        destroy_spell.effects.push(Effect::DestroyPermanent {
+            target: CardId::new(0),
+        });
+        game.cards.insert(destroy_spell_id, destroy_spell);
+
+        // Put it on the stack (simulating cast)
+        game.stack.add(destroy_spell_id);
+
+        // Resolve the spell - should succeed but do nothing (no valid targets)
+        let result = game.resolve_spell(destroy_spell_id);
+        assert!(
+            result.is_ok(),
+            "Spell with no valid targets should still resolve"
+        );
+
+        // Check that the hexproof creature is still alive
+        assert!(
+            game.battlefield.contains(hexproof_creature_id),
+            "Hexproof creature should still be on battlefield"
+        );
     }
 }

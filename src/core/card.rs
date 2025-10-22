@@ -166,6 +166,10 @@ impl Card {
         self.has_keyword(&Keyword::Menace)
     }
 
+    pub fn has_hexproof(&self) -> bool {
+        self.has_keyword(&Keyword::Hexproof)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }
