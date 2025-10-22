@@ -26,21 +26,21 @@ shift  # Remove first argument, leaving prompt files in $@
 # Store prompt files in an array
 PROMPT_FILES=("$@")
 
-# Find unused log filename
-XY=1
-while [ -f "./logs/claude_workstream$(printf '%02d' $XY).jsonl" ]; do
-    XY=$((XY + 1))
-done
-
-LOG="./logs/claude_workstream$(printf '%02d' $XY).jsonl"
-echo "Using log file: $LOG"
-
 # Ensure logs directory exists
 mkdir -p ./logs
 
 # Run iterations
 for ((i=1; i<=ITERS; i++)); do
     echo "=== Iteration $i of $ITERS ==="
+
+    # Find unused log filename for this iteration
+    XY=1
+    while [ -f "./logs/claude_workstream$(printf '%02d' $XY).jsonl" ]; do
+        XY=$((XY + 1))
+    done
+
+    LOG="./logs/claude_workstream$(printf '%02d' $XY).jsonl"
+    echo "Using log file: $LOG"
 
     # Determine which prompt file to use
     # Array is 0-indexed, so iteration i uses index i-1

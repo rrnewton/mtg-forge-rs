@@ -1238,8 +1238,10 @@ If we call `./scripts/gogo_claude.sh ITERS prompt.txt`, then the extra prompt is
 one we handle in the first iteration.  After that first iteration, the remaining 
 iterations can go back to using the generic prompt.
 
+---
 
-TODO: 
+One more thing about scripts/gogo_claude.md. Grab a fresh log file for
+EACH iteration, rather than globally at the start of the script.
 
 
 Write an optimization guide/backlog and improve profiling
@@ -1328,7 +1330,12 @@ With this command, on turn on 84 the first grizzly gets played:
 
 If we have options to "pass" or "play grizzly bear", we should be
 choosing to play the grizzly bear at least 50% of the time. With
+multiple grizzly bears and lands in the hand the odds would be
+slightly different but still should be more likely than on turn 84.
 
+That is especially true because creatures should be playable in main1
+AND main2, so we should be asked at both times if we want to play the
+grizzly bears
 
 
 
