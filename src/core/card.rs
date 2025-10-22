@@ -158,6 +158,10 @@ impl Card {
         self.has_keyword(&Keyword::Lifelink)
     }
 
+    pub fn has_deathtouch(&self) -> bool {
+        self.has_keyword(&Keyword::Deathtouch)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }

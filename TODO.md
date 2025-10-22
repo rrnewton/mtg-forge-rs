@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 145 passing ✅ (127 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 149 passing ✅ (131 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ### Infrastructure & Tooling
 - ✅ **Validation caching** - `make validate` caches results by commit hash
@@ -102,10 +102,19 @@
   - Interacts correctly with trample (life gained = total damage including trample)
   - Corrected combat damage assignment: single blocker receives ALL attacker damage (unless trample)
   - Full test coverage (4 tests: attacker blocked, attacker unblocked, blocker with lifelink, lifelink + trample)
+- ✅ **Deathtouch keyword** - Any damage from deathtouch source destroys creature
+  - Implemented MTG Rules 702.2: "Any nonzero amount of combat damage from deathtouch is lethal"
+  - Added `has_deathtouch()` helper method to Card
+  - Combat damage assignment: Any nonzero damage from deathtouch is considered lethal (Rule 702.2c)
+  - State-based actions: Creatures dealt deathtouch damage are destroyed (Rule 702.2b)
+  - Tracks creatures dealt deathtouch damage during combat with HashSet
+  - Works for both attackers and blockers
+  - Interacts correctly with trample (only 1 damage needed per blocker with deathtouch+trample)
+  - Full test coverage (4 tests: attacker kills large blocker, blocker kills large attacker, deathtouch+trample, multiple blockers)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
-- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Protection, Madness, Flashback
+- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Protection, Madness, Flashback
 - ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
-- ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink
+- ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size
 - ✅ Benchmarking: Criterion.rs infrastructure (~7,000 games/sec, 82KB/game allocation)
 - ✅ Async card loading: jwalk streaming discovery, deck-only or --load-all-cards modes
@@ -141,12 +150,13 @@
   * ✅ Vigilance keyword
   * ✅ Trample keyword
   * ✅ Lifelink keyword
+  * ✅ Deathtouch keyword
   * ✅ Flying/reach for combat restrictions
   * ✅ Multiple blockers support
   * ✅ Damage assignment order
   * ✅ First strike / Double strike combat damage
-  * [ ] Deathtouch keyword
   * [ ] Menace keyword (requires at least 2 blockers)
+  * [ ] Hexproof keyword (can't be targeted by opponents)
 
 - [ ] **More card types**
   - [ ] Creature cards (currently partially supported)
@@ -273,8 +283,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 145 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 149 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

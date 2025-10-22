@@ -757,6 +757,9 @@ impl GameState {
         let mut damage_to_players: HashMap<PlayerId, i32> = HashMap::new();
         // Track damage dealt by each creature for lifelink (creature_id -> total damage dealt)
         let mut damage_dealt_by_creature: HashMap<CardId, i32> = HashMap::new();
+        // Track creatures dealt deathtouch damage (for state-based destruction)
+        let mut deathtouch_damaged_creatures: std::collections::HashSet<CardId> =
+            std::collections::HashSet::new();
 
         for attacker_id in attackers {
             // Skip creatures that are no longer on the battlefield
@@ -812,8 +815,14 @@ impl GameState {
                     let blocker_toughness = blocker.current_toughness();
 
                     // Lethal damage is the creature's toughness
+                    // MTG Rules 702.2c: If attacker has deathtouch, any nonzero damage is lethal
                     // (In full MTG, this would be toughness minus damage already marked)
-                    let lethal_damage = blocker_toughness;
+                    let has_deathtouch = attacker.has_deathtouch();
+                    let lethal_damage = if has_deathtouch && blocker_toughness > 0 {
+                        1 // Any nonzero damage from deathtouch is lethal
+                    } else {
+                        blocker_toughness
+                    };
 
                     let damage_to_assign = if ordered_blockers.len() == 1 && !has_trample {
                         // MTG Rules 510.1c: With exactly one blocker and NO trample,
@@ -832,6 +841,10 @@ impl GameState {
                         // Track damage for lifelink
                         *damage_dealt_by_creature.entry(attacker_id).or_insert(0) +=
                             damage_to_assign as i32;
+                        // Track deathtouch damage (MTG Rules 702.2b)
+                        if has_deathtouch {
+                            deathtouch_damaged_creatures.insert(*blocker_id);
+                        }
                         remaining_power -= damage_to_assign;
                     }
                 }
@@ -877,6 +890,10 @@ impl GameState {
                         // Track damage for lifelink
                         *damage_dealt_by_creature.entry(*blocker_id).or_insert(0) +=
                             blocker_power as i32;
+                        // Track deathtouch damage from blocker (MTG Rules 702.2b)
+                        if blocker.has_deathtouch() {
+                            deathtouch_damaged_creatures.insert(attacker_id);
+                        }
                     }
                 }
             } else {
@@ -912,6 +929,21 @@ impl GameState {
 
         for (player_id, damage) in damage_to_players {
             self.deal_damage(player_id, damage)?;
+        }
+
+        // Apply deathtouch state-based action (MTG Rules 702.2b)
+        // Any creature with toughness > 0 that was dealt damage by a deathtouch source is destroyed
+        for creature_id in deathtouch_damaged_creatures {
+            // Check if creature is still on battlefield (might have died from normal damage)
+            if self.battlefield.contains(creature_id) {
+                if let Ok(creature) = self.cards.get(creature_id) {
+                    // Only destroy if it has toughness > 0 (per rules)
+                    if creature.is_creature() && creature.current_toughness() > 0 {
+                        let owner = creature.owner;
+                        self.move_card(creature_id, Zone::Battlefield, Zone::Graveyard, owner)?;
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -3020,6 +3052,265 @@ mod tests {
             assert!(
                 zones.graveyard.contains(blocker_id),
                 "Blocker should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_deathtouch_attacker_kills_large_blocker() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 1/1 creature with Deathtouch (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Deadly Recluse".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(1);
+        attacker.toughness = Some(1);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Deathtouch);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 5/5 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Serra Angel".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(5);
+        blocker.toughness = Some(5);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Blocker should be dead (deathtouch from 1 damage)
+        // Attacker should be dead (5 damage from blocker)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(attacker_id),
+                "Attacker should be in graveyard (took 5 damage)"
+            );
+        }
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard (dealt deathtouch damage)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_deathtouch_blocker_kills_large_attacker() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 5/5 creature (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Serra Angel".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(5);
+        attacker.toughness = Some(5);
+        attacker.controller = p1_id;
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 1/1 creature with Deathtouch (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Typhoid Rats".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(1);
+        blocker.toughness = Some(1);
+        blocker.controller = p2_id;
+        blocker.keywords.push(Keyword::Deathtouch);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Attacker should be dead (deathtouch from 1 damage)
+        // Blocker should be dead (5 damage from attacker)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(attacker_id),
+                "Attacker should be in graveyard (dealt deathtouch damage)"
+            );
+        }
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard (took 5 damage)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_deathtouch_with_trample_minimal_damage() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 5/5 creature with Deathtouch AND Trample (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Chevill, Bane of Monsters".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(5);
+        attacker.toughness = Some(5);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Deathtouch);
+        attacker.keywords.push(Keyword::Trample);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 3/3 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Hill Giant".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(3);
+        blocker.toughness = Some(3);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Record P2's life before combat
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // MTG Rules 702.2c: With deathtouch + trample, only 1 damage is lethal
+        // So 1 damage to blocker (kills it), 4 damage tramples over to player
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after,
+            p2_life_before - 4,
+            "P2 should have taken 4 trample damage (5 power - 1 lethal to blocker)"
+        );
+
+        // Blocker should be dead (deathtouch)
+        // Attacker should survive (took 3 damage, has 5 toughness)
+        assert!(
+            game.battlefield.contains(attacker_id),
+            "Attacker should survive (took 3 damage, has 5 toughness)"
+        );
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard (dealt deathtouch damage)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_deathtouch_with_multiple_blockers() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 3/3 creature with Deathtouch (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Gifted Aetherborn".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(3);
+        attacker.toughness = Some(3);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Deathtouch);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create two blockers (both 5/5)
+        let blocker1_id = game.next_entity_id();
+        let mut blocker1 = Card::new(blocker1_id, "Serra Angel".to_string(), p2_id);
+        blocker1.types.push(CardType::Creature);
+        blocker1.power = Some(5);
+        blocker1.toughness = Some(5);
+        blocker1.controller = p2_id;
+        game.cards.insert(blocker1_id, blocker1);
+        game.battlefield.add(blocker1_id);
+
+        let blocker2_id = game.next_entity_id();
+        let mut blocker2 = Card::new(blocker2_id, "Air Elemental".to_string(), p2_id);
+        blocker2.types.push(CardType::Creature);
+        blocker2.power = Some(5);
+        blocker2.toughness = Some(5);
+        blocker2.controller = p2_id;
+        game.cards.insert(blocker2_id, blocker2);
+        game.battlefield.add(blocker2_id);
+
+        // Declare combat with both blockers
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat
+            .declare_blocker(blocker1_id, attacker_vec.clone());
+        game.combat.declare_blocker(blocker2_id, attacker_vec);
+
+        // Assign combat damage (damage order determined internally)
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // With deathtouch, 1 damage is lethal to each blocker
+        // 3/3 attacker: 1 damage to first blocker, 1 damage to second blocker, 1 damage wasted
+        // Both blockers should be dead, attacker should be dead (took 10 damage total)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(attacker_id),
+                "Attacker should be in graveyard (took 10 damage from two 5/5 blockers)"
+            );
+        }
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker1_id),
+                "First blocker should be in graveyard (dealt deathtouch damage)"
+            );
+            assert!(
+                zones.graveyard.contains(blocker2_id),
+                "Second blocker should be in graveyard (dealt deathtouch damage)"
             );
         }
     }
