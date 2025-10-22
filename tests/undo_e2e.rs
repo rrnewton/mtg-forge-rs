@@ -54,7 +54,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let mut controller1 = RandomController::with_seed(p1_id, 42424);
     let mut controller2 = RandomController::with_seed(p2_id, 42425);
 
-    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
     let initial_result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
     println!("Game completed!");
@@ -71,7 +71,10 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let total_actions = game_loop.game.undo_log.len();
 
     // Verify game completed
-    assert!(initial_winner.is_some(), "Initial game should have a winner");
+    assert!(
+        initial_winner.is_some(),
+        "Initial game should have a winner"
+    );
     assert!(initial_turns > 0, "Initial game should have played turns");
     assert!(total_actions > 0, "Undo log should have recorded actions");
 
@@ -79,7 +82,10 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("\n=== Phase 2: Rewinding 50% of actions ===");
 
     let rewind_count = total_actions / 2;
-    println!("Rewinding {} out of {} actions", rewind_count, total_actions);
+    println!(
+        "Rewinding {} out of {} actions",
+        rewind_count, total_actions
+    );
 
     for i in 0..rewind_count {
         let undone = game_loop.game.undo()?;
@@ -104,8 +110,8 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("\n=== Phase 3: Replaying from 50% point ===");
 
     // Reset controllers with same seeds
-    let mut controller1 = RandomController::with_seed(p1_id, 42424);
-    let mut controller2 = RandomController::with_seed(p2_id, 42425);
+    let _controller1 = RandomController::with_seed(p1_id, 42424);
+    let _controller2 = RandomController::with_seed(p2_id, 42425);
 
     // Continue playing from where we rewound to
     // Note: This is tricky because the controllers need to be in the right state
@@ -127,7 +133,10 @@ async fn test_full_game_undo_replay() -> Result<()> {
         );
     }
 
-    println!("After full rewind, undo log size: {}", game_loop.game.undo_log.len());
+    println!(
+        "After full rewind, undo log size: {}",
+        game_loop.game.undo_log.len()
+    );
     assert_eq!(
         game_loop.game.undo_log.len(),
         0,
@@ -186,8 +195,14 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let replay_p2_life = game_loop.game.get_player(p2_id)?.life;
 
     println!("\nFinal state comparison:");
-    println!("  P1 life: initial={}, replay={}", initial_p1_life, replay_p1_life);
-    println!("  P2 life: initial={}, replay={}", initial_p2_life, replay_p2_life);
+    println!(
+        "  P1 life: initial={}, replay={}",
+        initial_p1_life, replay_p1_life
+    );
+    println!(
+        "  P2 life: initial={}, replay={}",
+        initial_p2_life, replay_p2_life
+    );
 
     // Life totals should match for winner/loser pattern
     let initial_winner_life = if initial_winner == Some(p1_id) {
@@ -214,7 +229,10 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("  ✓ Rewinding 50% of actions ({})", rewind_count);
     println!("  ✓ Rewinding 100% to beginning");
     println!("  ✓ Game state restored to initial life totals");
-    println!("  ✓ Replaying from clean state (replay had {} turns)", replay_result.turns_played);
+    println!(
+        "  ✓ Replaying from clean state (replay had {} turns)",
+        replay_result.turns_played
+    );
     println!();
     println!("Note: Replay results differ due to RandomController RNG state not being");
     println!("part of game state. This is expected - undo system correctly restores game");
@@ -253,11 +271,11 @@ async fn test_action_undo() -> Result<()> {
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
-    let p2_id = players[1];
+    let _p2_id = players[1];
 
     // Test 1: Life modification undo
     let initial_life = game.get_player(p1_id)?.life;
-    game.deal_damage(p1_id, 5)?;  // Use deal_damage which logs to undo
+    game.deal_damage(p1_id, 5)?; // Use deal_damage which logs to undo
     assert_eq!(game.get_player(p1_id)?.life, initial_life - 5);
 
     game.undo()?;
@@ -270,7 +288,7 @@ async fn test_action_undo() -> Result<()> {
     // Test 2: Card movement undo
     let card_id = game.next_card_id();
     let mut card = Card::new(card_id, "Test Land", p1_id);
-    card.types.push(CardType::Land);  // Must be a land for play_land
+    card.types.push(CardType::Land); // Must be a land for play_land
     game.cards.insert(card_id, card);
 
     if let Some(zones) = game.get_player_zones_mut(p1_id) {
@@ -289,7 +307,11 @@ async fn test_action_undo() -> Result<()> {
         .get_player_zones(p1_id)
         .map(|z| z.hand.cards.len())
         .unwrap_or(0);
-    assert_eq!(hand_size_after, hand_size_before - 1, "Card should leave hand");
+    assert_eq!(
+        hand_size_after,
+        hand_size_before - 1,
+        "Card should leave hand"
+    );
     assert!(
         game.battlefield.contains(card_id),
         "Card should be on battlefield"

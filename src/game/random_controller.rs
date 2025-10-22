@@ -47,16 +47,23 @@ impl PlayerController for RandomController {
     ) -> Option<SpellAbility> {
         if available.is_empty() {
             // No available actions - pass priority
+            println!(">>> RANDOM chose to pass priority (no available actions)");
             None
         } else {
             // Random controller passes priority with 30% probability
             // This allows actions to be taken most of the time while still preventing infinite loops
             if self.rng.gen_bool(0.3) {
+                println!(">>> RANDOM chose to pass priority (30% probability triggered) out of {} available actions", available.len());
                 return None;
             }
 
             // Randomly choose one of the available spell abilities
             let index = self.rng.gen_range(0..available.len());
+            println!(
+                ">>> RANDOM chose spell/ability {} out of choices 0-{}",
+                index,
+                available.len() - 1
+            );
             Some(available[index].clone())
         }
     }
@@ -70,9 +77,15 @@ impl PlayerController for RandomController {
         // For now, just pick a random target if any are available
         // TODO: Improve targeting logic based on spell requirements
         if valid_targets.is_empty() {
+            println!(">>> RANDOM chose no targets (none available)");
             SmallVec::new()
         } else {
             let index = self.rng.gen_range(0..valid_targets.len());
+            println!(
+                ">>> RANDOM chose target {} out of choices 0-{}",
+                index,
+                valid_targets.len() - 1
+            );
             let mut targets = SmallVec::new();
             targets.push(valid_targets[index]);
             targets
@@ -94,6 +107,12 @@ impl PlayerController for RandomController {
         let mut shuffled: Vec<CardId> = available_sources.to_vec();
         shuffled.shuffle(&mut self.rng);
 
+        println!(
+            ">>> RANDOM chose {} mana sources (shuffled from {} available sources)",
+            needed.min(available_sources.len()),
+            available_sources.len()
+        );
+
         for &source_id in shuffled.iter().take(needed) {
             sources.push(source_id);
         }
@@ -109,11 +128,20 @@ impl PlayerController for RandomController {
         // Randomly decide whether each creature attacks
         let mut attackers = SmallVec::new();
 
-        for &creature_id in available_creatures {
+        for (idx, &creature_id) in available_creatures.iter().enumerate() {
             // 50% chance each creature attacks
             if self.rng.gen_bool(0.5) {
+                println!(">>> RANDOM chose creature {} to attack (50% probability) out of {} available creatures",
+                         idx, available_creatures.len());
                 attackers.push(creature_id);
             }
+        }
+
+        if attackers.is_empty() && !available_creatures.is_empty() {
+            println!(
+                ">>> RANDOM chose no attackers from {} available creatures",
+                available_creatures.len()
+            );
         }
 
         attackers
@@ -129,16 +157,26 @@ impl PlayerController for RandomController {
         let mut blocks = SmallVec::new();
 
         if attackers.is_empty() {
+            println!(">>> RANDOM chose no blockers (no attackers to block)");
             return blocks;
         }
 
-        for &blocker_id in available_blockers {
+        for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
             // 50% chance each creature blocks
             if self.rng.gen_bool(0.5) {
                 // Pick a random attacker to block
                 let attacker_idx = self.rng.gen_range(0..attackers.len());
+                println!(">>> RANDOM chose blocker {} (50% probability) to block attacker {} out of {} attackers",
+                         blocker_idx, attacker_idx, attackers.len());
                 blocks.push((blocker_id, attackers[attacker_idx]));
             }
+        }
+
+        if blocks.is_empty() && !available_blockers.is_empty() {
+            println!(
+                ">>> RANDOM chose no blockers from {} available blockers",
+                available_blockers.len()
+            );
         }
 
         blocks
@@ -154,6 +192,11 @@ impl PlayerController for RandomController {
         let mut ordered_blockers: Vec<CardId> = blockers.to_vec();
         ordered_blockers.shuffle(&mut self.rng);
 
+        println!(
+            ">>> RANDOM chose damage assignment order (shuffled {} blockers)",
+            blockers.len()
+        );
+
         ordered_blockers.into_iter().collect()
     }
 
@@ -167,11 +210,14 @@ impl PlayerController for RandomController {
         let mut hand_vec: Vec<CardId> = hand.to_vec();
         hand_vec.shuffle(&mut self.rng);
 
-        hand_vec
-            .iter()
-            .take(count.min(hand.len()))
-            .copied()
-            .collect()
+        let num_discarding = count.min(hand.len());
+        println!(
+            ">>> RANDOM chose {} cards to discard (shuffled from {} cards in hand)",
+            num_discarding,
+            hand.len()
+        );
+
+        hand_vec.iter().take(num_discarding).copied().collect()
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {

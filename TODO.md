@@ -37,6 +37,11 @@
   - Spell resolution: "Grizzly Bears resolves, enters the battlefield as a 2/2 creature"
   - Combat attackers: "Player declares Grizzly Bears (2/2) as attacker"
   - Combat damage: "Grizzly Bears deals 2 damage to Player" and "Combat: X ↔ Y"
+- ✅ **Random choice logging** - Logs each random decision made by RandomController
+  - Format: ">>> RANDOM chose X out of choices 0-Y"
+  - Logs spell/ability selection, target selection, attacker/blocker choices
+  - Logs mana source selection, damage assignment order, discard choices
+  - Helps debug AI behavior and verify randomness in testing
 - ✅ **Summoning sickness tracking** - Creatures can't attack the turn they enter battlefield
   - Added `turn_entered_battlefield` field to Card struct
   - Set when permanents enter battlefield (via play_land or resolve_spell)
