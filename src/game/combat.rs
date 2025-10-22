@@ -73,11 +73,16 @@ impl CombatState {
     }
 
     /// Get the blockers for a given attacker
+    /// Returns blockers in sorted order for deterministic output
     pub fn get_blockers(&self, attacker: CardId) -> SmallVec<[CardId; 4]> {
-        self.attacker_blockers
+        let mut blockers = self
+            .attacker_blockers
             .get(&attacker)
             .cloned()
-            .unwrap_or_default()
+            .unwrap_or_default();
+        // Sort for deterministic ordering
+        blockers.sort_by_key(|id| id.as_u32());
+        blockers
     }
 
     /// Get the player being attacked by a creature
@@ -86,13 +91,21 @@ impl CombatState {
     }
 
     /// Get all attacking creatures
+    /// Returns attackers in sorted order for deterministic output
     pub fn get_attackers(&self) -> Vec<CardId> {
-        self.attackers.keys().copied().collect()
+        let mut attackers: Vec<CardId> = self.attackers.keys().copied().collect();
+        // Sort for deterministic ordering
+        attackers.sort_by_key(|id| id.as_u32());
+        attackers
     }
 
     /// Get all blocking creatures
+    /// Returns blockers in sorted order for deterministic output
     pub fn get_blockers_list(&self) -> Vec<CardId> {
-        self.blockers.keys().copied().collect()
+        let mut blockers: Vec<CardId> = self.blockers.keys().copied().collect();
+        // Sort for deterministic ordering
+        blockers.sort_by_key(|id| id.as_u32());
+        blockers
     }
 
     /// Clear all combat state (called at end of combat)

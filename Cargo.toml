@@ -42,6 +42,7 @@ jwalk = "0.8"
 criterion = "0.5"
 stats_alloc = "0.1"
 dir-test = "0.4"
+similar-asserts = "1.5"
 
 # Performance benchmarks
 [[bench]]

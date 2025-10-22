@@ -7,6 +7,7 @@
 //! using the `dir-test` procedural macro. No manual test registration needed!
 
 use dir_test::{dir_test, Fixture};
+use similar_asserts::assert_eq;
 use std::path::PathBuf;
 use std::process::Command;
 

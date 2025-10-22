@@ -33,11 +33,30 @@ impl<'a> GameInitializer<'a> {
         let player1_id = game.players[0].id;
         let player2_id = game.players[1].id;
 
-        // Load player 1's deck
+        // Pre-load all unique cards from both decks to ensure deterministic CardID allocation
+        // This populates the card database cache before we start allocating CardIDs
+        let mut unique_cards = std::collections::HashSet::new();
+        for entry in &player1_deck.main_deck {
+            unique_cards.insert(entry.card_name.clone());
+        }
+        for entry in &player2_deck.main_deck {
+            unique_cards.insert(entry.card_name.clone());
+        }
+
+        // Load all cards in parallel (into cache)
+        // Sort to ensure deterministic ordering across runs
+        let mut card_names: Vec<String> = unique_cards.into_iter().collect();
+        card_names.sort();
+        if !card_names.is_empty() {
+            self.card_db.load_cards(&card_names).await?;
+        }
+
+        // Now load decks sequentially - cards will come from cache, ensuring deterministic order
+        // Deck 1: card1, card2, card3, ...
+        // Deck 2: card1, card2, card3, ...
         self.load_deck_into_game(&mut game, player1_id, player1_deck)
             .await?;
 
-        // Load player 2's deck
         self.load_deck_into_game(&mut game, player2_id, player2_deck)
             .await?;
 
