@@ -472,15 +472,18 @@ impl GameState {
         // Declare attacker in combat state
         self.combat.declare_attacker(card_id, defending_player);
 
-        // Tap the creature (unless it has vigilance - TODO)
-        let card = self.cards.get_mut(card_id)?;
-        card.tap();
+        // Tap the creature (unless it has vigilance)
+        let has_vigilance = self.cards.get(card_id)?.has_keyword(&Keyword::Vigilance);
+        if !has_vigilance {
+            let card = self.cards.get_mut(card_id)?;
+            card.tap();
 
-        // Log the action
-        self.undo_log.log(crate::undo::GameAction::TapCard {
-            card_id,
-            tapped: true,
-        });
+            // Log the action
+            self.undo_log.log(crate::undo::GameAction::TapCard {
+                card_id,
+                tapped: true,
+            });
+        }
 
         Ok(())
     }
@@ -1122,5 +1125,66 @@ mod tests {
         let result = game.declare_attacker(p1_id, creature_id);
         assert!(result.is_ok());
         assert!(game.combat.is_attacking(creature_id));
+    }
+
+    #[test]
+    fn test_vigilance_creature_stays_untapped() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a creature with vigilance
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Serra Angel".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(4);
+        creature.toughness = Some(4);
+        creature.controller = p1_id;
+        creature.keywords.push(Keyword::Vigilance);
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Mark it as entering on a previous turn (no summoning sickness)
+        if let Ok(card) = game.cards.get_mut(creature_id) {
+            card.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
+
+        // Declare it as an attacker
+        let result = game.declare_attacker(p1_id, creature_id);
+        assert!(result.is_ok());
+        assert!(game.combat.is_attacking(creature_id));
+
+        // Check that creature is still untapped (vigilance effect)
+        let card = game.cards.get(creature_id).unwrap();
+        assert!(!card.tapped, "Creature with vigilance should not be tapped after attacking");
+    }
+
+    #[test]
+    fn test_non_vigilance_creature_gets_tapped() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a creature WITHOUT vigilance
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Grizzly Bears".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(2);
+        creature.toughness = Some(2);
+        creature.controller = p1_id;
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Mark it as entering on a previous turn (no summoning sickness)
+        if let Ok(card) = game.cards.get_mut(creature_id) {
+            card.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
+
+        // Declare it as an attacker
+        let result = game.declare_attacker(p1_id, creature_id);
+        assert!(result.is_ok());
+        assert!(game.combat.is_attacking(creature_id));
+
+        // Check that creature is tapped (normal attack behavior)
+        let card = game.cards.get(creature_id).unwrap();
+        assert!(card.tapped, "Creature without vigilance should be tapped after attacking");
     }
 }

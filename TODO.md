@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 115 passing ✅ (97 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 117 passing ✅ (99 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -34,6 +34,10 @@
   - Validated in declare_attacker to prevent illegal attacks
   - Haste keyword bypasses summoning sickness
   - Full test coverage (3 new tests)
+- ✅ **Vigilance keyword** - Creatures with vigilance don't tap when attacking
+  - Modified declare_attacker to check for Vigilance keyword before tapping
+  - Creatures without vigilance tap normally when attacking
+  - Full test coverage (2 new tests)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
 - ✅ Basic spell effects: DealDamage parsing, Lightning Bolt works
@@ -70,7 +74,7 @@
 
 - [ ] **Enhanced creature support**
   * ✅ Summoning sickness tracking
-  * Vigilance keyword (attacking without tapping)
+  * ✅ Vigilance keyword
   * Flying/reach for combat restrictions
   * Multiple blockers support
   * Damage assignment order
@@ -190,8 +194,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, ManaEngine ✅, Logging ✅, Summoning Sickness ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, ManaEngine ✅, Logging ✅, Summoning Sickness ✅, Vigilance ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 115 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 117 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
