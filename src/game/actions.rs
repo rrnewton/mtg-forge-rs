@@ -183,6 +183,33 @@ impl GameState {
                         amount: *amount,
                     };
                 }
+                Effect::PumpCreature {
+                    target,
+                    power_bonus,
+                    toughness_bonus,
+                } if target.as_u32() == 0 => {
+                    // Default: target an opponent's creature (placeholder card ID 0 means "target creature")
+                    // For now, find the first creature on the battlefield
+                    if let Some(creature_id) = self
+                        .battlefield
+                        .cards
+                        .iter()
+                        .find(|&card_id| {
+                            if let Ok(card) = self.cards.get(*card_id) {
+                                card.is_creature()
+                            } else {
+                                false
+                            }
+                        })
+                        .copied()
+                    {
+                        *effect = Effect::PumpCreature {
+                            target: creature_id,
+                            power_bonus: *power_bonus,
+                            toughness_bonus: *toughness_bonus,
+                        };
+                    }
+                }
                 _ => {}
             }
         }
@@ -356,6 +383,22 @@ impl GameState {
                 self.undo_log.log(crate::undo::GameAction::TapCard {
                     card_id: *target,
                     tapped: false,
+                });
+            }
+            Effect::PumpCreature {
+                target,
+                power_bonus,
+                toughness_bonus,
+            } => {
+                let card = self.cards.get_mut(*target)?;
+                card.power_bonus += power_bonus;
+                card.toughness_bonus += toughness_bonus;
+
+                // Log the pump effect
+                self.undo_log.log(crate::undo::GameAction::PumpCreature {
+                    card_id: *target,
+                    power_delta: *power_bonus,
+                    toughness_delta: *toughness_bonus,
                 });
             }
         }
@@ -792,11 +835,7 @@ mod tests {
     use std::path::PathBuf;
 
     /// Helper to load a card from the cardsfolder for tests
-    fn load_test_card(
-        game: &mut GameState,
-        card_name: &str,
-        owner_id: PlayerId,
-    ) -> Result<CardId> {
+    fn load_test_card(game: &mut GameState, card_name: &str, owner_id: PlayerId) -> Result<CardId> {
         let card_id = game.next_entity_id();
 
         // Load card definition from cardsfolder
@@ -1620,8 +1659,8 @@ mod tests {
         let p1_id = game.players[0].id;
 
         // Load Serra Angel (4/4 with Flying and Vigilance)
-        let creature_id = load_test_card(&mut game, "Serra Angel", p1_id)
-            .expect("Failed to load Serra Angel");
+        let creature_id =
+            load_test_card(&mut game, "Serra Angel", p1_id).expect("Failed to load Serra Angel");
 
         if let Ok(creature) = game.cards.get_mut(creature_id) {
             creature.controller = p1_id;
@@ -1686,8 +1725,8 @@ mod tests {
         let p2_id = game.players[1].id;
 
         // P1: Load Storm Crow (1/2 with Flying) as attacker
-        let attacker_id = load_test_card(&mut game, "Storm Crow", p1_id)
-            .expect("Failed to load Storm Crow");
+        let attacker_id =
+            load_test_card(&mut game, "Storm Crow", p1_id).expect("Failed to load Storm Crow");
 
         if let Ok(attacker) = game.cards.get_mut(attacker_id) {
             attacker.controller = p1_id;
@@ -1722,8 +1761,8 @@ mod tests {
         let p2_id = game.players[1].id;
 
         // P1: Load Storm Crow (1/2 with Flying) as attacker
-        let attacker_id = load_test_card(&mut game, "Storm Crow", p1_id)
-            .expect("Failed to load Storm Crow");
+        let attacker_id =
+            load_test_card(&mut game, "Storm Crow", p1_id).expect("Failed to load Storm Crow");
 
         if let Ok(attacker) = game.cards.get_mut(attacker_id) {
             attacker.controller = p1_id;
@@ -1732,8 +1771,8 @@ mod tests {
         game.battlefield.add(attacker_id);
 
         // P2: Load Giant Spider (2/4 with Reach) as blocker
-        let blocker_id = load_test_card(&mut game, "Giant Spider", p2_id)
-            .expect("Failed to load Giant Spider");
+        let blocker_id =
+            load_test_card(&mut game, "Giant Spider", p2_id).expect("Failed to load Giant Spider");
 
         if let Ok(blocker) = game.cards.get_mut(blocker_id) {
             blocker.controller = p2_id;
@@ -2067,6 +2106,123 @@ mod tests {
         if let Some(zones) = game.get_player_zones(p2_id) {
             assert!(zones.graveyard.contains(blocker_id));
         }
+    }
+
+    #[test]
+    fn test_resolve_pump_spell() {
+        use crate::core::{Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+
+        // Create a 2/2 creature on battlefield
+        let creature_id = game.next_card_id();
+        let mut creature = Card::new(creature_id, "Grizzly Bears".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(2);
+        creature.toughness = Some(2);
+        creature.controller = p1_id;
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Check initial stats
+        let creature_before = game.cards.get(creature_id).unwrap();
+        assert_eq!(creature_before.current_power(), 2);
+        assert_eq!(creature_before.current_toughness(), 2);
+
+        // Create Giant Growth (pump +3/+3)
+        let pump_spell_id = game.next_card_id();
+        let mut pump_spell = Card::new(pump_spell_id, "Giant Growth".to_string(), p1_id);
+        pump_spell.types.push(CardType::Instant);
+        pump_spell.mana_cost = ManaCost::from_string("G");
+        // Target the creature we created
+        pump_spell.effects.push(Effect::PumpCreature {
+            target: creature_id,
+            power_bonus: 3,
+            toughness_bonus: 3,
+        });
+        game.cards.insert(pump_spell_id, pump_spell);
+
+        // Put spell on stack (simulating cast)
+        game.stack.add(pump_spell_id);
+
+        // Resolve the spell
+        assert!(
+            game.resolve_spell(pump_spell_id).is_ok(),
+            "Failed to resolve pump spell"
+        );
+
+        // Check creature got the bonus
+        let creature_after = game.cards.get(creature_id).unwrap();
+        assert_eq!(
+            creature_after.current_power(),
+            5,
+            "Creature should have +3 power bonus (2 + 3)"
+        );
+        assert_eq!(
+            creature_after.current_toughness(),
+            5,
+            "Creature should have +3 toughness bonus (2 + 3)"
+        );
+
+        // Check spell went to graveyard
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(pump_spell_id),
+                "Pump spell should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_pump_effect_cleanup_at_end_of_turn() {
+        use crate::core::CardType;
+        use crate::game::Step;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a 2/2 creature on battlefield
+        let creature_id = game.next_card_id();
+        let mut creature = Card::new(creature_id, "Grizzly Bears".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(2);
+        creature.toughness = Some(2);
+        creature.controller = p1_id;
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Apply pump effect manually
+        if let Ok(card) = game.cards.get_mut(creature_id) {
+            card.power_bonus = 3;
+            card.toughness_bonus = 3;
+        }
+
+        // Verify pumped stats
+        let creature_pumped = game.cards.get(creature_id).unwrap();
+        assert_eq!(creature_pumped.current_power(), 5);
+        assert_eq!(creature_pumped.current_toughness(), 5);
+
+        // Advance to End step
+        game.turn.current_step = Step::End;
+
+        // Advance to Cleanup step (should trigger cleanup)
+        assert!(game.advance_step().is_ok());
+        assert_eq!(game.turn.current_step, Step::Cleanup);
+
+        // Check that bonuses were cleared
+        let creature_after = game.cards.get(creature_id).unwrap();
+        assert_eq!(
+            creature_after.current_power(),
+            2,
+            "Power bonus should be cleared at cleanup"
+        );
+        assert_eq!(
+            creature_after.current_toughness(),
+            2,
+            "Toughness bonus should be cleared at cleanup"
+        );
     }
 
     #[test]

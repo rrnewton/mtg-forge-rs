@@ -48,6 +48,12 @@ pub struct Card {
     /// Toughness (for creatures)
     pub toughness: Option<i8>,
 
+    /// Temporary power bonus (until end of turn)
+    pub power_bonus: i32,
+
+    /// Temporary toughness bonus (until end of turn)
+    pub toughness_bonus: i32,
+
     /// Oracle text
     pub text: String,
 
@@ -89,6 +95,8 @@ impl Card {
             colors: SmallVec::new(),
             power: None,
             toughness: None,
+            power_bonus: 0,
+            toughness_bonus: 0,
             text: String::new(),
             owner,
             controller: owner,
@@ -166,20 +174,22 @@ impl Card {
             .unwrap_or(0)
     }
 
-    /// Get current power (including counters)
+    /// Get current power (including counters and temporary bonuses)
     pub fn current_power(&self) -> i8 {
         let base = self.power.unwrap_or(0);
         let plus_counters = self.get_counter(CounterType::P1P1) as i8;
         let minus_counters = self.get_counter(CounterType::M1M1) as i8;
-        base + plus_counters - minus_counters
+        let bonus = self.power_bonus as i8;
+        base + plus_counters - minus_counters + bonus
     }
 
-    /// Get current toughness (including counters)
+    /// Get current toughness (including counters and temporary bonuses)
     pub fn current_toughness(&self) -> i8 {
         let base = self.toughness.unwrap_or(0);
         let plus_counters = self.get_counter(CounterType::P1P1) as i8;
         let minus_counters = self.get_counter(CounterType::M1M1) as i8;
-        base + plus_counters - minus_counters
+        let bonus = self.toughness_bonus as i8;
+        base + plus_counters - minus_counters + bonus
     }
 }
 

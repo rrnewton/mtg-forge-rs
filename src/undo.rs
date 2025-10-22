@@ -60,6 +60,13 @@ pub enum GameAction {
         turn_number: u32,
     },
 
+    /// Pump creature (temporary stat modification)
+    PumpCreature {
+        card_id: CardId,
+        power_delta: i32,
+        toughness_delta: i32,
+    },
+
     /// Mark a choice point (for tree search)
     ChoicePoint { player_id: PlayerId, choice_id: u32 },
 }

@@ -404,6 +404,22 @@ impl<'a> GameLoop<'a> {
                     source_name, source_id, target_name, target
                 );
             }
+            Effect::PumpCreature {
+                target,
+                power_bonus,
+                toughness_bonus,
+            } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {} ({}) gives {} ({}) {:+}/{:+} until end of turn",
+                    source_name, source_id, target_name, target, power_bonus, toughness_bonus
+                );
+            }
         }
     }
 

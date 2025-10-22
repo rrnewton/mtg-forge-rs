@@ -264,9 +264,28 @@ impl GameState {
         Ok(())
     }
 
+    /// Clear temporary effects at end of turn (Cleanup step)
+    /// This resets power/toughness bonuses from pump spells
+    pub fn cleanup_temporary_effects(&mut self) {
+        for card_id in self.battlefield.cards.iter() {
+            if let Ok(card) = self.cards.get_mut(*card_id) {
+                // Reset temporary bonuses (pump effects last until end of turn)
+                card.power_bonus = 0;
+                card.toughness_bonus = 0;
+            }
+        }
+    }
+
     /// Advance the game to the next step
     pub fn advance_step(&mut self) -> Result<()> {
         let from_step = self.turn.current_step;
+
+        // If entering cleanup step, clean up temporary effects
+        if from_step == crate::game::Step::End
+            && self.turn.current_step.next() == Some(crate::game::Step::Cleanup)
+        {
+            self.cleanup_temporary_effects();
+        }
 
         if !self.turn.advance_step() {
             // End of turn, move to next player
@@ -440,6 +459,17 @@ impl GameState {
                 }
                 crate::undo::GameAction::ChangeTurn { .. } => {
                     // TODO: Implement turn change undo
+                }
+                crate::undo::GameAction::PumpCreature {
+                    card_id,
+                    power_delta,
+                    toughness_delta,
+                } => {
+                    // Reverse the pump effect
+                    if let Ok(card) = self.cards.get_mut(card_id) {
+                        card.power_bonus -= power_delta;
+                        card.toughness_bonus -= toughness_delta;
+                    }
                 }
                 crate::undo::GameAction::ChoicePoint { .. } => {
                     // Choice points don't need to be undone

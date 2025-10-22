@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 133 passing ✅ (115 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 135 passing ✅ (117 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -65,9 +65,17 @@
   - Execution implemented via `Effect::GainLife` with automatic player targeting
   - Placeholder player ID 0 replaced with card controller during resolution
   - Full test coverage (2 tests: parsing Angel's Mercy, end-to-end spell resolution)
+- ✅ **Pump spell effects** - Cards that temporarily boost creature stats now work (e.g., Giant Growth)
+  - Parser recognizes `SP$ Pump | NumAtt$ X | NumDef$ Y` abilities from card definitions
+  - Execution implemented via `Effect::PumpCreature` with automatic targeting
+  - Bonuses stored as `power_bonus` and `toughness_bonus` fields on Card
+  - `current_power()` and `current_toughness()` methods include temporary bonuses
+  - Cleanup at end of turn: bonuses cleared during Cleanup step
+  - Undo support: PumpCreature action added to undo log
+  - Full test coverage (2 tests: pump spell resolution, cleanup at end of turn)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
-- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy)
+- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth)
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death
 - ✅ Cleanup/discard phase: players discard to max hand size
 - ✅ Benchmarking: Criterion.rs infrastructure (~7,000 games/sec, 82KB/game allocation)
@@ -119,7 +127,8 @@
   - [x] Draw spell effects (A:SP$ Draw with NumCards$)
   - [x] Destroy spell effects (A:SP$ Destroy with ValidTgts$)
   - [x] GainLife spell effects (A:SP$ GainLife with LifeAmount$)
-  - [ ] More spell effects (A:SP$) - Counter, Pump
+  - [x] Pump spell effects (A:SP$ Pump with NumAtt$/NumDef$)
+  - [ ] More spell effects (A:SP$) - Counter, Tap/Untap
   - [ ] Activated abilities (A:AB$ with Cost$) - tap abilities, mana abilities
   - [ ] Triggered abilities (T:) - ETB, phase triggers, combat triggers
   - [ ] Static abilities (S:) - continuous effects
@@ -230,8 +239,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, ManaEngine ✅, Logging ✅, Summoning Sickness ✅, Vigilance ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump) ✅, ManaEngine ✅, Logging ✅, Summoning Sickness ✅, Vigilance ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 133 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 135 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

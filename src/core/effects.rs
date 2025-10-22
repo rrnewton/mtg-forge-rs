@@ -83,6 +83,14 @@ pub enum Effect {
     /// Untap a permanent
     /// Example: "Untap target land"
     UntapPermanent { target: CardId },
+
+    /// Pump (temporary stat boost) until end of turn
+    /// Example: "Target creature gets +3/+3 until end of turn"
+    PumpCreature {
+        target: CardId,
+        power_bonus: i32,
+        toughness_bonus: i32,
+    },
 }
 
 #[cfg(test)]

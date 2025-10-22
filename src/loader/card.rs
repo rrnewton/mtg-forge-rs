@@ -279,6 +279,45 @@ impl CardDefinition {
                     }
                 }
             }
+
+            // Parse Pump abilities
+            // Format: "A:SP$ Pump | ValidTgts$ Creature | NumAtt$ +3 | NumDef$ +3 | ..."
+            if ability.contains("SP$ Pump") {
+                let mut power_bonus = 0;
+                let mut toughness_bonus = 0;
+
+                // Extract power bonus (NumAtt$)
+                if let Some(att_str) = ability.split("NumAtt$").nth(1) {
+                    if let Some(att_part) = att_str.trim().split(['|', ' ']).next() {
+                        // Handle +X or -X format
+                        let att_trimmed = att_part.trim().trim_start_matches('+');
+                        if let Ok(bonus) = att_trimmed.parse::<i32>() {
+                            power_bonus = bonus;
+                        }
+                    }
+                }
+
+                // Extract toughness bonus (NumDef$)
+                if let Some(def_str) = ability.split("NumDef$").nth(1) {
+                    if let Some(def_part) = def_str.trim().split(['|', ' ']).next() {
+                        // Handle +X or -X format
+                        let def_trimmed = def_part.trim().trim_start_matches('+');
+                        if let Ok(bonus) = def_trimmed.parse::<i32>() {
+                            toughness_bonus = bonus;
+                        }
+                    }
+                }
+
+                // Only add the effect if we successfully parsed at least one bonus
+                if power_bonus != 0 || toughness_bonus != 0 {
+                    use crate::core::CardId;
+                    effects.push(Effect::PumpCreature {
+                        target: CardId::new(0), // Placeholder, will be set during resolution
+                        power_bonus,
+                        toughness_bonus,
+                    });
+                }
+            }
         }
 
         effects
