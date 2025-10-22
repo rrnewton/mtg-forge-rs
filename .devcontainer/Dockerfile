@@ -117,7 +117,7 @@ RUN rustup toolchain install stable
 # RUN apt-get install -y golang
 # RUN go install github.com/steveyegge/beads/cmd/bd@latest
 
-RUN apt-get install heaptrack cargo-heaptrack
+RUN apt-get install -y heaptrack
 RUN cargo install cargo-heaptrack
 
 ENV IS_SANDBOX=1
