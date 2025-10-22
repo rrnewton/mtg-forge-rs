@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 92 passing ✅ (87 lib + 5 e2e) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 112 passing ✅ (94 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -16,6 +16,18 @@
   - Updated RandomController and ZeroController to new interface
   - Removed incorrect mana-tapping-before-casting behavior
   - See REFACTORING_STATUS.md for full details
+- ✅ **Mana cost payability computation** - Per-player ManaEngine for efficient mana checking
+  - Partitions lands into simple (basic lands) vs complex (dual/choice lands)
+  - Caches simple sources as WUBRGC counters for O(1) queries
+  - `can_pay()` method correctly handles generic vs colorless mana
+  - Integrated into spell castability checking (replaces simple CMC check)
+  - Complex sources stubbed with todo! for future implementation
+- ✅ **Enhanced game event logging** - Improved visibility at Normal verbosity level (--verbosity=2)
+  - Land plays: "Player plays Forest"
+  - Spell casting: "Player casts Grizzly Bears (putting on stack)"
+  - Spell resolution: "Grizzly Bears resolves, enters the battlefield as a 2/2 creature"
+  - Combat attackers: "Player declares Grizzly Bears (2/2) as attacker"
+  - Combat damage: "Grizzly Bears deals 2 damage to Player" and "Combat: X ↔ Y"
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types, --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
 - ✅ Basic spell effects: DealDamage parsing, Lightning Bolt works
@@ -172,8 +184,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 92 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 112 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

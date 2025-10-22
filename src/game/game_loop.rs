@@ -480,18 +480,26 @@ impl<'a> GameLoop<'a> {
                 .combat
                 .declare_attacker(*attacker_id, defending_player);
 
-            if self.verbosity >= VerbosityLevel::Verbose {
+            if self.verbosity >= VerbosityLevel::Normal {
                 let card_name = self
                     .game
                     .cards
                     .get(*attacker_id)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                println!(
-                    "  {} attacks with {}",
-                    self.get_player_name(active_player),
-                    card_name
-                );
+
+                // Get power/toughness for more detail
+                if let Ok(card) = self.game.cards.get(*attacker_id) {
+                    let power = card.power.unwrap_or(0);
+                    let toughness = card.toughness.unwrap_or(0);
+                    println!(
+                        "  {} declares {} ({}/{}) as attacker",
+                        self.get_player_name(active_player),
+                        card_name,
+                        power,
+                        toughness
+                    );
+                }
             }
         }
 
@@ -565,6 +573,45 @@ impl<'a> GameLoop<'a> {
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
     ) -> Result<()> {
+        // Log combat damage at Normal verbosity
+        if self.verbosity >= VerbosityLevel::Normal {
+            let attackers = self.game.combat.get_attackers();
+
+            for attacker_id in &attackers {
+                if let Ok(attacker) = self.game.cards.get(*attacker_id) {
+                    let power = attacker.current_power();
+                    let attacker_name = &attacker.name;
+
+                    if self.game.combat.is_blocked(*attacker_id) {
+                        let blockers = self.game.combat.get_blockers(*attacker_id);
+                        for blocker_id in &blockers {
+                            if let Ok(blocker) = self.game.cards.get(*blocker_id) {
+                                let blocker_power = blocker.current_power();
+                                let blocker_name = &blocker.name;
+                                println!(
+                                    "  Combat: {} ({} damage) ↔ {} ({} damage)",
+                                    attacker_name, power, blocker_name, blocker_power
+                                );
+                            }
+                        }
+                    } else {
+                        // Unblocked attacker
+                        if let Some(defending_player) =
+                            self.game.combat.get_defending_player(*attacker_id)
+                        {
+                            let defender_name = self.get_player_name(defending_player);
+                            if power > 0 {
+                                println!(
+                                    "  {} deals {} damage to {}",
+                                    attacker_name, power, defender_name
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Assign and deal combat damage (this is automatic, no player choices)
         self.game.assign_combat_damage()?;
 
@@ -770,7 +817,7 @@ impl<'a> GameLoop<'a> {
                                 if self.verbosity >= VerbosityLevel::Normal {
                                     eprintln!("  Error playing land: {}", e);
                                 }
-                            } else if self.verbosity >= VerbosityLevel::Verbose {
+                            } else if self.verbosity >= VerbosityLevel::Normal {
                                 let card_name = self
                                     .game
                                     .cards
@@ -788,15 +835,16 @@ impl<'a> GameLoop<'a> {
                             // Cast spell using 8-step process
                             // Mana will be tapped during step 6 (NOT here!)
 
-                            if self.verbosity >= VerbosityLevel::Verbose {
-                                let card_name = self
-                                    .game
-                                    .cards
-                                    .get(card_id)
-                                    .map(|c| c.name.as_str())
-                                    .unwrap_or("Unknown");
+                            let card_name = self
+                                .game
+                                .cards
+                                .get(card_id)
+                                .map(|c| c.name.to_string())
+                                .unwrap_or_else(|_| "Unknown".to_string());
+
+                            if self.verbosity >= VerbosityLevel::Normal {
                                 println!(
-                                    "  {} casts {}",
+                                    "  {} casts {} (putting on stack)",
                                     self.get_player_name(current_priority),
                                     card_name
                                 );
@@ -854,6 +902,21 @@ impl<'a> GameLoop<'a> {
                                 if let Err(e) = self.game.resolve_spell(card_id) {
                                     if self.verbosity >= VerbosityLevel::Normal {
                                         eprintln!("  Error resolving spell: {}", e);
+                                    }
+                                } else if self.verbosity >= VerbosityLevel::Normal {
+                                    // Check if it's a permanent (creature, artifact, etc.) entering battlefield
+                                    if let Ok(card) = self.game.cards.get(card_id) {
+                                        if card.is_creature() {
+                                            println!(
+                                                "  {} resolves, {} enters the battlefield as a {}/{} creature",
+                                                card_name,
+                                                card_name,
+                                                card.power.unwrap_or(0),
+                                                card.toughness.unwrap_or(0)
+                                            );
+                                        } else {
+                                            println!("  {} resolves", card_name);
+                                        }
                                     }
                                 }
                             }
