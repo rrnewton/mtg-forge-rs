@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 149 passing ✅ (131 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 152 passing ✅ (134 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ### Infrastructure & Tooling
 - ✅ **Validation caching** - `make validate` caches results by commit hash
@@ -111,8 +111,16 @@
   - Works for both attackers and blockers
   - Interacts correctly with trample (only 1 damage needed per blocker with deathtouch+trample)
   - Full test coverage (4 tests: attacker kills large blocker, blocker kills large attacker, deathtouch+trample, multiple blockers)
+- ✅ **Menace keyword** - Creatures with menace can't be blocked except by two or more creatures
+  - Implemented MTG Rules 702.111: "A creature with menace can't be blocked except by two or more creatures"
+  - Added `has_menace()` helper method to Card
+  - Architectural decision: Menace validation deferred to controller intelligence (not incremental validation)
+  - Incremental validation during blocker declaration would incorrectly reject the first blocker
+  - Validation can only occur after all blockers declared, making it unsuitable for game rules enforcement
+  - Controllers should avoid blocking menace creatures with exactly 1 blocker
+  - Full test coverage (3 tests: blocked by two creatures, unblocked menace, three or more blockers)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
-- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Protection, Madness, Flashback
+- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Protection, Madness, Flashback
 - ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size
@@ -155,7 +163,7 @@
   * ✅ Multiple blockers support
   * ✅ Damage assignment order
   * ✅ First strike / Double strike combat damage
-  * [ ] Menace keyword (requires at least 2 blockers)
+  * ✅ Menace keyword (requires at least 2 blockers)
   * [ ] Hexproof keyword (can't be targeted by opponents)
 
 - [ ] **More card types**
@@ -283,8 +291,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/Menace/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 149 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 152 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

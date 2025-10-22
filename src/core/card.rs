@@ -162,6 +162,10 @@ impl Card {
         self.has_keyword(&Keyword::Deathtouch)
     }
 
+    pub fn has_menace(&self) -> bool {
+        self.has_keyword(&Keyword::Menace)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }
