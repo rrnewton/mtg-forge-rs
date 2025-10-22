@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 87 passing ✅ (library tests - examples need updating)
+**Tests:** 92 passing ✅ (87 lib + 5 e2e) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -42,11 +42,6 @@
 ---
 
 ### Next Priorities:
-
-- [ ] **Finish controller refactoring**
-  * Update example files (combat_demo.rs, etc.) to use new PlayerController interface
-  * Verify all examples compile and run
-  * Run full validation suite
 
 - [ ] **Enhanced TUI features**
   * Add random controller support (--p1=random)
