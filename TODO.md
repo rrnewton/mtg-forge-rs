@@ -2,13 +2,20 @@
 
 ## Current Status
 
-**Tests:** 93 passing ✅ (77 unit + 9 v2 controller + 10 card loading + 5 e2e)
+**Tests:** 87 passing ✅ (library tests - examples need updating)
 
 ---
 
 ## ✅ Completed Work
 
 ### Phase 3: Gameplay Expansion (In Progress)
+- ✅ **Controller architecture refactoring** - Aligned with Java Forge PlayerController.java
+  - Unified spell ability selection: `choose_spell_ability_to_play()` handles lands, spells, and abilities
+  - Correct mana timing: Mana tapped during step 6 of 8-step casting process (AFTER spell on stack)
+  - 8-step spell casting: Implements MTG Rules 601.2 (propose, targets, cost, mana, pay, cast)
+  - Updated RandomController and ZeroController to new interface
+  - Removed incorrect mana-tapping-before-casting behavior
+  - See REFACTORING_STATUS.md for full details
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types, --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
 - ✅ Basic spell effects: DealDamage parsing, Lightning Bolt works
@@ -35,6 +42,11 @@
 ---
 
 ### Next Priorities:
+
+- [ ] **Finish controller refactoring**
+  * Update example files (combat_demo.rs, etc.) to use new PlayerController interface
+  * Verify all examples compile and run
+  * Run full validation suite
 
 - [ ] **Enhanced TUI features**
   * Add random controller support (--p1=random)

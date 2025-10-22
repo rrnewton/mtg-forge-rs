@@ -3,12 +3,13 @@
 //! This controller uses simple deterministic heuristics:
 //! - Plays the first land available
 //! - Casts the first spell available
-//! - Doesn't proactively tap for mana
+//! - Chooses first targets
+//! - Taps first mana sources
 //! - Attacks with all creatures
 //! - Blocks each attacker with one blocker
 //! - Discards the first N cards from hand
 
-use crate::core::{CardId, PlayerId};
+use crate::core::{CardId, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
 use smallvec::SmallVec;
@@ -36,35 +37,44 @@ impl PlayerController for ZeroController {
         self.player_id
     }
 
-    fn choose_land_to_play(
+    fn choose_spell_ability_to_play(
         &mut self,
         _view: &GameStateView,
-        lands_in_hand: &[CardId],
-    ) -> Option<CardId> {
-        // Play the first land available
-        lands_in_hand.first().copied()
+        available: &[SpellAbility],
+    ) -> Option<SpellAbility> {
+        // Play the first available ability
+        available.first().cloned()
     }
 
-    fn choose_spell_to_cast(
+    fn choose_targets(
         &mut self,
         _view: &GameStateView,
-        castable_spells: &[CardId],
-    ) -> Option<(CardId, SmallVec<[CardId; 4]>)> {
-        // Cast the first spell available with no targets
-        castable_spells.first().map(|&spell_id| {
-            let targets = SmallVec::new();
-            (spell_id, targets)
-        })
+        _spell: CardId,
+        valid_targets: &[CardId],
+    ) -> SmallVec<[CardId; 4]> {
+        // Choose the first valid target if any
+        if let Some(&first_target) = valid_targets.first() {
+            let mut targets = SmallVec::new();
+            targets.push(first_target);
+            targets
+        } else {
+            SmallVec::new()
+        }
     }
 
-    fn choose_card_to_tap_for_mana(
+    fn choose_mana_sources_to_pay(
         &mut self,
         _view: &GameStateView,
-        _tappable_cards: &[CardId],
-    ) -> Option<CardId> {
-        // Zero controller doesn't proactively tap for mana
-        // (mana will be tapped automatically when needed by the game engine)
-        None
+        cost: &ManaCost,
+        available_sources: &[CardId],
+    ) -> SmallVec<[CardId; 8]> {
+        // Tap the first N sources needed to pay the cost
+        let needed = cost.cmc() as usize;
+        available_sources
+            .iter()
+            .take(needed)
+            .copied()
+            .collect()
     }
 
     fn choose_attackers(
@@ -107,12 +117,6 @@ impl PlayerController for ZeroController {
         hand.iter().take(count.min(hand.len())).copied().collect()
     }
 
-    fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
-        // Zero controller only acts when specifically asked to choose an action
-        // It always passes priority (the game loop will call specific methods when needed)
-        true
-    }
-
     fn on_priority_passed(&mut self, _view: &GameStateView) {
         // Zero controller doesn't need to log
     }
@@ -136,47 +140,98 @@ mod tests {
     }
 
     #[test]
-    fn test_choose_land_to_play() {
+    fn test_choose_spell_ability_empty() {
         let player_id = EntityId::new(1);
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        let lands = vec![EntityId::new(10), EntityId::new(11), EntityId::new(12)];
-        let chosen = controller.choose_land_to_play(&view, &lands);
-
-        // Should choose the first land
-        assert_eq!(chosen, Some(EntityId::new(10)));
+        // With no available abilities, should return None
+        let choice = controller.choose_spell_ability_to_play(&view, &[]);
+        assert_eq!(choice, None);
     }
 
     #[test]
-    fn test_choose_land_empty() {
+    fn test_choose_spell_ability_land() {
         let player_id = EntityId::new(1);
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        let chosen = controller.choose_land_to_play(&view, &[]);
+        let abilities = vec![
+            SpellAbility::PlayLand {
+                card_id: EntityId::new(10),
+            },
+            SpellAbility::CastSpell {
+                card_id: EntityId::new(11),
+            },
+        ];
 
-        // No lands available
-        assert_eq!(chosen, None);
+        let chosen = controller.choose_spell_ability_to_play(&view, &abilities);
+
+        // Should choose the first ability (PlayLand)
+        assert_eq!(
+            chosen,
+            Some(SpellAbility::PlayLand {
+                card_id: EntityId::new(10)
+            })
+        );
     }
 
     #[test]
-    fn test_choose_spell_to_cast() {
+    fn test_choose_targets() {
         let player_id = EntityId::new(1);
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        let spells = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
-        let chosen = controller.choose_spell_to_cast(&view, &spells);
+        let spell_id = EntityId::new(100);
+        let valid_targets = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
+        let targets = controller.choose_targets(&view, spell_id, &valid_targets);
 
-        // Should choose the first spell
-        assert!(chosen.is_some());
-        let (spell_id, targets) = chosen.unwrap();
-        assert_eq!(spell_id, EntityId::new(20));
-        assert!(targets.is_empty());
+        // Should choose the first target
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0], EntityId::new(20));
+    }
+
+    #[test]
+    fn test_choose_targets_empty() {
+        let player_id = EntityId::new(1);
+        let mut controller = ZeroController::new(player_id);
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+        let view = GameStateView::new(&game, player_id);
+
+        let spell_id = EntityId::new(100);
+        let targets = controller.choose_targets(&view, spell_id, &[]);
+
+        // No targets available
+        assert_eq!(targets.len(), 0);
+    }
+
+    #[test]
+    fn test_choose_mana_sources() {
+        let player_id = EntityId::new(1);
+        let mut controller = ZeroController::new(player_id);
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+        let view = GameStateView::new(&game, player_id);
+
+        let cost = ManaCost::from_string("2RR"); // CMC = 4
+        let available = vec![
+            EntityId::new(10),
+            EntityId::new(11),
+            EntityId::new(12),
+            EntityId::new(13),
+            EntityId::new(14),
+        ];
+
+        let sources = controller.choose_mana_sources_to_pay(&view, &cost, &available);
+
+        // Should choose first 4 sources (equal to CMC)
+        assert_eq!(sources.len(), 4);
+        assert_eq!(sources[0], EntityId::new(10));
+        assert_eq!(sources[1], EntityId::new(11));
+        assert_eq!(sources[2], EntityId::new(12));
+        assert_eq!(sources[3], EntityId::new(13));
     }
 
     #[test]
@@ -233,30 +288,5 @@ mod tests {
         assert_eq!(discards.len(), 2);
         assert_eq!(discards[0], EntityId::new(60));
         assert_eq!(discards[1], EntityId::new(61));
-    }
-
-    #[test]
-    fn test_tap_for_mana() {
-        let player_id = EntityId::new(1);
-        let mut controller = ZeroController::new(player_id);
-        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let view = GameStateView::new(&game, player_id);
-
-        let lands = vec![EntityId::new(70), EntityId::new(71)];
-        let choice = controller.choose_card_to_tap_for_mana(&view, &lands);
-
-        // Zero controller doesn't proactively tap for mana
-        assert_eq!(choice, None);
-    }
-
-    #[test]
-    fn test_wants_to_pass_priority() {
-        let player_id = EntityId::new(1);
-        let mut controller = ZeroController::new(player_id);
-        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let view = GameStateView::new(&game, player_id);
-
-        // Zero controller always passes priority
-        assert!(controller.wants_to_pass_priority(&view));
     }
 }

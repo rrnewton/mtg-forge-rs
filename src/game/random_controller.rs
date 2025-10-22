@@ -3,7 +3,7 @@
 //! This implementation uses specific callback methods instead of
 //! generic action choices. Makes random choices from available options.
 
-use crate::core::{CardId, PlayerId};
+use crate::core::{CardId, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
 use rand::seq::SliceRandom;
@@ -40,51 +40,65 @@ impl PlayerController for RandomController {
         self.player_id
     }
 
-    fn choose_land_to_play(
+    fn choose_spell_ability_to_play(
         &mut self,
         _view: &GameStateView,
-        lands_in_hand: &[CardId],
-    ) -> Option<CardId> {
-        if lands_in_hand.is_empty() {
+        available: &[SpellAbility],
+    ) -> Option<SpellAbility> {
+        if available.is_empty() {
+            // No available actions - pass priority
             None
         } else {
-            // Randomly choose a land to play
-            let index = self.rng.gen_range(0..lands_in_hand.len());
-            Some(lands_in_hand[index])
+            // Random controller passes priority with 30% probability
+            // This allows actions to be taken most of the time while still preventing infinite loops
+            if self.rng.gen_bool(0.3) {
+                return None;
+            }
+
+            // Randomly choose one of the available spell abilities
+            let index = self.rng.gen_range(0..available.len());
+            Some(available[index].clone())
         }
     }
 
-    fn choose_spell_to_cast(
+    fn choose_targets(
         &mut self,
         _view: &GameStateView,
-        castable_spells: &[CardId],
-    ) -> Option<(CardId, SmallVec<[CardId; 4]>)> {
-        if castable_spells.is_empty() {
-            None
+        _spell: CardId,
+        valid_targets: &[CardId],
+    ) -> SmallVec<[CardId; 4]> {
+        // For now, just pick a random target if any are available
+        // TODO: Improve targeting logic based on spell requirements
+        if valid_targets.is_empty() {
+            SmallVec::new()
         } else {
-            // Randomly choose a spell to cast
-            let index = self.rng.gen_range(0..castable_spells.len());
-            let spell_id = castable_spells[index];
-
-            // For now, return empty targets - targeting will be improved later
-            let targets = SmallVec::new();
-
-            Some((spell_id, targets))
+            let index = self.rng.gen_range(0..valid_targets.len());
+            let mut targets = SmallVec::new();
+            targets.push(valid_targets[index]);
+            targets
         }
     }
 
-    fn choose_card_to_tap_for_mana(
+    fn choose_mana_sources_to_pay(
         &mut self,
         _view: &GameStateView,
-        tappable_cards: &[CardId],
-    ) -> Option<CardId> {
-        if tappable_cards.is_empty() {
-            None
-        } else {
-            // Randomly choose a card to tap for mana
-            let index = self.rng.gen_range(0..tappable_cards.len());
-            Some(tappable_cards[index])
+        cost: &ManaCost,
+        available_sources: &[CardId],
+    ) -> SmallVec<[CardId; 8]> {
+        // Simple greedy approach: tap sources until we have enough mana
+        // TODO: Improve to consider mana colors and optimization
+        let mut sources = SmallVec::new();
+        let needed = cost.cmc() as usize;
+
+        // Shuffle to randomize which sources we choose
+        let mut shuffled: Vec<CardId> = available_sources.to_vec();
+        shuffled.shuffle(&mut self.rng);
+
+        for &source_id in shuffled.iter().take(needed) {
+            sources.push(source_id);
         }
+
+        sources
     }
 
     fn choose_attackers(
@@ -147,12 +161,6 @@ impl PlayerController for RandomController {
             .collect()
     }
 
-    fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
-        // Random controller passes priority with 30% probability
-        // This allows actions to be taken most of the time while still preventing infinite loops
-        self.rng.gen_bool(0.3)
-    }
-
     fn on_priority_passed(&mut self, _view: &GameStateView) {
         // Random AI doesn't need to react to priority passes
     }
@@ -184,48 +192,89 @@ mod tests {
     }
 
     #[test]
-    fn test_choose_land_to_play_empty() {
+    fn test_choose_spell_ability_empty() {
         let player_id = EntityId::new(1);
         let mut controller = RandomController::with_seed(player_id, 42);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        // With no lands, should return None
-        let land = controller.choose_land_to_play(&view, &[]);
-        assert_eq!(land, None);
+        // With no available abilities, should return None
+        let choice = controller.choose_spell_ability_to_play(&view, &[]);
+        assert_eq!(choice, None);
     }
 
     #[test]
-    fn test_choose_land_to_play() {
+    fn test_choose_spell_ability() {
         let player_id = EntityId::new(1);
         let mut controller = RandomController::with_seed(player_id, 42);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        let lands = vec![EntityId::new(10), EntityId::new(11), EntityId::new(12)];
-        let chosen = controller.choose_land_to_play(&view, &lands);
+        let abilities = vec![
+            SpellAbility::PlayLand {
+                card_id: EntityId::new(10),
+            },
+            SpellAbility::CastSpell {
+                card_id: EntityId::new(11),
+            },
+        ];
 
-        // Should choose one of the available lands
-        assert!(chosen.is_some());
-        assert!(lands.contains(&chosen.unwrap()));
+        // May choose an ability or pass (due to 30% pass probability)
+        // Try multiple times to ensure it makes choices sometimes
+        let mut found_choice = false;
+        for _ in 0..20 {
+            let choice = controller.choose_spell_ability_to_play(&view, &abilities);
+            if choice.is_some() {
+                found_choice = true;
+                // The choice should be one of the available abilities
+                assert!(abilities.contains(&choice.unwrap()));
+            }
+        }
+        // With 30% pass rate, over 20 tries we should see at least one choice
+        assert!(found_choice);
     }
 
     #[test]
-    fn test_seeded_determinism() {
+    fn test_choose_targets() {
         let player_id = EntityId::new(1);
-        let mut controller1 = RandomController::with_seed(player_id, 42);
-        let mut controller2 = RandomController::with_seed(player_id, 42);
-
+        let mut controller = RandomController::with_seed(player_id, 42);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
-        let lands = vec![EntityId::new(10), EntityId::new(11), EntityId::new(12)];
+        let spell_id = EntityId::new(100);
+        let valid_targets = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
+        let targets = controller.choose_targets(&view, spell_id, &valid_targets);
 
-        // Same seed should produce same choices
-        let choice1 = controller1.choose_land_to_play(&view, &lands);
-        let choice2 = controller2.choose_land_to_play(&view, &lands);
+        // Should choose exactly one target
+        assert_eq!(targets.len(), 1);
+        // Target should be from the valid list
+        assert!(valid_targets.contains(&targets[0]));
+    }
 
-        assert_eq!(choice1, choice2);
+    #[test]
+    fn test_choose_mana_sources() {
+        let player_id = EntityId::new(1);
+        let mut controller = RandomController::with_seed(player_id, 42);
+        let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+        let view = GameStateView::new(&game, player_id);
+
+        let cost = ManaCost::from_string("2RR"); // CMC = 4
+        let available = vec![
+            EntityId::new(10),
+            EntityId::new(11),
+            EntityId::new(12),
+            EntityId::new(13),
+            EntityId::new(14),
+        ];
+
+        let sources = controller.choose_mana_sources_to_pay(&view, &cost, &available);
+
+        // Should choose exactly 4 sources (equal to CMC)
+        assert_eq!(sources.len(), 4);
+        // All sources should be from the available list
+        for source in sources.iter() {
+            assert!(available.contains(source));
+        }
     }
 
     #[test]

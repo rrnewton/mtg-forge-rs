@@ -690,6 +690,17 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Priority round - players get chances to act until both pass
+    ///
+    /// This implements the priority system where players alternate making choices
+    /// until both pass in succession. Matches Java Forge's priority handling.
+    ///
+    /// ## New Implementation (aligned with Java Forge)
+    /// - Gets all available spell abilities (lands, spells, abilities)
+    /// - Calls controller.choose_spell_ability_to_play() ONCE
+    /// - Handles the chosen ability appropriately:
+    ///   - PlayLand: Resolves directly (no stack)
+    ///   - CastSpell: Follows 8-step casting process (mana tapped in step 6)
+    ///   - ActivateAbility: TODO
     fn priority_round(
         &mut self,
         controller1: &mut dyn PlayerController,
@@ -705,7 +716,7 @@ impl<'a> GameLoop<'a> {
         let mut current_priority = active_player;
         let mut consecutive_passes = 0;
         let mut action_count = 0;
-        const MAX_ACTIONS_PER_PRIORITY: usize = 1000; // Safety limit (allows many land taps + spells)
+        const MAX_ACTIONS_PER_PRIORITY: usize = 1000;
 
         while consecutive_passes < 2 {
             // Safety check to prevent infinite loops
@@ -725,77 +736,45 @@ impl<'a> GameLoop<'a> {
                     controller2
                 };
 
-            // Check if controller wants to pass priority
-            let wants_to_pass = {
+            // Get all available spell abilities for this player
+            let available = self.get_available_spell_abilities(current_priority);
+
+            // Ask controller to choose one (or None to pass)
+            let choice = {
                 let view = GameStateView::new(self.game, current_priority);
-                controller.wants_to_pass_priority(&view)
+                controller.choose_spell_ability_to_play(&view, &available)
             };
 
-            if wants_to_pass {
-                consecutive_passes += 1;
-                let view = GameStateView::new(self.game, current_priority);
-                controller.on_priority_passed(&view);
+            match choice {
+                None => {
+                    // Controller chose to pass priority
+                    consecutive_passes += 1;
+                    let view = GameStateView::new(self.game, current_priority);
+                    controller.on_priority_passed(&view);
 
-                // Switch priority to other player
-                current_priority = if current_priority == active_player {
-                    non_active_player
-                } else {
-                    active_player
-                };
-                continue;
-            }
-
-            // Controller wants to act - try actions in order
-            let mut action_taken = false;
-
-            // 1. Try to tap for mana first (so we have mana available for spells)
-            if !action_taken {
-                let tappable = self.get_tappable_for_mana(current_priority);
-                if !tappable.is_empty() {
-                    let tap_choice = {
-                        let view = GameStateView::new(self.game, current_priority);
-                        controller.choose_card_to_tap_for_mana(&view, &tappable)
+                    // Switch priority to other player
+                    current_priority = if current_priority == active_player {
+                        non_active_player
+                    } else {
+                        active_player
                     };
-                    if let Some(card_id) = tap_choice {
-                        if let Err(e) = self.game.tap_for_mana(current_priority, card_id) {
-                            if self.verbosity >= VerbosityLevel::Normal {
-                                eprintln!("  Error tapping for mana: {}", e);
-                            }
-                        } else {
-                            action_taken = true;
-                            // Mana tapping is verbose, don't log unless very verbose
-                        }
-                    }
                 }
-            }
+                Some(ability) => {
+                    // Controller chose an ability to play
+                    consecutive_passes = 0; // Reset pass counter
 
-            // 2. Try to play a land (only in main phases)
-            if !action_taken && matches!(self.game.turn.current_step, Step::Main1 | Step::Main2) {
-                let lands = self.get_lands_in_hand(current_priority);
-                if !lands.is_empty()
-                    && self
-                        .game
-                        .get_player(current_priority)
-                        .ok()
-                        .map(|p| p.can_play_land())
-                        .unwrap_or(false)
-                {
-                    let land_choice = {
-                        let view = GameStateView::new(self.game, current_priority);
-                        controller.choose_land_to_play(&view, &lands)
-                    };
-                    if let Some(land_id) = land_choice {
-                        if let Err(e) = self.game.play_land(current_priority, land_id) {
-                            if self.verbosity >= VerbosityLevel::Normal {
-                                eprintln!("  Error playing land: {}", e);
-                            }
-                        } else {
-                            action_taken = true;
-                            if self.verbosity >= VerbosityLevel::Verbose {
+                    match ability {
+                        crate::core::SpellAbility::PlayLand { card_id } => {
+                            // Play land - resolves directly (no stack)
+                            if let Err(e) = self.game.play_land(current_priority, card_id) {
+                                if self.verbosity >= VerbosityLevel::Normal {
+                                    eprintln!("  Error playing land: {}", e);
+                                }
+                            } else if self.verbosity >= VerbosityLevel::Verbose {
                                 let card_name = self
                                     .game
                                     .cards
-                                    .get(land_id)
+                                    .get(card_id)
                                     .map(|c| c.name.as_str())
                                     .unwrap_or("Unknown");
                                 println!(
@@ -805,35 +784,15 @@ impl<'a> GameLoop<'a> {
                                 );
                             }
                         }
-                    }
-                }
-            }
+                        crate::core::SpellAbility::CastSpell { card_id } => {
+                            // Cast spell using 8-step process
+                            // Mana will be tapped during step 6 (NOT here!)
 
-            // 3. Try to cast a spell
-            if !action_taken {
-                let spells = self.get_castable_spells(current_priority);
-                if !spells.is_empty() {
-                    let spell_choice = {
-                        let view = GameStateView::new(self.game, current_priority);
-                        controller.choose_spell_to_cast(&view, &spells)
-                    };
-                    if let Some((spell_id, targets)) = spell_choice {
-                        // Convert SmallVec to Vec for now
-                        let targets_vec: Vec<CardId> = targets.iter().copied().collect();
-                        if let Err(e) =
-                            self.game
-                                .cast_spell(current_priority, spell_id, targets_vec)
-                        {
-                            if self.verbosity >= VerbosityLevel::Normal {
-                                eprintln!("  Error casting spell: {}", e);
-                            }
-                        } else {
-                            action_taken = true;
                             if self.verbosity >= VerbosityLevel::Verbose {
                                 let card_name = self
                                     .game
                                     .cards
-                                    .get(spell_id)
+                                    .get(card_id)
                                     .map(|c| c.name.as_str())
                                     .unwrap_or("Unknown");
                                 println!(
@@ -843,32 +802,73 @@ impl<'a> GameLoop<'a> {
                                 );
                             }
 
-                            // Immediately resolve spell (simplified - no stack interaction yet)
-                            if let Err(e) = self.game.resolve_spell(spell_id) {
+                            // Create callbacks for targeting and mana payment
+                            let targeting_callback = |game: &GameState, spell_id: CardId| {
+                                // For now, return empty targets
+                                // TODO: Call controller.choose_targets()
+                                Vec::new()
+                            };
+
+                            let mana_callback = |game: &GameState, cost: &crate::core::ManaCost| {
+                                // For now, automatically choose mana sources
+                                // TODO: Call controller.choose_mana_sources_to_pay()
+                                let mut sources = Vec::new();
+                                let tappable = game.battlefield.cards.iter()
+                                    .filter(|&&card_id| {
+                                        if let Ok(card) = game.cards.get(card_id) {
+                                            card.owner == current_priority && card.is_land() && !card.tapped
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                    .copied()
+                                    .collect::<Vec<_>>();
+
+                                // Simple greedy algorithm: tap lands until we have enough
+                                for &land_id in &tappable {
+                                    sources.push(land_id);
+                                    if sources.len() >= cost.cmc() as usize {
+                                        break;
+                                    }
+                                }
+                                sources
+                            };
+
+                            // Cast using 8-step process
+                            if let Err(e) = self.game.cast_spell_8_step(
+                                current_priority,
+                                card_id,
+                                targeting_callback,
+                                mana_callback,
+                            ) {
                                 if self.verbosity >= VerbosityLevel::Normal {
-                                    eprintln!("  Error resolving spell: {}", e);
+                                    eprintln!("  Error casting spell: {}", e);
+                                }
+                            } else {
+                                // Immediately resolve spell (simplified - no stack interaction yet)
+                                if let Err(e) = self.game.resolve_spell(card_id) {
+                                    if self.verbosity >= VerbosityLevel::Normal {
+                                        eprintln!("  Error resolving spell: {}", e);
+                                    }
                                 }
                             }
                         }
+                        crate::core::SpellAbility::ActivateAbility { .. } => {
+                            // TODO: Implement activated abilities
+                            if self.verbosity >= VerbosityLevel::Normal {
+                                eprintln!("  Activated abilities not yet implemented");
+                            }
+                        }
                     }
+
+                    // After taking an action, switch priority to other player
+                    current_priority = if current_priority == active_player {
+                        non_active_player
+                    } else {
+                        active_player
+                    };
                 }
             }
-
-            if action_taken {
-                consecutive_passes = 0; // Reset pass counter
-            } else {
-                // No action was taken despite wanting to act - treat as pass
-                consecutive_passes += 1;
-                let view = GameStateView::new(self.game, current_priority);
-                controller.on_priority_passed(&view);
-            }
-
-            // Switch priority to other player
-            current_priority = if current_priority == active_player {
-                non_active_player
-            } else {
-                active_player
-            };
         }
 
         Ok(())
