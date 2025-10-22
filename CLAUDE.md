@@ -40,7 +40,8 @@ Workflow: Tasks and Commits
 
 Commit to git as described in the PROJECT_VISION.
 
-Always RUN THE TESTS (`make test` and the full `make validate` that includes it).
+Task Tracking
+----------------------------------------
 
 We track work in TODO.md at the repository root. This file contains:
 - Current status and latest commit
@@ -56,15 +57,22 @@ Every time we do a git commit, update TODO.md to reflect:
 
 The TODO.md serves as our primary tracking document, so if we lose conversation history we can start again from there.  You should periodically do documentation work, usually before committing, to make sure TODO.md is up-to-date.
 
-Other pre-commit checks
+Before beginning work on a task
 ----------------------------------------
 
-Make sure you ACTUALLY run `cargo test` before any commit. Include a Test Results Summary section in every commit message like this:
+Make sure we start in a clean state. Check that we have no uncommitted changes in our working copy. Perform `git pull origin main` to make sure we are starting with the latest version. Check that `make validate` passes in our starting state. 
+
+Before committing to git
+----------------------------------------
+
+Run `make validate` and ensure that it passes or fix any problems before committing.
+
+Also include a Test Results Summary section in every commit message for example like this:
 
 ```
 ## Test Results Summary
 
-    $ cargo test 2>&1  | grep -E '(test result: |Running |Doc-tests )'
+    $ make validate 2>&1  | grep -E '(test result: |Running |Doc-tests )'
          Running unittests src/lib.rs (target/debug/deps/mtg_forge_rs-dbfccebd340e260f)
     test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
          Running unittests src/main.rs (target/debug/deps/mtg_forge_rs-d765597e7833fdac)
@@ -73,16 +81,7 @@ Make sure you ACTUALLY run `cargo test` before any commit. Include a Test Result
     test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
-Also run a full `make validate` and ensure that everything passees. Check that `make examples` is up-to-date, i.e. is actually running all examples. You can check the list of available examples with the following command.  The `make examples` target (called by `make validate`) should explicitly call `cargo run --example` for EACH of the listed examples.
-
-```
-$ cargo run --example
-error: "--example" takes one argument.
-Available examples:
-    ...
-```
-
-The bottom line is TESTING CONSISTENCY. If you validate some changes with a new manual or temporary test, that test should be added to either the unit tests, examples, or e2e tests and it should be called consistently from both `make validate` and Github CI.
+If you validate some changes with a new manual or temporary test, that test should be added to either the unit tests, examples, or e2e tests and it should be called consistently from both `make validate` and Github CI.
 
 Commit message documents relationship to original Java version
 --------------------------------------------------------------

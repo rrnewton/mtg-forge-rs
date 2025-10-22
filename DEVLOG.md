@@ -107,7 +107,7 @@ Print tool use
         }
 ```
 
-Example:
+Example to see the TOOLS USED:
 
     cat logs/claude_workstream03.jsonl | jq 'select (.type == "assistant" and .message.content[0].type == "tool_use") | .message.content[0].name'
 
@@ -1337,6 +1337,89 @@ That is especially true because creatures should be playable in main1
 AND main2, so we should be asked at both times if we want to play the
 grizzly bears
 
+
+Heaptrack analysis doesn't print the lines of code that are the culprits
+----------------------------------------
+
+Our scripts/analyze_heapprofile.sh does part of what it should. It
+creates a nice breakdown of the top 10 allocation sites:
+
+ 1.   77,378 calls,      304.54K
+    └─> src/game/game_loop.rs:819
+        ├─> src/game/game_loop.rs:222
+        ├─> src/bin/profile.rs:85
+
+ 2.   45,274 calls,        1.39K
+    └─> src/game/game_loop.rs:222
+        ├─> src/bin/profile.rs:85
+        ├─> src/bin/profile.rs:95
+
+But it doesn't actually print the lines of code at indicated locations which are the culprits. E.g.:
+
+ - game_loop.rs:819
+ - src/game/game_loop.rs:222
+
+If we want to see at a glance our top culprits, a single `make
+heapprofile` action should give us all this information in one go.
+
+Further, this profiling (as well as `make profile`) pollute the top
+level repo directory.
+
+Modify the setup so that `make heapprofile` and `make heapprofile` put
+all their temporary files in a directory called `./experiment_results`
+that is added to the .gitignore.
+
+-------
+
+Wait, I led you in a bad direction on the last change. We don't need
+to do so much work to print the function names. If we have debug
+symbols properly working, we will see the function names right in the
+output of `heaptrack_print`, like this:
+
+```
+8800 calls with 0B peak consumption from:
+    mtg_forge_rs::game::game_loop::GameLoop::end_combat_step::hdae80d8ae53fe57a
+      at src/game/game_loop.rs:819
+      in /home/newton/work/testing-mtg-forge-rs/target/release/profile
+    mtg_forge_rs::game::game_loop::GameLoop::execute_step::h43d9d1f35a9c2825
+      at /home/newton/work/testing-mtg-forge-rs/src/game/game_loop.rs:453
+    mtg_forge_rs::game::game_loop::GameLoop::run_turn::hfb8f5b09a2e0c4eb
+      at src/game/game_loop.rs:22
+```
+
+In that particular case it's pretty obvious that the `clear()`
+function is allocating new maps. That's silly. At the very least it
+should be calling the `.clear()` methods on these collections to zero
+them out NOT dropping them and reallocating.
+
+It is sufficient to just print out snippets like the above with the
+top few lines of context, without additional post-processing. 
+
+---
+
+Then we can use our function printing to ALSO ...
+
+Implement simple caching scheme for `make validate`
+----------------------------------------
+
+Let's tweak the `make validate` target so that rather than depending
+on `fmt-check clippy test examples` targets, it wraps a little more
+setup around a recursive call to make.
+
+- first it checks if the current working copy is clean, with no modified tracked files
+- select an output log: `experiment_results/validate_<COMMITHASH>.log` if 
+  the working copy is clean and `experiment_results/validate_<COMMITHASH>_DIRTY.log`
+  if it is not.
+
+- if we are clean, then before we run the recursive make (to do the
+  work of fmt-check clippy test examples), first we check if the file
+  in question exists already, in which case we return immediately.
+  
+- if the file does not exist, we do the work of validating and `tee` the output to the log.
+
+- we can make the commit of the log atomic by FIRST writing to a `.log.wip` file and then atomically renaming it to `.log` only once validation completes.
+
+This scheme will prevent us from running validate twice in a row on the same commit.
 
 
 TODO: switch to bump allocator for temporary storage

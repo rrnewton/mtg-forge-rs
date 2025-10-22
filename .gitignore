@@ -32,3 +32,4 @@ heaptrack.profile.*
 
 logs/claude_workstream*
 trash/
+prompts/
