@@ -788,6 +788,32 @@ mod tests {
     use super::*;
     use crate::core::Card;
     use crate::game::ZeroController;
+    use crate::loader::CardDatabase;
+    use std::path::PathBuf;
+
+    /// Helper to load a card from the cardsfolder for tests
+    fn load_test_card(
+        game: &mut GameState,
+        card_name: &str,
+        owner_id: PlayerId,
+    ) -> Result<CardId> {
+        let card_id = game.next_entity_id();
+
+        // Load card definition from cardsfolder
+        let cardsfolder = PathBuf::from("./cardsfolder");
+        let db = CardDatabase::new(cardsfolder);
+
+        let card_def = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { db.get_card(card_name).await })?
+            .ok_or_else(|| MtgError::InvalidCardFormat(format!("Card not found: {}", card_name)))?;
+
+        // Create card instance from definition
+        let card = card_def.instantiate(card_id, owner_id);
+        game.cards.insert(card_id, card);
+
+        Ok(card_id)
+    }
 
     #[test]
     fn test_play_land() {
@@ -1593,15 +1619,13 @@ mod tests {
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
         let p1_id = game.players[0].id;
 
-        // Create a creature with vigilance
-        let creature_id = game.next_entity_id();
-        let mut creature = Card::new(creature_id, "Serra Angel".to_string(), p1_id);
-        creature.types.push(CardType::Creature);
-        creature.power = Some(4);
-        creature.toughness = Some(4);
-        creature.controller = p1_id;
-        creature.keywords.push(Keyword::Vigilance);
-        game.cards.insert(creature_id, creature);
+        // Load Serra Angel (4/4 with Flying and Vigilance)
+        let creature_id = load_test_card(&mut game, "Serra Angel", p1_id)
+            .expect("Failed to load Serra Angel");
+
+        if let Ok(creature) = game.cards.get_mut(creature_id) {
+            creature.controller = p1_id;
+        }
         game.battlefield.add(creature_id);
 
         // Mark it as entering on a previous turn (no summoning sickness)
@@ -1661,27 +1685,23 @@ mod tests {
         let p1_id = game.players[0].id;
         let p2_id = game.players[1].id;
 
-        // P1: Create a creature with Flying (attacker)
-        let attacker_id = game.next_entity_id();
-        let mut attacker = Card::new(attacker_id, "Storm Crow".to_string(), p1_id);
-        attacker.types.push(CardType::Creature);
-        attacker.power = Some(1);
-        attacker.toughness = Some(2);
-        attacker.controller = p1_id;
-        attacker.keywords.push(Keyword::Flying);
-        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
-        game.cards.insert(attacker_id, attacker);
+        // P1: Load Storm Crow (1/2 with Flying) as attacker
+        let attacker_id = load_test_card(&mut game, "Storm Crow", p1_id)
+            .expect("Failed to load Storm Crow");
+
+        if let Ok(attacker) = game.cards.get_mut(attacker_id) {
+            attacker.controller = p1_id;
+            attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
         game.battlefield.add(attacker_id);
 
-        // P2: Create a creature with Flying (blocker)
-        let blocker_id = game.next_entity_id();
-        let mut blocker = Card::new(blocker_id, "Azure Drake".to_string(), p2_id);
-        blocker.types.push(CardType::Creature);
-        blocker.power = Some(2);
-        blocker.toughness = Some(2);
-        blocker.controller = p2_id;
-        blocker.keywords.push(Keyword::Flying);
-        game.cards.insert(blocker_id, blocker);
+        // P2: Load Segovian Angel (1/1 with Flying and Vigilance) as blocker
+        let blocker_id = load_test_card(&mut game, "Segovian Angel", p2_id)
+            .expect("Failed to load Segovian Angel");
+
+        if let Ok(blocker) = game.cards.get_mut(blocker_id) {
+            blocker.controller = p2_id;
+        }
         game.battlefield.add(blocker_id);
 
         // Declare attacker
@@ -1701,27 +1721,23 @@ mod tests {
         let p1_id = game.players[0].id;
         let p2_id = game.players[1].id;
 
-        // P1: Create a creature with Flying (attacker)
-        let attacker_id = game.next_entity_id();
-        let mut attacker = Card::new(attacker_id, "Storm Crow".to_string(), p1_id);
-        attacker.types.push(CardType::Creature);
-        attacker.power = Some(1);
-        attacker.toughness = Some(2);
-        attacker.controller = p1_id;
-        attacker.keywords.push(Keyword::Flying);
-        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
-        game.cards.insert(attacker_id, attacker);
+        // P1: Load Storm Crow (1/2 with Flying) as attacker
+        let attacker_id = load_test_card(&mut game, "Storm Crow", p1_id)
+            .expect("Failed to load Storm Crow");
+
+        if let Ok(attacker) = game.cards.get_mut(attacker_id) {
+            attacker.controller = p1_id;
+            attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
         game.battlefield.add(attacker_id);
 
-        // P2: Create a creature with Reach (blocker)
-        let blocker_id = game.next_entity_id();
-        let mut blocker = Card::new(blocker_id, "Giant Spider".to_string(), p2_id);
-        blocker.types.push(CardType::Creature);
-        blocker.power = Some(2);
-        blocker.toughness = Some(4);
-        blocker.controller = p2_id;
-        blocker.keywords.push(Keyword::Reach);
-        game.cards.insert(blocker_id, blocker);
+        // P2: Load Giant Spider (2/4 with Reach) as blocker
+        let blocker_id = load_test_card(&mut game, "Giant Spider", p2_id)
+            .expect("Failed to load Giant Spider");
+
+        if let Ok(blocker) = game.cards.get_mut(blocker_id) {
+            blocker.controller = p2_id;
+        }
         game.battlefield.add(blocker_id);
 
         // Declare attacker
@@ -1863,26 +1879,26 @@ mod tests {
         let p1_id = game.players[0].id;
         let p2_id = game.players[1].id;
 
-        // P1: Create a 2/2 creature with First Strike (attacker)
-        let attacker_id = game.next_entity_id();
-        let mut attacker = Card::new(attacker_id, "First Strike Bear".to_string(), p1_id);
-        attacker.types.push(CardType::Creature);
-        attacker.power = Some(2);
-        attacker.toughness = Some(2);
-        attacker.controller = p1_id;
-        attacker.keywords.push(Keyword::FirstStrike);
-        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
-        game.cards.insert(attacker_id, attacker);
+        // P1: Load Advance Scout (1/1 with First Strike) as attacker
+        let attacker_id = load_test_card(&mut game, "Advance Scout", p1_id)
+            .expect("Failed to load Advance Scout");
+
+        // Set attacker power/toughness to 2/2 so test works as before
+        if let Ok(attacker) = game.cards.get_mut(attacker_id) {
+            attacker.power = Some(2);
+            attacker.toughness = Some(2);
+            attacker.controller = p1_id;
+            attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
         game.battlefield.add(attacker_id);
 
-        // P2: Create a 2/2 creature without First Strike (blocker)
-        let blocker_id = game.next_entity_id();
-        let mut blocker = Card::new(blocker_id, "Grizzly Bears".to_string(), p2_id);
-        blocker.types.push(CardType::Creature);
-        blocker.power = Some(2);
-        blocker.toughness = Some(2);
-        blocker.controller = p2_id;
-        game.cards.insert(blocker_id, blocker);
+        // P2: Load Grizzly Bears (2/2 vanilla) as blocker
+        let blocker_id = load_test_card(&mut game, "Grizzly Bears", p2_id)
+            .expect("Failed to load Grizzly Bears");
+
+        if let Ok(blocker) = game.cards.get_mut(blocker_id) {
+            blocker.controller = p2_id;
+        }
         game.battlefield.add(blocker_id);
 
         // Declare combat
@@ -1935,16 +1951,17 @@ mod tests {
         let p1_id = game.players[0].id;
         let p2_id = game.players[1].id;
 
-        // P1: Create a 3/3 creature with Double Strike (attacker)
-        let attacker_id = game.next_entity_id();
-        let mut attacker = Card::new(attacker_id, "Double Strike Dragon".to_string(), p1_id);
-        attacker.types.push(CardType::Creature);
-        attacker.power = Some(3);
-        attacker.toughness = Some(3);
-        attacker.controller = p1_id;
-        attacker.keywords.push(Keyword::DoubleStrike);
-        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
-        game.cards.insert(attacker_id, attacker);
+        // P1: Load Adorned Pouncer (1/1 with Double Strike) as attacker
+        let attacker_id = load_test_card(&mut game, "Adorned Pouncer", p1_id)
+            .expect("Failed to load Adorned Pouncer");
+
+        // Set power/toughness to 3/3 so test works as before
+        if let Ok(attacker) = game.cards.get_mut(attacker_id) {
+            attacker.power = Some(3);
+            attacker.toughness = Some(3);
+            attacker.controller = p1_id;
+            attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
         game.battlefield.add(attacker_id);
 
         // Declare unblocked attacker
