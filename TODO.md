@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 117 passing ✅ (99 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 122 passing ✅ (104 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -38,6 +38,11 @@
   - Modified declare_attacker to check for Vigilance keyword before tapping
   - Creatures without vigilance tap normally when attacking
   - Full test coverage (2 new tests)
+- ✅ **Flying/Reach combat restrictions** - Flying creatures can only be blocked by flying/reach creatures
+  - Creatures with Flying keyword can only be blocked by creatures with Flying or Reach
+  - Creatures with Reach can block Flying creatures
+  - Validation in declare_blocker enforces MTG rule 702.9
+  - Full test coverage (5 new tests: flying vs flying, flying vs reach, flying vs ground, ground vs any, flying+reach)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
 - ✅ Basic spell effects: DealDamage parsing, Lightning Bolt works
@@ -75,9 +80,10 @@
 - [ ] **Enhanced creature support**
   * ✅ Summoning sickness tracking
   * ✅ Vigilance keyword
-  * Flying/reach for combat restrictions
+  * ✅ Flying/reach for combat restrictions
   * Multiple blockers support
   * Damage assignment order
+  * First strike / Double strike combat damage
 
 - [ ] **More card types**
   - [ ] Creature cards (currently partially supported)
@@ -198,4 +204,4 @@ None currently - all tests passing!
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 117 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 122 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

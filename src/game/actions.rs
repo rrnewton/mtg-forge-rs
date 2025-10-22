@@ -536,6 +536,23 @@ impl GameState {
             }
         }
 
+        // Check Flying/Reach restrictions (MTG rule 702.9)
+        // A creature with Flying can only be blocked by creatures with Flying or Reach
+        let blocker_has_flying = blocker.has_keyword(&Keyword::Flying);
+        let blocker_has_reach = blocker.has_keyword(&Keyword::Reach);
+
+        for &attacker_id in &attackers {
+            let attacker = self.cards.get(attacker_id)?;
+            let attacker_has_flying = attacker.has_keyword(&Keyword::Flying);
+
+            if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
+                return Err(MtgError::InvalidAction(
+                    "Creature cannot block attacker with flying (needs flying or reach)"
+                        .to_string(),
+                ));
+            }
+        }
+
         // MTG rule: normally a creature can only block one attacker
         // (unless it has an ability that allows it to block multiple)
         if attackers.len() > 1 {
@@ -1191,6 +1208,208 @@ mod tests {
         assert!(
             card.tapped,
             "Creature without vigilance should be tapped after attacking"
+        );
+    }
+
+    #[test]
+    fn test_flying_creature_blocked_by_flying() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a creature with Flying (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Storm Crow".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(1);
+        attacker.toughness = Some(2);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Flying);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a creature with Flying (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Azure Drake".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        blocker.keywords.push(Keyword::Flying);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare attacker
+        game.declare_attacker(p1_id, attacker_id).unwrap();
+
+        // Blocker with flying should be able to block attacker with flying
+        let result = game.declare_blocker(p2_id, blocker_id, vec![attacker_id]);
+        assert!(
+            result.is_ok(),
+            "Creature with flying should be able to block creature with flying"
+        );
+    }
+
+    #[test]
+    fn test_flying_creature_blocked_by_reach() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a creature with Flying (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Storm Crow".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(1);
+        attacker.toughness = Some(2);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Flying);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a creature with Reach (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Giant Spider".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(4);
+        blocker.controller = p2_id;
+        blocker.keywords.push(Keyword::Reach);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare attacker
+        game.declare_attacker(p1_id, attacker_id).unwrap();
+
+        // Blocker with reach should be able to block attacker with flying
+        let result = game.declare_blocker(p2_id, blocker_id, vec![attacker_id]);
+        assert!(
+            result.is_ok(),
+            "Creature with reach should be able to block creature with flying"
+        );
+    }
+
+    #[test]
+    fn test_flying_creature_cannot_be_blocked_by_non_flying() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a creature with Flying (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Storm Crow".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(1);
+        attacker.toughness = Some(2);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Flying);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a creature without Flying or Reach (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Grizzly Bears".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare attacker
+        game.declare_attacker(p1_id, attacker_id).unwrap();
+
+        // Blocker without flying or reach should NOT be able to block attacker with flying
+        let result = game.declare_blocker(p2_id, blocker_id, vec![attacker_id]);
+        assert!(
+            result.is_err(),
+            "Creature without flying or reach should not be able to block creature with flying"
+        );
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("cannot block attacker with flying"));
+    }
+
+    #[test]
+    fn test_non_flying_creature_blocked_by_any() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a creature without Flying (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Grizzly Bears".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(2);
+        attacker.toughness = Some(2);
+        attacker.controller = p1_id;
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a creature without Flying or Reach (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Hill Giant".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(3);
+        blocker.toughness = Some(3);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare attacker
+        game.declare_attacker(p1_id, attacker_id).unwrap();
+
+        // Any creature should be able to block a non-flying creature
+        let result = game.declare_blocker(p2_id, blocker_id, vec![attacker_id]);
+        assert!(
+            result.is_ok(),
+            "Any creature should be able to block a non-flying creature"
+        );
+    }
+
+    #[test]
+    fn test_flying_and_reach_blocker_can_block_flying() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a creature with Flying (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Storm Crow".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(1);
+        attacker.toughness = Some(2);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Flying);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a creature with both Flying AND Reach (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Mystic Drake".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(3);
+        blocker.controller = p2_id;
+        blocker.keywords.push(Keyword::Flying);
+        blocker.keywords.push(Keyword::Reach);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare attacker
+        game.declare_attacker(p1_id, attacker_id).unwrap();
+
+        // Blocker with both flying and reach should be able to block attacker with flying
+        let result = game.declare_blocker(p2_id, blocker_id, vec![attacker_id]);
+        assert!(
+            result.is_ok(),
+            "Creature with flying and reach should be able to block creature with flying"
         );
     }
 }

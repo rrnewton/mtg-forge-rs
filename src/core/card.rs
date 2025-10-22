@@ -120,6 +120,10 @@ impl Card {
         self.has_keyword(&Keyword::Flying)
     }
 
+    pub fn has_reach(&self) -> bool {
+        self.has_keyword(&Keyword::Reach)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }
