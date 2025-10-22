@@ -408,8 +408,10 @@ async fn test_creature_combat_game() -> Result<()> {
     let p1_id = players[0];
     let p2_id = players[1];
 
-    let mut controller1 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, 77777);
-    let mut controller2 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, 77778);
+    let mut controller1 =
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, 77777);
+    let mut controller2 =
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, 77778);
 
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
@@ -521,14 +523,20 @@ async fn test_different_deck_matchup() -> Result<()> {
         let p1_id = players[0];
         let p2_id = players[1];
 
-        let mut controller1 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, seed);
-        let mut controller2 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, seed + 1);
+        let mut controller1 =
+            mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, seed);
+        let mut controller2 =
+            mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, seed + 1);
 
         let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
         let result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
         // Verify game completed successfully
-        assert!(result.winner.is_some(), "Game with seed {} should have a winner", seed);
+        assert!(
+            result.winner.is_some(),
+            "Game with seed {} should have a winner",
+            seed
+        );
         assert!(
             result.turns_played > 0 && result.turns_played <= 200,
             "Game with seed {} should play reasonable number of turns, got {}",
@@ -540,8 +548,8 @@ async fn test_different_deck_matchup() -> Result<()> {
         assert!(
             matches!(
                 result.end_reason,
-                mtg_forge_rs::game::GameEndReason::PlayerDeath(_) |
-                mtg_forge_rs::game::GameEndReason::Decking(_)
+                mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
+                    | mtg_forge_rs::game::GameEndReason::Decking(_)
             ),
             "Game should end by player death or decking: {:?}",
             result.end_reason

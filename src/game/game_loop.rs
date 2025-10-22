@@ -196,21 +196,10 @@ impl<'a> GameLoop<'a> {
             let player_name = self.get_player_name(active_player);
             println!("\n========================================");
             println!("Turn {} - {}'s turn", self.turns_elapsed + 1, player_name);
-
-            // Print battlefield state at start of turn
-            if let Ok(player) = self.game.get_player(active_player) {
-                println!("  Life: {}", player.life);
-                let hand_size = self
-                    .game
-                    .get_player_zones(active_player)
-                    .map(|z| z.hand.cards.len())
-                    .unwrap_or(0);
-                println!("  Hand: {} cards", hand_size);
-
-                let battlefield_cards = self.game.battlefield.cards.len();
-                println!("  Battlefield: {} cards", battlefield_cards);
-            }
             println!("========================================");
+
+            // Print detailed battlefield state for both players
+            self.print_battlefield_state();
         }
 
         // Reset turn-based state
@@ -263,6 +252,84 @@ impl<'a> GameLoop<'a> {
             Step::End => "End Step",
             Step::Cleanup => "Cleanup Step",
         }
+    }
+
+    /// Print detailed battlefield state for both players
+    fn print_battlefield_state(&self) {
+        // Print state for each player
+        for (idx, player) in self.game.players.iter().enumerate() {
+            let is_active = player.id == self.game.turn.active_player;
+            let marker = if is_active { " (active)" } else { "" };
+
+            println!("\n{}{}: ", player.name, marker);
+            println!("  Life: {}", player.life);
+
+            // Zone sizes
+            if let Some(zones) = self.game.get_player_zones(player.id) {
+                println!(
+                    "  Hand: {} | Library: {} | Graveyard: {} | Exile: {}",
+                    zones.hand.len(),
+                    zones.library.len(),
+                    zones.graveyard.len(),
+                    zones.exile.len()
+                );
+            }
+
+            // Battlefield permanents controlled by this player
+            let mut player_permanents: Vec<_> = self
+                .game
+                .battlefield
+                .cards
+                .iter()
+                .filter_map(|&card_id| {
+                    self.game.cards.get(card_id).ok().and_then(|card| {
+                        if card.controller == player.id {
+                            Some((card_id, card))
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .collect();
+
+            // Sort by card type for better readability: lands first, then creatures, then others
+            player_permanents.sort_by_key(|(_, card)| {
+                if card.is_land() {
+                    0
+                } else if card.is_creature() {
+                    1
+                } else {
+                    2
+                }
+            });
+
+            if player_permanents.is_empty() {
+                println!("  Battlefield: (empty)");
+            } else {
+                println!("  Battlefield:");
+                for (card_id, card) in player_permanents {
+                    let tap_marker = if card.tapped { " (T)" } else { "" };
+
+                    // Format card display based on type
+                    if card.is_creature() {
+                        let power = card.power.unwrap_or(0) + card.power_bonus as i8;
+                        let toughness = card.toughness.unwrap_or(0) + card.toughness_bonus as i8;
+                        println!(
+                            "    {} ({}) - {}/{}{}",
+                            card.name, card_id, power, toughness, tap_marker
+                        );
+                    } else {
+                        println!("    {} ({}){}", card.name, card_id, tap_marker);
+                    }
+                }
+            }
+
+            // Add spacing between players (but not after the last one)
+            if idx < self.game.players.len() - 1 {
+                println!();
+            }
+        }
+        println!();
     }
 
     /// Print step header lazily (only when first action happens in this step)
