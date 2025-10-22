@@ -62,6 +62,58 @@ After each iteration of the above:
 - if we have completed ITER iterations successfully, then exit our script with a success code.
 
 
+-----
+
+cat claude_workstream02.jsonl | jq  -r 'select (.type == "assistant" or .type == "result") | [.message.content.[0].text, .result]'
+
+
+Trying the github MCP tool
+----------------------------------------
+
+claude mcp add --transport http github https://api.githubcopilot.com/mcp -H "Authorization: Bearer 
+YOUR_GITHUB_PAT"
+
+My first 4 attempts at making a token DID NOTHING.  Reducing the time from 90 days to 30 seems to have helped.
+
+```
+ $ claude mcp add --transport http github https://api.githubcopilot.com/mcp -H "Authorization: $(cat ~/.github/access_token_PAT_secret.txt)"
+Added HTTP MCP server github with URL: https://api.githubcopilot.com/mcp to local config
+Headers: {
+  "Authorization": ...
+}
+File modified: /root/.claude.json [project: /workspace]
+```
+
+EXCELLENT it was able to fetch and report the CI status for the last 3 commits.
+
+Print tool use
+----------------------------------------
+
+```
+{
+  "type": "assistant",
+  "message": {
+    "model": "claude-haiku-4-5-20251001",
+    "id": "msg_016aCmVNtpUwsz3Cc8WdnHAq",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "toolu_0165CsM3mC8RvNCeXAPvV1wF",
+        "name": "Read",
+        "input": {
+          "file_path": "/workspace/forge-java/forge-game/src/main/java/forge/game/phase/PhaseType.java"
+        }
+```
+
+Example:
+
+    cat logs/claude_workstream03.jsonl | jq 'select (.type == "assistant" and .message.content[0].type == "tool_use") | .message.content[0].name'
+
+And here's my rough glance at plaintext messages:
+
+    cat logs/claude_workstream03.jsonl | jq  -r 'select (.type == "assistant" or .type == "result") | [.message.content.[0].text, .result]'
 
 
 [2025.10.19] {Additional prompts beyond the original setup}
@@ -1161,7 +1213,7 @@ Creature attacks show damage, but lightning bolt doesn't.
 
 
 
-Experimented with generic progress...
+Experimented with generic self-directed taskprogress...
 ================================================================================
 
 Here was the final message from the stream-json output.
@@ -1178,6 +1230,110 @@ I'm getting some problems with parsing on JQ
      5
      jq: parse error: Invalid string: control characters from U+0000 through U+001F must be escaped at line 7, column 2
 
+
+Update gogo_claude.sh script to take an extra prompt
+----------------------------------------
+
+If we call `./scripts/gogo_claude.sh ITERS prompt.txt`, then the extra prompt is
+one we handle in the first iteration.  After that first iteration, the remaining 
+iterations can go back to using the generic prompt.
+
+
+TODO: 
+
+
+Write an optimization guide/backlog and improve profiling
+----------------------------------------
+
+Our key performance metrics for this project are: 
+
+- turns/sec and games/sec: though these will change over time as we add more game features
+- actions/sec: should be fairly stable
+- avg allocations/turn
+
+We continue to miss zero-copy opportunities and add new methods that
+return freshly allocated collections. We need to do periodic
+optimization work to push back on this.
+
+Research on the internet best practices for high performance rust and
+zero copy patterns. Summarize these findings into OPTIMIZATION.md and
+add a "Status and Backlog" section for tracking known inefficiences /
+future optimization tasks. Reference optimization work as a
+possibility from the main TODO.md and cite the OPTIMIZATION.md as
+where to go for that.
+
+
+In order to make incremental optimization steps, a good prereqisite to
+implement first is better scripting around benchmarking and heap profiling.
+
+When you run `cargo bench --bench game_benchmark -- fresh`, you can
+directly see some of the key metrics we care about, to get a sense of
+where we're at. But heap profiling is less automated. Let's improve that next.
+
+When you run `make heapprofile` you'll see something like this.
+
+```
+Profiling complete! 100 games executed.
+Heaptrack finished! Now run the following to investigate the data:
+
+  zstd -dc < "/home/newton/work/mtg-forge-rs/heaptrack.profile.820576.raw.zst" | /usr/lib64/heaptrack/libexec/heaptrack_interpret | zstd -c > "/home/newton/work/mtg-forge-rs/heaptrack.profile.820576.zst"
+
+Heaptrack profile saved
+To view: heaptrack_gui heaptrack.profile.*.zst
+Or use CLI: heaptrack_print heaptrack.profile.*.zst
+```
+
+This doesn't take the final step (the line with `zstd -dc`) which is
+necessary in order to be able to call `heaptrack_print`. Once you run
+that command, you can see the calling context for the most frequent
+allocation calls with something like this:
+
+```
+$ heaptrack_print heaptrack.profile.??????.zst | grep -A10 'calls with' | grep -E '( calls with | at .*src/)' | head -n70
+```
+
+We probably need an extra script (e.g. in ./scripts) in order to
+post-process the output of heaptrack_print (which unfortunately does
+not have machine readable output like JSON). We can expand the `make
+heapprofile` in order to call a subsequent script to (1) process the
+raw.zst => .zst, (2) call heaptrack_print, (3) parse a subset of its
+output to identify the top stackframe within the projects src/ code,
+and (4) print the line of code each stack trace points at.
+
+With this improvement we'll be able to see at a glance what our top
+offenders are --- see whether they're a .collect() call, a .clone()
+call, a .push() call or something else -- and add them to our backlog
+in OPTIMIZATION.md accordingly.
+
+
+Use real cards in testing
+----------------------------------------
+
+It's important that our implementation work for the REAL MTG cards stored in ./cardsfolder.
+Look for test cases like this that use fake cards:
+
+        let mut attacker = Card::new(attacker_id, "First Strike Bear".to_string(), p1_id);
+
+Change at least this first strike one to instead load a real
+first-strike creature from the cardsfolder.  This will ensure that we
+are correctly parsing the card, including its first strike ability.
+
+
+Why does random player not play grizzly bears sooner?
+----------------------------------------
+
+With this command, on turn on 84 the first grizzly gets played:
+
+    time cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/grizzly_bears.dck --p1=random --p2=random --seed=41 -v2
+
+If we have options to "pass" or "play grizzly bear", we should be
+choosing to play the grizzly bear at least 50% of the time. With
+
+
+
+
+TODO: switch to bump allocator for temporary storage
+--------------------------------------------
 
 
 

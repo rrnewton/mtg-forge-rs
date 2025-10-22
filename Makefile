@@ -62,7 +62,7 @@ clippy:
 examples:
 	@echo "=== Running examples ==="
 	@echo ""
-	@./run_examples.sh
+	@./scripts/run_examples.sh
 
 # Comprehensive pre-commit validation
 # Runs all tests, examples, and checks
