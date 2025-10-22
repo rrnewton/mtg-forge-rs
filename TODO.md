@@ -42,6 +42,14 @@
   - Logs spell/ability selection, target selection, attacker/blocker choices
   - Logs mana source selection, damage assignment order, discard choices
   - Helps debug AI behavior and verify randomness in testing
+- ✅ **Undo/replay system fixes** - Turn counter and step progression properly tracked and undone
+  - Fixed GameLoop to call `game.advance_step()` instead of `turn.advance_step()` for undo logging
+  - Now logs ChangeTurn and AdvanceStep actions properly (~564 actions for 47-turn game)
+  - Added `GameLoop::reset()` method to reset turn counter and state for replay
+  - Enhanced undo e2e test with snapshot comparison and halfway-point replay
+  - Turn number correctly resets from turn N back to turn 1 on full rewind
+  - Game loop state (turns_elapsed) properly resets before replay
+  - Full rewind validation: life totals, turn number, active player, and step all match initial snapshot
 - ✅ **Summoning sickness tracking** - Creatures can't attack the turn they enter battlefield
   - Added `turn_entered_battlefield` field to Card struct
   - Set when permanents enter battlefield (via play_land or resolve_spell)

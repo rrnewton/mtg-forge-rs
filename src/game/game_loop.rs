@@ -121,6 +121,15 @@ impl<'a> GameLoop<'a> {
         self
     }
 
+    /// Reset the game loop state (turn counter, step header flag)
+    ///
+    /// Call this after rewinding game state to prepare for replay.
+    /// Note: This does NOT reset the underlying GameState - use game.undo() for that.
+    pub fn reset(&mut self) {
+        self.turns_elapsed = 0;
+        self.step_header_printed = false;
+    }
+
     /// Run the game loop with the given player controllers
     ///
     /// Returns when the game reaches a win condition or turn limit
@@ -211,19 +220,17 @@ impl<'a> GameLoop<'a> {
             self.execute_step(controller1, controller2)?;
 
             // Try to advance to next step
-            if !self.game.turn.advance_step() {
-                // End of turn reached
+            // IMPORTANT: Call game.advance_step() not turn.advance_step()
+            // to ensure step changes are logged to undo log
+            self.game.advance_step()?;
+
+            // Check if we reached end of turn
+            if self.game.turn.current_step == crate::game::Step::Untap {
+                // We wrapped back to Untap, which means a new turn started
+                // The turn change was already logged by advance_step()
                 break;
             }
         }
-
-        // Move to next player's turn
-        let next_player = self
-            .game
-            .get_other_player_id(active_player)
-            .expect("Should have another player");
-
-        self.game.turn.next_turn(next_player);
 
         Ok(())
     }
