@@ -308,18 +308,35 @@ impl<'a> GameLoop<'a> {
             } else {
                 println!("  Battlefield:");
                 for (card_id, card) in player_permanents {
-                    let tap_marker = if card.tapped { " (T)" } else { "" };
+                    let tap_status = if card.tapped { " (tapped)" } else { "" };
+
+                    // Check for summoning sickness (creatures that entered this turn and don't have haste)
+                    let has_summoning_sickness = if card.is_creature() {
+                        if let Some(entered_turn) = card.turn_entered_battlefield {
+                            entered_turn == self.game.turn.turn_number
+                                && !card.has_keyword(&crate::core::Keyword::Haste)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    let sickness_status = if has_summoning_sickness {
+                        " (summoning sickness)"
+                    } else {
+                        ""
+                    };
 
                     // Format card display based on type
                     if card.is_creature() {
                         let power = card.power.unwrap_or(0) + card.power_bonus as i8;
                         let toughness = card.toughness.unwrap_or(0) + card.toughness_bonus as i8;
                         println!(
-                            "    {} ({}) - {}/{}{}",
-                            card.name, card_id, power, toughness, tap_marker
+                            "    {} ({}) - {}/{}{}{}",
+                            card.name, card_id, power, toughness, tap_status, sickness_status
                         );
                     } else {
-                        println!("    {} ({}){}", card.name, card_id, tap_marker);
+                        println!("    {} ({}){}", card.name, card_id, tap_status);
                     }
                 }
             }
