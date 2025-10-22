@@ -25,3 +25,4 @@ flamegraph.svg
 # Claude Logging
 
 logs/claude_workstream*
+trash/
