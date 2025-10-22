@@ -370,15 +370,37 @@ impl GameState {
                                 if let Some(zone) = zones.get_zone_mut(to_zone) {
                                     zone.remove(card_id)
                                 } else {
+                                    eprintln!("UNDO BUG: Failed to get zone {:?} for undo", to_zone);
                                     false
                                 }
                             } else {
+                                eprintln!("UNDO BUG: Failed to get player zones for {:?}", owner);
                                 false
                             }
                         }
                     };
 
-                    if removed {
+                    if !removed {
+                        // Find where the card actually is
+                        let mut actual_zone = None;
+                        if self.battlefield.contains(card_id) {
+                            actual_zone = Some("Battlefield");
+                        } else if self.stack.contains(card_id) {
+                            actual_zone = Some("Stack");
+                        } else if let Some(zones) = self.get_player_zones(owner) {
+                            if zones.hand.contains(card_id) {
+                                actual_zone = Some("Hand");
+                            } else if zones.library.contains(card_id) {
+                                actual_zone = Some("Library");
+                            } else if zones.graveyard.contains(card_id) {
+                                actual_zone = Some("Graveyard");
+                            } else if zones.exile.contains(card_id) {
+                                actual_zone = Some("Exile");
+                            }
+                        }
+                        eprintln!("UNDO BUG: Card {} not found in to_zone {:?}, cannot undo move from {:?} → {:?}. Card is actually in: {:?}",
+                                  card_id.as_u32(), to_zone, from_zone, to_zone, actual_zone);
+                    } else {
                         match from_zone {
                             Zone::Battlefield => self.battlefield.add(card_id),
                             Zone::Stack => self.stack.add(card_id),

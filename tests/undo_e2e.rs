@@ -53,18 +53,26 @@ async fn test_full_game_undo_replay() -> Result<()> {
     // Take snapshot of initial game state for comparison after rewind
     let initial_snapshot = game.clone();
 
-    // Check initial library/hand sizes for reference
-    let initial_p1_library = initial_snapshot.get_player_zones(p1_id)
-        .map(|z| z.library.cards.len())
-        .unwrap_or(0);
-    let initial_p1_hand = initial_snapshot.get_player_zones(p1_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
-    let initial_p1_graveyard = initial_snapshot.get_player_zones(p1_id)
-        .map(|z| z.graveyard.cards.len())
-        .unwrap_or(0);
-    println!("Initial state: P1 has {} library, {} hand, {} graveyard",
-             initial_p1_library, initial_p1_hand, initial_p1_graveyard);
+    // Check initial library/hand/graveyard sizes for reference
+    let initial_p1_zones = initial_snapshot.get_player_zones(p1_id).unwrap();
+    let initial_p1_library = initial_p1_zones.library.cards.len();
+    let initial_p1_hand = initial_p1_zones.hand.cards.len();
+    let initial_p1_graveyard = initial_p1_zones.graveyard.cards.len();
+    let initial_p1_exile = initial_p1_zones.exile.cards.len();
+
+    let initial_p2_zones = initial_snapshot.get_player_zones(p2_id).unwrap();
+    let initial_p2_library = initial_p2_zones.library.cards.len();
+    let initial_p2_hand = initial_p2_zones.hand.cards.len();
+    let initial_p2_graveyard = initial_p2_zones.graveyard.cards.len();
+    let initial_p2_exile = initial_p2_zones.exile.cards.len();
+
+    println!("Initial snapshot state:");
+    println!("  P1: {} library, {} hand, {} graveyard, {} exile (total: {})",
+             initial_p1_library, initial_p1_hand, initial_p1_graveyard, initial_p1_exile,
+             initial_p1_library + initial_p1_hand + initial_p1_graveyard + initial_p1_exile);
+    println!("  P2: {} library, {} hand, {} graveyard, {} exile (total: {})",
+             initial_p2_library, initial_p2_hand, initial_p2_graveyard, initial_p2_exile,
+             initial_p2_library + initial_p2_hand + initial_p2_graveyard + initial_p2_exile);
 
     // Use seeded random controllers for determinism
     let mut controller1 = RandomController::with_seed(p1_id, 42424);
@@ -194,6 +202,12 @@ async fn test_full_game_undo_replay() -> Result<()> {
         change_turn_count, advance_step_count, move_card_count, lib_to_hand, hand_to_stack, stack_to_grave, other_moves, other_count
     );
 
+    // Before undoing, print last few actions in undo log for debugging
+    println!("\nLast 5 actions in undo log (will be undone first):");
+    for (idx, action) in game_loop.game.undo_log.actions().iter().rev().take(5).enumerate() {
+        println!("  -{}: {:?}", idx + 1, action);
+    }
+
     for i in 0..remaining_actions {
         let undone = game_loop.game.undo()?;
         assert!(
@@ -203,12 +217,16 @@ async fn test_full_game_undo_replay() -> Result<()> {
             remaining_actions
         );
 
-        // Print turn number every 10 actions to debug
-        if (i + 1) % 10 == 0 || i == remaining_actions - 1 {
+        // Print turn number every 100 actions to debug
+        if (i + 1) % 100 == 0 || i == remaining_actions - 1 || i < 5 {
+            let p1_lib = game_loop.game.get_player_zones(p1_id).map(|z| z.library.cards.len()).unwrap_or(0);
+            let p1_grave = game_loop.game.get_player_zones(p1_id).map(|z| z.graveyard.cards.len()).unwrap_or(0);
             println!(
-                "  After undoing {} actions: Turn = {}",
+                "  After undoing {} actions: Turn = {}, P1: {} lib / {} grave",
                 i + 1,
-                game_loop.game.turn.turn_number
+                game_loop.game.turn.turn_number,
+                p1_lib,
+                p1_grave
             );
         }
     }
@@ -262,16 +280,31 @@ async fn test_full_game_undo_replay() -> Result<()> {
         "Turn number should be reset to 1 after full rewind"
     );
 
-    // Verify libraries have cards (critical for gameplay)
-    assert!(
-        p1_library_size > 0,
-        "P1 library should have cards after full rewind, got {}",
-        p1_library_size
+    // Verify zone sizes match initial snapshot
+    assert_eq!(
+        p1_library_size, initial_p1_library,
+        "P1 library should match snapshot: {} vs {}",
+        p1_library_size, initial_p1_library
     );
-    assert!(
-        p2_library_size > 0,
-        "P2 library should have cards after full rewind, got {}",
-        p2_library_size
+    assert_eq!(
+        p1_hand_size, initial_p1_hand,
+        "P1 hand should match snapshot: {} vs {}",
+        p1_hand_size, initial_p1_hand
+    );
+    assert_eq!(
+        p1_graveyard_size, initial_p1_graveyard,
+        "P1 graveyard should match snapshot: {} vs {}. Full rewind should restore all cards!",
+        p1_graveyard_size, initial_p1_graveyard
+    );
+    assert_eq!(
+        p2_library_size, initial_p2_library,
+        "P2 library should match snapshot: {} vs {}",
+        p2_library_size, initial_p2_library
+    );
+    assert_eq!(
+        p2_graveyard_size, initial_p2_graveyard,
+        "P2 graveyard should match snapshot: {} vs {}. Full rewind should restore all cards!",
+        p2_graveyard_size, initial_p2_graveyard
     );
 
     // Compare rewound state with initial snapshot
