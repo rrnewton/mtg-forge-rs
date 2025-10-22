@@ -130,23 +130,32 @@ impl GameState {
         // Fill in missing targets for effects
         // For now, target an opponent for DealDamage effects with no target
         for effect in &mut effects {
-            if let Effect::DealDamage {
-                target: TargetRef::None,
-                amount,
-            } = effect
-            {
-                // Find an opponent
-                if let Some(opponent_id) = self
-                    .players
-                    .iter()
-                    .map(|p| p.id)
-                    .find(|id| *id != card_owner)
-                {
-                    *effect = Effect::DealDamage {
-                        target: TargetRef::Player(opponent_id),
-                        amount: *amount,
+            match effect {
+                Effect::DealDamage {
+                    target: TargetRef::None,
+                    amount,
+                } => {
+                    // Find an opponent
+                    if let Some(opponent_id) = self
+                        .players
+                        .iter()
+                        .map(|p| p.id)
+                        .find(|id| *id != card_owner)
+                    {
+                        *effect = Effect::DealDamage {
+                            target: TargetRef::Player(opponent_id),
+                            amount: *amount,
+                        };
+                    }
+                }
+                Effect::DrawCards { player, count } if player.as_u32() == 0 => {
+                    // Default: the card's controller draws (placeholder player ID 0 means "controller")
+                    *effect = Effect::DrawCards {
+                        player: card_owner,
+                        count: *count,
                     };
                 }
+                _ => {}
             }
         }
 
@@ -1036,6 +1045,78 @@ mod tests {
         // Check spell went to graveyard
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert!(zones.graveyard.contains(bolt_id));
+        }
+    }
+
+    #[test]
+    fn test_resolve_draw_spell() {
+        use crate::core::{Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+
+        // Add cards to P1's library
+        for i in 0..5 {
+            let card_id = game.next_card_id();
+            let card = Card::new(card_id, format!("Card {i}"), p1_id);
+            game.cards.insert(card_id, card);
+            if let Some(zones) = game.get_player_zones_mut(p1_id) {
+                zones.library.add(card_id);
+            }
+        }
+
+        // Create a Draw spell (like Divination)
+        let draw_spell_id = game.next_card_id();
+        let mut draw_spell = Card::new(draw_spell_id, "Divination".to_string(), p1_id);
+        draw_spell.types.push(CardType::Sorcery);
+        draw_spell.mana_cost = ManaCost::from_string("2U");
+        // Use placeholder player ID 0 which will be replaced with card owner
+        draw_spell.effects.push(Effect::DrawCards {
+            player: PlayerId::new(0),
+            count: 2,
+        });
+        game.cards.insert(draw_spell_id, draw_spell);
+
+        // Put it on the stack (simulating cast)
+        game.stack.add(draw_spell_id);
+
+        // Check initial state
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert_eq!(
+                zones.hand.cards.len(),
+                0,
+                "Should start with 0 cards in hand"
+            );
+            assert_eq!(
+                zones.library.cards.len(),
+                5,
+                "Should have 5 cards in library"
+            );
+        }
+
+        // Resolve the spell
+        assert!(
+            game.resolve_spell(draw_spell_id).is_ok(),
+            "Failed to resolve draw spell"
+        );
+
+        // Check cards were drawn
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert_eq!(zones.hand.cards.len(), 2, "Should have drawn 2 cards");
+            assert_eq!(
+                zones.library.cards.len(),
+                3,
+                "Should have 3 cards left in library"
+            );
+        }
+
+        // Check spell went to graveyard
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(draw_spell_id),
+                "Draw spell should be in graveyard"
+            );
         }
     }
 

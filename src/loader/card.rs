@@ -209,7 +209,7 @@ impl CardDefinition {
     /// Parse raw abilities into Effect objects (simplified)
     /// This is a temporary solution until we have a full ability parser
     fn parse_effects(&self) -> Vec<crate::core::Effect> {
-        use crate::core::{Effect, TargetRef};
+        use crate::core::{Effect, PlayerId, TargetRef};
 
         let mut effects = Vec::new();
 
@@ -225,6 +225,25 @@ impl CardDefinition {
                             effects.push(Effect::DealDamage {
                                 target: TargetRef::None,
                                 amount,
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Parse Draw abilities
+            // Format: "A:SP$ Draw | NumCards$ 3 | ValidTgts$ Player | ..."
+            // Format: "A:SP$ Draw | NumCards$ 1 | Defined$ You | ..." (draw yourself)
+            if ability.contains("SP$ Draw") {
+                // Extract number of cards to draw
+                if let Some(cards_str) = ability.split("NumCards$").nth(1) {
+                    if let Some(cards_part) = cards_str.trim().split(['|', ' ']).next() {
+                        if let Ok(count) = cards_part.trim().parse::<u8>() {
+                            // For now, use a placeholder player ID - will be filled in at cast time
+                            // Check if it targets a player or is self-draw
+                            effects.push(Effect::DrawCards {
+                                player: PlayerId::new(0), // Placeholder, will be set during resolution
+                                count,
                             });
                         }
                     }
@@ -330,5 +349,34 @@ Oracle:Lightning Bolt deals 3 damage to any target.
         assert_eq!(def.raw_abilities.len(), 1);
         assert!(def.raw_abilities[0].starts_with("A:"));
         assert!(def.raw_abilities[0].contains("DealDamage"));
+    }
+
+    #[test]
+    fn test_parse_draw_spell() {
+        let content = r#"
+Name:Ancestral Recall
+ManaCost:U
+Types:Instant
+A:SP$ Draw | NumCards$ 3 | ValidTgts$ Player | TgtPrompt$ Select target player | SpellDescription$ Target player draws three cards.
+Oracle:Target player draws three cards.
+"#;
+
+        let def = CardLoader::parse(content).unwrap();
+        assert_eq!(def.name.as_str(), "Ancestral Recall");
+        assert_eq!(def.mana_cost.blue, 1);
+        assert!(def.types.contains(&CardType::Instant));
+        assert!(def.colors.contains(&Color::Blue));
+
+        // Check that the effect is parsed
+        let effects = def.parse_effects();
+        assert_eq!(effects.len(), 1, "Ancestral Recall should have 1 effect");
+
+        use crate::core::Effect;
+        match &effects[0] {
+            Effect::DrawCards { player: _, count } => {
+                assert_eq!(*count, 3, "Should draw 3 cards");
+            }
+            _ => panic!("Expected DrawCards effect, got {:?}", effects[0]),
+        }
     }
 }
