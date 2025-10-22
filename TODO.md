@@ -4,6 +4,15 @@
 
 **Tests:** 141 passing ✅ (123 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
+### Infrastructure & Tooling
+- ✅ **Validation caching** - `make validate` caches results by commit hash
+  - Detects clean vs dirty working copy state
+  - Caches validation logs in `experiment_results/validate_<hash>.log` for clean commits
+  - Uses `validate_<hash>_DIRTY.log` for dirty working copies (always runs, no cache)
+  - Atomic writes using .wip temporary files to prevent partial logs
+  - Automatic cache hit on repeated validation of same clean commit
+  - Improves developer workflow by avoiding redundant validation runs
+
 ---
 
 ## ✅ Completed Work
