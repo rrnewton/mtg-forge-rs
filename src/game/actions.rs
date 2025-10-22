@@ -755,6 +755,8 @@ impl GameState {
         // Second pass: assign all damage
         let mut damage_to_creatures: HashMap<CardId, i32> = HashMap::new();
         let mut damage_to_players: HashMap<PlayerId, i32> = HashMap::new();
+        // Track damage dealt by each creature for lifelink (creature_id -> total damage dealt)
+        let mut damage_dealt_by_creature: HashMap<CardId, i32> = HashMap::new();
 
         for attacker_id in attackers {
             // Skip creatures that are no longer on the battlefield
@@ -792,9 +794,15 @@ impl GameState {
                 // Use the pre-determined order if we have one, otherwise use default order
                 let ordered_blockers = damage_orders.get(&attacker_id).cloned().unwrap_or(blockers);
 
-                // Assign damage in order, lethal to each blocker before moving to next
-                // MTG Rules 510.1c: Must assign lethal damage to each blocker before assigning to next
+                // Assign damage in order
+                // MTG Rules 510.1c:
+                // - If exactly one creature is blocking:
+                //   * WITHOUT trample: assign ALL damage to that blocker
+                //   * WITH trample: assign at least lethal, rest can trample over
+                // - If multiple creatures are blocking: assign at least lethal to each
+                //   before assigning to the next (can assign more)
                 // Note: Current implementation doesn't track damage, so lethal = toughness
+                let has_trample = attacker.has_trample();
                 for blocker_id in &ordered_blockers {
                     if remaining_power <= 0 {
                         break;
@@ -807,11 +815,22 @@ impl GameState {
                     // (In full MTG, this would be toughness minus damage already marked)
                     let lethal_damage = blocker_toughness;
 
-                    // Assign at least lethal damage (or all remaining if less than lethal)
-                    let damage_to_assign = remaining_power.min(lethal_damage);
+                    let damage_to_assign = if ordered_blockers.len() == 1 && !has_trample {
+                        // MTG Rules 510.1c: With exactly one blocker and NO trample,
+                        // assign ALL damage to it (even if more than lethal)
+                        remaining_power
+                    } else {
+                        // MTG Rules 510.1c: With trample OR multiple blockers,
+                        // assign at least lethal to each before moving to next.
+                        // For simplicity, we assign exactly lethal.
+                        remaining_power.min(lethal_damage)
+                    };
 
                     if damage_to_assign > 0 {
                         *damage_to_creatures.entry(*blocker_id).or_insert(0) +=
+                            damage_to_assign as i32;
+                        // Track damage for lifelink
+                        *damage_dealt_by_creature.entry(attacker_id).or_insert(0) +=
                             damage_to_assign as i32;
                         remaining_power -= damage_to_assign;
                     }
@@ -823,6 +842,9 @@ impl GameState {
                 if attacker.has_trample() && remaining_power > 0 {
                     if let Some(defending_player) = self.combat.get_defending_player(attacker_id) {
                         *damage_to_players.entry(defending_player).or_insert(0) +=
+                            remaining_power as i32;
+                        // Track damage for lifelink
+                        *damage_dealt_by_creature.entry(attacker_id).or_insert(0) +=
                             remaining_power as i32;
                     }
                 }
@@ -852,6 +874,9 @@ impl GameState {
                     if blocker_power > 0 {
                         *damage_to_creatures.entry(attacker_id).or_insert(0) +=
                             blocker_power as i32;
+                        // Track damage for lifelink
+                        *damage_dealt_by_creature.entry(*blocker_id).or_insert(0) +=
+                            blocker_power as i32;
                     }
                 }
             } else {
@@ -859,6 +884,23 @@ impl GameState {
                 if let Some(defending_player) = self.combat.get_defending_player(attacker_id) {
                     *damage_to_players.entry(defending_player).or_insert(0) +=
                         remaining_power as i32;
+                    // Track damage for lifelink
+                    *damage_dealt_by_creature.entry(attacker_id).or_insert(0) +=
+                        remaining_power as i32;
+                }
+            }
+        }
+
+        // Apply lifelink BEFORE dealing damage (since creatures might die)
+        // MTG Rules 702.15: Damage dealt by a source with lifelink also causes
+        // its controller to gain that much life
+        for (creature_id, total_damage) in &damage_dealt_by_creature {
+            if let Ok(creature) = self.cards.get(*creature_id) {
+                if creature.has_lifelink() {
+                    let controller = creature.controller;
+                    if let Ok(player) = self.get_player_mut(controller) {
+                        player.gain_life(*total_damage);
+                    }
                 }
             }
         }
@@ -2722,5 +2764,263 @@ mod tests {
             p2_life_before - 2,
             "P2 should have taken 2 trample damage"
         );
+    }
+
+    #[test]
+    fn test_lifelink_attacker_blocked() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 3/3 creature with Lifelink (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Healer's Hawk".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(3);
+        attacker.toughness = Some(3);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Lifelink);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 2/2 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Grizzly Bears".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Record P1's life before combat
+        let p1_life_before = game.players[0].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // P1 should have gained 3 life from lifelink (3 damage dealt to blocker)
+        let p1_life_after = game.players[0].life;
+        assert_eq!(
+            p1_life_after,
+            p1_life_before + 3,
+            "P1 should have gained 3 life from lifelink"
+        );
+
+        // Blocker should be dead
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_lifelink_attacker_unblocked() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 4/4 creature with Lifelink (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Ajani's Pridemate".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(4);
+        attacker.toughness = Some(4);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Lifelink);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // Declare combat (no blockers)
+        game.combat.declare_attacker(attacker_id, p2_id);
+
+        // Record life before combat
+        let p1_life_before = game.players[0].life;
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // P1 should have gained 4 life from lifelink (4 damage dealt to player)
+        let p1_life_after = game.players[0].life;
+        assert_eq!(
+            p1_life_after,
+            p1_life_before + 4,
+            "P1 should have gained 4 life from lifelink"
+        );
+
+        // P2 should have taken 4 damage
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after,
+            p2_life_before - 4,
+            "P2 should have taken 4 damage"
+        );
+    }
+
+    #[test]
+    fn test_lifelink_blocker() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 3/3 creature (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Hill Giant".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(3);
+        attacker.toughness = Some(3);
+        attacker.controller = p1_id;
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 2/2 creature with Lifelink (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Vampire Cutthroat".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        blocker.keywords.push(Keyword::Lifelink);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Record P2's life before combat
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // P2 should have gained 2 life from lifelink (blocker dealt 2 damage)
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after,
+            p2_life_before + 2,
+            "P2 should have gained 2 life from lifelink blocker"
+        );
+
+        // Blocker should be dead (took 3 damage, has 2 toughness)
+        // Attacker should survive (took 2 damage, has 3 toughness)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                !zones.graveyard.contains(attacker_id),
+                "Attacker should still be alive (took 2 damage, has 3 toughness)"
+            );
+            assert!(
+                game.battlefield.contains(attacker_id),
+                "Attacker should still be on battlefield"
+            );
+        }
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard (took 3 damage, has 2 toughness)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_lifelink_with_trample() {
+        use crate::game::random_controller::RandomController;
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 5/5 creature with Lifelink AND Trample (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Baneslayer Angel".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(5);
+        attacker.toughness = Some(5);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::Lifelink);
+        attacker.keywords.push(Keyword::Trample);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 2/2 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Grizzly Bears".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Record life before combat
+        let p1_life_before = game.players[0].life;
+        let p2_life_before = game.players[1].life;
+
+        // Assign combat damage
+        let mut controller1 = RandomController::with_seed(p1_id, 12345);
+        let mut controller2 = ZeroController::new(p2_id);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // P1 should have gained 5 life (2 to blocker + 3 trample to player = 5 total damage)
+        let p1_life_after = game.players[0].life;
+        assert_eq!(
+            p1_life_after,
+            p1_life_before + 5,
+            "P1 should have gained 5 life from lifelink (all damage dealt)"
+        );
+
+        // P2 should have taken 3 trample damage
+        let p2_life_after = game.players[1].life;
+        assert_eq!(
+            p2_life_after,
+            p2_life_before - 3,
+            "P2 should have taken 3 trample damage"
+        );
+
+        // Blocker should be dead
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard"
+            );
+        }
     }
 }

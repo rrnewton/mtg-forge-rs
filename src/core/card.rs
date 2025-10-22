@@ -154,6 +154,10 @@ impl Card {
         self.has_keyword(&Keyword::Trample)
     }
 
+    pub fn has_lifelink(&self) -> bool {
+        self.has_keyword(&Keyword::Lifelink)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }
