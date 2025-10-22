@@ -37,6 +37,18 @@ impl<T> PartialEq for EntityId<T> {
 
 impl<T> Eq for EntityId<T> {}
 
+impl<T> PartialOrd for EntityId<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for EntityId<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
 impl<T> std::hash::Hash for EntityId<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);

@@ -4,26 +4,27 @@
 
 use crate::core::{CardId, PlayerId};
 use serde::{Deserialize, Serialize};
-use smallmap::Map;
 use smallvec::SmallVec;
+use std::collections::BTreeMap;
 
 /// Combat state for the current combat phase
 ///
 /// This tracks all combat-related information during a combat phase.
 /// It's reset at the end of combat.
+/// Uses BTreeMap for deterministic iteration order.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CombatState {
     /// Creatures that are attacking this combat
     /// Maps attacker ID to the player/planeswalker being attacked
-    pub attackers: Map<CardId, PlayerId>,
+    pub attackers: BTreeMap<CardId, PlayerId>,
 
     /// Creatures that are blocking
     /// Maps blocker ID to the list of attackers it's blocking
-    pub blockers: Map<CardId, SmallVec<[CardId; 2]>>,
+    pub blockers: BTreeMap<CardId, SmallVec<[CardId; 2]>>,
 
     /// Reverse mapping: attacker -> blockers
     /// Useful for determining if an attacker is blocked and by whom
-    pub attacker_blockers: Map<CardId, SmallVec<[CardId; 4]>>,
+    pub attacker_blockers: BTreeMap<CardId, SmallVec<[CardId; 4]>>,
 
     /// Whether combat has started this turn
     pub combat_active: bool,
@@ -97,9 +98,9 @@ impl CombatState {
 
     /// Clear all combat state (called at end of combat)
     pub fn clear(&mut self) {
-        self.attackers = Map::new();
-        self.blockers = Map::new();
-        self.attacker_blockers = Map::new();
+        self.attackers.clear();
+        self.blockers.clear();
+        self.attacker_blockers.clear();
         self.combat_active = false;
     }
 }

@@ -16,6 +16,10 @@
 
 # Benchmarking and Profiling:
 
+# All profiling output goes to experiment_results/
+experiment_results/
+
+# Legacy patterns (in case files are created in root by mistake)
 *.svg
 *.zst
 perf.data*
