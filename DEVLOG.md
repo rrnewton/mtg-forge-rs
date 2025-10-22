@@ -1422,6 +1422,30 @@ setup around a recursive call to make.
 This scheme will prevent us from running validate twice in a row on the same commit.
 
 
+Focus on expanding e2e tests
+----------------------------------------
+
+All our recently added card abilities have been tested with unit tests
+that load individual cards.  It's also important to keep expanding our
+e2e tests, especially by playing full random games between different
+decks. For example, we recently added vigilance tests, but let's also
+find a deck with Serra angel in it like this one:
+
+```
+cat "forge-java/forge-gui/res/adventure/Shandalar Old Border/decks/standard/fallen_angel.dck"
+```
+
+
+
+TODO: Make random, not zero, the default agent behavior
+----------------------------------------
+
+Focus on getting the undo log to work
+----------------------------------------
+
+
+
+
 TODO: switch to bump allocator for temporary storage
 --------------------------------------------
 

@@ -419,8 +419,14 @@ impl GameState {
                     // Spell fizzles - no valid targets
                     return Ok(());
                 }
-                let owner = self.cards.get(*target)?.owner;
-                self.move_card(*target, Zone::Battlefield, Zone::Graveyard, owner)?;
+                // MTG Rules 702.12b: Permanents with indestructible can't be destroyed
+                let (owner, has_indestructible) = {
+                    let card = self.cards.get(*target)?;
+                    (card.owner, card.has_indestructible())
+                };
+                if !has_indestructible {
+                    self.move_card(*target, Zone::Battlefield, Zone::Graveyard, owner)?;
+                }
             }
             Effect::TapPermanent { target } => {
                 // Skip if target is still placeholder (0) - no valid targets found
@@ -494,15 +500,21 @@ impl GameState {
     /// Deal damage to a creature
     pub fn deal_damage_to_creature(&mut self, target_id: CardId, amount: i32) -> Result<()> {
         // Get info about the creature first (without holding the borrow)
-        let (is_creature, toughness, owner) = {
+        let (is_creature, toughness, owner, has_indestructible) = {
             let card = self.cards.get(target_id)?;
-            (card.is_creature(), card.current_toughness(), card.owner)
+            (
+                card.is_creature(),
+                card.current_toughness(),
+                card.owner,
+                card.has_indestructible(),
+            )
         };
 
         if is_creature {
             // Mark damage (simplified - real MTG has damage tracking)
-            // For now, if damage >= toughness, creature dies
-            if amount >= toughness as i32 {
+            // MTG Rules 702.12b: Permanents with indestructible aren't destroyed by lethal damage
+            // For now, if damage >= toughness and creature doesn't have indestructible, creature dies
+            if amount >= toughness as i32 && !has_indestructible {
                 self.move_card(target_id, Zone::Battlefield, Zone::Graveyard, owner)?;
             }
             return Ok(());
@@ -966,12 +978,16 @@ impl GameState {
 
         // Apply deathtouch state-based action (MTG Rules 702.2b)
         // Any creature with toughness > 0 that was dealt damage by a deathtouch source is destroyed
+        // MTG Rules 702.12b: Permanents with indestructible can't be destroyed
         for creature_id in deathtouch_damaged_creatures {
             // Check if creature is still on battlefield (might have died from normal damage)
             if self.battlefield.contains(creature_id) {
                 if let Ok(creature) = self.cards.get(creature_id) {
-                    // Only destroy if it has toughness > 0 (per rules)
-                    if creature.is_creature() && creature.current_toughness() > 0 {
+                    // Only destroy if it has toughness > 0 and doesn't have indestructible
+                    if creature.is_creature()
+                        && creature.current_toughness() > 0
+                        && !creature.has_indestructible()
+                    {
                         let owner = creature.owner;
                         self.move_card(creature_id, Zone::Battlefield, Zone::Graveyard, owner)?;
                     }
@@ -3780,5 +3796,236 @@ mod tests {
             game.battlefield.contains(hexproof_creature_id),
             "Hexproof creature should still be on battlefield"
         );
+    }
+
+    #[test]
+    fn test_indestructible_survives_lethal_damage() {
+        // Test that indestructible creatures survive lethal damage
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 2/2 indestructible creature
+        let indestructible_id = game.next_entity_id();
+        let mut indestructible = Card::new(indestructible_id, "Darksteel Myr".to_string(), p1_id);
+        indestructible.types.push(CardType::Creature);
+        indestructible.power = Some(2);
+        indestructible.toughness = Some(2);
+        indestructible.keywords.push(Keyword::Indestructible);
+        indestructible.controller = p1_id;
+        indestructible.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(indestructible_id, indestructible);
+        game.battlefield.add(indestructible_id);
+
+        // P2: Create a 5/5 creature (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Hill Giant".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(5);
+        blocker.toughness = Some(5);
+        blocker.controller = p2_id;
+        blocker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // P1 attacks with indestructible creature
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        game.combat.declare_attacker(indestructible_id, p2_id);
+
+        // P2 blocks with 5/5 creature
+        let result = game.declare_blocker(p2_id, blocker_id, vec![indestructible_id]);
+        assert!(result.is_ok(), "Failed to declare blocker: {result:?}");
+
+        // Assign combat damage
+        // Indestructible 2/2 deals 2 damage to blocker
+        // Blocker 5/5 deals 5 damage to indestructible (more than lethal, but indestructible survives)
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Indestructible creature should survive (took 5 damage but has indestructible)
+        assert!(
+            game.battlefield.contains(indestructible_id),
+            "Indestructible creature should survive lethal damage"
+        );
+
+        // Blocker should survive (took 2 damage, has 5 toughness)
+        assert!(
+            game.battlefield.contains(blocker_id),
+            "Blocker should survive 2 damage"
+        );
+    }
+
+    #[test]
+    fn test_indestructible_immune_to_destroy_effects() {
+        // Test that indestructible creatures can't be destroyed by Terror/Murder
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P2: Create an indestructible creature
+        let indestructible_id = game.next_entity_id();
+        let mut indestructible = Card::new(indestructible_id, "Darksteel Myr".to_string(), p2_id);
+        indestructible.types.push(CardType::Creature);
+        indestructible.power = Some(0);
+        indestructible.toughness = Some(1);
+        indestructible.keywords.push(Keyword::Indestructible);
+        game.cards.insert(indestructible_id, indestructible);
+        game.battlefield.add(indestructible_id);
+
+        // P1: Cast Terror targeting the indestructible creature
+        let destroy_spell_id = game.next_entity_id();
+        let mut destroy_spell = Card::new(destroy_spell_id, "Terror".to_string(), p1_id);
+        destroy_spell.types.push(CardType::Instant);
+        destroy_spell.mana_cost = ManaCost::from_string("1B");
+        // Explicitly target the indestructible creature
+        destroy_spell.effects.push(Effect::DestroyPermanent {
+            target: indestructible_id,
+        });
+        game.cards.insert(destroy_spell_id, destroy_spell);
+
+        // Put it on the stack
+        game.stack.add(destroy_spell_id);
+
+        // Resolve the spell
+        let result = game.resolve_spell(destroy_spell_id);
+        assert!(result.is_ok(), "Destroy spell should resolve successfully");
+
+        // Indestructible creature should still be alive
+        assert!(
+            game.battlefield.contains(indestructible_id),
+            "Indestructible creature should survive destroy effect"
+        );
+    }
+
+    #[test]
+    fn test_indestructible_survives_deathtouch() {
+        // Test that indestructible creatures survive deathtouch damage
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 1/1 deathtouch creature (attacker)
+        let deathtouch_id = game.next_entity_id();
+        let mut deathtouch = Card::new(deathtouch_id, "Typhoid Rats".to_string(), p1_id);
+        deathtouch.types.push(CardType::Creature);
+        deathtouch.power = Some(1);
+        deathtouch.toughness = Some(1);
+        deathtouch.keywords.push(Keyword::Deathtouch);
+        deathtouch.controller = p1_id;
+        deathtouch.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(deathtouch_id, deathtouch);
+        game.battlefield.add(deathtouch_id);
+
+        // P2: Create a 5/5 indestructible creature (blocker)
+        let indestructible_id = game.next_entity_id();
+        let mut indestructible =
+            Card::new(indestructible_id, "Darksteel Colossus".to_string(), p2_id);
+        indestructible.types.push(CardType::Creature);
+        indestructible.power = Some(5);
+        indestructible.toughness = Some(5);
+        indestructible.keywords.push(Keyword::Indestructible);
+        indestructible.controller = p2_id;
+        indestructible.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(indestructible_id, indestructible);
+        game.battlefield.add(indestructible_id);
+
+        // P1 attacks with deathtouch creature
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        game.combat.declare_attacker(deathtouch_id, p2_id);
+
+        // P2 blocks with indestructible creature
+        let result = game.declare_blocker(p2_id, indestructible_id, vec![deathtouch_id]);
+        assert!(result.is_ok(), "Failed to declare blocker: {result:?}");
+
+        // Assign combat damage
+        // Deathtouch 1/1 deals 1 damage to indestructible (deathtouch damage, but indestructible survives)
+        // Indestructible 5/5 deals 5 damage to deathtouch (kills it)
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Indestructible creature should survive deathtouch damage
+        assert!(
+            game.battlefield.contains(indestructible_id),
+            "Indestructible creature should survive deathtouch damage"
+        );
+
+        // Deathtouch creature should be dead (took 5 damage, has 1 toughness)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(deathtouch_id),
+                "Deathtouch creature should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_indestructible_vs_non_indestructible_combat() {
+        // Test that normal creature dies while indestructible survives in mutual combat
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 3/3 indestructible creature (attacker)
+        let indestructible_id = game.next_entity_id();
+        let mut indestructible = Card::new(indestructible_id, "Indomitable".to_string(), p1_id);
+        indestructible.types.push(CardType::Creature);
+        indestructible.power = Some(3);
+        indestructible.toughness = Some(3);
+        indestructible.keywords.push(Keyword::Indestructible);
+        indestructible.controller = p1_id;
+        indestructible.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(indestructible_id, indestructible);
+        game.battlefield.add(indestructible_id);
+
+        // P2: Create a 3/3 normal creature (blocker)
+        let normal_id = game.next_entity_id();
+        let mut normal = Card::new(normal_id, "Hill Giant".to_string(), p2_id);
+        normal.types.push(CardType::Creature);
+        normal.power = Some(3);
+        normal.toughness = Some(3);
+        normal.controller = p2_id;
+        normal.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(normal_id, normal);
+        game.battlefield.add(normal_id);
+
+        // P1 attacks with indestructible creature
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        game.combat.declare_attacker(indestructible_id, p2_id);
+
+        // P2 blocks with normal creature
+        let result = game.declare_blocker(p2_id, normal_id, vec![indestructible_id]);
+        assert!(result.is_ok(), "Failed to declare blocker: {result:?}");
+
+        // Assign combat damage
+        // Both deal 3 damage to each other (lethal)
+        // Indestructible survives, normal dies
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Indestructible creature should survive
+        assert!(
+            game.battlefield.contains(indestructible_id),
+            "Indestructible creature should survive"
+        );
+
+        // Normal creature should be dead
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(normal_id),
+                "Normal creature should be in graveyard"
+            );
+        }
     }
 }

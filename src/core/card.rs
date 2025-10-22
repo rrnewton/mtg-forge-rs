@@ -170,6 +170,10 @@ impl Card {
         self.has_keyword(&Keyword::Hexproof)
     }
 
+    pub fn has_indestructible(&self) -> bool {
+        self.has_keyword(&Keyword::Indestructible)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }

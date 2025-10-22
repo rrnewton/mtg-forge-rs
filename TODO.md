@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 156 passing ✅ (138 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 160 passing ✅ (142 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ### Infrastructure & Tooling
 - ✅ **Validation caching** - `make validate` caches results by commit hash
@@ -127,8 +127,16 @@
   - Own creatures with hexproof CAN be targeted by their controller's spells (Giant Growth on own hexproof)
   - Spells with no valid targets (all have hexproof) fizzle gracefully without error
   - Full test coverage (4 tests: blocks destroy, blocks tap, allows own spells, no valid targets)
+- ✅ **Indestructible keyword** - Permanents with indestructible can't be destroyed
+  - Implemented MTG Rules 702.12: "A permanent with indestructible can't be destroyed. Such permanents aren't destroyed by lethal damage"
+  - Added `has_indestructible()` helper method to Card
+  - Modified `deal_damage_to_creature()` to skip destruction for indestructible creatures with lethal damage
+  - Modified deathtouch state-based action to skip indestructible creatures
+  - Modified `Effect::DestroyPermanent` to skip destroying indestructible permanents
+  - Indestructible creatures survive lethal damage, deathtouch damage, and destroy effects (Terror/Murder)
+  - Full test coverage (4 tests: survives lethal damage, immune to destroy effects, survives deathtouch, vs normal creature)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
-- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Protection, Madness, Flashback
+- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Indestructible, Protection, Madness, Flashback
 - ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size
@@ -299,8 +307,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/Menace/Hexproof/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/Menace/Hexproof/Indestructible/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 156 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 160 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
