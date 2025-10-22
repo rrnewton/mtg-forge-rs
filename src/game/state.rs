@@ -241,6 +241,15 @@ impl GameState {
         if let Some(zones) = self.get_player_zones_mut(player_id) {
             if let Some(card_id) = zones.library.draw_top() {
                 zones.hand.add(card_id);
+
+                // Log the card movement for undo
+                self.undo_log.log(crate::undo::GameAction::MoveCard {
+                    card_id,
+                    from_zone: crate::zones::Zone::Library,
+                    to_zone: crate::zones::Zone::Hand,
+                    owner: player_id,
+                });
+
                 return Ok(Some(card_id));
             }
         }

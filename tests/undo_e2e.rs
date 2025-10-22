@@ -53,6 +53,19 @@ async fn test_full_game_undo_replay() -> Result<()> {
     // Take snapshot of initial game state for comparison after rewind
     let initial_snapshot = game.clone();
 
+    // Check initial library/hand sizes for reference
+    let initial_p1_library = initial_snapshot.get_player_zones(p1_id)
+        .map(|z| z.library.cards.len())
+        .unwrap_or(0);
+    let initial_p1_hand = initial_snapshot.get_player_zones(p1_id)
+        .map(|z| z.hand.cards.len())
+        .unwrap_or(0);
+    let initial_p1_graveyard = initial_snapshot.get_player_zones(p1_id)
+        .map(|z| z.graveyard.cards.len())
+        .unwrap_or(0);
+    println!("Initial state: P1 has {} library, {} hand, {} graveyard",
+             initial_p1_library, initial_p1_hand, initial_p1_graveyard);
+
     // Use seeded random controllers for determinism
     let mut controller1 = RandomController::with_seed(p1_id, 42424);
     let mut controller2 = RandomController::with_seed(p2_id, 42425);
@@ -142,17 +155,43 @@ async fn test_full_game_undo_replay() -> Result<()> {
     // Debug: Count action types in the undo log
     let mut change_turn_count = 0;
     let mut advance_step_count = 0;
+    let mut move_card_count = 0;
+    let mut lib_to_hand = 0;
+    let mut hand_to_stack = 0;
+    let mut stack_to_grave = 0;
+    let mut other_moves = 0;
     let mut other_count = 0;
     for action in game_loop.game.undo_log.actions() {
         match action {
             mtg_forge_rs::undo::GameAction::ChangeTurn { .. } => change_turn_count += 1,
             mtg_forge_rs::undo::GameAction::AdvanceStep { .. } => advance_step_count += 1,
+            mtg_forge_rs::undo::GameAction::MoveCard { from_zone, to_zone, .. } => {
+                move_card_count += 1;
+                use mtg_forge_rs::zones::Zone;
+                match (from_zone, to_zone) {
+                    (Zone::Library, Zone::Hand) => lib_to_hand += 1,
+                    (Zone::Hand, Zone::Stack) => hand_to_stack += 1,
+                    (Zone::Stack, Zone::Graveyard) => stack_to_grave += 1,
+                    (Zone::Hand, Zone::Battlefield) => {
+                        println!("  DEBUG: Hand→Battlefield move logged");
+                        other_moves += 1;
+                    }
+                    (Zone::Hand, Zone::Graveyard) => {
+                        println!("  DEBUG: Hand→Graveyard move logged");
+                        other_moves += 1;
+                    }
+                    _ => {
+                        println!("  DEBUG: Other move: {:?} → {:?}", from_zone, to_zone);
+                        other_moves += 1;
+                    }
+                }
+            }
             _ => other_count += 1,
         }
     }
     println!(
-        "Actions in undo log: {} ChangeTurn, {} AdvanceStep, {} other",
-        change_turn_count, advance_step_count, other_count
+        "Actions in undo log: {} ChangeTurn, {} AdvanceStep, {} MoveCard ({} Lib→Hand, {} Hand→Stack, {} Stack→Grave, {} other), {} other actions",
+        change_turn_count, advance_step_count, move_card_count, lib_to_hand, hand_to_stack, stack_to_grave, other_moves, other_count
     );
 
     for i in 0..remaining_actions {
@@ -189,15 +228,50 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let p2_life_after_rewind = game_loop.game.get_player(p2_id)?.life;
     let turn_after_rewind = game_loop.game.turn.turn_number;
 
+    // Check all zone sizes after rewind
+    let p1_zones = game_loop.game.get_player_zones(p1_id).unwrap();
+    let p1_library_size = p1_zones.library.cards.len();
+    let p1_hand_size = p1_zones.hand.cards.len();
+    let p1_graveyard_size = p1_zones.graveyard.cards.len();
+    let p1_exile_size = p1_zones.exile.cards.len();
+
+    let p2_zones = game_loop.game.get_player_zones(p2_id).unwrap();
+    let p2_library_size = p2_zones.library.cards.len();
+    let p2_hand_size = p2_zones.hand.cards.len();
+    let p2_graveyard_size = p2_zones.graveyard.cards.len();
+    let p2_exile_size = p2_zones.exile.cards.len();
+
+    let battlefield_size = game_loop.game.battlefield.cards.len();
+    let stack_size = game_loop.game.stack.cards.len();
+
     println!("\nGame state after full rewind:");
     println!("  P1 life: {} (initial: 20)", p1_life_after_rewind);
     println!("  P2 life: {} (initial: 20)", p2_life_after_rewind);
     println!("  Turn number: {} (initial: 1)", turn_after_rewind);
+    println!("  P1 zones: {} library, {} hand, {} graveyard, {} exile",
+             p1_library_size, p1_hand_size, p1_graveyard_size, p1_exile_size);
+    println!("  P2 zones: {} library, {} hand, {} graveyard, {} exile",
+             p2_library_size, p2_hand_size, p2_graveyard_size, p2_exile_size);
+    println!("  Battlefield: {} cards, Stack: {} cards", battlefield_size, stack_size);
+    println!("  P1 total: {} cards", p1_library_size + p1_hand_size + p1_graveyard_size + p1_exile_size);
+    println!("  P2 total: {} cards", p2_library_size + p2_hand_size + p2_graveyard_size + p2_exile_size);
 
     // Verify turn number was reset
     assert_eq!(
         turn_after_rewind, 1,
         "Turn number should be reset to 1 after full rewind"
+    );
+
+    // Verify libraries have cards (critical for gameplay)
+    assert!(
+        p1_library_size > 0,
+        "P1 library should have cards after full rewind, got {}",
+        p1_library_size
+    );
+    assert!(
+        p2_library_size > 0,
+        "P2 library should have cards after full rewind, got {}",
+        p2_library_size
     );
 
     // Compare rewound state with initial snapshot
