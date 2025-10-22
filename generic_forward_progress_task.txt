@@ -11,3 +11,10 @@ validate` passes. As described in the project vision, the goal is to
 keep expanding the implementation until the full game of MTG is
 playable, including all cards and arbitrary decks, including the 6690
 .dck files in forge-java/.
+
+If you become completely stuck, write the problem to "error.txt" before you exit.
+
+If you are successful, and `make validate` passes, then commit the
+changes. Finally, push the changes (`git push origin main`). If there
+are any upstream commits, pull those and merge them (fixing any merge
+conflicts and revalidating) before pushing the merged results.

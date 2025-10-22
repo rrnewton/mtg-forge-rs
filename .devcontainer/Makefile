@@ -17,7 +17,10 @@ run:
 		$(TAG)-$(SLOT) bash
 
 root:
-	$(MAKE) USER=root run
+	$(CONTAINER) run -it --rm -u root \
+		-v `pwd`/home:/root \
+		-v `pwd`/..:/workspace \
+		$(TAG)-$(SLOT) bash
 
 run_old:
 	$(CONTAINER) run -it --rm \

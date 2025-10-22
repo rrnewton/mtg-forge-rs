@@ -9,6 +9,61 @@ go install github.com/steveyegge/beads/cmd/bd@latest
 export PATH=$HOME/go/bin:$PATH
 ```
 
+Generic Forward progress instruction
+----------------------------------------
+
+Now you select a task to make forward progress. Review the context:
+
+ - TODO.md
+ - CLAUDE.md
+ - Game rules: rules/02_mtg_rules_condensed_medium_length_gemini.md
+ - PROJECT_VISION.md
+ - Relevent feature of the source material, Java implementation: ./forge-java
+
+Then select a task, make forward progress, and commit it after `make
+validate` passes. As described in the project vision, the goal is to
+keep expanding the implementation until the full game of MTG is
+playable, including all cards and arbitrary decks, including the 6690
+.dck files in forge-java/.
+
+If you become completely stuck, write the problem to "error.txt" before you exit.
+
+If you are successful, and `make validate` passes, then commit the
+changes. Finally, push the changes (`git push origin main`). If there
+are any upstream commits, pull those and merge them (fixing any merge
+conflicts and revalidating) before pushing the merged results.
+
+
+
+Playing around with claude non-interactive
+----------------------------------------
+
+```
+time claude --dangerously-skip-permissions --verbose -c -p "$(cat prompt.txt)"
+time claude --dangerously-skip-permissions --verbose --output-format stream-json -c -p "$(cat generic_forward_progress_task.txt)"
+```
+
+That's a NICE output stream... I should probably tee it to a file and pretty print it with jq...
+
+---
+
+Write a simple script to drive claude, `gogo_claude.sh ITERS`:
+
+- select `LOG=./logs/claude_workstreamXY.jsonl` as the output log, where we increment XY until we find a filename that doesn't already exist.
+
+- Run `time claude --dangerously-skip-permissions --verbose --output-format stream-json -c -p "$(cat generic_forward_progress_task.txt)"`
+- tee the output to `$LOG`, storing the full streaming json output for later
+- pipe the output to jq and extract the "result" field of every json message with type="result".
+- claude produces unquoted unicode symbols, for checkmarks etc. You may need to first pipe the ouput through something to quote these, or you will get an error like `jq: parse error: Invalid string: control characters from U+0000 through U+001F must be escaped at line 7, column 2`
+
+After each iteration of the above:
+- if `error.txt` exists, exit our script with an error code and print the error.
+- if we exited successfully, then repeat the loop again to do more work
+- if we have completed ITER iterations successfully, then exit our script with a success code.
+
+
+
+
 [2025.10.19] {Additional prompts beyond the original setup}
 ================================================================================
 
@@ -956,6 +1011,224 @@ Finally, on top of that we should have a DecisionTree type that wraps a Controll
 (2) a vector of `&str` descriptions of each option, 0-N.
 
 We want to be careful even here to not allocate. For instance if the options are different cards, then we get a handle on their existing name rather than copying a string.
+
+----
+
+When all the work is done and `make validate` passes, then do one additional refactor commit for renames only. Get rid of all the "v2" names in filenames and code so the new controller becomes THE controller with no extra complication.
+
+
+This controller architecture deviates substantially from PlayerController.java
+----------------------------------------
+
+We need to pay more attention to our source material here. Examine at least PlayerController.java, PlayerControllerAI.java, and Player.java.
+
+We have split apart choosing a land vs choosing a spell to play. In the Java version, `chooseSpellAbilityToPlay` handles both lands and other cards in hand, plus abilities. It's better to combine these choices as the Java version does.
+
+Furthermore, it is NOT necessary to tap mana before casting a spell. Refer back back to the rules `rules/02_mtg_rules_condensed_medium_length_gemini.md`, section 5.3, paying costs is step 7 of 8 in casting a spell.
+Adding the spell to the stack happens before costs are payed. See for example HumanPlaySpellAbility.playAbility in the Java version. The computer AI uses a method called `payManaCost` to accomplish this. In any case, the Controller should be prompted for the choice after choosing which card (spell) to play and it going on the stack.
+
+--
+
+IF you complete the above (controller overhaul) task, and it's
+committed with `make validate` fully passing, then please tackle this
+next task.
+
+Compute which mana costs are payable
+----------------------------------------
+
+We're going to start moving towards presenting only FEASIBLE, legal
+options.  I.e. don't ask which card to play and include non-playable
+cards. This will help us get to the point where the random controller
+does not create any illegal actions that crash the game OR puts spells
+on the stack that are not able to have their costs met. (Though in the
+latter case I think MTG may have rules for what happens if a spell is
+on the stack but costs are not paid.)
+
+In order to move in this direction let's add a function for computing
+whether, given the current board state, the active player is ABLE to
+produce a given ManaCost. 
+
+We cannot simply compute the max mana we can produce of each
+color. Because some lands produce, e.g. {R} or {G}, so therefore we
+cannot cast a spell that costs one of each, {R}{G}.
+
+In fact, it is a tiny search process to compute ManaCost
+payabality. But in practice it should be very cheap.  We should
+abstract an object that queries our mana capabilities and maintains
+state to precompute or cache for efficient querying. It needs to be
+updated every time a new mana source hits the battlefield, and queried
+every time we want to know if a cost is playable.
+
+Inside this per-player mana engine, we should store the lands on the
+battlefield partitioned into "simple" mana sources and complex ones,
+including choices (A or B) and conditional costs (pay A to get B). The
+simple sources can indeed just be added up.  The max production in
+each color should just be cached in a simple struct (with six counters
+RGBUWC). Comparing whether a ManaCost is less than or equal to these
+counters can determine playability quickly for simple sources.
+
+For now, stub out handling of the complex sources and just put a todo!
+macro in.
+
+Later, we will need to add even more complexity, as in
+ManaCostShard.java, for special kinds of mana and costs that can be
+paid with "A or B" as well.
+
+More logging of game events: damage, etc
+----------------------------------------
+
+If we run a game between two grizzly bear decks, we don't see them being played or attacking.
+
+```
+cargo run --bin mtg -- tui test_decks/grizzly_bears.dck test_decks/grizzly_bears.dck
+```
+
+This should show messages for at least these actions at the normal --verbosity=2 level:
+
+- spell being put on the stack
+- spell resolving
+- grizzly bear entering the battlefield
+- grizzly bear declarad as attacker
+- damage done by grizzly bear to opponent
+
+
+Print CardId after the name.
+----------------------------------------
+
+We often have multiple cards in play with the same name:
+
+    Player 2 declares Grizzly Bears (2/2) as attacker
+    Player 2 declares Grizzly Bears (2/2) as attacker
+
+Hence change the basic printing so it shows CardId in parentheses
+after the name "Mountain (1)" vs "Mountain (2)". This matches the Java TUI.
+
+
+Determinism failure.
+----------------------------------------
+
+We are having a determinism test failure. 
+
+Before fixing it, please improve the output on a test failure. Use an
+existing library for pretty colorful diffs, and show a bounded amount
+of context for the first diffs between execution 1 and execution 2
+when we have a nondeterminism instance:
+
+```
+test test_deck_determinism__grizzly_bears ... FAILED
+test test_different_seeds_consistency ... ok
+
+failures:
+
+---- test_deck_determinism__grizzly_bears stdout ----
+
+thread 'test_deck_determinism__grizzly_bears' panicked at tests/determinism_e2e.rs:62:5:
+assertion `left == right` failed: Deck /home/newton/work/mtg-forge-rs/test_decks/grizzly_bears.dck produced different output with same seed (seed=42)
+  left: "=== MTG Forge Rust - Text UI Mode ===\n\nLoading deck files...\n  Player 1: 80 cards\n  Player 2: 80 cards\n\nLoading card database...\n  Loaded 4 cards\nInitializing game...\nUsing random seed: 42\nGame initialized!\n  Player 1: Player 1 (Random)\n  Player 2: Player 2 (Random)\n\n=== Starting Game ===\n\n\n========================================\nTurn 1 - Player 1's turn\n  Life: 20\n  Hand: 0 cards\n  Battlefield: 0 cards\n========================================\n--- Untap Step ---\n--- Upkeep Step ---\n--- Draw Step ---\n  (First turn - no draw)\n--- Main Phase 1 ---\n--- Beginning of Combat ---\n--- Declare Attackers Step ---\n--- Declare Blockers Step ---\n--- Combat Damage Step ---\n--- End of Combat Step ---\n--- Main Phase 2 ---\n--- End Step ---\n--- Cleanup Step ---\n\n========================================\nTurn 2 - Player 2's turn\n  Life: 20\n  Hand: 0 cards\n  Battlefield: 0 cards\n========================================\n--- Untap Step ---\n--- Upkeep Step ---\n--- Draw Step ---\n  Player 2 draws Grizzly Bears (162)\n--- Main Phase 1 ---\n--- Beginning of Combat ---\n--- Declare Attackers Step ---\n--- Declare Blockers Step ---\n---
+```
+
+This failure may have to do with the CardIDs. Make sure our
+determinism test uses the same cardIDs from run to run.  More
+generally, let's make sure that our deck prefetching loads the cards
+in order (deck1 card1, deck1 card2, ... deck2 card1 ...) so that they
+are assigned consecutive cardIDs deterministically.
+
+(However, when we do async loading of ALL cards obviously that will be nondeterministic.)
+
+
+I don't like hashmaps in CombatState
+----------------------------------------
+
+And we eagerly sort them as well with the most recent change.
+
+1. I think we should use the SmallMap crate for these maps.
+
+2. I think we should leave them unsorted until the final point of
+   consumption.  And then sort them IFF verbosity >=
+   normal. Otherwise, it's "don't-care nondeterminism" and we can
+   leave it.
+
+Fix this and make sure `make validate` passes before commit.
+
+Lightning bolt doesn't show damage
+----------------------------------------
+
+We need to show damage to a player consistently irrespective of source.
+Creature attacks show damage, but lightning bolt doesn't.
+
+    Player 1 casts Lightning Bolt (24) (putting on stack)
+    Lightning Bolt (24) resolves
+
+
+
+Experimented with generic progress...
+================================================================================
+
+Here was the final message from the stream-json output.
+
+    {"type":"result","subtype":"success","is_error":false,"duration_ms":310078,"duration_api_ms":258868,"num_turns":72,"result":"Perfect! Everything validates successfully. Let me create a summary of what was accomplished:\n\n## Summary\n\nI successfully implemented **Flying/Reach combat blocking restrictions** for the MTG Forge Rust project, making forward progress on Phase 3 gameplay expansion.\n\n### What Was Implemented\n\n**Feature**: Flying and Reach keyword combat restrictions (MTG rules 702.9 and 702.17)\n\n**Changes Made**:\n1. **Core Card API** (`src/core/card.rs`): Added `has_reach()` helper method\n2. **Combat Logic** (`src/game/actions.rs`): Enhanced `declare_blocker()` to validate Flying/Reach restrictions\n3. **Comprehensive Testing**: Added 5 new tests covering all blocking scenarios\n4. **Documentation**: Updated TODO.md to reflect completed work\n\n### Key Design Decision\n\nThe implementation uses **direct keyword checking** rather than Java Forge's abstract static ability system. This approach is:\n- Simpler and more maintainable\n- More performant (no iteration over static abilities)\n- Functionally equivalent to the Java implementation\n- Sufficient for current needs\n\nFuture complex keyword interactions may warrant adopting Java's static ability framework.\n\n### Testing Results\n\n- **Total tests**: 122 passing (up from 117)\n  - 104 library tests\n  - 10 card loading tests\n  - 3 determinism tests\n  - 5 TUI tests\n- **Validation**: All `make validate` checks pass\n- **Code formatting**: Applied via `cargo fmt`\n\n### Commit\n\nCreated comprehensive commit `0b77174` with:\n- Detailed change description\n- Test results summary\n- Comparison to Java Forge implementation\n- Future considerations\n\nThe project continues to make steady progress toward the vision of a complete, high-performance MTG game engine suitable for AI research.","session_id":"a45d4512-7354-4933-956f-8e820b7994f9","total_cost_usd":0.8743158999999999,"usage":{"input_tokens":55,"cache_creation_input_tokens":59542,"cache_read_input_tokens":1170328,"output_tokens":6154,"server_tool_use":{"web_search_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":59542}},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":3428,"outputTokens":6984,"cacheReadInputTokens":989620,"cacheCreationInputTokens":56120,"webSearchRequests":0,"costUSD":0.20746,"contextWindow":200000},"claude-sonnet-4-5-20250929":{"inputTokens":55,"outputTokens":6154,"cacheReadInputTokens":1170328,"cacheCreationInputTokens":59542,"webSearchRequests":0,"costUSD":0.6668559,"contextWindow":200000}},"permission_denials":[],"uuid":"f0e95917-2659-4486-a2ad-e6b0870f98fe"}
+
+I'm getting some problems with parsing on JQ
+
+     [root@f9890d243c0c /workspace]  $ cat claude_workstream01.jsonl | jq 'length'
+     14
+     5
+     5
+     5
+     5
+     jq: parse error: Invalid string: control characters from U+0000 through U+001F must be escaped at line 7, column 2
+
+
+
+
+
+TODO: Bring back layered design, DecisionMaker
+----------------------------------------
+
+In commit e1a819a587e35dd27123087ba0afaf070e03342d, you deleted the
+DecisionMaker and DecisionTreeAdapter.  Bring back the DecisionMaker:
+
+```
+pub trait DecisionMaker {
+    /// Get the player ID this decision maker is responsible for
+    fn player_id(&self) -> crate::core::PlayerId;
+
+    /// Make a choice from available options
+    ///
+    /// # Arguments
+    /// * `prompt` - Description of what decision is being made
+    /// * `options` - Descriptions of each option (indexed 0 to N-1)
+    ///
+    /// # Returns
+    /// Index of the chosen option (0 to options.len()-1)
+    fn make_choice(&mut self, prompt: &str, options: &[&str]) -> usize;
+}
+```
+
+This trait was correct, but you had it backwards before.  We don't need this:
+
+```
+impl<C: PlayerController> DecisionMaker for DecisionTreeAdapter<C>
+```
+
+We need the opposite, where, given a DecisionMaker, we can wrap it and
+turn it into a `PlayerController`.  The idea is that for each choice
+it is asked to make, like choosing a spell/ability to play, it will
+package the choice in the format expected by the `make_choice` method.
+For example, it will set the prompt as "Pick 1 card to discard." and
+the options will correspond to the names of cards.
+
+TODO: Prioritize mana sources
+----------------------------------------
+AI should prioritize mana sources:
+
+  Colorless-only lands first (save flexible ones)
+  Single-color lands
+  Dual lands
+  Any-color sources (Command Tower, etc.)
+  Creatures (might need them for combat)
+  Sources with costs/drawbacks last
+
 
 
 TODO: Bad choice tree - combinatorial explosion of blocker/attackers

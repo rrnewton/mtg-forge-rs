@@ -1,3 +1,5 @@
+# Junk
+
 *~
 .#*
 .DS_Store
@@ -9,12 +11,17 @@
 .beads/
 
 # Added by cargo
-
 /target
 # Cargo.lock # We would like to track the Cargo.lock for now.
+
+# Benchmarking and Profiling:
+
 *.svg
-perf.data*
 *.zst
 perf.data*
 flamegraph.svg
 *.gz
+
+# Claude Logging
+
+logs/claude_workstream*
