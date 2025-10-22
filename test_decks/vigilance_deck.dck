@@ -1,0 +1,10 @@
+[metadata]
+Name=Vigilance Test Deck
+Description=Deck with creatures that have vigilance for e2e testing
+
+[Main]
+20 Plains
+20 Serra Angel
+20 Grizzly Bears
+
+[Sideboard]

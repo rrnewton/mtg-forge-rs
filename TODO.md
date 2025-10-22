@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 163 passing ✅ (145 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 166 passing ✅ (145 lib + 10 card_loading + 4 determinism + 7 tui) | **Validation:** `make validate` passes all checks ✅
 
 ### Infrastructure & Tooling
 - ✅ **Validation caching** - `make validate` caches results by commit hash

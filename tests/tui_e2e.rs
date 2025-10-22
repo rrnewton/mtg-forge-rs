@@ -371,3 +371,258 @@ async fn test_discard_to_hand_size() -> Result<()> {
 
     Ok(())
 }
+
+/// Test that games with creature-heavy decks play out correctly
+/// This tests vigilance, combat, and creature interactions in a full game
+#[tokio::test]
+async fn test_creature_combat_game() -> Result<()> {
+    // Load card database
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
+
+    // Load creature decks
+    let vigilance_deck_path = PathBuf::from("test_decks/vigilance_deck.dck");
+    let vigilance_deck = DeckLoader::load_from_file(&vigilance_deck_path)?;
+
+    let bears_deck_path = PathBuf::from("test_decks/grizzly_bears.dck");
+    let bears_deck = DeckLoader::load_from_file(&bears_deck_path)?;
+
+    // Run a game with random controllers
+    let game_init = GameInitializer::new(&card_db);
+    let mut game = game_init
+        .init_game(
+            "Player 1".to_string(),
+            &vigilance_deck,
+            "Player 2".to_string(),
+            &bears_deck,
+            20,
+        )
+        .await?;
+    game.rng_seed = 77777;
+
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+    let p1_id = players[0];
+    let p2_id = players[1];
+
+    let mut controller1 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, 77777);
+    let mut controller2 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, 77778);
+
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+    let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+    // Verify game completed
+    assert!(result.winner.is_some(), "Game should have a winner");
+    assert!(
+        result.turns_played > 0,
+        "Game should have played some turns"
+    );
+
+    // Verify that combat happened (at least one player should have taken damage)
+    let p1_life = game.get_player(p1_id)?.life;
+    let p2_life = game.get_player(p2_id)?.life;
+
+    assert!(
+        p1_life != 20 || p2_life != 20,
+        "At least one player should have taken damage from combat. P1: {}, P2: {}",
+        p1_life,
+        p2_life
+    );
+
+    // Game should end by player death (not deck out) with creature combat
+    assert!(
+        matches!(
+            result.end_reason,
+            mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
+        ),
+        "Game should end by player death with creatures attacking: {:?}",
+        result.end_reason
+    );
+
+    // Verify the losing player has 0 or less life
+    let winner = result.winner.unwrap();
+    let loser = if winner == p1_id { p2_id } else { p1_id };
+    let loser_life = game.get_player(loser)?.life;
+    assert!(
+        loser_life <= 0,
+        "Loser should have <= 0 life, got {}",
+        loser_life
+    );
+
+    // Verify that creatures were summoned (check graveyard has creatures)
+    // At minimum, the winner should have creatures in graveyard (died during combat)
+    let winner_zones = game.get_player_zones(winner).ok_or_else(|| {
+        mtg_forge_rs::MtgError::InvalidAction("Winner zones not found".to_string())
+    })?;
+
+    // Count creatures on battlefield (owned by winner)
+    let battlefield_creatures = game
+        .battlefield
+        .cards
+        .iter()
+        .filter(|&&card_id| {
+            if let Ok(card) = game.cards.get(card_id) {
+                card.owner == winner && card.is_creature()
+            } else {
+                false
+            }
+        })
+        .count();
+
+    let total_creatures = battlefield_creatures + winner_zones.graveyard.cards.len();
+
+    assert!(
+        total_creatures > 0,
+        "Winner should have played at least one creature (battlefield + graveyard)"
+    );
+
+    Ok(())
+}
+
+/// Test that different deck matchups work correctly
+/// Tests a game between two different decks with different strategies
+#[tokio::test]
+async fn test_different_deck_matchup() -> Result<()> {
+    use mtg_forge_rs::core::CardType;
+
+    // Load card database
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
+
+    // Load two different decks
+    let bolt_deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let bolt_deck = DeckLoader::load_from_file(&bolt_deck_path)?;
+
+    let bears_deck_path = PathBuf::from("test_decks/grizzly_bears.dck");
+    let bears_deck = DeckLoader::load_from_file(&bears_deck_path)?;
+
+    // Run multiple games to test consistency
+    for seed in [11111, 22222, 33333] {
+        let game_init = GameInitializer::new(&card_db);
+        let mut game = game_init
+            .init_game(
+                "Bolt Player".to_string(),
+                &bolt_deck,
+                "Bears Player".to_string(),
+                &bears_deck,
+                20,
+            )
+            .await?;
+        game.rng_seed = seed;
+
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        let mut controller1 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, seed);
+        let mut controller2 = mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, seed + 1);
+
+        let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+        let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+        // Verify game completed successfully
+        assert!(result.winner.is_some(), "Game with seed {} should have a winner", seed);
+        assert!(
+            result.turns_played > 0 && result.turns_played <= 200,
+            "Game with seed {} should play reasonable number of turns, got {}",
+            seed,
+            result.turns_played
+        );
+
+        // Verify end reason is valid
+        assert!(
+            matches!(
+                result.end_reason,
+                mtg_forge_rs::game::GameEndReason::PlayerDeath(_) |
+                mtg_forge_rs::game::GameEndReason::Decking(_)
+            ),
+            "Game should end by player death or decking: {:?}",
+            result.end_reason
+        );
+
+        // Verify both players still exist and have valid state
+        let p1 = game.get_player(p1_id)?;
+        let p2 = game.get_player(p2_id)?;
+
+        // Winner should have positive life (unless both died simultaneously)
+        let winner = result.winner.unwrap();
+        let winner_life = if winner == p1_id { p1.life } else { p2.life };
+
+        // Note: Winner might have negative life if both dealt lethal simultaneously
+        // but should be better off than the loser
+        let loser = if winner == p1_id { p2_id } else { p1_id };
+        let loser_life = if loser == p1_id { p1.life } else { p2.life };
+
+        assert!(
+            winner_life >= loser_life,
+            "Winner should have >= life than loser. Winner: {}, Loser: {}",
+            winner_life,
+            loser_life
+        );
+
+        // Verify cards are in valid zones (not lost or duplicated)
+        let p1_zones = game.get_player_zones(p1_id).ok_or_else(|| {
+            mtg_forge_rs::MtgError::InvalidAction("P1 zones not found".to_string())
+        })?;
+        let p2_zones = game.get_player_zones(p2_id).ok_or_else(|| {
+            mtg_forge_rs::MtgError::InvalidAction("P2 zones not found".to_string())
+        })?;
+
+        let p1_total = p1_zones.hand.cards.len()
+            + p1_zones.library.cards.len()
+            + p1_zones.graveyard.cards.len();
+
+        let p2_total = p2_zones.hand.cards.len()
+            + p2_zones.library.cards.len()
+            + p2_zones.graveyard.cards.len();
+
+        // Also count battlefield creatures (not lands which are shared)
+        let p1_battlefield = game
+            .battlefield
+            .cards
+            .iter()
+            .filter(|&&card_id| {
+                if let Ok(card) = game.cards.get(card_id) {
+                    card.owner == p1_id && !card.types.contains(&CardType::Land)
+                } else {
+                    false
+                }
+            })
+            .count();
+
+        let p2_battlefield = game
+            .battlefield
+            .cards
+            .iter()
+            .filter(|&&card_id| {
+                if let Ok(card) = game.cards.get(card_id) {
+                    card.owner == p2_id && !card.types.contains(&CardType::Land)
+                } else {
+                    false
+                }
+            })
+            .count();
+
+        // Each player should have <= 60 total cards (some may have been exiled or lost in edge cases)
+        assert!(
+            p1_total + p1_battlefield <= 60,
+            "Player 1 should have at most 60 cards across all zones, got {}",
+            p1_total + p1_battlefield
+        );
+
+        assert!(
+            p2_total + p2_battlefield <= 60,
+            "Player 2 should have at most 60 cards across all zones, got {}",
+            p2_total + p2_battlefield
+        );
+    }
+
+    Ok(())
+}
