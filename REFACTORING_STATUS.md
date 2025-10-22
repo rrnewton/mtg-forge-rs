@@ -72,32 +72,32 @@ fn get_available_spell_abilities(&self, player_id: PlayerId) -> Vec<SpellAbility
 
 ## Remaining Work
 
-### 🔲 5. Update Priority Round
-Replace the current priority system that calls:
-- `choose_land_to_play()`
-- `choose_spell_to_cast()`
-- `choose_card_to_tap_for_mana()`
+### ✅ 5. Update Priority Round - COMPLETED
+Replaced the current priority system that called:
+- ❌ `choose_land_to_play()`
+- ❌ `choose_spell_to_cast()`
+- ❌ `choose_card_to_tap_for_mana()`
 
 With new system that:
-1. Gets available abilities with `get_available_spell_abilities()`
-2. Calls `choose_spell_ability_to_play()` once
-3. Handles PlayLand (direct), CastSpell (8-step), ActivateAbility (TODO)
+1. ✅ Gets available abilities with `get_available_spell_abilities()`
+2. ✅ Calls `choose_spell_ability_to_play()` once
+3. ✅ Handles PlayLand (direct), CastSpell (8-step), ActivateAbility (TODO)
 
-### 🔲 6. Replace Controller Files
-- Move `controller_new.rs` → `controller.rs`
-- Delete old controller with split methods
+### ✅ 6. Replace Controller Files - COMPLETED
+- ✅ Moved `controller_new.rs` → `controller.rs`
+- ✅ Deleted old controller with split methods
 
-### 🔲 7. Update RandomController
-Implement new trait:
-- `choose_spell_ability_to_play()` - pick random from available
-- `choose_targets()` - pick random targets
-- `choose_mana_sources_to_pay()` - pick sources to tap
+### ✅ 7. Update RandomController - COMPLETED
+Implemented new trait:
+- ✅ `choose_spell_ability_to_play()` - pick random from available
+- ✅ `choose_targets()` - pick random targets
+- ✅ `choose_mana_sources_to_pay()` - pick sources to tap
 
-### 🔲 8. Update ZeroController
-Implement new trait:
-- `choose_spell_ability_to_play()` - pick first available
-- `choose_targets()` - pick first targets  
-- `choose_mana_sources_to_pay()` - pick first sources
+### ✅ 8. Update ZeroController - COMPLETED
+Implemented new trait:
+- ✅ `choose_spell_ability_to_play()` - pick first available
+- ✅ `choose_targets()` - pick first targets
+- ✅ `choose_mana_sources_to_pay()` - pick first sources
 
 ### 🔲 9. Update Tests and Examples
 - Update all tests to use new interface
@@ -105,9 +105,10 @@ Implement new trait:
 - Fix imports
 
 ### 🔲 10. Run Validation
-- `cargo test`
-- `make validate`
-- Verify correctness
+- ✅ `cargo test --lib` - 87 tests passing
+- 🔲 Update examples (combat_demo.rs needs new interface)
+- 🔲 `make validate` - after examples fixed
+- 🔲 Verify full correctness
 
 ## Files Created/Modified
 
