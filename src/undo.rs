@@ -30,8 +30,16 @@ pub enum GameAction {
         color: crate::core::Color,
     },
 
-    /// Empty mana pool
-    EmptyManaPool { player_id: PlayerId },
+    /// Empty mana pool (stores previous state for undo)
+    EmptyManaPool {
+        player_id: PlayerId,
+        prev_white: u8,
+        prev_blue: u8,
+        prev_black: u8,
+        prev_red: u8,
+        prev_green: u8,
+        prev_colorless: u8,
+    },
 
     /// Add counter to card
     AddCounter {

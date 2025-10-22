@@ -444,9 +444,24 @@ impl GameState {
                         }
                     }
                 }
-                crate::undo::GameAction::EmptyManaPool { .. } => {
-                    // TODO: Need to track previous mana pool state to properly undo
-                    // For now, this is a no-op
+                crate::undo::GameAction::EmptyManaPool {
+                    player_id,
+                    prev_white,
+                    prev_blue,
+                    prev_black,
+                    prev_red,
+                    prev_green,
+                    prev_colorless,
+                } => {
+                    // Restore previous mana pool state
+                    if let Ok(player) = self.get_player_mut(player_id) {
+                        player.mana_pool.white = prev_white;
+                        player.mana_pool.blue = prev_blue;
+                        player.mana_pool.black = prev_black;
+                        player.mana_pool.red = prev_red;
+                        player.mana_pool.green = prev_green;
+                        player.mana_pool.colorless = prev_colorless;
+                    }
                 }
                 crate::undo::GameAction::AddCounter { .. } => {
                     // TODO: Implement counter undo
@@ -454,11 +469,23 @@ impl GameState {
                 crate::undo::GameAction::RemoveCounter { .. } => {
                     // TODO: Implement counter undo
                 }
-                crate::undo::GameAction::AdvanceStep { .. } => {
-                    // TODO: Implement step/turn undo
+                crate::undo::GameAction::AdvanceStep {
+                    from_step,
+                    to_step: _,
+                } => {
+                    // Revert to previous step
+                    self.turn.current_step = from_step;
                 }
-                crate::undo::GameAction::ChangeTurn { .. } => {
-                    // TODO: Implement turn change undo
+                crate::undo::GameAction::ChangeTurn {
+                    from_player,
+                    to_player: _,
+                    turn_number,
+                } => {
+                    // Revert to previous turn
+                    self.turn.active_player = from_player;
+                    self.turn.turn_number = turn_number - 1;
+                    // Note: We don't reset lands_played here as that state
+                    // should be managed by separate actions if needed
                 }
                 crate::undo::GameAction::PumpCreature {
                     card_id,
