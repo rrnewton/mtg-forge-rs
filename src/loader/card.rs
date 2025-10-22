@@ -261,6 +261,24 @@ impl CardDefinition {
                     target: CardId::new(0), // Placeholder, will be set during resolution
                 });
             }
+
+            // Parse GainLife abilities
+            // Format: "A:SP$ GainLife | LifeAmount$ 7 | ..."
+            // Format: "DB$ GainLife | ValidTgts$ Player | LifeAmount$ 3 | ..." (with targeting)
+            if ability.contains("GainLife") {
+                // Extract life amount
+                if let Some(life_str) = ability.split("LifeAmount$").nth(1) {
+                    if let Some(life_part) = life_str.trim().split(['|', ' ']).next() {
+                        if let Ok(amount) = life_part.trim().parse::<i32>() {
+                            // Use placeholder player ID 0 - will be filled in at cast time
+                            effects.push(Effect::GainLife {
+                                player: PlayerId::new(0), // Placeholder, will be set during resolution
+                                amount,
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         effects
@@ -419,6 +437,36 @@ Oracle:Destroy target nonartifact, nonblack creature. It can't be regenerated.
                 // Success - correct effect type
             }
             _ => panic!("Expected DestroyPermanent effect, got {:?}", effects[0]),
+        }
+    }
+
+    #[test]
+    fn test_parse_gainlife_spell() {
+        let content = r#"
+Name:Angel's Mercy
+ManaCost:2 W W
+Types:Instant
+A:SP$ GainLife | LifeAmount$ 7 | SpellDescription$ You gain 7 life.
+Oracle:You gain 7 life.
+"#;
+
+        let def = CardLoader::parse(content).unwrap();
+        assert_eq!(def.name.as_str(), "Angel's Mercy");
+        assert_eq!(def.mana_cost.generic, 2);
+        assert_eq!(def.mana_cost.white, 2);
+        assert!(def.types.contains(&CardType::Instant));
+        assert!(def.colors.contains(&Color::White));
+
+        // Check that the effect is parsed
+        let effects = def.parse_effects();
+        assert_eq!(effects.len(), 1, "Angel's Mercy should have 1 effect");
+
+        use crate::core::Effect;
+        match &effects[0] {
+            Effect::GainLife { player: _, amount } => {
+                assert_eq!(*amount, 7, "Should gain 7 life");
+            }
+            _ => panic!("Expected GainLife effect, got {:?}", effects[0]),
         }
     }
 }

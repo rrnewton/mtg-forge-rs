@@ -176,6 +176,13 @@ impl GameState {
                         };
                     }
                 }
+                Effect::GainLife { player, amount } if player.as_u32() == 0 => {
+                    // Default: the card's controller gains life (placeholder player ID 0 means "controller")
+                    *effect = Effect::GainLife {
+                        player: card_owner,
+                        amount: *amount,
+                    };
+                }
                 _ => {}
             }
         }
@@ -1204,6 +1211,52 @@ mod tests {
             assert!(
                 zones.graveyard.contains(destroy_spell_id),
                 "Destroy spell should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_resolve_gainlife_spell() {
+        use crate::core::{Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+
+        // Create a GainLife spell (like Angel's Mercy)
+        let gainlife_spell_id = game.next_card_id();
+        let mut gainlife_spell = Card::new(gainlife_spell_id, "Angel's Mercy".to_string(), p1_id);
+        gainlife_spell.types.push(CardType::Instant);
+        gainlife_spell.mana_cost = ManaCost::from_string("2WW");
+        // Use placeholder player ID 0 which will be replaced with card controller
+        gainlife_spell.effects.push(Effect::GainLife {
+            player: PlayerId::new(0),
+            amount: 7,
+        });
+        game.cards.insert(gainlife_spell_id, gainlife_spell);
+
+        // Put it on the stack (simulating cast)
+        game.stack.add(gainlife_spell_id);
+
+        // Check initial life total
+        let p1_before = game.get_player(p1_id).unwrap();
+        assert_eq!(p1_before.life, 20, "Should start with 20 life");
+
+        // Resolve the spell
+        assert!(
+            game.resolve_spell(gainlife_spell_id).is_ok(),
+            "Failed to resolve gain life spell"
+        );
+
+        // Check life was gained
+        let p1_after = game.get_player(p1_id).unwrap();
+        assert_eq!(p1_after.life, 27, "Should have gained 7 life (20 + 7)");
+
+        // Check spell went to graveyard
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(gainlife_spell_id),
+                "GainLife spell should be in graveyard"
             );
         }
     }
