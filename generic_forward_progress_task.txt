@@ -1,4 +1,13 @@
-Now you select a task to make forward progress. Review the context:
+
+We're going to work on a task. But before we do let's make sure we
+start in a clean state. Check that we have no uncommitted changes in
+our working copy. Perform `git pull origin main` to make sure we are
+starting with the latest version. Check that `make validate` passes in
+our starting state. Check the github actions CI status for the most
+recent commit and make sure it is green. If there's a CI failure, then
+fixing THAT becomes our task.
+
+Now we're ready to select a task to make forward progress. Review the context:
 
  - TODO.md
  - CLAUDE.md
