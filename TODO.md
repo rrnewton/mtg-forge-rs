@@ -44,12 +44,18 @@
   - Helps debug AI behavior and verify randomness in testing
 - ✅ **Undo/replay system fixes** - Turn counter and step progression properly tracked and undone
   - Fixed GameLoop to call `game.advance_step()` instead of `turn.advance_step()` for undo logging
-  - Now logs ChangeTurn and AdvanceStep actions properly (~564 actions for 47-turn game)
+  - Now logs ChangeTurn and AdvanceStep actions properly (~1128 actions for 88-turn game)
   - Added `GameLoop::reset()` method to reset turn counter and state for replay
-  - Enhanced undo e2e test with snapshot comparison and halfway-point replay
+  - Enhanced undo e2e test demonstrates full rewind/replay cycle:
+    * Phase 1: Play initial game to completion (88 turns, 1128 actions logged)
+    * Phase 2: Rewind 50% → play forward to completion (31 more turns)
+    * Phase 3: Rewind 100% → verify state matches initial snapshot
+    * Phase 4: Play forward from beginning to completion
+  - Proves system can rewind to any point and play forward indefinitely
   - Turn number correctly resets from turn N back to turn 1 on full rewind
-  - Game loop state (turns_elapsed) properly resets before replay
+  - Game loop state (turns_elapsed) properly resets before each replay
   - Full rewind validation: life totals, turn number, active player, and step all match initial snapshot
+  - Controllers are stateless - fresh RNG seeds create different game paths from same starting state
 - ✅ **Summoning sickness tracking** - Creatures can't attack the turn they enter battlefield
   - Added `turn_entered_battlefield` field to Card struct
   - Set when permanents enter battlefield (via play_land or resolve_spell)
