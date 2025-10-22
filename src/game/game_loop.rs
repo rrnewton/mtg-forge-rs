@@ -1095,6 +1095,44 @@ impl<'a> GameLoop<'a> {
         tappable
     }
 
+    /// Get all available spell abilities for a player
+    ///
+    /// This matches Java Forge's approach where lands, spells, and activated
+    /// abilities are all represented as SpellAbility objects that can be
+    /// chosen from a unified list.
+    ///
+    /// Returns a list of all abilities the player can currently play:
+    /// - Land plays (if player can play lands and it's a main phase)
+    /// - Castable spells (if player has mana and targeting is valid)
+    /// - Activated abilities (TODO: not yet implemented)
+    fn get_available_spell_abilities(&self, player_id: PlayerId) -> Vec<crate::core::SpellAbility> {
+        use crate::core::SpellAbility;
+        let mut abilities = Vec::new();
+
+        // Add playable lands (only in main phases when player can play lands)
+        if matches!(self.game.turn.current_step, Step::Main1 | Step::Main2) {
+            if let Ok(player) = self.game.get_player(player_id) {
+                if player.can_play_land() {
+                    let lands = self.get_lands_in_hand(player_id);
+                    for land_id in lands {
+                        abilities.push(SpellAbility::PlayLand { card_id: land_id });
+                    }
+                }
+            }
+        }
+
+        // Add castable spells
+        let spells = self.get_castable_spells(player_id);
+        for spell_id in spells {
+            abilities.push(SpellAbility::CastSpell { card_id: spell_id });
+        }
+
+        // TODO: Add activated abilities
+        // For now, only lands and spells are supported
+
+        abilities
+    }
+
     /// Execute a player action
     #[allow(dead_code)] // Legacy v1 interface, will be removed
     fn execute_action(&mut self, player_id: PlayerId, action: &PlayerAction) -> Result<()> {

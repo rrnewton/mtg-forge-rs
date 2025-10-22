@@ -1,0 +1,284 @@
+//! Player controller interface
+//!
+//! This module defines the PlayerController trait that AI and UI implementations
+//! must implement. The design matches Java Forge's PlayerController.java where
+//! the controller chooses from available spell abilities (lands, spells, abilities)
+//! and makes decisions during the spell casting process.
+//!
+//! ## Key Differences from Previous Design
+//!
+//! - **Unified Spell Ability Selection**: Instead of separate methods for lands
+//!   and spells, `choose_spell_ability_to_play()` returns any playable ability
+//! - **Correct Mana Timing**: Mana is tapped during step 6 of 8 in the casting
+//!   process, AFTER the spell is on the stack
+//! - **Callback-Based Casting**: Controller provides callbacks for targeting and
+//!   mana payment during the casting sequence
+
+use crate::core::{CardId, ManaCost, PlayerId, SpellAbility};
+use crate::game::{GameState, Step};
+use crate::zones::Zone;
+use smallvec::SmallVec;
+
+/// Read-only view of game state for controllers
+///
+/// This provides access to game information without allowing mutation.
+/// Controllers should only inspect this view to make decisions.
+pub struct GameStateView<'a> {
+    game: &'a GameState,
+    player_id: PlayerId,
+}
+
+impl<'a> GameStateView<'a> {
+    /// Create a new view of the game state from a player's perspective
+    pub fn new(game: &'a GameState, player_id: PlayerId) -> Self {
+        GameStateView { game, player_id }
+    }
+
+    /// Get the player ID this view is for
+    pub fn player_id(&self) -> PlayerId {
+        self.player_id
+    }
+
+    /// Get cards in this player's hand
+    pub fn hand(&self) -> &[CardId] {
+        self.game
+            .get_player_zones(self.player_id)
+            .map(|zones| zones.hand.cards.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// Get cards in a specific player's hand
+    pub fn player_hand(&self, player_id: PlayerId) -> &[CardId] {
+        self.game
+            .get_player_zones(player_id)
+            .map(|zones| zones.hand.cards.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// Get cards on the battlefield
+    pub fn battlefield(&self) -> &[CardId] {
+        &self.game.battlefield.cards
+    }
+
+    /// Check if a card is in a specific zone
+    pub fn is_card_in_zone(&self, card_id: CardId, zone: Zone) -> bool {
+        match zone {
+            Zone::Hand => self
+                .game
+                .get_player_zones(self.player_id)
+                .map(|z| z.hand.contains(card_id))
+                .unwrap_or(false),
+            Zone::Battlefield => self.game.battlefield.contains(card_id),
+            Zone::Graveyard => self
+                .game
+                .get_player_zones(self.player_id)
+                .map(|z| z.graveyard.contains(card_id))
+                .unwrap_or(false),
+            Zone::Library => self
+                .game
+                .get_player_zones(self.player_id)
+                .map(|z| z.library.contains(card_id))
+                .unwrap_or(false),
+            Zone::Stack => self.game.stack.contains(card_id),
+            Zone::Exile => self
+                .game
+                .get_player_zones(self.player_id)
+                .map(|z| z.exile.contains(card_id))
+                .unwrap_or(false),
+            Zone::Command => false, // Command zone not yet implemented
+        }
+    }
+
+    /// Get a card's name
+    pub fn card_name(&self, card_id: CardId) -> Option<String> {
+        self.game
+            .cards
+            .get(card_id)
+            .ok()
+            .map(|c| c.name.to_string())
+    }
+
+    /// Check if a card is a land
+    pub fn is_land(&self, card_id: CardId) -> bool {
+        self.game
+            .cards
+            .get(card_id)
+            .map(|c| c.is_land())
+            .unwrap_or(false)
+    }
+
+    /// Get the current step
+    pub fn current_step(&self) -> Step {
+        self.game.turn.current_step
+    }
+
+    /// Get a card's name (convenience method)
+    pub fn get_card_name(&self, card_id: CardId) -> Option<String> {
+        self.card_name(card_id)
+    }
+
+    /// Check if a card is tapped
+    pub fn is_tapped(&self, card_id: CardId) -> bool {
+        self.game
+            .cards
+            .get(card_id)
+            .map(|c| c.tapped)
+            .unwrap_or(false)
+    }
+
+    /// Get player's current life total
+    pub fn life(&self) -> i32 {
+        self.game
+            .get_player(self.player_id)
+            .ok()
+            .map(|p| p.life)
+            .unwrap_or(0)
+    }
+
+    /// Get player's mana pool
+    pub fn available_mana(&self) -> (u8, u8, u8, u8, u8, u8) {
+        // Returns (white, blue, black, red, green, colorless)
+        self.game
+            .get_player(self.player_id)
+            .ok()
+            .map(|p| {
+                (
+                    p.mana_pool.white,
+                    p.mana_pool.blue,
+                    p.mana_pool.black,
+                    p.mana_pool.red,
+                    p.mana_pool.green,
+                    p.mana_pool.colorless,
+                )
+            })
+            .unwrap_or((0, 0, 0, 0, 0, 0))
+    }
+
+    /// Check if player can play lands this turn
+    pub fn can_play_land(&self) -> bool {
+        self.game
+            .get_player(self.player_id)
+            .ok()
+            .map(|p| p.can_play_land())
+            .unwrap_or(false)
+    }
+}
+
+/// Player controller interface
+///
+/// This trait defines the decision-making interface for players (AI or human).
+/// The design matches Java Forge's PlayerController where the controller:
+/// 1. Chooses spell abilities to play from a unified list (lands, spells, abilities)
+/// 2. Provides callbacks during the spell casting process for targeting and mana payment
+/// 3. Makes combat decisions
+/// 4. Handles cleanup and notifications
+///
+/// ## Mana Payment Timing
+///
+/// Unlike the previous design, mana is NOT tapped during priority rounds.
+/// Instead, when a spell is cast, the game follows the 8-step casting process
+/// (MTG Rules 601.2), and mana sources are tapped during step 6, which happens
+/// AFTER the spell is already on the stack.
+pub trait PlayerController {
+    /// Get the player ID this controller is responsible for
+    fn player_id(&self) -> PlayerId;
+
+    /// Choose a spell ability to play
+    ///
+    /// This is the main decision point during priority. The controller receives
+    /// a list of all available spell abilities:
+    /// - Land plays (if can play lands this turn)
+    /// - Castable spells (if have mana and in appropriate phase)
+    /// - Activated abilities (if can activate)
+    ///
+    /// Returns the chosen ability, or None to pass priority.
+    ///
+    /// ## Java Forge Equivalent
+    /// This matches `PlayerController.chooseSpellAbilityToPlay()` which returns
+    /// a list of SpellAbilities to play (usually just one, but can be multiple
+    /// for special cases like multiple lands in one turn).
+    fn choose_spell_ability_to_play(
+        &mut self,
+        view: &GameStateView,
+        available: &[SpellAbility],
+    ) -> Option<SpellAbility>;
+
+    /// Choose targets for a spell or ability
+    ///
+    /// Called during step 3 of casting a spell (MTG Rules 601.2c).
+    /// The controller must choose valid targets from the provided list.
+    ///
+    /// For spells with no targets, this may not be called, or valid_targets
+    /// will be empty.
+    ///
+    /// ## Java Forge Equivalent
+    /// Matches `PlayerController.chooseTargetsFor(SpellAbility)`
+    fn choose_targets(
+        &mut self,
+        view: &GameStateView,
+        spell: CardId,
+        valid_targets: &[CardId],
+    ) -> SmallVec<[CardId; 4]>;
+
+    /// Choose which mana sources to tap to pay a cost
+    ///
+    /// Called during step 6 of casting a spell (MTG Rules 601.2g).
+    /// At this point, the spell is already on the stack.
+    ///
+    /// The controller must choose which permanents to tap for mana to pay
+    /// the given cost. Returns the card IDs to tap in order.
+    ///
+    /// ## Java Forge Equivalent
+    /// This is part of `PlayerController.payManaCost(...)` which the AI
+    /// implements with `ComputerUtilMana.payManaCost()`.
+    fn choose_mana_sources_to_pay(
+        &mut self,
+        view: &GameStateView,
+        cost: &ManaCost,
+        available_sources: &[CardId],
+    ) -> SmallVec<[CardId; 8]>;
+
+    /// Choose which creatures to declare as attackers
+    ///
+    /// Called during the declare attackers step.
+    /// Returns a list of creature card IDs that should attack.
+    fn choose_attackers(
+        &mut self,
+        view: &GameStateView,
+        available_creatures: &[CardId],
+    ) -> SmallVec<[CardId; 8]>;
+
+    /// Choose how to block attacking creatures
+    ///
+    /// Called during the declare blockers step.
+    /// Returns pairs of (blocker, attacker) indicating which creature
+    /// blocks which attacker.
+    fn choose_blockers(
+        &mut self,
+        view: &GameStateView,
+        available_blockers: &[CardId],
+        attackers: &[CardId],
+    ) -> SmallVec<[(CardId, CardId); 8]>;
+
+    /// Choose cards to discard to maximum hand size
+    ///
+    /// Called during cleanup step if hand size exceeds maximum.
+    fn choose_cards_to_discard(
+        &mut self,
+        view: &GameStateView,
+        hand: &[CardId],
+        count: usize,
+    ) -> SmallVec<[CardId; 7]>;
+
+    /// Notification that priority was passed
+    ///
+    /// Called when this controller passes priority, allowing it to track
+    /// game flow or update internal state.
+    fn on_priority_passed(&mut self, view: &GameStateView);
+
+    /// Notification that the game has ended
+    ///
+    /// Called when the game is over, with a boolean indicating whether
+    /// this player won.
+    fn on_game_end(&mut self, view: &GameStateView, won: bool);
+}

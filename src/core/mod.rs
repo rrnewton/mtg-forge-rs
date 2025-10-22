@@ -5,6 +5,7 @@ pub mod effects;
 pub mod entity;
 pub mod mana;
 pub mod player;
+pub mod spell_ability;
 pub mod types;
 
 pub use card::{Card, CardType};
@@ -12,6 +13,7 @@ pub use effects::{Effect, Keyword, TargetRef};
 pub use entity::{EntityId, EntityStore, GameEntity};
 pub use mana::{Color, ManaCost, ManaPool};
 pub use player::Player;
+pub use spell_ability::SpellAbility;
 pub use types::{CardName, CounterType, PlayerName, Subtype};
 
 // Type aliases for strongly-typed entity IDs

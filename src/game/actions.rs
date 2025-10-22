@@ -165,6 +165,94 @@ impl GameState {
         Ok(())
     }
 
+    /// Cast a spell following the full 8-step process (MTG Rules 601.2)
+    ///
+    /// This method implements the complete spell casting sequence:
+    /// 1. Propose the spell (move to stack)
+    /// 2. Make choices (modes, X values) - TODO
+    /// 3. Choose targets
+    /// 4. Divide effects - TODO
+    /// 5. Determine total cost
+    /// 6. Activate mana abilities (tap sources for mana)
+    /// 7. Pay costs
+    /// 8. Spell becomes cast (trigger abilities) - TODO
+    ///
+    /// ## Parameters
+    /// - `player_id`: The player casting the spell
+    /// - `card_id`: The spell card to cast
+    /// - `choose_targets_fn`: Callback to choose targets (step 3)
+    /// - `choose_mana_sources_fn`: Callback to choose what to tap for mana (step 6)
+    ///
+    /// ## Java Forge Equivalent
+    /// This matches `ComputerUtil.handlePlayingSpellAbility()` which:
+    /// 1. Moves spell to stack (line 99)
+    /// 2. Handles targeting
+    /// 3. Pays costs with `CostPayment.payComputerCosts()` (line 125)
+    pub fn cast_spell_8_step<TargetFn, ManaFn>(
+        &mut self,
+        player_id: PlayerId,
+        card_id: CardId,
+        mut choose_targets_fn: TargetFn,
+        mut choose_mana_sources_fn: ManaFn,
+    ) -> Result<()>
+    where
+        TargetFn: FnMut(&GameState, CardId) -> Vec<CardId>,
+        ManaFn: FnMut(&GameState, &crate::core::ManaCost) -> Vec<CardId>,
+    {
+        // Verify card is in hand
+        if let Some(zones) = self.get_player_zones(player_id) {
+            if !zones.hand.contains(card_id) {
+                return Err(MtgError::InvalidAction("Card not in hand".to_string()));
+            }
+        }
+
+        // Step 1: Propose the spell - move card to stack
+        // This happens BEFORE paying costs (unlike our old implementation)
+        self.move_card(card_id, Zone::Hand, Zone::Stack, player_id)?;
+
+        // Step 2: Make choices (modes, X values)
+        // TODO: Implement modal spell choices and X value selection
+
+        // Step 3: Choose targets
+        let targets = choose_targets_fn(self, card_id);
+        // TODO: Store targets on the spell for resolution
+        // For now, we'll use them to update effects immediately (simplified)
+
+        // Step 4: Divide effects
+        // TODO: Implement dividing damage/counters among targets
+
+        // Step 5: Determine total cost
+        let mana_cost = {
+            let card = self.cards.get(card_id)?;
+            card.mana_cost.clone()
+        };
+
+        // Step 6: Activate mana abilities
+        // This is where mana gets tapped - AFTER the spell is on the stack
+        let sources_to_tap = choose_mana_sources_fn(self, &mana_cost);
+        for &source_id in &sources_to_tap {
+            self.tap_for_mana(player_id, source_id)?;
+        }
+
+        // Step 7: Pay costs
+        let player = self.get_player_mut(player_id)?;
+        if let Err(e) = player.mana_pool.pay_cost(&mana_cost) {
+            // If we can't pay, we need to unwind - move card back to hand
+            // and untap mana sources
+            // For now, just return error (TODO: proper unwinding)
+            return Err(MtgError::InvalidAction(format!(
+                "Failed to pay mana cost: {}",
+                e
+            )));
+        }
+
+        // Step 8: Spell becomes cast
+        // TODO: Trigger "whenever you cast a spell" abilities
+        // For now, this is complete - spell is on stack and costs are paid
+
+        Ok(())
+    }
+
     /// Execute a single effect
     pub fn execute_effect(&mut self, effect: &Effect) -> Result<()> {
         match effect {
