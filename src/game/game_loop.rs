@@ -413,7 +413,10 @@ impl<'a> GameLoop<'a> {
         if let Some(zones) = self.game.get_player_zones(active_player) {
             if let Some(&card_id) = zones.hand.cards.last() {
                 if let Ok(card) = self.game.cards.get(card_id) {
-                    self.log_normal(&format!("{} draws {}", player_name, card.name));
+                    self.log_normal(&format!(
+                        "{} draws {} ({})",
+                        player_name, card.name, card_id
+                    ));
                     return Ok(());
                 }
             }
@@ -718,7 +721,10 @@ impl<'a> GameLoop<'a> {
                                 .map(|c| c.name.as_str())
                                 .unwrap_or("Unknown");
                             let player_name = self.get_player_name(player_id);
-                            self.log_normal(&format!("{} discards {}", player_name, card_name));
+                            self.log_normal(&format!(
+                                "{} discards {} ({})",
+                                player_name, card_name, card_id
+                            ));
                         } else {
                             return Err(crate::MtgError::InvalidAction(format!(
                                 "Card {:?} not in player's hand",
