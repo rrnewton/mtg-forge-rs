@@ -75,11 +75,11 @@ enum Commands {
         deck2: PathBuf,
 
         /// Player 1 controller type
-        #[arg(long, value_enum, default_value = "zero")]
+        #[arg(long, value_enum, default_value = "random")]
         p1: ControllerType,
 
         /// Player 2 controller type
-        #[arg(long, value_enum, default_value = "zero")]
+        #[arg(long, value_enum, default_value = "random")]
         p2: ControllerType,
 
         /// Set random seed for deterministic testing
