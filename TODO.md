@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 112 passing ✅ (94 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 115 passing ✅ (97 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -28,7 +28,13 @@
   - Spell resolution: "Grizzly Bears resolves, enters the battlefield as a 2/2 creature"
   - Combat attackers: "Player declares Grizzly Bears (2/2) as attacker"
   - Combat damage: "Grizzly Bears deals 2 damage to Player" and "Combat: X ↔ Y"
-- ✅ TUI support: `mtg tui` command with --p1/--p2 agent types, --seed for deterministic games
+- ✅ **Summoning sickness tracking** - Creatures can't attack the turn they enter battlefield
+  - Added `turn_entered_battlefield` field to Card struct
+  - Set when permanents enter battlefield (via play_land or resolve_spell)
+  - Validated in declare_attacker to prevent illegal attacks
+  - Haste keyword bypasses summoning sickness
+  - Full test coverage (3 new tests)
+- ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
 - ✅ Basic spell effects: DealDamage parsing, Lightning Bolt works
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death
@@ -56,14 +62,14 @@
 ### Next Priorities:
 
 - [ ] **Enhanced TUI features**
-  * Add random controller support (--p1=random)
+  * ✅ Add random controller support (--p1=random)
   * Add interactive TUI controller (--p1=tui) for human play
   * Display game state during play (life, hand, battlefield)
   * Show available actions to player
   * Better formatting and colors in output
 
 - [ ] **Enhanced creature support**
-  * Summoning sickness tracking (needs turn-entered-battlefield tracking)
+  * ✅ Summoning sickness tracking
   * Vigilance keyword (attacking without tapping)
   * Flying/reach for combat restrictions
   * Multiple blockers support
@@ -184,8 +190,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords ✅, Basic Spells ✅, ManaEngine ✅, Logging ✅, Summoning Sickness ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 112 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 115 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

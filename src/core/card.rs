@@ -60,6 +60,11 @@ pub struct Card {
     /// Is the card tapped?
     pub tapped: bool,
 
+    /// Turn number when this permanent entered the battlefield
+    /// Used for summoning sickness (creatures can't attack the turn they enter)
+    /// None = not on battlefield yet, Some(turn) = entered on this turn
+    pub turn_entered_battlefield: Option<u32>,
+
     /// Counters on this card (using SmallVec for efficiency)
     /// Common counters: +1/+1, -1/-1, charge, loyalty
     pub counters: SmallVec<[(CounterType, u8); 2]>,
@@ -88,6 +93,7 @@ impl Card {
             owner,
             controller: owner,
             tapped: false,
+            turn_entered_battlefield: None,
             counters: SmallVec::new(),
             keywords: Vec::new(),
             effects: Vec::new(),

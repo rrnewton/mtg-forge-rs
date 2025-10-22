@@ -1,6 +1,6 @@
 //! Game actions and mechanics
 
-use crate::core::{CardId, CardType, Effect, PlayerId, TargetRef};
+use crate::core::{CardId, CardType, Effect, Keyword, PlayerId, TargetRef};
 use crate::game::GameState;
 use crate::zones::Zone;
 use crate::{MtgError, Result};
@@ -70,6 +70,11 @@ impl GameState {
 
         // Move card to battlefield
         self.move_card(card_id, Zone::Hand, Zone::Battlefield, player_id)?;
+
+        // Record the turn number when this land entered the battlefield
+        if let Ok(card) = self.cards.get_mut(card_id) {
+            card.turn_entered_battlefield = Some(self.turn.turn_number);
+        }
 
         // Increment lands played
         let player = self.get_player_mut(player_id)?;
@@ -161,6 +166,13 @@ impl GameState {
         // Move card from stack to destination
         let owner = self.cards.get(card_id)?.owner;
         self.move_card(card_id, Zone::Stack, destination, owner)?;
+
+        // If it entered the battlefield, record the turn number (for summoning sickness)
+        if destination == Zone::Battlefield {
+            if let Ok(card) = self.cards.get_mut(card_id) {
+                card.turn_entered_battlefield = Some(self.turn.turn_number);
+            }
+        }
 
         Ok(())
     }
@@ -439,7 +451,15 @@ impl GameState {
             ));
         }
 
-        // TODO: Check for summoning sickness (needs turn entered battlefield tracking)
+        // Check for summoning sickness
+        // Creatures can't attack the turn they entered the battlefield unless they have haste
+        if let Some(entered_turn) = card.turn_entered_battlefield {
+            if entered_turn == self.turn.turn_number && !card.has_keyword(&Keyword::Haste) {
+                return Err(MtgError::InvalidAction(
+                    "Creature has summoning sickness and can't attack this turn".to_string(),
+                ));
+            }
+        }
 
         // Get defending player (for 2-player, it's the other player)
         let defending_player = self
@@ -1020,5 +1040,87 @@ mod tests {
         // Check attacker died (took 2 damage, toughness 2... wait, 3-2=1, so it should survive)
         // Actually the attacker took 2 damage but has toughness 3, so it survives
         assert!(game.battlefield.contains(attacker_id));
+    }
+
+    #[test]
+    fn test_summoning_sickness_blocks_attack() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a creature and put it on battlefield
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Grizzly Bears".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(2);
+        creature.toughness = Some(2);
+        creature.controller = p1_id;
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Mark it as entering this turn (summoning sickness)
+        if let Ok(card) = game.cards.get_mut(creature_id) {
+            card.turn_entered_battlefield = Some(game.turn.turn_number);
+        }
+
+        // Try to declare it as an attacker - should fail due to summoning sickness
+        let result = game.declare_attacker(p1_id, creature_id);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("summoning sickness"));
+    }
+
+    #[test]
+    fn test_summoning_sickness_allows_attack_next_turn() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a creature and put it on battlefield
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Grizzly Bears".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(2);
+        creature.toughness = Some(2);
+        creature.controller = p1_id;
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Mark it as entering on a previous turn
+        if let Ok(card) = game.cards.get_mut(creature_id) {
+            card.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
+
+        // Declare it as an attacker - should succeed
+        let result = game.declare_attacker(p1_id, creature_id);
+        assert!(result.is_ok());
+        assert!(game.combat.is_attacking(creature_id));
+    }
+
+    #[test]
+    fn test_haste_bypasses_summoning_sickness() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a creature with haste
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Lightning Elemental".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(4);
+        creature.toughness = Some(1);
+        creature.controller = p1_id;
+        creature.keywords.push(Keyword::Haste);
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Mark it as entering this turn
+        if let Ok(card) = game.cards.get_mut(creature_id) {
+            card.turn_entered_battlefield = Some(game.turn.turn_number);
+        }
+
+        // Declare it as an attacker - should succeed because of haste
+        let result = game.declare_attacker(p1_id, creature_id);
+        assert!(result.is_ok());
+        assert!(game.combat.is_attacking(creature_id));
     }
 }
