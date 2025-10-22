@@ -260,6 +260,20 @@ pub trait PlayerController {
         attackers: &[CardId],
     ) -> SmallVec<[(CardId, CardId); 8]>;
 
+    /// Choose the damage assignment order for blockers
+    ///
+    /// Called during combat damage step when an attacker is blocked by multiple creatures.
+    /// The attacker's controller chooses the order in which damage will be assigned to blockers.
+    /// MTG Rules 509.2: The attacking player announces the damage assignment order.
+    ///
+    /// Returns the blockers in the order damage should be assigned. All blockers must be included.
+    fn choose_damage_assignment_order(
+        &mut self,
+        view: &GameStateView,
+        attacker: CardId,
+        blockers: &[CardId],
+    ) -> SmallVec<[CardId; 4]>;
+
     /// Choose cards to discard to maximum hand size
     ///
     /// Called during cleanup step if hand size exceeds maximum.

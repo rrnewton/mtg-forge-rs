@@ -726,8 +726,9 @@ impl<'a> GameLoop<'a> {
             }
         }
 
-        // Assign and deal combat damage (this is automatic, no player choices)
-        self.game.assign_combat_damage()?;
+        // Assign and deal combat damage
+        // Note: Controllers are needed to choose damage assignment order when multiple blockers
+        self.game.assign_combat_damage(controller1, controller2)?;
 
         // After damage is dealt, players get priority
         self.priority_round(controller1, controller2)?;

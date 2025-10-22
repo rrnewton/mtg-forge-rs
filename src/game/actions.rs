@@ -4,6 +4,7 @@ use crate::core::{CardId, CardType, Effect, Keyword, PlayerId, TargetRef};
 use crate::game::GameState;
 use crate::zones::Zone;
 use crate::{MtgError, Result};
+use smallvec::SmallVec;
 
 /// Types of game actions
 #[derive(Debug, Clone)]
@@ -573,15 +574,65 @@ impl GameState {
     }
 
     /// Assign and deal combat damage
-    pub fn assign_combat_damage(&mut self) -> Result<()> {
+    ///
+    /// This method handles the combat damage step. For each attacker:
+    /// - If unblocked, damage goes to defending player
+    /// - If blocked by multiple creatures, attacker's controller chooses damage assignment order
+    /// - Damage is assigned in order, with lethal damage assigned to each blocker before the next
+    ///
+    /// MTG Rules 510.1: Combat damage is assigned and dealt simultaneously.
+    pub fn assign_combat_damage(
+        &mut self,
+        attacker_controller: &mut dyn crate::game::controller::PlayerController,
+        blocker_controller: &mut dyn crate::game::controller::PlayerController,
+    ) -> Result<()> {
+        use crate::game::controller::GameStateView;
+        use std::collections::HashMap;
+
         // Get all attackers
         let attackers = self.combat.get_attackers();
 
+        // First pass: collect all damage assignment orders for attackers with multiple blockers
+        let mut damage_orders: HashMap<CardId, SmallVec<[CardId; 4]>> = HashMap::new();
+
+        for attacker_id in &attackers {
+            if self.combat.is_blocked(*attacker_id) {
+                let blockers = self.combat.get_blockers(*attacker_id);
+
+                // If multiple blockers, ask attacker's controller for damage assignment order
+                if blockers.len() > 1 {
+                    let attacker = self.cards.get(*attacker_id)?;
+                    let attacker_owner = attacker.owner;
+                    let view = GameStateView::new(self, attacker_owner);
+
+                    let ordered_blockers = if attacker_owner == attacker_controller.player_id() {
+                        attacker_controller.choose_damage_assignment_order(
+                            &view,
+                            *attacker_id,
+                            &blockers,
+                        )
+                    } else {
+                        blocker_controller.choose_damage_assignment_order(
+                            &view,
+                            *attacker_id,
+                            &blockers,
+                        )
+                    };
+
+                    damage_orders.insert(*attacker_id, ordered_blockers);
+                }
+            }
+        }
+
+        // Second pass: assign all damage
+        let mut damage_to_creatures: HashMap<CardId, i32> = HashMap::new();
+        let mut damage_to_players: HashMap<PlayerId, i32> = HashMap::new();
+
         for attacker_id in attackers {
             let attacker = self.cards.get(attacker_id)?;
-            let power = attacker.current_power();
+            let mut remaining_power = attacker.current_power();
 
-            if power <= 0 {
+            if remaining_power <= 0 {
                 continue; // 0 or negative power deals no damage
             }
 
@@ -590,28 +641,59 @@ impl GameState {
                 // Attacker deals damage to blockers
                 let blockers = self.combat.get_blockers(attacker_id);
 
-                // For now, simplified: distribute damage evenly among blockers
-                // TODO: Allow attacker's controller to order blockers and assign damage
-                let damage_per_blocker = power / blockers.len() as i8;
+                // Use the pre-determined order if we have one, otherwise use default order
+                let ordered_blockers = damage_orders.get(&attacker_id).cloned().unwrap_or(blockers);
 
-                for blocker_id in &blockers {
-                    if damage_per_blocker > 0 {
-                        self.deal_damage_to_creature(*blocker_id, damage_per_blocker as i32)?;
+                // Assign damage in order, lethal to each blocker before moving to next
+                // MTG Rules 510.1c: Must assign lethal damage to each blocker before assigning to next
+                // Note: Current implementation doesn't track damage, so lethal = toughness
+                for blocker_id in &ordered_blockers {
+                    if remaining_power <= 0 {
+                        break;
                     }
 
-                    // Blocker deals damage back to attacker
+                    let blocker = self.cards.get(*blocker_id)?;
+                    let blocker_toughness = blocker.current_toughness();
+
+                    // Lethal damage is the creature's toughness
+                    // (In full MTG, this would be toughness minus damage already marked)
+                    let lethal_damage = blocker_toughness;
+
+                    // Assign at least lethal damage (or all remaining if less than lethal)
+                    let damage_to_assign = remaining_power.min(lethal_damage);
+
+                    if damage_to_assign > 0 {
+                        *damage_to_creatures.entry(*blocker_id).or_insert(0) +=
+                            damage_to_assign as i32;
+                        remaining_power -= damage_to_assign;
+                    }
+                }
+
+                // All blockers deal their damage back to attacker (simultaneously)
+                for blocker_id in &ordered_blockers {
                     let blocker = self.cards.get(*blocker_id)?;
                     let blocker_power = blocker.current_power();
                     if blocker_power > 0 {
-                        self.deal_damage_to_creature(attacker_id, blocker_power as i32)?;
+                        *damage_to_creatures.entry(attacker_id).or_insert(0) +=
+                            blocker_power as i32;
                     }
                 }
             } else {
                 // Unblocked attacker deals damage to defending player
                 if let Some(defending_player) = self.combat.get_defending_player(attacker_id) {
-                    self.deal_damage(defending_player, power as i32)?;
+                    *damage_to_players.entry(defending_player).or_insert(0) +=
+                        remaining_power as i32;
                 }
             }
+        }
+
+        // Deal all damage simultaneously
+        for (creature_id, damage) in damage_to_creatures {
+            self.deal_damage_to_creature(creature_id, damage)?;
+        }
+
+        for (player_id, damage) in damage_to_players {
+            self.deal_damage(player_id, damage)?;
         }
 
         Ok(())
@@ -985,6 +1067,8 @@ mod tests {
 
     #[test]
     fn test_combat_damage_unblocked() {
+        use crate::game::zero_controller::ZeroController;
+
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
         let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
@@ -1003,8 +1087,12 @@ mod tests {
         // Declare as attacker (unblocked)
         game.combat.declare_attacker(attacker_id, p2_id);
 
+        // Create controllers
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
         // Assign combat damage
-        let result = game.assign_combat_damage();
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
 
         // Check defending player took damage
@@ -1014,6 +1102,8 @@ mod tests {
 
     #[test]
     fn test_combat_damage_blocked() {
+        use crate::game::zero_controller::ZeroController;
+
         let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
         let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
@@ -1044,22 +1134,107 @@ mod tests {
         let blocker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
         game.combat.declare_blocker(blocker_id, blocker_vec);
 
+        // Create controllers
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
         // Assign combat damage
-        let result = game.assign_combat_damage();
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
 
         // Check defending player took no damage (blocked)
         let p2 = game.get_player(p2_id).unwrap();
         assert_eq!(p2.life, 20);
 
-        // Check blocker died (took 3 damage, toughness 2)
+        // Check blocker died (took 2 damage, toughness 2)
         if let Some(zones) = game.get_player_zones(p2_id) {
             assert!(zones.graveyard.contains(blocker_id));
         }
 
-        // Check attacker died (took 2 damage, toughness 2... wait, 3-2=1, so it should survive)
-        // Actually the attacker took 2 damage but has toughness 3, so it survives
+        // Check attacker took 2 damage but has toughness 3, so it survives
         assert!(game.battlefield.contains(attacker_id));
+    }
+
+    #[test]
+    fn test_combat_damage_multiple_blockers() {
+        use crate::game::zero_controller::ZeroController;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // Create a powerful attacker (5/5)
+        let attacker_id = game.next_card_id();
+        let mut attacker = Card::new(attacker_id, "Dragon".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(5);
+        attacker.toughness = Some(5);
+        attacker.controller = p1_id;
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // Create first blocker (2/2)
+        let blocker1_id = game.next_card_id();
+        let mut blocker1 = Card::new(blocker1_id, "Bear".to_string(), p2_id);
+        blocker1.types.push(CardType::Creature);
+        blocker1.power = Some(2);
+        blocker1.toughness = Some(2);
+        blocker1.controller = p2_id;
+        game.cards.insert(blocker1_id, blocker1);
+        game.battlefield.add(blocker1_id);
+
+        // Create second blocker (3/3)
+        let blocker2_id = game.next_card_id();
+        let mut blocker2 = Card::new(blocker2_id, "Wolf".to_string(), p2_id);
+        blocker2.types.push(CardType::Creature);
+        blocker2.power = Some(3);
+        blocker2.toughness = Some(3);
+        blocker2.controller = p2_id;
+        game.cards.insert(blocker2_id, blocker2);
+        game.battlefield.add(blocker2_id);
+
+        // Declare attacker and both blockers
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let blocker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat
+            .declare_blocker(blocker1_id, blocker_vec.clone());
+        game.combat.declare_blocker(blocker2_id, blocker_vec);
+
+        // Create controllers
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        // Assign combat damage
+        // ZeroController will keep the order as-is
+        // Dragon (5 power) assigns: 2 to first blocker (lethal), 3 to second blocker (lethal)
+        // Both blockers (2+3=5 power) deal 5 damage back to Dragon (lethal)
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2);
+        assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
+
+        // Check defending player took no damage (blocked)
+        let p2 = game.get_player(p2_id).unwrap();
+        assert_eq!(p2.life, 20);
+
+        // Check both blockers died
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker1_id),
+                "First blocker should be in graveyard"
+            );
+            assert!(
+                zones.graveyard.contains(blocker2_id),
+                "Second blocker should be in graveyard"
+            );
+        }
+
+        // Check attacker died (took 5 damage, toughness 5)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(attacker_id),
+                "Attacker should be in graveyard"
+            );
+        }
     }
 
     #[test]

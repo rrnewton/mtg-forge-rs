@@ -31,7 +31,7 @@ for ((i=1; i<=ITERS; i++)); do
     time claude --dangerously-skip-permissions --verbose --output-format stream-json -c -p "$(cat generic_forward_progress_task.txt)" | \
         tee -a "$LOG" | \
         perl -pe 's/[\x00-\x09\x0b-\x1f]//g' | \
-        jq -r 'select(.type == "result") | .result'
+	jq  -r 'select (.type == "assistant" or .type == "result") | [.message.content.[0].text, .result]'
 
     # Check for error.txt
     if [ -f error.txt ]; then

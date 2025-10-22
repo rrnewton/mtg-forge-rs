@@ -99,6 +99,16 @@ impl PlayerController for AliceController {
         SmallVec::new() // Alice doesn't block in this demo
     }
 
+    fn choose_damage_assignment_order(
+        &mut self,
+        _view: &GameStateView,
+        _attacker: CardId,
+        blockers: &[CardId],
+    ) -> SmallVec<[CardId; 4]> {
+        // Keep blockers in the order they were provided
+        blockers.iter().copied().collect()
+    }
+
     fn choose_cards_to_discard(
         &mut self,
         _view: &GameStateView,
@@ -197,6 +207,16 @@ impl PlayerController for BobController {
             println!("  Bob finishes declaring blockers");
         }
         blocks
+    }
+
+    fn choose_damage_assignment_order(
+        &mut self,
+        _view: &GameStateView,
+        _attacker: CardId,
+        blockers: &[CardId],
+    ) -> SmallVec<[CardId; 4]> {
+        // Keep blockers in the order they were provided
+        blockers.iter().copied().collect()
     }
 
     fn choose_cards_to_discard(

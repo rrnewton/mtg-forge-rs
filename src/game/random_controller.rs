@@ -144,6 +144,19 @@ impl PlayerController for RandomController {
         blocks
     }
 
+    fn choose_damage_assignment_order(
+        &mut self,
+        _view: &GameStateView,
+        _attacker: CardId,
+        blockers: &[CardId],
+    ) -> SmallVec<[CardId; 4]> {
+        // Randomly shuffle the blockers to create a damage assignment order
+        let mut ordered_blockers: Vec<CardId> = blockers.to_vec();
+        ordered_blockers.shuffle(&mut self.rng);
+
+        ordered_blockers.into_iter().collect()
+    }
+
     fn choose_cards_to_discard(
         &mut self,
         _view: &GameStateView,
