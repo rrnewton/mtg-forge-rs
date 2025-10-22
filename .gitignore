@@ -21,6 +21,8 @@
 perf.data*
 flamegraph.svg
 *.gz
+heaptrack_analysis.*.txt
+heaptrack.profile.*
 
 # Claude Logging
 

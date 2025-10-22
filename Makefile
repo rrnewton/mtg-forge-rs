@@ -151,6 +151,8 @@ heapprofile:
 	fi
 	cargo heaptrack --bin profile --release -- 100
 	@echo ""
-	@echo "Heaptrack profile saved"
-	@echo "To view: heaptrack_gui heaptrack.profile.*.zst"
-	@echo "Or use CLI: heaptrack_print heaptrack.profile.*.zst"
+	@echo "=== Profiling complete! Now analyzing results ==="
+	@echo ""
+	./scripts/analyze_heapprofile.sh
+	@echo ""
+	@echo "Analysis complete! Check output above for top allocation sites."

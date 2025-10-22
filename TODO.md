@@ -137,6 +137,11 @@
 ### Performance:
 - [ ] Criterion benchmarks for key operations
 - [ ] Undo/redo performance testing
+- [ ] **Optimization work** - See [OPTIMIZATION.md](OPTIMIZATION.md) for best practices and backlog
+  - Zero-copy patterns (avoid clone/collect where possible)
+  - Arena allocation for per-turn temporaries
+  - Object pools for reusable objects
+  - Heap profiling to identify allocation hotspots
 - [ ] Board state evaluation speed
 - [ ] Tree search optimization
 
