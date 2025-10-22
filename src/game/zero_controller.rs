@@ -70,11 +70,7 @@ impl PlayerController for ZeroController {
     ) -> SmallVec<[CardId; 8]> {
         // Tap the first N sources needed to pay the cost
         let needed = cost.cmc() as usize;
-        available_sources
-            .iter()
-            .take(needed)
-            .copied()
-            .collect()
+        available_sources.iter().take(needed).copied().collect()
     }
 
     fn choose_attackers(

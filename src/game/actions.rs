@@ -214,7 +214,7 @@ impl GameState {
         // TODO: Implement modal spell choices and X value selection
 
         // Step 3: Choose targets
-        let targets = choose_targets_fn(self, card_id);
+        let _targets = choose_targets_fn(self, card_id);
         // TODO: Store targets on the spell for resolution
         // For now, we'll use them to update effects immediately (simplified)
 

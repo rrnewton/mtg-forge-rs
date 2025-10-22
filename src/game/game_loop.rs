@@ -803,7 +803,7 @@ impl<'a> GameLoop<'a> {
                             }
 
                             // Create callbacks for targeting and mana payment
-                            let targeting_callback = |game: &GameState, spell_id: CardId| {
+                            let targeting_callback = |_game: &GameState, _spell_id: CardId| {
                                 // For now, return empty targets
                                 // TODO: Call controller.choose_targets()
                                 Vec::new()
@@ -813,10 +813,15 @@ impl<'a> GameLoop<'a> {
                                 // For now, automatically choose mana sources
                                 // TODO: Call controller.choose_mana_sources_to_pay()
                                 let mut sources = Vec::new();
-                                let tappable = game.battlefield.cards.iter()
+                                let tappable = game
+                                    .battlefield
+                                    .cards
+                                    .iter()
                                     .filter(|&&card_id| {
                                         if let Ok(card) = game.cards.get(card_id) {
-                                            card.owner == current_priority && card.is_land() && !card.tapped
+                                            card.owner == current_priority
+                                                && card.is_land()
+                                                && !card.tapped
                                         } else {
                                             false
                                         }
@@ -1061,16 +1066,31 @@ impl<'a> GameLoop<'a> {
     fn get_castable_spells(&self, player_id: PlayerId) -> Vec<CardId> {
         let mut spells = Vec::new();
 
+        // Count untapped lands that can produce mana
+        let untapped_lands = self
+            .game
+            .battlefield
+            .cards
+            .iter()
+            .filter(|&&card_id| {
+                if let Ok(card) = self.game.cards.get(card_id) {
+                    card.owner == player_id && card.is_land() && !card.tapped
+                } else {
+                    false
+                }
+            })
+            .count();
+
         if let Some(zones) = self.game.get_player_zones(player_id) {
             for &card_id in &zones.hand.cards {
                 if let Ok(card) = self.game.cards.get(card_id) {
                     // Check if card is castable (not a land)
                     if !card.is_land() {
-                        // Check if player has enough mana
-                        if let Ok(player) = self.game.get_player(player_id) {
-                            if player.mana_pool.can_pay(&card.mana_cost) {
-                                spells.push(card_id);
-                            }
+                        // Check if we have enough untapped lands to pay the cost
+                        // For now, use a simple check: CMC <= untapped lands
+                        // TODO: This doesn't account for color requirements
+                        if card.mana_cost.cmc() as usize <= untapped_lands {
+                            spells.push(card_id);
                         }
                     }
                 }
@@ -1078,21 +1098,6 @@ impl<'a> GameLoop<'a> {
         }
 
         spells
-    }
-
-    /// Get cards that can be tapped for mana (v2 interface)
-    fn get_tappable_for_mana(&self, player_id: PlayerId) -> Vec<CardId> {
-        let mut tappable = Vec::new();
-
-        for &card_id in &self.game.battlefield.cards {
-            if let Ok(card) = self.game.cards.get(card_id) {
-                if card.owner == player_id && card.is_land() && !card.tapped {
-                    tappable.push(card_id);
-                }
-            }
-        }
-
-        tappable
     }
 
     /// Get all available spell abilities for a player

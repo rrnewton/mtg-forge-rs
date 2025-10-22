@@ -60,33 +60,34 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
         "Game should have played some turns"
     );
 
-    // With seed 42, Player 1 should win by decking
+    // With seed 42, Player 2 should win (behavior changed with unified spell ability interface)
     assert_eq!(
         result.winner.unwrap(),
-        p1_id,
-        "With seed 42, Player 1 should win"
+        p2_id,
+        "With seed 42, Player 2 should win"
     );
 
-    // Verify the game ended due to decking (empty library)
+    // Verify the game ended due to player death (Lightning Bolts dealing damage)
+    // With the correct spell casting implementation, players cast bolts and deal damage
     assert!(
         matches!(
             result.end_reason,
-            mtg_forge_rs::game::GameEndReason::Decking(_)
+            mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
         ),
-        "Game should end by decking with these decks: {:?}",
+        "Game should end by player death with Lightning Bolts being cast: {:?}",
         result.end_reason
     );
 
-    // Verify both players still have 20 life (no damage dealt in this setup)
-    assert_eq!(
-        game.get_player(p1_id)?.life,
-        20,
-        "Player 1 should have 20 life"
-    );
-    assert_eq!(
-        game.get_player(p2_id)?.life,
-        20,
-        "Player 2 should have 20 life"
+    // Verify damage was dealt (losing player should have 0 or less life)
+    let p1_life = game.get_player(p1_id)?.life;
+    let p2_life = game.get_player(p2_id)?.life;
+
+    // The losing player should have 0 or less life
+    assert!(
+        p1_life <= 0 || p2_life <= 0,
+        "At least one player should have 0 or less life. P1: {}, P2: {}",
+        p1_life,
+        p2_life
     );
 
     Ok(())

@@ -10,7 +10,9 @@
 //!
 //! Uses classic cards from Limited/Alpha/Beta/4th Edition
 
-use mtg_forge_rs::core::{Card, CardId, CardType, EntityId, Player, PlayerId};
+use mtg_forge_rs::core::{
+    Card, CardId, CardType, EntityId, ManaCost, Player, PlayerId, SpellAbility,
+};
 use mtg_forge_rs::game::controller::PlayerController;
 use mtg_forge_rs::game::{GameLoop, GameState, GameStateView, Step};
 use smallvec::SmallVec;
@@ -39,28 +41,30 @@ impl PlayerController for AliceController {
         self.player_id
     }
 
-    fn choose_land_to_play(
+    fn choose_spell_ability_to_play(
         &mut self,
         _view: &GameStateView,
-        _lands_in_hand: &[CardId],
-    ) -> Option<CardId> {
-        None // Alice doesn't play lands in this demo
+        _available: &[SpellAbility],
+    ) -> Option<SpellAbility> {
+        None // Alice doesn't take actions in this demo (combat-only)
     }
 
-    fn choose_spell_to_cast(
+    fn choose_targets(
         &mut self,
         _view: &GameStateView,
-        _castable_spells: &[CardId],
-    ) -> Option<(CardId, SmallVec<[CardId; 4]>)> {
-        None // Alice doesn't cast spells in this demo
+        _spell: CardId,
+        _valid_targets: &[CardId],
+    ) -> SmallVec<[CardId; 4]> {
+        SmallVec::new() // Alice doesn't cast spells in this demo
     }
 
-    fn choose_card_to_tap_for_mana(
+    fn choose_mana_sources_to_pay(
         &mut self,
         _view: &GameStateView,
-        _tappable_cards: &[CardId],
-    ) -> Option<CardId> {
-        None // Alice doesn't tap for mana in this demo
+        _cost: &ManaCost,
+        _available_sources: &[CardId],
+    ) -> SmallVec<[CardId; 8]> {
+        SmallVec::new() // Alice doesn't tap for mana in this demo
     }
 
     fn choose_attackers(
@@ -105,10 +109,6 @@ impl PlayerController for AliceController {
         hand.iter().take(count).copied().collect()
     }
 
-    fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
-        true // Alice always passes priority
-    }
-
     fn on_priority_passed(&mut self, _view: &GameStateView) {}
 
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {}
@@ -138,28 +138,30 @@ impl PlayerController for BobController {
         self.player_id
     }
 
-    fn choose_land_to_play(
+    fn choose_spell_ability_to_play(
         &mut self,
         _view: &GameStateView,
-        _lands_in_hand: &[CardId],
-    ) -> Option<CardId> {
-        None // Bob doesn't play lands in this demo
+        _available: &[SpellAbility],
+    ) -> Option<SpellAbility> {
+        None // Bob doesn't take actions in this demo (combat-only)
     }
 
-    fn choose_spell_to_cast(
+    fn choose_targets(
         &mut self,
         _view: &GameStateView,
-        _castable_spells: &[CardId],
-    ) -> Option<(CardId, SmallVec<[CardId; 4]>)> {
-        None // Bob doesn't cast spells in this demo
+        _spell: CardId,
+        _valid_targets: &[CardId],
+    ) -> SmallVec<[CardId; 4]> {
+        SmallVec::new() // Bob doesn't cast spells in this demo
     }
 
-    fn choose_card_to_tap_for_mana(
+    fn choose_mana_sources_to_pay(
         &mut self,
         _view: &GameStateView,
-        _tappable_cards: &[CardId],
-    ) -> Option<CardId> {
-        None // Bob doesn't tap for mana in this demo
+        _cost: &ManaCost,
+        _available_sources: &[CardId],
+    ) -> SmallVec<[CardId; 8]> {
+        SmallVec::new() // Bob doesn't tap for mana in this demo
     }
 
     fn choose_attackers(
@@ -205,10 +207,6 @@ impl PlayerController for BobController {
     ) -> SmallVec<[CardId; 7]> {
         // Bob discards the first N cards in hand
         hand.iter().take(count).copied().collect()
-    }
-
-    fn wants_to_pass_priority(&mut self, _view: &GameStateView) -> bool {
-        true // Bob always passes priority
     }
 
     fn on_priority_passed(&mut self, _view: &GameStateView) {}
