@@ -1155,7 +1155,10 @@ mod tests {
 
         // Check that creature is still untapped (vigilance effect)
         let card = game.cards.get(creature_id).unwrap();
-        assert!(!card.tapped, "Creature with vigilance should not be tapped after attacking");
+        assert!(
+            !card.tapped,
+            "Creature with vigilance should not be tapped after attacking"
+        );
     }
 
     #[test]
@@ -1185,6 +1188,9 @@ mod tests {
 
         // Check that creature is tapped (normal attack behavior)
         let card = game.cards.get(creature_id).unwrap();
-        assert!(card.tapped, "Creature without vigilance should be tapped after attacking");
+        assert!(
+            card.tapped,
+            "Creature without vigilance should be tapped after attacking"
+        );
     }
 }

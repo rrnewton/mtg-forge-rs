@@ -493,9 +493,10 @@ impl<'a> GameLoop<'a> {
                     let power = card.power.unwrap_or(0);
                     let toughness = card.toughness.unwrap_or(0);
                     println!(
-                        "  {} declares {} ({}/{}) as attacker",
+                        "  {} declares {} ({}) ({}/{}) as attacker",
                         self.get_player_name(active_player),
                         card_name,
+                        attacker_id,
                         power,
                         toughness
                     );
@@ -589,8 +590,13 @@ impl<'a> GameLoop<'a> {
                                 let blocker_power = blocker.current_power();
                                 let blocker_name = &blocker.name;
                                 println!(
-                                    "  Combat: {} ({} damage) ↔ {} ({} damage)",
-                                    attacker_name, power, blocker_name, blocker_power
+                                    "  Combat: {} ({}) ({} damage) ↔ {} ({}) ({} damage)",
+                                    attacker_name,
+                                    attacker_id,
+                                    power,
+                                    blocker_name,
+                                    blocker_id,
+                                    blocker_power
                                 );
                             }
                         }
@@ -602,8 +608,8 @@ impl<'a> GameLoop<'a> {
                             let defender_name = self.get_player_name(defending_player);
                             if power > 0 {
                                 println!(
-                                    "  {} deals {} damage to {}",
-                                    attacker_name, power, defender_name
+                                    "  {} ({}) deals {} damage to {}",
+                                    attacker_name, attacker_id, power, defender_name
                                 );
                             }
                         }
@@ -825,9 +831,10 @@ impl<'a> GameLoop<'a> {
                                     .map(|c| c.name.as_str())
                                     .unwrap_or("Unknown");
                                 println!(
-                                    "  {} plays {}",
+                                    "  {} plays {} ({})",
                                     self.get_player_name(current_priority),
-                                    card_name
+                                    card_name,
+                                    card_id
                                 );
                             }
                         }
@@ -844,9 +851,10 @@ impl<'a> GameLoop<'a> {
 
                             if self.verbosity >= VerbosityLevel::Normal {
                                 println!(
-                                    "  {} casts {} (putting on stack)",
+                                    "  {} casts {} ({}) (putting on stack)",
                                     self.get_player_name(current_priority),
-                                    card_name
+                                    card_name,
+                                    card_id
                                 );
                             }
 
@@ -908,14 +916,16 @@ impl<'a> GameLoop<'a> {
                                     if let Ok(card) = self.game.cards.get(card_id) {
                                         if card.is_creature() {
                                             println!(
-                                                "  {} resolves, {} enters the battlefield as a {}/{} creature",
+                                                "  {} ({}) resolves, {} ({}) enters the battlefield as a {}/{} creature",
                                                 card_name,
+                                                card_id,
                                                 card_name,
+                                                card_id,
                                                 card.power.unwrap_or(0),
                                                 card.toughness.unwrap_or(0)
                                             );
                                         } else {
-                                            println!("  {} resolves", card_name);
+                                            println!("  {} ({}) resolves", card_name, card_id);
                                         }
                                     }
                                 }
