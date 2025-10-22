@@ -318,6 +318,24 @@ impl CardDefinition {
                     });
                 }
             }
+
+            // Parse Tap abilities
+            // Format: "A:SP$ Tap | ValidTgts$ Creature | ..."
+            if ability.contains("SP$ Tap") && !ability.contains("TapAll") {
+                use crate::core::CardId;
+                effects.push(Effect::TapPermanent {
+                    target: CardId::new(0), // Placeholder, will be set during resolution
+                });
+            }
+
+            // Parse Untap abilities
+            // Format: "A:SP$ Untap | ValidTgts$ Land | ..."
+            if ability.contains("SP$ Untap") {
+                use crate::core::CardId;
+                effects.push(Effect::UntapPermanent {
+                    target: CardId::new(0), // Placeholder, will be set during resolution
+                });
+            }
         }
 
         effects

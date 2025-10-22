@@ -210,6 +210,46 @@ impl GameState {
                         };
                     }
                 }
+                Effect::TapPermanent { target } if target.as_u32() == 0 => {
+                    // Default: target an opponent's untapped creature
+                    if let Some(creature_id) = self
+                        .battlefield
+                        .cards
+                        .iter()
+                        .find(|&card_id| {
+                            if let Ok(card) = self.cards.get(*card_id) {
+                                card.owner != card_owner && card.is_creature() && !card.tapped
+                            } else {
+                                false
+                            }
+                        })
+                        .copied()
+                    {
+                        *effect = Effect::TapPermanent {
+                            target: creature_id,
+                        };
+                    }
+                }
+                Effect::UntapPermanent { target } if target.as_u32() == 0 => {
+                    // Default: target a tapped permanent controlled by the caster
+                    if let Some(permanent_id) = self
+                        .battlefield
+                        .cards
+                        .iter()
+                        .find(|&card_id| {
+                            if let Ok(card) = self.cards.get(*card_id) {
+                                card.owner == card_owner && card.tapped
+                            } else {
+                                false
+                            }
+                        })
+                        .copied()
+                    {
+                        *effect = Effect::UntapPermanent {
+                            target: permanent_id,
+                        };
+                    }
+                }
                 _ => {}
             }
         }
@@ -2298,5 +2338,118 @@ mod tests {
             game.battlefield.contains(attacker_id),
             "Attacker should still be alive"
         );
+    }
+
+    #[test]
+    fn test_resolve_tap_spell() {
+        use crate::core::{Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // Create an untapped creature for P2
+        let creature_id = game.next_card_id();
+        let mut creature = Card::new(creature_id, "Grizzly Bears".to_string(), p2_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(2);
+        creature.toughness = Some(2);
+        creature.controller = p2_id;
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Check initial state
+        let creature_before = game.cards.get(creature_id).unwrap();
+        assert!(!creature_before.tapped, "Creature should start untapped");
+
+        // Create a Tap spell
+        let tap_spell_id = game.next_card_id();
+        let mut tap_spell = Card::new(tap_spell_id, "Frost Breath".to_string(), p1_id);
+        tap_spell.types.push(CardType::Instant);
+        tap_spell.mana_cost = ManaCost::from_string("2U");
+        // Target the specific creature
+        tap_spell.effects.push(Effect::TapPermanent {
+            target: creature_id,
+        });
+        game.cards.insert(tap_spell_id, tap_spell);
+
+        // Put spell on stack (simulating cast)
+        game.stack.add(tap_spell_id);
+
+        // Resolve the spell
+        assert!(
+            game.resolve_spell(tap_spell_id).is_ok(),
+            "Failed to resolve tap spell"
+        );
+
+        // Check creature is tapped
+        let creature_after = game.cards.get(creature_id).unwrap();
+        assert!(
+            creature_after.tapped,
+            "Creature should be tapped after spell"
+        );
+
+        // Check spell went to graveyard
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(tap_spell_id),
+                "Tap spell should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_resolve_untap_spell() {
+        use crate::core::{Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+
+        // Create a tapped land for P1
+        let land_id = game.next_card_id();
+        let mut land = Card::new(land_id, "Forest".to_string(), p1_id);
+        land.types.push(CardType::Land);
+        land.controller = p1_id;
+        land.tapped = true; // Start tapped
+        game.cards.insert(land_id, land);
+        game.battlefield.add(land_id);
+
+        // Check initial state
+        let land_before = game.cards.get(land_id).unwrap();
+        assert!(land_before.tapped, "Land should start tapped");
+
+        // Create an Untap spell
+        let untap_spell_id = game.next_card_id();
+        let mut untap_spell = Card::new(untap_spell_id, "Untap".to_string(), p1_id);
+        untap_spell.types.push(CardType::Instant);
+        untap_spell.mana_cost = ManaCost::from_string("U");
+        // Target the specific land
+        untap_spell
+            .effects
+            .push(Effect::UntapPermanent { target: land_id });
+        game.cards.insert(untap_spell_id, untap_spell);
+
+        // Put spell on stack (simulating cast)
+        game.stack.add(untap_spell_id);
+
+        // Resolve the spell
+        assert!(
+            game.resolve_spell(untap_spell_id).is_ok(),
+            "Failed to resolve untap spell"
+        );
+
+        // Check land is untapped
+        let land_after = game.cards.get(land_id).unwrap();
+        assert!(!land_after.tapped, "Land should be untapped after spell");
+
+        // Check spell went to graveyard
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(untap_spell_id),
+                "Untap spell should be in graveyard"
+            );
+        }
     }
 }
