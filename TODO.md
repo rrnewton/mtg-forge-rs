@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 160 passing ✅ (142 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 163 passing ✅ (145 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ### Infrastructure & Tooling
 - ✅ **Validation caching** - `make validate` caches results by commit hash
@@ -135,8 +135,15 @@
   - Modified `Effect::DestroyPermanent` to skip destroying indestructible permanents
   - Indestructible creatures survive lethal damage, deathtouch damage, and destroy effects (Terror/Murder)
   - Full test coverage (4 tests: survives lethal damage, immune to destroy effects, survives deathtouch, vs normal creature)
+- ✅ **Shroud keyword** - Permanents with shroud can't be targeted by any player
+  - Implemented MTG Rules 702.18: "Shroud means 'This permanent or player can't be the target of spells or abilities'"
+  - Added `has_shroud()` helper method to Card
+  - Modified target selection for DestroyPermanent, TapPermanent, and PumpCreature effects
+  - Shroud blocks ALL targeting (unlike hexproof which only blocks opponents)
+  - Controller can't target their own shroud permanents (key difference from hexproof)
+  - Full test coverage (3 tests: blocks destroy, blocks tap, blocks controller's pump)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
-- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Indestructible, Protection, Madness, Flashback
+- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Indestructible, Shroud, Protection, Madness, Flashback
 - ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size
@@ -307,8 +314,8 @@ None currently - all tests passing!
 
 **Phase 1 (Core Architecture):** ✅ Complete
 **Phase 2 (Game Loop):** ✅ Complete
-**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/Menace/Hexproof/Indestructible/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
+**Phase 3 (Gameplay):** 🚧 In Progress - Combat ✅, Keywords (Flying/Vigilance/Trample/Lifelink/Deathtouch/Menace/Hexproof/Indestructible/Shroud/FirstStrike/DoubleStrike) ✅, Spell Effects (Damage/Draw/Destroy/GainLife/Pump/Tap/Untap) ✅, ManaEngine ✅, Logging ✅, Benchmarking ✅, Async Loading ✅
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 160 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 163 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

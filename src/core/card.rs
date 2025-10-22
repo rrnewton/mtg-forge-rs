@@ -174,6 +174,10 @@ impl Card {
         self.has_keyword(&Keyword::Indestructible)
     }
 
+    pub fn has_shroud(&self) -> bool {
+        self.has_keyword(&Keyword::Shroud)
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }

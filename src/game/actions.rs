@@ -157,7 +157,7 @@ impl GameState {
                 }
                 Effect::DestroyPermanent { target } if target.as_u32() == 0 => {
                     // Default: destroy an opponent's creature (placeholder card ID 0 means "opponent's creature")
-                    // Find an opponent's creature on the battlefield (that doesn't have hexproof)
+                    // Find an opponent's creature on the battlefield (that doesn't have hexproof or shroud)
                     if let Some(creature_id) = self
                         .battlefield
                         .cards
@@ -167,6 +167,7 @@ impl GameState {
                                 card.owner != card_owner
                                     && card.is_creature()
                                     && !card.has_hexproof()
+                                    && !card.has_shroud()
                             } else {
                                 false
                             }
@@ -199,11 +200,14 @@ impl GameState {
                         .iter()
                         .find(|&card_id| {
                             if let Ok(card) = self.cards.get(*card_id) {
-                                if card.owner != card_owner {
+                                // Shroud prevents targeting by anyone (including controller)
+                                if card.has_shroud() {
+                                    false
+                                } else if card.owner != card_owner {
                                     // Opponent's creature: can only target if it doesn't have hexproof
                                     card.is_creature() && !card.has_hexproof()
                                 } else {
-                                    // Own creature: can always target
+                                    // Own creature: can target (unless it has shroud, checked above)
                                     card.is_creature()
                                 }
                             } else {
@@ -220,7 +224,7 @@ impl GameState {
                     }
                 }
                 Effect::TapPermanent { target } if target.as_u32() == 0 => {
-                    // Default: target an opponent's untapped creature (that doesn't have hexproof)
+                    // Default: target an opponent's untapped creature (that doesn't have hexproof or shroud)
                     if let Some(creature_id) = self
                         .battlefield
                         .cards
@@ -231,6 +235,7 @@ impl GameState {
                                     && card.is_creature()
                                     && !card.tapped
                                     && !card.has_hexproof()
+                                    && !card.has_shroud()
                             } else {
                                 false
                             }
@@ -4027,5 +4032,171 @@ mod tests {
                 "Normal creature should be in graveyard"
             );
         }
+    }
+
+    #[test]
+    fn test_shroud_blocks_destroy_from_opponent() {
+        // Test that destroy spells from opponents can't target shroud creatures
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P2: Create a shroud creature
+        let shroud_creature_id = game.next_entity_id();
+        let mut shroud_creature =
+            Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p2_id);
+        shroud_creature.types.push(CardType::Creature);
+        shroud_creature.power = Some(1);
+        shroud_creature.toughness = Some(1);
+        shroud_creature.keywords.push(Keyword::Shroud);
+        game.cards.insert(shroud_creature_id, shroud_creature);
+        game.battlefield.add(shroud_creature_id);
+
+        // P2: Create a normal creature
+        let normal_creature_id = game.next_entity_id();
+        let mut normal_creature = Card::new(normal_creature_id, "Grizzly Bears".to_string(), p2_id);
+        normal_creature.types.push(CardType::Creature);
+        normal_creature.power = Some(2);
+        normal_creature.toughness = Some(2);
+        game.cards.insert(normal_creature_id, normal_creature);
+        game.battlefield.add(normal_creature_id);
+
+        // P1: Cast Terror - should target normal creature, not shroud one
+        let destroy_spell_id = game.next_entity_id();
+        let mut destroy_spell = Card::new(destroy_spell_id, "Terror".to_string(), p1_id);
+        destroy_spell.types.push(CardType::Instant);
+        destroy_spell.mana_cost = ManaCost::from_string("1B");
+        destroy_spell.effects.push(Effect::DestroyPermanent {
+            target: CardId::new(0),
+        });
+        game.cards.insert(destroy_spell_id, destroy_spell);
+        game.stack.add(destroy_spell_id);
+
+        let result = game.resolve_spell(destroy_spell_id);
+        assert!(result.is_ok(), "Destroy spell should resolve");
+
+        // Shroud creature should still be alive
+        assert!(
+            game.battlefield.contains(shroud_creature_id),
+            "Shroud creature should still be on battlefield"
+        );
+
+        // Normal creature was destroyed
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(normal_creature_id),
+                "Normal creature should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_shroud_blocks_pump_from_controller() {
+        // Test that shroud prevents targeting even by the controller (unlike hexproof)
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let _p2_id = game.players[1].id;
+
+        // P1: Create a shroud creature
+        let shroud_creature_id = game.next_entity_id();
+        let mut shroud_creature =
+            Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p1_id);
+        shroud_creature.types.push(CardType::Creature);
+        shroud_creature.power = Some(1);
+        shroud_creature.toughness = Some(1);
+        shroud_creature.keywords.push(Keyword::Shroud);
+        game.cards.insert(shroud_creature_id, shroud_creature);
+        game.battlefield.add(shroud_creature_id);
+
+        // P1: Create a normal creature
+        let normal_creature_id = game.next_entity_id();
+        let mut normal_creature = Card::new(normal_creature_id, "Grizzly Bears".to_string(), p1_id);
+        normal_creature.types.push(CardType::Creature);
+        normal_creature.power = Some(2);
+        normal_creature.toughness = Some(2);
+        game.cards.insert(normal_creature_id, normal_creature);
+        game.battlefield.add(normal_creature_id);
+
+        // P1: Cast Giant Growth - should target normal creature, not shroud one
+        let pump_spell_id = game.next_entity_id();
+        let mut pump_spell = Card::new(pump_spell_id, "Giant Growth".to_string(), p1_id);
+        pump_spell.types.push(CardType::Instant);
+        pump_spell.mana_cost = ManaCost::from_string("G");
+        pump_spell.effects.push(Effect::PumpCreature {
+            target: CardId::new(0),
+            power_bonus: 3,
+            toughness_bonus: 3,
+        });
+        game.cards.insert(pump_spell_id, pump_spell);
+        game.stack.add(pump_spell_id);
+
+        let result = game.resolve_spell(pump_spell_id);
+        assert!(result.is_ok(), "Pump spell should resolve");
+
+        // Shroud creature should NOT have the pump
+        let shroud_card = game.cards.get(shroud_creature_id).unwrap();
+        assert_eq!(
+            shroud_card.current_power(),
+            1,
+            "Shroud creature should not have boosted power"
+        );
+
+        // Normal creature should have the pump
+        let normal_card = game.cards.get(normal_creature_id).unwrap();
+        assert_eq!(
+            normal_card.current_power(),
+            5,
+            "Normal creature should have boosted power (2+3)"
+        );
+    }
+
+    #[test]
+    fn test_shroud_blocks_tap_effect() {
+        // Test that tap effects can't target shroud creatures
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P2: Create a shroud creature
+        let shroud_creature_id = game.next_entity_id();
+        let mut shroud_creature =
+            Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p2_id);
+        shroud_creature.types.push(CardType::Creature);
+        shroud_creature.power = Some(1);
+        shroud_creature.toughness = Some(1);
+        shroud_creature.keywords.push(Keyword::Shroud);
+        game.cards.insert(shroud_creature_id, shroud_creature);
+        game.battlefield.add(shroud_creature_id);
+
+        // P2: Create a normal creature
+        let normal_creature_id = game.next_entity_id();
+        let mut normal_creature = Card::new(normal_creature_id, "Grizzly Bears".to_string(), p2_id);
+        normal_creature.types.push(CardType::Creature);
+        normal_creature.power = Some(2);
+        normal_creature.toughness = Some(2);
+        game.cards.insert(normal_creature_id, normal_creature);
+        game.battlefield.add(normal_creature_id);
+
+        // P1: Cast tap spell - should target normal creature, not shroud one
+        let tap_spell_id = game.next_entity_id();
+        let mut tap_spell = Card::new(tap_spell_id, "Frost Breath".to_string(), p1_id);
+        tap_spell.types.push(CardType::Instant);
+        tap_spell.mana_cost = ManaCost::from_string("2U");
+        tap_spell.effects.push(Effect::TapPermanent {
+            target: CardId::new(0),
+        });
+        game.cards.insert(tap_spell_id, tap_spell);
+        game.stack.add(tap_spell_id);
+
+        let result = game.resolve_spell(tap_spell_id);
+        assert!(result.is_ok(), "Tap spell should resolve");
+
+        // Shroud creature should not be tapped
+        let shroud_card = game.cards.get(shroud_creature_id).unwrap();
+        assert!(!shroud_card.tapped, "Shroud creature should not be tapped");
+
+        // Normal creature should be tapped
+        let normal_card = game.cards.get(normal_creature_id).unwrap();
+        assert!(normal_card.tapped, "Normal creature should be tapped");
     }
 }
