@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 129 passing ✅ (111 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 131 passing ✅ (113 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -55,9 +55,14 @@
   - Execution implemented via `Effect::DrawCards` with automatic player targeting
   - Placeholder player ID 0 replaced with card controller during resolution
   - Full test coverage (3 tests: parsing, execution, end-to-end spell resolution)
+- ✅ **Destroy spell effects** - Cards that destroy permanents now work (e.g., Terror, Murder)
+  - Parser recognizes `SP$ Destroy | ValidTgts$ Creature` abilities from card definitions
+  - Execution implemented via `Effect::DestroyPermanent` with automatic targeting
+  - Placeholder card ID 0 replaced with opponent's creature during resolution
+  - Full test coverage (2 tests: parsing Terror, end-to-end spell resolution)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
-- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall)
+- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror)
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death
 - ✅ Cleanup/discard phase: players discard to max hand size
 - ✅ Benchmarking: Criterion.rs infrastructure (~7,000 games/sec, 82KB/game allocation)
@@ -107,7 +112,8 @@
   - [x] Keywords (K:) - Flying, First Strike, Protection, Madness, Flashback, Enchant, etc.
   - [x] Basic DealDamage parsing (A:SP$ DealDamage with NumDmg$)
   - [x] Draw spell effects (A:SP$ Draw with NumCards$)
-  - [ ] More spell effects (A:SP$) - Counter, Destroy, Pump, GainLife
+  - [x] Destroy spell effects (A:SP$ Destroy with ValidTgts$)
+  - [ ] More spell effects (A:SP$) - Counter, Pump, GainLife
   - [ ] Activated abilities (A:AB$ with Cost$) - tap abilities, mana abilities
   - [ ] Triggered abilities (T:) - ETB, phase triggers, combat triggers
   - [ ] Static abilities (S:) - continuous effects
@@ -217,4 +223,4 @@ None currently - all tests passing!
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 129 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 131 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

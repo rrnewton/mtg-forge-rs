@@ -155,6 +155,27 @@ impl GameState {
                         count: *count,
                     };
                 }
+                Effect::DestroyPermanent { target } if target.as_u32() == 0 => {
+                    // Default: destroy an opponent's creature (placeholder card ID 0 means "opponent's creature")
+                    // Find an opponent's creature on the battlefield
+                    if let Some(creature_id) = self
+                        .battlefield
+                        .cards
+                        .iter()
+                        .find(|&card_id| {
+                            if let Ok(card) = self.cards.get(*card_id) {
+                                card.owner != card_owner && card.is_creature()
+                            } else {
+                                false
+                            }
+                        })
+                        .copied()
+                    {
+                        *effect = Effect::DestroyPermanent {
+                            target: creature_id,
+                        };
+                    }
+                }
                 _ => {}
             }
         }
@@ -1116,6 +1137,73 @@ mod tests {
             assert!(
                 zones.graveyard.contains(draw_spell_id),
                 "Draw spell should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_resolve_destroy_spell() {
+        use crate::core::{Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // Create a creature for P2 (the target)
+        let target_creature_id = game.next_card_id();
+        let mut target = Card::new(target_creature_id, "Grizzly Bears".to_string(), p2_id);
+        target.types.push(CardType::Creature);
+        target.power = Some(2);
+        target.toughness = Some(2);
+        target.controller = p2_id;
+        game.cards.insert(target_creature_id, target);
+        game.battlefield.add(target_creature_id);
+
+        // Create a Destroy spell (like Terror)
+        let destroy_spell_id = game.next_card_id();
+        let mut destroy_spell = Card::new(destroy_spell_id, "Terror".to_string(), p1_id);
+        destroy_spell.types.push(CardType::Instant);
+        destroy_spell.mana_cost = ManaCost::from_string("1B");
+        // Use placeholder card ID 0 which will be replaced with an opponent's creature
+        destroy_spell.effects.push(Effect::DestroyPermanent {
+            target: CardId::new(0),
+        });
+        game.cards.insert(destroy_spell_id, destroy_spell);
+
+        // Put it on the stack (simulating cast)
+        game.stack.add(destroy_spell_id);
+
+        // Check initial state
+        assert!(
+            game.battlefield.contains(target_creature_id),
+            "Target creature should be on battlefield"
+        );
+
+        // Resolve the spell
+        assert!(
+            game.resolve_spell(destroy_spell_id).is_ok(),
+            "Failed to resolve destroy spell"
+        );
+
+        // Check target creature was destroyed (moved to graveyard)
+        assert!(
+            !game.battlefield.contains(target_creature_id),
+            "Target creature should not be on battlefield"
+        );
+
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(target_creature_id),
+                "Target creature should be in graveyard"
+            );
+        }
+
+        // Check spell went to graveyard
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(destroy_spell_id),
+                "Destroy spell should be in graveyard"
             );
         }
     }

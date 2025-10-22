@@ -249,6 +249,18 @@ impl CardDefinition {
                     }
                 }
             }
+
+            // Parse Destroy abilities
+            // Format: "A:SP$ Destroy | ValidTgts$ Creature | ..."
+            // Format: "A:SP$ Destroy | ValidTgts$ Creature.nonArtifact+nonBlack | ..."
+            if ability.contains("SP$ Destroy") {
+                // Destroy effects target a permanent
+                // Use placeholder card ID 0 - will be filled in at cast time
+                use crate::core::CardId;
+                effects.push(Effect::DestroyPermanent {
+                    target: CardId::new(0), // Placeholder, will be set during resolution
+                });
+            }
         }
 
         effects
@@ -377,6 +389,36 @@ Oracle:Target player draws three cards.
                 assert_eq!(*count, 3, "Should draw 3 cards");
             }
             _ => panic!("Expected DrawCards effect, got {:?}", effects[0]),
+        }
+    }
+
+    #[test]
+    fn test_parse_destroy_spell() {
+        let content = r#"
+Name:Terror
+ManaCost:1 B
+Types:Instant
+A:SP$ Destroy | ValidTgts$ Creature.nonArtifact+nonBlack | TgtPrompt$ Select target nonartifact, nonblack creature | NoRegen$ True | SpellDescription$ Destroy target nonartifact, nonblack creature. It can't be regenerated.
+Oracle:Destroy target nonartifact, nonblack creature. It can't be regenerated.
+"#;
+
+        let def = CardLoader::parse(content).unwrap();
+        assert_eq!(def.name.as_str(), "Terror");
+        assert_eq!(def.mana_cost.generic, 1);
+        assert_eq!(def.mana_cost.black, 1);
+        assert!(def.types.contains(&CardType::Instant));
+        assert!(def.colors.contains(&Color::Black));
+
+        // Check that the effect is parsed
+        let effects = def.parse_effects();
+        assert_eq!(effects.len(), 1, "Terror should have 1 effect");
+
+        use crate::core::Effect;
+        match &effects[0] {
+            Effect::DestroyPermanent { target: _ } => {
+                // Success - correct effect type
+            }
+            _ => panic!("Expected DestroyPermanent effect, got {:?}", effects[0]),
         }
     }
 }
