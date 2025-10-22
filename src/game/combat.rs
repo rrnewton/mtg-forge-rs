@@ -4,8 +4,8 @@
 
 use crate::core::{CardId, PlayerId};
 use serde::{Deserialize, Serialize};
+use smallmap::Map;
 use smallvec::SmallVec;
-use std::collections::HashMap;
 
 /// Combat state for the current combat phase
 ///
@@ -15,15 +15,15 @@ use std::collections::HashMap;
 pub struct CombatState {
     /// Creatures that are attacking this combat
     /// Maps attacker ID to the player/planeswalker being attacked
-    pub attackers: HashMap<CardId, PlayerId>,
+    pub attackers: Map<CardId, PlayerId>,
 
     /// Creatures that are blocking
     /// Maps blocker ID to the list of attackers it's blocking
-    pub blockers: HashMap<CardId, SmallVec<[CardId; 2]>>,
+    pub blockers: Map<CardId, SmallVec<[CardId; 2]>>,
 
     /// Reverse mapping: attacker -> blockers
     /// Useful for determining if an attacker is blocked and by whom
-    pub attacker_blockers: HashMap<CardId, SmallVec<[CardId; 4]>>,
+    pub attacker_blockers: Map<CardId, SmallVec<[CardId; 4]>>,
 
     /// Whether combat has started this turn
     pub combat_active: bool,
@@ -73,16 +73,11 @@ impl CombatState {
     }
 
     /// Get the blockers for a given attacker
-    /// Returns blockers in sorted order for deterministic output
     pub fn get_blockers(&self, attacker: CardId) -> SmallVec<[CardId; 4]> {
-        let mut blockers = self
-            .attacker_blockers
+        self.attacker_blockers
             .get(&attacker)
             .cloned()
-            .unwrap_or_default();
-        // Sort for deterministic ordering
-        blockers.sort_by_key(|id| id.as_u32());
-        blockers
+            .unwrap_or_default()
     }
 
     /// Get the player being attacked by a creature
@@ -91,28 +86,20 @@ impl CombatState {
     }
 
     /// Get all attacking creatures
-    /// Returns attackers in sorted order for deterministic output
     pub fn get_attackers(&self) -> Vec<CardId> {
-        let mut attackers: Vec<CardId> = self.attackers.keys().copied().collect();
-        // Sort for deterministic ordering
-        attackers.sort_by_key(|id| id.as_u32());
-        attackers
+        self.attackers.keys().copied().collect()
     }
 
     /// Get all blocking creatures
-    /// Returns blockers in sorted order for deterministic output
     pub fn get_blockers_list(&self) -> Vec<CardId> {
-        let mut blockers: Vec<CardId> = self.blockers.keys().copied().collect();
-        // Sort for deterministic ordering
-        blockers.sort_by_key(|id| id.as_u32());
-        blockers
+        self.blockers.keys().copied().collect()
     }
 
     /// Clear all combat state (called at end of combat)
     pub fn clear(&mut self) {
-        self.attackers.clear();
-        self.blockers.clear();
-        self.attacker_blockers.clear();
+        self.attackers = Map::new();
+        self.blockers = Map::new();
+        self.attacker_blockers = Map::new();
         self.combat_active = false;
     }
 }

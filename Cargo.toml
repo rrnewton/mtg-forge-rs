@@ -15,6 +15,7 @@ rkyv = { version = "0.7", features = ["validation"] }
 
 # Collections
 smallvec = { version = "1.11", features = ["serde"] }
+smallmap = { version = "1.4", features = ["serde"] }
 
 # Error handling
 anyhow = "1.0"

@@ -579,7 +579,9 @@ impl<'a> GameLoop<'a> {
     ) -> Result<()> {
         // Log combat damage at Normal verbosity
         if self.verbosity >= VerbosityLevel::Normal {
-            let attackers = self.game.combat.get_attackers();
+            let mut attackers = self.game.combat.get_attackers();
+            // Sort for deterministic logging output
+            attackers.sort_by_key(|id| id.as_u32());
 
             for attacker_id in &attackers {
                 if let Ok(attacker) = self.game.cards.get(*attacker_id) {
@@ -587,7 +589,9 @@ impl<'a> GameLoop<'a> {
                     let attacker_name = &attacker.name;
 
                     if self.game.combat.is_blocked(*attacker_id) {
-                        let blockers = self.game.combat.get_blockers(*attacker_id);
+                        let mut blockers = self.game.combat.get_blockers(*attacker_id);
+                        // Sort for deterministic logging output
+                        blockers.sort_by_key(|id| id.as_u32());
                         for blocker_id in &blockers {
                             if let Ok(blocker) = self.game.cards.get(*blocker_id) {
                                 let blocker_power = blocker.current_power();
