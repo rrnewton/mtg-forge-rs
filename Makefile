@@ -115,21 +115,23 @@ bench:
 profile:
 	@echo "=== Profiling game execution with flamegraph (CPU time) ==="
 	@echo "This will run 1000 games (seed 42) and generate a flamegraph"
-	@echo "Output will be saved to flamegraph.svg"
+	@echo "Output will be saved to experiment_results/flamegraph.svg"
 	@echo ""
+	@mkdir -p experiment_results
 	@if ! command -v cargo-flamegraph >/dev/null 2>&1; then \
 		echo "Error: cargo-flamegraph not found"; \
 		echo "Install with: cargo install flamegraph"; \
 		exit 1; \
 	fi
-	cargo flamegraph --bin profile --output flamegraph.svg
+	cargo flamegraph --bin profile --output experiment_results/flamegraph.svg
 	@echo ""
-	@echo "Flamegraph saved to: flamegraph.svg"
-	@echo "Open with: firefox flamegraph.svg (or your browser of choice)"
+	@echo "Flamegraph saved to: experiment_results/flamegraph.svg"
+	@echo "Open with: firefox experiment_results/flamegraph.svg (or your browser of choice)"
 
 profile2: build-release
-	perf record -g --call-graph dwarf -- target/release/profile 5000
-	perf report
+	@mkdir -p experiment_results
+	cd experiment_results && perf record -g --call-graph dwarf -- ../target/release/profile 5000
+	cd experiment_results && perf report
 
 # Profile allocations with heaptrack
 # Requires cargo-heaptrack: cargo install cargo-heaptrack
@@ -137,8 +139,9 @@ profile2: build-release
 heapprofile:
 	@echo "=== Profiling allocations with heaptrack ==="
 	@echo "This will run 100 games (seed 42) and generate allocation profile"
-	@echo "Output will be saved to heaptrack.profile.*.zst"
+	@echo "Output will be saved to experiment_results/heaptrack.profile.*.zst"
 	@echo ""
+	@mkdir -p experiment_results
 	@if ! command -v cargo-heaptrack >/dev/null 2>&1; then \
 		echo "Error: cargo-heaptrack not found"; \
 		echo "Install with: cargo install cargo-heaptrack"; \
@@ -149,7 +152,11 @@ heapprofile:
 		echo "  Arch: sudo pacman -S heaptrack"; \
 		exit 1; \
 	fi
-	cargo heaptrack --bin profile --release -- 100
+	HEAPTRACK_OUTPUT=experiment_results cargo heaptrack --bin profile --release -- 100
+	@# Move heaptrack files to experiment_results if they were created in root
+	@if ls heaptrack.profile.* 2>/dev/null; then \
+		mv heaptrack.profile.* experiment_results/ 2>/dev/null || true; \
+	fi
 	@echo ""
 	@echo "=== Profiling complete! Now analyzing results ==="
 	@echo ""
