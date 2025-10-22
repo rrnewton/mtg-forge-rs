@@ -1064,32 +1064,21 @@ impl<'a> GameLoop<'a> {
 
     /// Get castable spells in player's hand (v2 interface)
     fn get_castable_spells(&self, player_id: PlayerId) -> Vec<CardId> {
+        use crate::game::mana_engine::ManaEngine;
+
         let mut spells = Vec::new();
 
-        // Count untapped lands that can produce mana
-        let untapped_lands = self
-            .game
-            .battlefield
-            .cards
-            .iter()
-            .filter(|&&card_id| {
-                if let Ok(card) = self.game.cards.get(card_id) {
-                    card.owner == player_id && card.is_land() && !card.tapped
-                } else {
-                    false
-                }
-            })
-            .count();
+        // Create a mana engine and scan battlefield for available mana
+        let mut mana_engine = ManaEngine::new(player_id);
+        mana_engine.update(self.game);
 
         if let Some(zones) = self.game.get_player_zones(player_id) {
             for &card_id in &zones.hand.cards {
                 if let Ok(card) = self.game.cards.get(card_id) {
                     // Check if card is castable (not a land)
                     if !card.is_land() {
-                        // Check if we have enough untapped lands to pay the cost
-                        // For now, use a simple check: CMC <= untapped lands
-                        // TODO: This doesn't account for color requirements
-                        if card.mana_cost.cmc() as usize <= untapped_lands {
+                        // Check if we can pay for this spell's mana cost
+                        if mana_engine.can_pay(&card.mana_cost) {
                             spells.push(card_id);
                         }
                     }
