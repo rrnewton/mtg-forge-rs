@@ -124,6 +124,7 @@ impl GameState {
         // Get card owner and effects
         let (card_owner, mut effects) = {
             let card = self.cards.get(card_id)?;
+            // TODO: eliminate this clone and instead just take a reference. Why does it need to be mutable?
             (card.owner, card.effects.clone())
         };
 

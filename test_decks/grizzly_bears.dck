@@ -3,7 +3,7 @@ Name=Simple Bolt Test Deck
 Description=Minimal test deck with Forests and Grizzly Bears.
 
 [Main]
-40 Forest
+20 Forest
 40 Grizzly Bears
 
 [Sideboard]

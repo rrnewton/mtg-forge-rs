@@ -1422,6 +1422,12 @@ setup around a recursive call to make.
 This scheme will prevent us from running validate twice in a row on the same commit.
 
 
+Make random, not zero, the default agent behavior
+----------------------------------------
+
+That's a better default for --p1 and --p2 agent control.
+
+
 Focus on expanding e2e tests
 ----------------------------------------
 
@@ -1432,15 +1438,40 @@ decks. For example, we recently added vigilance tests, but let's also
 find a deck with Serra angel in it like this one:
 
 ```
-cat "forge-java/forge-gui/res/adventure/Shandalar Old Border/decks/standard/fallen_angel.dck"
+cat "forge-java/forge-gui/res/adventure/Shandalar Old Border/decks/standard/armadillo.dck"
+cargo run --release --bin mtg -- tui test_decks/grizzly_bears.dck --p1=random --p2=random "forge-java/forge-gui/res/adventure/Shandalar Old Border/decks/standard/armadillo.dck"
 ```
 
+Right now I can play games with that deck but they seem fishy. Player1 does not seem to be taking the random actions they should. They do not play any forests or grizzly bears.
 
+Add at least one new e2e test (like the above) with assertions on what happens during the game.
 
-TODO: Make random, not zero, the default agent behavior
-----------------------------------------
 
 Focus on getting the undo log to work
+----------------------------------------
+
+Now that you've added at least one new e2e test, let's focus on
+getting the undo log working.  The `lightning_bolt_game.rs` example
+still works and demonstrates basic undo functioning.
+
+Let's expand that to a full (random) game between two decks. If we run
+a game that takes 88 turns:
+
+- let's rewind 50% and replay the second half (44 turns)
+- then let's rewind 100% to the beginning of the entire game and play it again
+
+That will complete our e2e undo system test. It will demonstrate the
+integration of the UndoLog with the GameState, where we are
+successfully able to roll back the entire gamestate to a playable
+earlier point.
+
+
+
+TODO: Port the Java mana system
+----------------------------------------
+
+
+TODO: Port the Java mana system
 ----------------------------------------
 
 
