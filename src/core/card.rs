@@ -124,6 +124,20 @@ impl Card {
         self.has_keyword(&Keyword::Reach)
     }
 
+    pub fn has_first_strike(&self) -> bool {
+        self.has_keyword(&Keyword::FirstStrike)
+    }
+
+    pub fn has_double_strike(&self) -> bool {
+        self.has_keyword(&Keyword::DoubleStrike)
+    }
+
+    /// Returns true if this creature deals damage in the normal damage step
+    /// (i.e., has double strike OR doesn't have first strike)
+    pub fn has_normal_strike(&self) -> bool {
+        self.has_double_strike() || !self.has_first_strike()
+    }
+
     pub fn tap(&mut self) {
         self.tapped = true;
     }

@@ -581,10 +581,18 @@ impl GameState {
     /// - Damage is assigned in order, with lethal damage assigned to each blocker before the next
     ///
     /// MTG Rules 510.1: Combat damage is assigned and dealt simultaneously.
+    /// MTG Rules 510.4: If any creature has first strike or double strike, there are two
+    /// combat damage steps. Creatures with first strike or double strike deal damage in the
+    /// first step, and creatures without first strike (plus double strike creatures) deal
+    /// damage in the second step.
+    ///
+    /// # Arguments
+    /// * `first_strike_step` - True for first strike damage step, false for normal damage step
     pub fn assign_combat_damage(
         &mut self,
         attacker_controller: &mut dyn crate::game::controller::PlayerController,
         blocker_controller: &mut dyn crate::game::controller::PlayerController,
+        first_strike_step: bool,
     ) -> Result<()> {
         use crate::game::controller::GameStateView;
         use std::collections::HashMap;
@@ -629,7 +637,27 @@ impl GameState {
         let mut damage_to_players: HashMap<PlayerId, i32> = HashMap::new();
 
         for attacker_id in attackers {
+            // Skip creatures that are no longer on the battlefield
+            // (e.g., died in first strike damage step)
+            if !self.battlefield.contains(attacker_id) {
+                continue;
+            }
+
             let attacker = self.cards.get(attacker_id)?;
+
+            // Check if this creature deals damage in this step
+            // First strike step: only first strike or double strike creatures
+            // Normal step: only creatures without first strike, plus double strike creatures
+            let deals_damage_this_step = if first_strike_step {
+                attacker.has_first_strike() || attacker.has_double_strike()
+            } else {
+                attacker.has_normal_strike()
+            };
+
+            if !deals_damage_this_step {
+                continue; // This creature doesn't deal damage in this step
+            }
+
             let mut remaining_power = attacker.current_power();
 
             if remaining_power <= 0 {
@@ -670,8 +698,26 @@ impl GameState {
                 }
 
                 // All blockers deal their damage back to attacker (simultaneously)
+                // But only if they deal damage in this step (same rules as attackers)
                 for blocker_id in &ordered_blockers {
+                    // Skip blockers that are no longer on the battlefield
+                    if !self.battlefield.contains(*blocker_id) {
+                        continue;
+                    }
+
                     let blocker = self.cards.get(*blocker_id)?;
+
+                    // Check if blocker deals damage in this step
+                    let blocker_deals_damage = if first_strike_step {
+                        blocker.has_first_strike() || blocker.has_double_strike()
+                    } else {
+                        blocker.has_normal_strike()
+                    };
+
+                    if !blocker_deals_damage {
+                        continue;
+                    }
+
                     let blocker_power = blocker.current_power();
                     if blocker_power > 0 {
                         *damage_to_creatures.entry(attacker_id).or_insert(0) +=
@@ -704,6 +750,7 @@ impl GameState {
 mod tests {
     use super::*;
     use crate::core::Card;
+    use crate::game::ZeroController;
 
     #[test]
     fn test_play_land() {
@@ -1092,7 +1139,7 @@ mod tests {
         let mut controller2 = ZeroController::new(p2_id);
 
         // Assign combat damage
-        let result = game.assign_combat_damage(&mut controller1, &mut controller2);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
 
         // Check defending player took damage
@@ -1139,7 +1186,7 @@ mod tests {
         let mut controller2 = ZeroController::new(p2_id);
 
         // Assign combat damage
-        let result = game.assign_combat_damage(&mut controller1, &mut controller2);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
 
         // Check defending player took no damage (blocked)
@@ -1209,7 +1256,7 @@ mod tests {
         // ZeroController will keep the order as-is
         // Dragon (5 power) assigns: 2 to first blocker (lethal), 3 to second blocker (lethal)
         // Both blockers (2+3=5 power) deal 5 damage back to Dragon (lethal)
-        let result = game.assign_combat_damage(&mut controller1, &mut controller2);
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
 
         // Check defending player took no damage (blocked)
@@ -1585,6 +1632,276 @@ mod tests {
         assert!(
             result.is_ok(),
             "Creature with flying and reach should be able to block creature with flying"
+        );
+    }
+
+    #[test]
+    fn test_first_strike_creature_kills_before_taking_damage() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 2/2 creature with First Strike (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "First Strike Bear".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(2);
+        attacker.toughness = Some(2);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::FirstStrike);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 2/2 creature without First Strike (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "Grizzly Bears".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Create controllers
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        // First strike damage step: attacker deals 2 damage, blocker takes none
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
+        assert!(
+            result.is_ok(),
+            "Failed to assign first strike damage: {result:?}"
+        );
+
+        // Blocker should be dead (took 2 damage, toughness 2)
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard after first strike damage"
+            );
+        }
+
+        // Normal damage step: only attacker can deal damage (blocker is dead)
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign normal damage: {result:?}");
+
+        // Attacker should still be alive (never took damage)
+        assert!(
+            game.battlefield.contains(attacker_id),
+            "Attacker should still be alive"
+        );
+
+        // Check attacker is undamaged
+        if let Ok(attacker) = game.cards.get(attacker_id) {
+            assert_eq!(
+                attacker.current_toughness(),
+                2,
+                "Attacker should be undamaged"
+            );
+        }
+    }
+
+    #[test]
+    fn test_double_strike_creature_deals_damage_twice() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 3/3 creature with Double Strike (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Double Strike Dragon".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(3);
+        attacker.toughness = Some(3);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::DoubleStrike);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // Declare unblocked attacker
+        game.combat.declare_attacker(attacker_id, p2_id);
+
+        // Create controllers
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        // First strike damage step: attacker deals 3 damage to player
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
+        assert!(
+            result.is_ok(),
+            "Failed to assign first strike damage: {result:?}"
+        );
+
+        // Check player took 3 damage
+        let p2 = game.get_player(p2_id).unwrap();
+        assert_eq!(
+            p2.life, 17,
+            "Player should have taken 3 damage in first strike step"
+        );
+
+        // Normal damage step: attacker deals another 3 damage to player
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign normal damage: {result:?}");
+
+        // Check player took another 3 damage (total 6)
+        let p2 = game.get_player(p2_id).unwrap();
+        assert_eq!(
+            p2.life, 14,
+            "Player should have taken 6 total damage from double strike"
+        );
+    }
+
+    #[test]
+    fn test_double_strike_vs_first_strike() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 2/2 creature with Double Strike (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Double Strike Knight".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(2);
+        attacker.toughness = Some(2);
+        attacker.controller = p1_id;
+        attacker.keywords.push(Keyword::DoubleStrike);
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 2/2 creature with First Strike (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "First Strike Soldier".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        blocker.keywords.push(Keyword::FirstStrike);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Create controllers
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        // First strike damage step: both creatures deal damage simultaneously
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
+        assert!(
+            result.is_ok(),
+            "Failed to assign first strike damage: {result:?}"
+        );
+
+        // Both creatures should be dead (both took 2 damage, both have 2 toughness)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(attacker_id),
+                "Double strike attacker should be in graveyard"
+            );
+        }
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "First strike blocker should be in graveyard"
+            );
+        }
+
+        // Normal damage step: no creatures left to deal damage
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign normal damage: {result:?}");
+
+        // Both creatures should still be in graveyards
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(zones.graveyard.contains(attacker_id));
+        }
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(zones.graveyard.contains(blocker_id));
+        }
+    }
+
+    #[test]
+    fn test_normal_creature_vs_first_strike() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P1: Create a 3/3 creature without first strike (attacker)
+        let attacker_id = game.next_entity_id();
+        let mut attacker = Card::new(attacker_id, "Hill Giant".to_string(), p1_id);
+        attacker.types.push(CardType::Creature);
+        attacker.power = Some(3);
+        attacker.toughness = Some(3);
+        attacker.controller = p1_id;
+        attacker.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        game.cards.insert(attacker_id, attacker);
+        game.battlefield.add(attacker_id);
+
+        // P2: Create a 2/2 creature with First Strike (blocker)
+        let blocker_id = game.next_entity_id();
+        let mut blocker = Card::new(blocker_id, "First Strike Knight".to_string(), p2_id);
+        blocker.types.push(CardType::Creature);
+        blocker.power = Some(2);
+        blocker.toughness = Some(2);
+        blocker.controller = p2_id;
+        blocker.keywords.push(Keyword::FirstStrike);
+        game.cards.insert(blocker_id, blocker);
+        game.battlefield.add(blocker_id);
+
+        // Declare combat
+        game.combat.declare_attacker(attacker_id, p2_id);
+        let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
+        game.combat.declare_blocker(blocker_id, attacker_vec);
+
+        // Create controllers
+        let mut controller1 = ZeroController::new(p1_id);
+        let mut controller2 = ZeroController::new(p2_id);
+
+        // First strike damage step: only blocker deals damage
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
+        assert!(
+            result.is_ok(),
+            "Failed to assign first strike damage: {result:?}"
+        );
+
+        // Attacker should have taken 2 damage but still be alive (3 toughness)
+        assert!(
+            game.battlefield.contains(attacker_id),
+            "Attacker should still be alive after first strike"
+        );
+
+        // Blocker should still be alive (hasn't taken damage yet)
+        assert!(
+            game.battlefield.contains(blocker_id),
+            "Blocker should still be alive"
+        );
+
+        // Normal damage step: attacker deals damage, killing blocker
+        let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
+        assert!(result.is_ok(), "Failed to assign normal damage: {result:?}");
+
+        // Blocker should be dead (took 3 damage, toughness 2)
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(blocker_id),
+                "Blocker should be in graveyard after normal damage"
+            );
+        }
+
+        // Attacker should still be alive (took only 2 damage, has 3 toughness)
+        assert!(
+            game.battlefield.contains(attacker_id),
+            "Attacker should still be alive"
         );
     }
 }

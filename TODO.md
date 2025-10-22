@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 122 passing ✅ (104 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 127 passing ✅ (109 lib + 10 card_loading + 3 determinism + 5 tui) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -43,6 +43,13 @@
   - Creatures with Reach can block Flying creatures
   - Validation in declare_blocker enforces MTG rule 702.9
   - Full test coverage (5 new tests: flying vs flying, flying vs reach, flying vs ground, ground vs any, flying+reach)
+- ✅ **First Strike and Double Strike combat damage** - Two combat damage steps when first strike is present
+  - Implements MTG Rules 510.4: Two combat damage steps if any creature has first strike or double strike
+  - First strike creatures deal damage before creatures without first strike
+  - Double strike creatures deal damage in both first strike and normal damage steps
+  - Dead creatures from first strike don't deal damage in normal step
+  - Helper methods: `has_first_strike()`, `has_double_strike()`, `has_normal_strike()`
+  - Full test coverage (4 new tests: first strike kills first, double strike hits twice, double vs first, normal vs first)
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Protection, Madness, Flashback
 - ✅ Basic spell effects: DealDamage parsing, Lightning Bolt works
@@ -81,9 +88,9 @@
   * ✅ Summoning sickness tracking
   * ✅ Vigilance keyword
   * ✅ Flying/reach for combat restrictions
-  * Multiple blockers support
-  * Damage assignment order
-  * First strike / Double strike combat damage
+  * ✅ Multiple blockers support
+  * ✅ Damage assignment order
+  * ✅ First strike / Double strike combat damage
 
 - [ ] **More card types**
   - [ ] Creature cards (currently partially supported)
@@ -204,4 +211,4 @@ None currently - all tests passing!
 **Phase 4 (Performance/AI):** 📋 Planned
 **Phase 5 (Advanced Features):** 📝 Future
 
-**Tests:** 122 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported
+**Tests:** 127 passing | **Performance:** ~7,000 games/sec, 82KB/game | **Cards:** 31k+ supported

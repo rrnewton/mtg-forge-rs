@@ -678,60 +678,135 @@ impl<'a> GameLoop<'a> {
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
     ) -> Result<()> {
-        // Log combat damage at Normal verbosity
-        if self.verbosity >= VerbosityLevel::Normal {
-            let mut attackers = self.game.combat.get_attackers();
-            // Sort for deterministic logging output
-            attackers.sort_by_key(|id| id.as_u32());
+        // Check if any attacking or blocking creature has first strike or double strike
+        // MTG Rules 510.4: If so, we have two combat damage steps
+        let has_first_strike = self.has_first_strike_combat();
 
-            for attacker_id in &attackers {
-                if let Ok(attacker) = self.game.cards.get(*attacker_id) {
-                    let power = attacker.current_power();
-                    let attacker_name = &attacker.name;
+        if has_first_strike {
+            // First strike damage step
+            if self.verbosity >= VerbosityLevel::Normal {
+                println!("--- First Strike Combat Damage ---");
+            }
+            self.log_combat_damage(true)?;
+            self.game
+                .assign_combat_damage(controller1, controller2, true)?;
+            self.priority_round(controller1, controller2)?;
+        }
 
-                    if self.game.combat.is_blocked(*attacker_id) {
-                        let mut blockers = self.game.combat.get_blockers(*attacker_id);
-                        // Sort for deterministic logging output
-                        blockers.sort_by_key(|id| id.as_u32());
-                        for blocker_id in &blockers {
-                            if let Ok(blocker) = self.game.cards.get(*blocker_id) {
-                                let blocker_power = blocker.current_power();
-                                let blocker_name = &blocker.name;
-                                println!(
-                                    "  Combat: {} ({}) ({} damage) ↔ {} ({}) ({} damage)",
-                                    attacker_name,
-                                    attacker_id,
-                                    power,
-                                    blocker_name,
-                                    blocker_id,
-                                    blocker_power
-                                );
-                            }
-                        }
-                    } else {
-                        // Unblocked attacker
-                        if let Some(defending_player) =
-                            self.game.combat.get_defending_player(*attacker_id)
-                        {
-                            let defender_name = self.get_player_name(defending_player);
-                            if power > 0 {
-                                println!(
-                                    "  {} ({}) deals {} damage to {}",
-                                    attacker_name, attacker_id, power, defender_name
-                                );
-                            }
+        // Normal combat damage step (or only step if no first strike)
+        if self.verbosity >= VerbosityLevel::Normal && has_first_strike {
+            println!("--- Normal Combat Damage ---");
+        }
+        self.log_combat_damage(false)?;
+        self.game
+            .assign_combat_damage(controller1, controller2, false)?;
+
+        // After damage is dealt, players get priority
+        self.priority_round(controller1, controller2)?;
+        Ok(())
+    }
+
+    /// Check if any attacking or blocking creature has first strike or double strike
+    fn has_first_strike_combat(&self) -> bool {
+        let attackers = self.game.combat.get_attackers();
+
+        // Check all attackers
+        for attacker_id in &attackers {
+            if let Ok(attacker) = self.game.cards.get(*attacker_id) {
+                if attacker.has_first_strike() || attacker.has_double_strike() {
+                    return true;
+                }
+            }
+
+            // Check all blockers of this attacker
+            if self.game.combat.is_blocked(*attacker_id) {
+                let blockers = self.game.combat.get_blockers(*attacker_id);
+                for blocker_id in &blockers {
+                    if let Ok(blocker) = self.game.cards.get(*blocker_id) {
+                        if blocker.has_first_strike() || blocker.has_double_strike() {
+                            return true;
                         }
                     }
                 }
             }
         }
 
-        // Assign and deal combat damage
-        // Note: Controllers are needed to choose damage assignment order when multiple blockers
-        self.game.assign_combat_damage(controller1, controller2)?;
+        false
+    }
 
-        // After damage is dealt, players get priority
-        self.priority_round(controller1, controller2)?;
+    /// Log combat damage for debugging
+    fn log_combat_damage(&self, first_strike_step: bool) -> Result<()> {
+        if self.verbosity < VerbosityLevel::Normal {
+            return Ok(());
+        }
+
+        let mut attackers = self.game.combat.get_attackers();
+        // Sort for deterministic logging output
+        attackers.sort_by_key(|id| id.as_u32());
+
+        for attacker_id in &attackers {
+            if let Ok(attacker) = self.game.cards.get(*attacker_id) {
+                // Check if this attacker deals damage in this step
+                let deals_damage = if first_strike_step {
+                    attacker.has_first_strike() || attacker.has_double_strike()
+                } else {
+                    attacker.has_normal_strike()
+                };
+
+                if !deals_damage {
+                    continue;
+                }
+
+                let power = attacker.current_power();
+                let attacker_name = &attacker.name;
+
+                if self.game.combat.is_blocked(*attacker_id) {
+                    let mut blockers = self.game.combat.get_blockers(*attacker_id);
+                    // Sort for deterministic logging output
+                    blockers.sort_by_key(|id| id.as_u32());
+                    for blocker_id in &blockers {
+                        if let Ok(blocker) = self.game.cards.get(*blocker_id) {
+                            // Check if blocker deals damage in this step
+                            let blocker_deals_damage = if first_strike_step {
+                                blocker.has_first_strike() || blocker.has_double_strike()
+                            } else {
+                                blocker.has_normal_strike()
+                            };
+
+                            if !blocker_deals_damage {
+                                continue;
+                            }
+
+                            let blocker_power = blocker.current_power();
+                            let blocker_name = &blocker.name;
+                            println!(
+                                "  Combat: {} ({}) ({} damage) ↔ {} ({}) ({} damage)",
+                                attacker_name,
+                                attacker_id,
+                                power,
+                                blocker_name,
+                                blocker_id,
+                                blocker_power
+                            );
+                        }
+                    }
+                } else {
+                    // Unblocked attacker
+                    if let Some(defending_player) =
+                        self.game.combat.get_defending_player(*attacker_id)
+                    {
+                        let defender_name = self.get_player_name(defending_player);
+                        if power > 0 {
+                            println!(
+                                "  {} ({}) deals {} damage to {}",
+                                attacker_name, attacker_id, power, defender_name
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
