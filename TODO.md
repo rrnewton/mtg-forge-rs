@@ -86,9 +86,11 @@
   * ✅ Hexproof keyword (can't be targeted by opponents)
 
 - [ ] **More card types**
-  - [ ] Creature cards (currently partially supported)
-  - [ ] Enchantment cards
-  - [ ] Artifact cards
+  - [x] Creature cards (combat, summoning sickness, keywords)
+  - [x] Enchantment cards (basic support - can cast and enter battlefield)
+  - [x] Artifact cards (basic support - can cast and enter battlefield)
+  - [ ] Aura enchantments (need enchant targeting)
+  - [ ] Equipment artifacts (need equip abilities)
   - [ ] Planeswalker cards (lower priority)
 
 - [ ] **Ability system expansion** (see CARD_SCRIPT_SPEC.md for full DSL documentation)
