@@ -268,6 +268,28 @@ impl GameState {
                         };
                     }
                 }
+                Effect::CounterSpell { target } if target.as_u32() == 0 => {
+                    // Default: target a spell on the stack (other than this one)
+                    // Counter spells typically target opponent's spells
+                    if let Some(spell_id) = self
+                        .stack
+                        .cards
+                        .iter()
+                        .find(|&spell_id| {
+                            // Don't counter self, and prefer opponent's spells
+                            if *spell_id == card_id {
+                                false
+                            } else if let Ok(spell) = self.cards.get(*spell_id) {
+                                spell.owner != card_owner
+                            } else {
+                                false
+                            }
+                        })
+                        .copied()
+                    {
+                        *effect = Effect::CounterSpell { target: spell_id };
+                    }
+                }
                 _ => {}
             }
         }
@@ -486,6 +508,10 @@ impl GameState {
             Effect::Mill { player, count } => {
                 // Mill cards from library to graveyard
                 self.mill_cards(*player, *count)?;
+            }
+            Effect::CounterSpell { target } => {
+                // Counter a spell on the stack
+                self.counter_spell(*target)?;
             }
         }
         Ok(())
@@ -4468,6 +4494,110 @@ mod tests {
     }
 
     #[test]
+    fn test_counter_spell_effect() {
+        use crate::core::{CardType, Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // P1 casts Lightning Bolt (target spell to be countered)
+        let bolt_id = game.next_card_id();
+        let mut bolt = Card::new(bolt_id, "Lightning Bolt".to_string(), p1_id);
+        bolt.types.push(CardType::Instant);
+        bolt.mana_cost = ManaCost::from_string("R");
+        bolt.effects.push(Effect::DealDamage {
+            target: crate::core::TargetRef::Player(p2_id),
+            amount: 3,
+        });
+        game.cards.insert(bolt_id, bolt);
+        game.stack.add(bolt_id);
+
+        // P2 responds with Counterspell
+        let counter_id = game.next_card_id();
+        let mut counterspell = Card::new(counter_id, "Counterspell".to_string(), p2_id);
+        counterspell.types.push(CardType::Instant);
+        counterspell.mana_cost = ManaCost::from_string("UU");
+        counterspell
+            .effects
+            .push(Effect::CounterSpell { target: bolt_id });
+        game.cards.insert(counter_id, counterspell);
+        game.stack.add(counter_id);
+
+        // Verify both are on the stack
+        assert!(game.stack.contains(bolt_id));
+        assert!(game.stack.contains(counter_id));
+
+        // Resolve counterspell (counters Lightning Bolt)
+        assert!(game.resolve_spell(counter_id).is_ok());
+
+        // Verify counterspell is in graveyard
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(zones.graveyard.contains(counter_id));
+        }
+
+        // Verify Lightning Bolt was countered (removed from stack, in graveyard)
+        assert!(!game.stack.contains(bolt_id));
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(bolt_id),
+                "Countered spell should be in graveyard"
+            );
+        }
+
+        // Verify P2 didn't take damage (Lightning Bolt was countered before resolving)
+        let p2 = game.get_player(p2_id).unwrap();
+        assert_eq!(p2.life, 20, "Player 2 should still have 20 life");
+    }
+
+    #[test]
+    fn test_counter_spell_with_placeholder_target() {
+        use crate::core::{CardType, Effect, ManaCost};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        // P1 casts Lightning Bolt
+        let bolt_id = game.next_card_id();
+        let mut bolt = Card::new(bolt_id, "Lightning Bolt".to_string(), p1_id);
+        bolt.types.push(CardType::Instant);
+        bolt.mana_cost = ManaCost::from_string("R");
+        bolt.effects.push(Effect::DealDamage {
+            target: crate::core::TargetRef::Player(p2_id),
+            amount: 3,
+        });
+        game.cards.insert(bolt_id, bolt);
+        game.stack.add(bolt_id);
+
+        // P2 responds with Counterspell using placeholder target (CardId::new(0))
+        let counter_id = game.next_card_id();
+        let mut counterspell = Card::new(counter_id, "Counterspell".to_string(), p2_id);
+        counterspell.types.push(CardType::Instant);
+        counterspell.mana_cost = ManaCost::from_string("UU");
+        // Use placeholder target - should automatically target opponent's spell
+        counterspell.effects.push(Effect::CounterSpell {
+            target: crate::core::CardId::new(0),
+        });
+        game.cards.insert(counter_id, counterspell);
+        game.stack.add(counter_id);
+
+        // Resolve counterspell - should automatically find and counter Lightning Bolt
+        assert!(game.resolve_spell(counter_id).is_ok());
+
+        // Verify Lightning Bolt was countered
+        assert!(!game.stack.contains(bolt_id));
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert!(
+                zones.graveyard.contains(bolt_id),
+                "Countered spell should be in graveyard"
+            );
+        }
+    }
+
+    #[test]
     fn test_etb_trigger_draw() {
         use crate::core::{Effect, Trigger, TriggerEvent};
 
@@ -4653,6 +4783,88 @@ mod tests {
                 "Should have 4 cards left in library"
             );
         }
+    }
+
+    #[test]
+    fn test_counterspell_from_cardsfolder() {
+        // Test loading Counterspell from the actual cardsfolder and verifying
+        // it can counter spells
+        use crate::loader::CardDatabase;
+        use std::path::PathBuf;
+
+        let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let alice_id = players[0];
+        let bob_id = players[1];
+
+        // Load Lightning Bolt and Counterspell from cardsfolder
+        let cardsfolder = PathBuf::from("./cardsfolder");
+        let db = CardDatabase::new(cardsfolder);
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+
+        let bolt_def = runtime
+            .block_on(async { db.get_card("Lightning Bolt").await })
+            .expect("Failed to get card")
+            .expect("Lightning Bolt not found");
+
+        let counter_def = runtime
+            .block_on(async { db.get_card("Counterspell").await })
+            .expect("Failed to get card")
+            .expect("Counterspell not found");
+
+        // Alice casts Lightning Bolt targeting Bob
+        let bolt_id = game.next_card_id();
+        let bolt = bolt_def.instantiate(bolt_id, alice_id);
+        game.cards.insert(bolt_id, bolt);
+        game.stack.add(bolt_id);
+
+        // Bob responds with Counterspell targeting Lightning Bolt
+        let counter_id = game.next_card_id();
+        let mut counterspell = counter_def.instantiate(counter_id, bob_id);
+        // Manually set the target since we're bypassing the full casting process
+        if let Some(Effect::CounterSpell { target }) = counterspell.effects.get_mut(0) {
+            *target = bolt_id;
+        }
+        game.cards.insert(counter_id, counterspell);
+        game.stack.add(counter_id);
+
+        // Verify both are on the stack
+        assert!(game.stack.contains(bolt_id), "Bolt should be on stack");
+        assert!(
+            game.stack.contains(counter_id),
+            "Counterspell should be on stack"
+        );
+
+        // Resolve Counterspell (should counter Lightning Bolt)
+        assert!(
+            game.resolve_spell(counter_id).is_ok(),
+            "Counterspell should resolve successfully"
+        );
+
+        // Verify Counterspell is in graveyard
+        if let Some(zones) = game.get_player_zones(bob_id) {
+            assert!(
+                zones.graveyard.contains(counter_id),
+                "Counterspell should be in graveyard"
+            );
+        }
+
+        // Verify Lightning Bolt was countered (removed from stack, in graveyard)
+        assert!(
+            !game.stack.contains(bolt_id),
+            "Lightning Bolt should not be on stack"
+        );
+        if let Some(zones) = game.get_player_zones(alice_id) {
+            assert!(
+                zones.graveyard.contains(bolt_id),
+                "Countered spell should be in graveyard"
+            );
+        }
+
+        // Verify Bob didn't take damage (Lightning Bolt was countered)
+        let bob = game.get_player(bob_id).unwrap();
+        assert_eq!(bob.life, 20, "Bob should still have 20 life");
     }
 
     #[test]

@@ -286,6 +286,41 @@ impl GameState {
         Ok(milled_cards)
     }
 
+    /// Counter a spell on the stack
+    /// This removes the spell from the stack and moves it to its owner's graveyard
+    pub fn counter_spell(&mut self, spell_id: CardId) -> Result<()> {
+        // Check if the spell is on the stack
+        if !self.stack.contains(spell_id) {
+            return Err(crate::MtgError::InvalidAction(
+                "Cannot counter a spell that is not on the stack".to_string(),
+            ));
+        }
+
+        // Get the spell's owner to determine which graveyard it goes to
+        let owner_id = {
+            let card = self.cards.get(spell_id)?;
+            card.owner
+        };
+
+        // Remove from stack
+        self.stack.remove(spell_id);
+
+        // Move to owner's graveyard
+        if let Some(zones) = self.get_player_zones_mut(owner_id) {
+            zones.graveyard.add(spell_id);
+        }
+
+        // Log the counter action
+        self.undo_log.log(crate::undo::GameAction::MoveCard {
+            card_id: spell_id,
+            from_zone: crate::zones::Zone::Stack,
+            to_zone: crate::zones::Zone::Graveyard,
+            owner: owner_id,
+        });
+
+        Ok(())
+    }
+
     /// Untap all permanents controlled by a player
     pub fn untap_all(&mut self, player_id: PlayerId) -> Result<()> {
         for card_id in self.battlefield.cards.iter() {

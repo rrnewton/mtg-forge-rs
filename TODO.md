@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 176 passing ✅ (153 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 179 passing ✅ (156 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -25,6 +25,7 @@
 - ✅ **Pump spell effects** - Cards that temporarily boost creature stats now work (e.g., Giant Growth)
 - ✅ **Tap/Untap spell effects** - Cards that tap or untap permanents now work
 - ✅ **Mill spell effects** - Cards that mill cards from library to graveyard now work (e.g., Thought Scour, Mind Sculpt)
+- ✅ **Counter spell effects** - Cards that counter spells on the stack now work (e.g., Counterspell, Negate) - instant-speed stack interaction
 - ✅ **ETB (Enters the Battlefield) triggers** - Triggered abilities when permanents enter battlefield with multiple effect types: Draw, DealDamage, GainLife, Destroy, Pump (e.g., Elvish Visionary, Flametongue Kavu, Soul's Attendant)
 - ✅ **Trample keyword** - Excess combat damage tramples over to defending player
 - ✅ **Lifelink keyword** - Creatures with lifelink gain life equal to damage dealt
@@ -36,7 +37,7 @@
 - ✅ **Defender keyword** - Creatures with defender can't attack
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 16+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Indestructible, Shroud, Defender, Protection, Madness, Flashback
-- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap, Mill (Thought Scour)
+- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap, Mill (Thought Scour), Counter (Counterspell)
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size
 - ✅ Benchmarking: Criterion.rs infrastructure (~7,000 games/sec, 82KB/game allocation)
@@ -105,7 +106,7 @@
   - [x] Pump spell effects (A:SP$ Pump with NumAtt$/NumDef$)
   - [x] Tap/Untap spell effects (A:SP$ Tap, A:SP$ Untap)
   - [x] Mill spell effects (A:SP$ Mill with NumCards$)
-  - [ ] More spell effects (A:SP$) - Counter
+  - [x] Counter spell effects (A:SP$ Counter with TargetType$ Spell)
   - [ ] Activated abilities (A:AB$ with Cost$) - tap abilities, mana abilities
   - [x] Triggered abilities (T:) - ETB triggers with Draw, DealDamage, GainLife, Destroy, and Pump effects
   - [ ] Static abilities (S:) - continuous effects

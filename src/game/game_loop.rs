@@ -518,6 +518,18 @@ impl<'a> GameLoop<'a> {
                     source_name, source_id, player_name, count
                 );
             }
+            Effect::CounterSpell { target } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {} ({}) counters {} ({})",
+                    source_name, source_id, target_name, target
+                );
+            }
         }
     }
 

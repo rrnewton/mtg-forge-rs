@@ -357,6 +357,15 @@ impl CardDefinition {
                     }
                 }
             }
+
+            // Parse Counter abilities
+            // Format: "A:SP$ Counter | TargetType$ Spell | ValidTgts$ Card | ..."
+            if ability.contains("SP$ Counter") {
+                use crate::core::CardId;
+                effects.push(Effect::CounterSpell {
+                    target: CardId::new(0), // Placeholder, will be set during resolution
+                });
+            }
         }
 
         effects

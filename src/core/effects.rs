@@ -95,6 +95,10 @@ pub enum Effect {
     /// Mill cards from library to graveyard
     /// Example: "Target player mills 3 cards"
     Mill { player: PlayerId, count: u8 },
+
+    /// Counter a spell on the stack
+    /// Example: "Counter target spell"
+    CounterSpell { target: CardId },
 }
 
 /// Events that can trigger abilities
