@@ -1,4 +1,4 @@
-
+a
 Look at TODO.md, Claude.md, and PROJECT_VISION and get ready to work.
 
 Dependencies:
@@ -1466,9 +1466,244 @@ successfully able to roll back the entire gamestate to a playable
 earlier point.
 
 
-
-TODO: Port the Java mana system
+Flesh out battlefield printing
 ----------------------------------------
+
+This game state / battlefield printing is very basic:
+
+    ========================================
+    Turn 6 - Player 2's turn
+      Life: 20
+      Hand: 2 cards
+      Battlefield: 2 cards
+
+Please refer back to the output format of the Java TUI game. It should show which cards are on each player's side of the battlefield, which cards are tapped, and the size of the graveyards / exile zones.
+
+
+Log each random choice made by the agent
+----------------------------------------
+
+Each time the agent is asked to make a random decision, have it
+produce a line of output:
+
+    >>> RANDOM chose 3 out of choices 0-9.
+
+
+Fix issues with undo e2e test
+----------------------------------------
+
+Setting verbosity to normal and running this undo_e2e test shows that
+significant problems remain that need to be fixed.  
+
+```
+cargo test -- undo --nocapture
+```
+
+Just from the snippet below we see:
+
+- The halfway rewind didn't play forward.. It did nothing.
+- The controllers should be fairly stateless and ready to continue play from any point
+  - If there are any extra requirements for this to hold, we can
+    formalize a stateless-playercontroller trait and that should certainly at least hold for randomcontroller!
+- When we did replay after the 100% rewind the turn counter kept INCREASING... "turn 89", when it should be set
+  backwards by undoing.
+
+    Game completed!
+      Winner: Some(1)
+      Turns played: 88
+      End reason: PlayerDeath(0)
+      Undo log size: 72
+
+    === Phase 2: Rewinding 50% of actions ===
+    Rewinding 36 out of 72 actions
+    After rewind, undo log size: 36
+
+    === Phase 3: Replaying from 50% point ===
+
+    === Phase 4: Rewinding 100% to beginning ===
+    Rewinding all 36 remaining actions
+    After full rewind, undo log size: 0
+
+    Game state after full rewind:
+      P1 life: 20 (initial: 20)
+      P2 life: 20 (initial: 20)
+
+    === Phase 5: Replaying entire game ===
+
+    ========================================
+    Turn 89 - Player 1's turn
+      Life: 20
+      Hand: 10 cards
+      Battlefield: 0 cards
+
+To be extra strict we should take a SNAPSHOT of the GameState before
+turn 1, and then when we do the full rewind we can do a deep
+comparison of the rewound gamestate to the snapshot of the original.
+
+---
+
+This represents progress, but it is still NOT playing the game FORWARD after rewinding in phase 2 and phase 3.
+That is a critical part of what we want working here. It's not just that we can rewind but that we can play forward after rewinding, and then repeat that process as much as we want.
+
+-- 
+
+Ok, that's again progress. But this final result makes no sense, where playing forward in phase 4 takes ZERO turns:
+
+```
+=== Phase 4: Play forward to completion from beginning ===
+Replay completed!
+  Winner: Some(0)
+  Turns played: 0
+  End reason: Decking(1)
+Note: Replay completed with 0 turns (may differ from original due to RNG reset)
+```
+
+And that the game ended from decking seems to indicate that rewinding is NOT reversing draw steps and restoring cards to the deck, and thus it becomes exhausted.
+
+---
+
+ Wait a second, explain to me why this is a problem. Undo SHOULD be permanent. The goal of the test is to play forward 100%, rewind 50%, then play forward till the end of the game in a
+  NEW SECOND HALF -- a brand new evaluation which adds new actions to the undo log. When we are back up to 100% execution at the end of phase2, the first ~half of the undolog should be old
+  (from phase1) and the second half should be brand new. That's still a fine starting state for phase3 which will unroll the entire undo log back to the starting point.
+  
+
+moved: Elide random choices with one option only
+----------------------------------------
+
+: Fix validate script
+----------------------------------------
+
+The `make validate` implementation has a critical bug where validaiton
+will FAIL but it will still cache the result and think it succeeded
+the next time.
+
+Let's factor out the validate logic into `./scripts/validate.sh` and
+be more careful with it.
+
+- The core validate-impl will stay the same and stay in the Makefile for now
+- The validate logs files will move to `./validate_logs/` which will be added to .gitignore.
+- The files will be called `validate_HASH[_dirty].log[.wip]`
+- We failed to implement the ATOMIC nature of adding validation log and will do that now.
+  - During validation runs, log to `.log.wip` and then atomically move it to `.log` 
+    ONLY once validation succeeds.
+- The last successful run will also by symlinked to `validate_latest.log`.
+
+
+: validate script upgrade
+----------------------------------------
+
+Let's make it more robust to trivial changes in TODO.md or other
+documentation/markdown files that don't affect program behavior.
+
+IF there is a dirty working copy, then go ahead and commit a temporary
+commit with "wip" as the message. Continue to name it [_DIRTY], and
+link it as latest. Uncommit when validation completes, irrespective of
+whether it succeeds or fails.
+
+Before we run the real validation, perform a `git diff --stat -r HASH`
+to compare (1) the current working copy state to (2) commit
+represented by (the target of) `validate_latest.log`.
+
+IF there are no differences, or the only differing files are "*.md",
+then let's consider it a cache hit.
+
+We can symlink the `validate_OLDHASH[_dirty].log` to our
+`validate_NEWHASH[_dirty].log` to represent the cache hit and the
+coverage of the new commit.
+
+
+TODO: Migrate back to beads
+----------------------------------------
+
+Read `bd quickstart` and get ready to migrate our TODO.md tracking to beads.
+I've run `bd init -p mtg` to initialize the database.
+
+- issue mtg-1 should be the OVERALL tracking issue, which primarily will reference other tracking issues
+  and document some of these conventions. It will be priority 0. We want to keep it pretty short.
+    
+- other tracking issues will have priority 1, move away from 
+  - Optimization tracking: migrate and remove from the relevant section in OPTIMIZATION.md
+  - MTG feature completeness: supporting keywords/abilities/complex mana and effects.
+  - Gameplay feautures: like an actual TUI to play as a human
+  - Testing cover
+
+- issues labeled "human" are created by me and will always have 0 priority
+- you can ignore the "completed work" in TODO.md in this migration
+- delete TODO.md when you're sure everything we need has been copied over
+
+
+`./scripts/gitdepth.sh` prints out the number of commits in the repo, and we can use "commit#161(387498cecf)" as a shorthand that gives us a rough sense of time.
+
+Start adopting the convention of referencing issues from todo comments:
+
+```
+// TODO(mtg-13): brief summary here
+```
+
+
+TODO: random choices of 1 option still present.
+----------------------------------------
+
+Look at an e2e game: 
+
+```
+$ cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/grizzly_bears.dck --p1=random --p2=random --seed=41 -v2
+
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose creature 0 to attack (50% probability) out of 3 available creatures
+>>> RANDOM chose creature 2 to attack (50% probability) out of 3 available creatures
+  Player 2 declares Grizzly Bears (85) (2/2) as attacker
+  Player 2 declares Grizzly Bears (83) (2/2) as attacker
+  Grizzly Bears (83) deals 2 damage to Player 1
+  Grizzly Bears (85) deals 2 damage to Player 1
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+>>> RANDOM chose to pass priority (no available actions)
+```
+
+I still see all these choices where the ONLY option is pass
+priority. These should NOT be logged as a choice, but should be
+suppressed (the player should not be asked the choice).
+
+Our guiding principle here is to only invoke the PlayerController 
+ - when a choice is needed
+ - presenting VALID options only
+
+When `get_available_spell_abilities` returns only a single action
+(PassPriority), then we don't need to call the PlayerController.
+
+
+
+
+
+
+TODO: aggressive random undo testing
+----------------------------------------
+
+
+
+TODO: Abstract the logging framework to redirect logs
+----------------------------------------
+
+Sometimes it may help us to capture the logs in memory, for exmaple
+during testing. 
+
+
+
+TODO: fix Mana pools not being emptied
+----------------------------------------
+
+
+TODO: fix BOGUS "Fill in missing targets for effects" in action.rs
+----------------------------------------
+
+These should be choices for the player not arbitrary heuristic hacks.
 
 
 TODO: Port the Java mana system
