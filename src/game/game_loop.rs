@@ -2,6 +2,23 @@
 //!
 //! Manages the main game loop, turn progression, and priority system
 
+/// Macro for conditional logging that avoids allocation when feature is disabled
+///
+/// When verbose-logging feature is disabled, this becomes a no-op at compile time,
+/// eliminating all format! allocations that are a major performance bottleneck.
+macro_rules! log_if_verbose {
+    ($self:expr, $($arg:tt)*) => {
+        #[cfg(feature = "verbose-logging")]
+        {
+            $self.log_normal(&format!($($arg)*));
+        }
+        #[cfg(not(feature = "verbose-logging"))]
+        {
+            let _ = &$self; // Suppress unused variable warning
+        }
+    };
+}
+
 use crate::core::{CardId, PlayerId};
 use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
@@ -643,19 +660,19 @@ impl<'a> GameLoop<'a> {
         // Draw a card
         self.game.draw_card(active_player)?;
 
-        let player_name = self.get_player_name(active_player);
-        if let Some(zones) = self.game.get_player_zones(active_player) {
-            if let Some(&card_id) = zones.hand.cards.last() {
-                if let Ok(card) = self.game.cards.get(card_id) {
-                    self.log_normal(&format!(
-                        "{} draws {} ({})",
-                        player_name, card.name, card_id
-                    ));
-                    return Ok(());
+        #[cfg(feature = "verbose-logging")]
+        {
+            let player_name = self.get_player_name(active_player);
+            if let Some(zones) = self.game.get_player_zones(active_player) {
+                if let Some(&card_id) = zones.hand.cards.last() {
+                    if let Ok(card) = self.game.cards.get(card_id) {
+                        log_if_verbose!(self, "{} draws {} ({})", player_name, card.name, card_id);
+                        return Ok(());
+                    }
                 }
             }
+            log_if_verbose!(self, "{} draws a card", player_name);
         }
-        self.log_normal(&format!("{} draws a card", player_name));
 
         Ok(())
     }
@@ -992,11 +1009,14 @@ impl<'a> GameLoop<'a> {
             if hand_size > max_hand_size {
                 let discard_count = hand_size - max_hand_size;
 
-                let player_name = self.get_player_name(player_id);
-                self.log_normal(&format!(
+                log_if_verbose!(
+                    self,
                     "{} must discard {} cards (hand size: {}, max: {})",
-                    player_name, discard_count, hand_size, max_hand_size
-                ));
+                    self.get_player_name(player_id),
+                    discard_count,
+                    hand_size,
+                    max_hand_size
+                );
 
                 // Get the appropriate controller
                 let controller: &mut dyn PlayerController = if player_id == controller1.player_id()
@@ -1041,17 +1061,17 @@ impl<'a> GameLoop<'a> {
                         player_id,
                     )?;
 
-                    let card_name = self
-                        .game
-                        .cards
-                        .get(card_id)
-                        .map(|c| c.name.as_str())
-                        .unwrap_or("Unknown");
-                    let player_name = self.get_player_name(player_id);
-                    self.log_normal(&format!(
+                    log_if_verbose!(
+                        self,
                         "{} discards {} ({})",
-                        player_name, card_name, card_id
-                    ));
+                        self.get_player_name(player_id),
+                        self.game
+                            .cards
+                            .get(card_id)
+                            .map(|c| c.name.as_str())
+                            .unwrap_or("Unknown"),
+                        card_id
+                    );
                 }
             }
         }
@@ -1716,27 +1736,31 @@ impl<'a> GameLoop<'a> {
             }
             PlayerAction::CastSpell { card_id, targets } => {
                 // Show spell being cast (added to stack)
-                let player_name = self.get_player_name(player_id);
-                let card_name = self
-                    .game
-                    .cards
-                    .get(*card_id)
-                    .map(|c| c.name.as_str())
-                    .unwrap_or("Unknown");
-                self.log_normal(&format!("{} casts {}", player_name, card_name));
+                log_if_verbose!(
+                    self,
+                    "{} casts {}",
+                    self.get_player_name(player_id),
+                    self.game
+                        .cards
+                        .get(*card_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown")
+                );
 
                 self.game.cast_spell(player_id, *card_id, targets.clone())?;
 
                 // Immediately resolve spell (simplified - no stack interaction yet)
                 self.game.resolve_spell(*card_id)?;
 
-                let card_name = self
-                    .game
-                    .cards
-                    .get(*card_id)
-                    .map(|c| c.name.as_str())
-                    .unwrap_or("Unknown");
-                self.log_normal(&format!("{} resolves", card_name));
+                log_if_verbose!(
+                    self,
+                    "{} resolves",
+                    self.game
+                        .cards
+                        .get(*card_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown")
+                );
             }
             PlayerAction::DeclareAttacker(card_id) => {
                 self.game.declare_attacker(player_id, *card_id)?;

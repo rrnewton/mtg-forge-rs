@@ -50,5 +50,11 @@ similar-asserts = "1.5"
 name = "game_benchmark"
 harness = false
 
+[features]
+# Enable verbose game event logging (format! allocations)
+# Disable this feature for maximum performance in benchmarks
+default = ["verbose-logging"]
+verbose-logging = []
+
 [profile.release]
 debug = true
