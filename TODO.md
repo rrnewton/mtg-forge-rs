@@ -31,8 +31,9 @@
 - ✅ **Hexproof keyword** - Creatures with hexproof can't be targeted by opponent's spells or abilities
 - ✅ **Indestructible keyword** - Permanents with indestructible can't be destroyed
 - ✅ **Shroud keyword** - Permanents with shroud can't be targeted by any player
+- ✅ **Defender keyword** - Creatures with defender can't attack
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
-- ✅ Keyword abilities (K: lines): 15+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Indestructible, Shroud, Protection, Madness, Flashback
+- ✅ Keyword abilities (K: lines): 16+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Indestructible, Shroud, Defender, Protection, Madness, Flashback
 - ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size

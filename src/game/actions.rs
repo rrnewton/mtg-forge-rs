@@ -617,6 +617,14 @@ impl GameState {
             ));
         }
 
+        // Check for defender keyword
+        // Creatures with defender can't attack
+        if card.has_defender() {
+            return Err(MtgError::InvalidAction(
+                "Creature with defender can't attack".to_string(),
+            ));
+        }
+
         // Check for summoning sickness
         // Creatures can't attack the turn they entered the battlefield unless they have haste
         if let Some(entered_turn) = card.turn_entered_battlefield {
@@ -1830,6 +1838,37 @@ mod tests {
         let result = game.declare_attacker(p1_id, creature_id);
         assert!(result.is_ok());
         assert!(game.combat.is_attacking(creature_id));
+    }
+
+    #[test]
+    fn test_defender_blocks_attack() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a creature with defender
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Wall of Stone".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(0);
+        creature.toughness = Some(8);
+        creature.controller = p1_id;
+        creature.keywords.push(Keyword::Defender);
+        game.cards.insert(creature_id, creature);
+        game.battlefield.add(creature_id);
+
+        // Mark it as entering on a previous turn (no summoning sickness)
+        if let Ok(card) = game.cards.get_mut(creature_id) {
+            card.turn_entered_battlefield = Some(game.turn.turn_number - 1);
+        }
+
+        // Try to declare it as an attacker - should fail because of defender
+        let result = game.declare_attacker(p1_id, creature_id);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("defender can't attack"));
+        assert!(!game.combat.is_attacking(creature_id));
     }
 
     #[test]

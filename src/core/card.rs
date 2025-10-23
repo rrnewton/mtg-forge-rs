@@ -182,6 +182,10 @@ impl Card {
         self.has_keyword(&Keyword::Indestructible)
     }
 
+    pub fn has_defender(&self) -> bool {
+        self.has_keyword(&Keyword::Defender)
+    }
+
     pub fn has_shroud(&self) -> bool {
         self.has_keyword(&Keyword::Shroud)
     }
