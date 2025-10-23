@@ -58,8 +58,8 @@
 
 ### Extra tasks added by human
 
- - [ ] Elide random choices with one option only
-   - when we have one choice only (pass priority) there is no reason to present the choice or print a RANDOM log message.
+ - [x] Elide random choices with one option only
+   - ✅ RandomController no longer logs when there's no meaningful choice (single target, exact mana sources needed, etc.)
  - [ ]    
 
 
