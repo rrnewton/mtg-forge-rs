@@ -569,6 +569,62 @@ impl GameState {
                             };
                         }
                     }
+                    Effect::GainLife { player, amount } if player.as_u32() == 0 => {
+                        // Placeholder player ID 0 means the controller of the trigger source
+                        let controller = self.cards.get(source_card_id)?.controller;
+                        effect = Effect::GainLife {
+                            player: controller,
+                            amount: *amount,
+                        };
+                    }
+                    Effect::DestroyPermanent { target } if target.as_u32() == 0 => {
+                        // Find a valid target (opponent's creature)
+                        let controller = self.cards.get(source_card_id)?.controller;
+                        if let Some(target_id) = self
+                            .battlefield
+                            .cards
+                            .iter()
+                            .find(|&card_id| {
+                                if let Ok(card) = self.cards.get(*card_id) {
+                                    card.is_creature()
+                                        && card.owner != controller
+                                        && !card.has_hexproof()
+                                        && !card.has_shroud()
+                                } else {
+                                    false
+                                }
+                            })
+                            .copied()
+                        {
+                            effect = Effect::DestroyPermanent { target: target_id };
+                        }
+                    }
+                    Effect::PumpCreature {
+                        target,
+                        power_bonus,
+                        toughness_bonus,
+                    } if target.as_u32() == 0 => {
+                        // Find a valid target (any creature on battlefield)
+                        if let Some(target_id) = self
+                            .battlefield
+                            .cards
+                            .iter()
+                            .find(|&card_id| {
+                                if let Ok(card) = self.cards.get(*card_id) {
+                                    card.is_creature() && !card.has_shroud()
+                                } else {
+                                    false
+                                }
+                            })
+                            .copied()
+                        {
+                            effect = Effect::PumpCreature {
+                                target: target_id,
+                                power_bonus: *power_bonus,
+                                toughness_bonus: *toughness_bonus,
+                            };
+                        }
+                    }
                     _ => {}
                 }
 
@@ -4597,5 +4653,106 @@ mod tests {
                 "Should have 4 cards left in library"
             );
         }
+    }
+
+    #[test]
+    fn test_etb_trigger_gain_life() {
+        use crate::core::{Effect, Trigger, TriggerEvent};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a creature with ETB gain life trigger
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Soul Warden".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(1);
+        creature.toughness = Some(1);
+        creature.mana_cost = ManaCost::from_string("W");
+
+        // Add ETB trigger: "When this enters the battlefield, you gain 3 life"
+        creature.triggers.push(Trigger::new(
+            TriggerEvent::EntersBattlefield,
+            vec![Effect::GainLife {
+                player: crate::core::PlayerId::new(0), // Placeholder
+                amount: 3,
+            }],
+            "When this enters, you gain 3 life.".to_string(),
+        ));
+
+        game.cards.insert(creature_id, creature);
+
+        // Record life before
+        let life_before = game.get_player(p1_id).unwrap().life;
+
+        // Put the creature on the stack and resolve it
+        game.stack.add(creature_id);
+        assert!(game.resolve_spell(creature_id).is_ok());
+
+        // Verify the creature is on the battlefield
+        assert!(game.battlefield.contains(creature_id));
+
+        // Verify the ETB trigger gained life
+        let life_after = game.get_player(p1_id).unwrap().life;
+        assert_eq!(
+            life_after,
+            life_before + 3,
+            "Should have gained 3 life from ETB trigger"
+        );
+    }
+
+    #[test]
+    fn test_etb_trigger_pump() {
+        use crate::core::{Effect, Trigger, TriggerEvent};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Create a target creature on battlefield
+        let target_id = game.next_entity_id();
+        let mut target = Card::new(target_id, "Grizzly Bears".to_string(), p1_id);
+        target.types.push(CardType::Creature);
+        target.power = Some(2);
+        target.toughness = Some(2);
+        game.cards.insert(target_id, target);
+        game.battlefield.add(target_id);
+
+        // Create a creature with ETB pump trigger
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Glorious Anthem".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(1);
+        creature.toughness = Some(1);
+
+        // Add ETB trigger: "When this enters, target creature gets +2/+2"
+        creature.triggers.push(Trigger::new(
+            TriggerEvent::EntersBattlefield,
+            vec![Effect::PumpCreature {
+                target: crate::core::CardId::new(0), // Placeholder
+                power_bonus: 2,
+                toughness_bonus: 2,
+            }],
+            "When this enters, target creature gets +2/+2.".to_string(),
+        ));
+
+        game.cards.insert(creature_id, creature);
+
+        // Put the creature on the stack and resolve it
+        game.stack.add(creature_id);
+        assert!(game.resolve_spell(creature_id).is_ok());
+
+        // Verify the creature is on the battlefield
+        assert!(game.battlefield.contains(creature_id));
+
+        // Verify the target got pumped
+        let pumped_card = game.cards.get(target_id).unwrap();
+        assert_eq!(
+            pumped_card.power_bonus, 2,
+            "Target should have +2 power bonus"
+        );
+        assert_eq!(
+            pumped_card.toughness_bonus, 2,
+            "Target should have +2 toughness bonus"
+        );
     }
 }

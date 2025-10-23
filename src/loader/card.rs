@@ -425,6 +425,83 @@ impl CardDefinition {
                     });
                 }
 
+                // Check if this is a gain life trigger
+                if ability.contains("Execute$ TrigGainLife")
+                    || (ability.contains("GainLife") && !ability.contains("DealDamage"))
+                {
+                    // Look for LifeAmount in the ability string
+                    let amount = if let Some(life_str) = ability.split("LifeAmount$").nth(1) {
+                        life_str
+                            .trim()
+                            .split(['|', ' ', '\n'])
+                            .next()
+                            .and_then(|s| s.trim().parse::<i32>().ok())
+                            .unwrap_or(1)
+                    } else {
+                        1
+                    };
+
+                    effects.push(Effect::GainLife {
+                        player: PlayerId::new(0), // Placeholder - will be filled when triggered
+                        amount,
+                    });
+                }
+
+                // Check if this is a destroy trigger
+                if ability.contains("Execute$ TrigDestroy") || ability.contains("Destroy") {
+                    use crate::core::CardId;
+                    effects.push(Effect::DestroyPermanent {
+                        target: CardId::new(0), // Placeholder - will be filled when triggered
+                    });
+                }
+
+                // Check if this is a pump trigger
+                if ability.contains("Execute$ TrigPump") || ability.contains("Pump") {
+                    // Look for NumAtt and NumDef in the ability string
+                    let power_bonus = if let Some(att_str) = ability.split("NumAtt$").nth(1) {
+                        att_str
+                            .trim()
+                            .split(['|', ' ', '\n'])
+                            .next()
+                            .and_then(|s| {
+                                s.trim()
+                                    .strip_prefix('+')
+                                    .unwrap_or(s.trim())
+                                    .parse::<i32>()
+                                    .ok()
+                            })
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    };
+
+                    let toughness_bonus = if let Some(def_str) = ability.split("NumDef$").nth(1) {
+                        def_str
+                            .trim()
+                            .split(['|', ' ', '\n'])
+                            .next()
+                            .and_then(|s| {
+                                s.trim()
+                                    .strip_prefix('+')
+                                    .unwrap_or(s.trim())
+                                    .parse::<i32>()
+                                    .ok()
+                            })
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    };
+
+                    if power_bonus != 0 || toughness_bonus != 0 {
+                        use crate::core::CardId;
+                        effects.push(Effect::PumpCreature {
+                            target: CardId::new(0), // Placeholder - will be filled when triggered
+                            power_bonus,
+                            toughness_bonus,
+                        });
+                    }
+                }
+
                 if !effects.is_empty() {
                     // Extract description from TriggerDescription$ if available
                     let description =
