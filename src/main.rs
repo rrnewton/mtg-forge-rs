@@ -187,9 +187,9 @@ async fn run_tui(
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
         ControllerType::Random => {
             if let Some(seed_value) = seed {
-                Box::new(RandomController::with_seed(p1_id, seed_value))
+                Box::new(RandomController::with_seed(p1_id, seed_value).with_verbosity(verbosity))
             } else {
-                Box::new(RandomController::new(p1_id))
+                Box::new(RandomController::new(p1_id).with_verbosity(verbosity))
             }
         }
     };
@@ -199,9 +199,11 @@ async fn run_tui(
         ControllerType::Random => {
             if let Some(seed_value) = seed {
                 // Use seed + 1 for player 2 so they have different random sequences
-                Box::new(RandomController::with_seed(p2_id, seed_value + 1))
+                Box::new(
+                    RandomController::with_seed(p2_id, seed_value + 1).with_verbosity(verbosity),
+                )
             } else {
-                Box::new(RandomController::new(p2_id))
+                Box::new(RandomController::new(p2_id).with_verbosity(verbosity))
             }
         }
     };

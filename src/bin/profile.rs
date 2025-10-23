@@ -76,8 +76,10 @@ async fn main() {
         let p1_id = players[0];
         let p2_id = players[1];
 
-        let mut controller1 = RandomController::with_seed(p1_id, seed);
-        let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+        let mut controller1 =
+            RandomController::with_seed(p1_id, seed).with_verbosity(VerbosityLevel::Silent);
+        let mut controller2 =
+            RandomController::with_seed(p2_id, seed + 1).with_verbosity(VerbosityLevel::Silent);
 
         // Run game
         let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);

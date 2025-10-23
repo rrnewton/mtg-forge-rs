@@ -1612,7 +1612,7 @@ We can symlink the `validate_OLDHASH[_dirty].log` to our
 coverage of the new commit.
 
 
-TODO: Migrate to beads for issue tracking
+: Migrate to beads for issue tracking
 ----------------------------------------
 
 Read `bd quickstart` and get ready to migrate our TODO.md tracking to beads.
@@ -1649,6 +1649,17 @@ Start adopting the convention of referencing issues from todo comments:
 ```
 // TODO(mtg-13): brief summary here
 ```
+
+
+make bench showing RANDOM choices it should not
+----------------------------------------
+
+These messages should go through the normal logging interface and be at verbosity=2 
+
+    >>> RANDOM chose creature 0 to attack (50% probability) out of 3 available creatures
+
+An invariant we want is that make bench should produce O(1) logging output and not spend much time in printing os we can benchmark the real game logic.
+
 
 
 TODO: random choices of 1 option still present.
