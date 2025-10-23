@@ -124,6 +124,14 @@ impl Card {
         self.is_type(&CardType::Instant)
     }
 
+    pub fn is_artifact(&self) -> bool {
+        self.is_type(&CardType::Artifact)
+    }
+
+    pub fn is_enchantment(&self) -> bool {
+        self.is_type(&CardType::Enchantment)
+    }
+
     pub fn has_keyword(&self, keyword: &Keyword) -> bool {
         self.keywords.contains(keyword)
     }
