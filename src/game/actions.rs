@@ -480,6 +480,10 @@ impl GameState {
                     toughness_delta: *toughness_bonus,
                 });
             }
+            Effect::Mill { player, count } => {
+                // Mill cards from library to graveyard
+                self.mill_cards(*player, *count)?;
+            }
         }
         Ok(())
     }
@@ -4238,5 +4242,81 @@ mod tests {
         // Normal creature should be tapped
         let normal_card = game.cards.get(normal_creature_id).unwrap();
         assert!(normal_card.tapped, "Normal creature should be tapped");
+    }
+
+    #[test]
+    fn test_execute_mill_effect() {
+        use crate::core::Effect;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players.first().unwrap().id;
+
+        // Add cards to library
+        for i in 0..5 {
+            let card_id = game.next_card_id();
+            let card = Card::new(card_id, format!("Card {i}"), p1_id);
+            game.cards.insert(card_id, card);
+            if let Some(zones) = game.get_player_zones_mut(p1_id) {
+                zones.library.add(card_id);
+            }
+        }
+
+        // Mill 3 cards
+        let effect = Effect::Mill {
+            player: p1_id,
+            count: 3,
+        };
+
+        assert!(game.execute_effect(&effect).is_ok());
+
+        // Check cards were milled (library reduced, graveyard increased)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert_eq!(
+                zones.library.cards.len(),
+                2,
+                "Should have 2 cards left in library"
+            );
+            assert_eq!(
+                zones.graveyard.cards.len(),
+                3,
+                "Should have 3 cards in graveyard"
+            );
+        }
+    }
+
+    #[test]
+    fn test_mill_with_empty_library() {
+        use crate::core::Effect;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players.first().unwrap().id;
+
+        // Add only 2 cards to library
+        for i in 0..2 {
+            let card_id = game.next_card_id();
+            let card = Card::new(card_id, format!("Card {i}"), p1_id);
+            game.cards.insert(card_id, card);
+            if let Some(zones) = game.get_player_zones_mut(p1_id) {
+                zones.library.add(card_id);
+            }
+        }
+
+        // Try to mill 5 cards (more than available)
+        let effect = Effect::Mill {
+            player: p1_id,
+            count: 5,
+        };
+
+        assert!(game.execute_effect(&effect).is_ok());
+
+        // Check only 2 cards were milled (library is empty)
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert_eq!(zones.library.cards.len(), 0, "Library should be empty");
+            assert_eq!(
+                zones.graveyard.cards.len(),
+                2,
+                "Should have milled only 2 cards"
+            );
+        }
     }
 }

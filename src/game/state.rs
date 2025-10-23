@@ -256,6 +256,36 @@ impl GameState {
         Ok(None)
     }
 
+    /// Mill cards from library to graveyard (used by mill effects)
+    pub fn mill_cards(&mut self, player_id: PlayerId, count: u8) -> Result<Vec<CardId>> {
+        let mut milled_cards = Vec::new();
+
+        for _ in 0..count {
+            // Try to draw from library
+            let card_id = if let Some(zones) = self.get_player_zones(player_id) {
+                zones.library.cards.last().copied()
+            } else {
+                None
+            };
+
+            if let Some(card_id) = card_id {
+                // Move the card from library to graveyard
+                self.move_card(
+                    card_id,
+                    crate::zones::Zone::Library,
+                    crate::zones::Zone::Graveyard,
+                    player_id,
+                )?;
+                milled_cards.push(card_id);
+            } else {
+                // Library is empty, can't mill more cards
+                break;
+            }
+        }
+
+        Ok(milled_cards)
+    }
+
     /// Untap all permanents controlled by a player
     pub fn untap_all(&mut self, player_id: PlayerId) -> Result<()> {
         for card_id in self.battlefield.cards.iter() {

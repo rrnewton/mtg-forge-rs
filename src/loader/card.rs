@@ -336,6 +336,22 @@ impl CardDefinition {
                     target: CardId::new(0), // Placeholder, will be set during resolution
                 });
             }
+
+            // Parse Mill abilities
+            // Format: "A:SP$ Mill | NumCards$ 3 | ValidTgts$ Player | ..."
+            if ability.contains("SP$ Mill") {
+                if let Some(cards_str) = ability.split("NumCards$").nth(1) {
+                    if let Some(cards_part) = cards_str.trim().split(['|', ' ']).next() {
+                        if let Ok(count) = cards_part.trim().parse::<u8>() {
+                            use crate::core::PlayerId;
+                            effects.push(Effect::Mill {
+                                player: PlayerId::new(0), // Placeholder, will be set during resolution
+                                count,
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         effects

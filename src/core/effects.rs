@@ -91,6 +91,10 @@ pub enum Effect {
         power_bonus: i32,
         toughness_bonus: i32,
     },
+
+    /// Mill cards from library to graveyard
+    /// Example: "Target player mills 3 cards"
+    Mill { player: PlayerId, count: u8 },
 }
 
 #[cfg(test)]

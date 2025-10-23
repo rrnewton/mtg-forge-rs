@@ -511,6 +511,13 @@ impl<'a> GameLoop<'a> {
                     source_name, source_id, target_name, target, power_bonus, toughness_bonus
                 );
             }
+            Effect::Mill { player, count } => {
+                let player_name = self.get_player_name(*player);
+                println!(
+                    "  {} ({}) causes {} to mill {} card(s)",
+                    source_name, source_id, player_name, count
+                );
+            }
         }
     }
 

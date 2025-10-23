@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 168 passing ✅ (145 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 171 passing ✅ (148 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -24,6 +24,7 @@
 - ✅ **GainLife spell effects** - Cards that gain life now work (e.g., Angel's Mercy)
 - ✅ **Pump spell effects** - Cards that temporarily boost creature stats now work (e.g., Giant Growth)
 - ✅ **Tap/Untap spell effects** - Cards that tap or untap permanents now work
+- ✅ **Mill spell effects** - Cards that mill cards from library to graveyard now work (e.g., Thought Scour, Mind Sculpt)
 - ✅ **Trample keyword** - Excess combat damage tramples over to defending player
 - ✅ **Lifelink keyword** - Creatures with lifelink gain life equal to damage dealt
 - ✅ **Deathtouch keyword** - Any damage from deathtouch source destroys creature
@@ -34,7 +35,7 @@
 - ✅ **Defender keyword** - Creatures with defender can't attack
 - ✅ TUI support: `mtg tui` command with --p1/--p2 agent types (zero/random), --seed for deterministic games
 - ✅ Keyword abilities (K: lines): 16+ keywords including Flying, Vigilance, Trample, Lifelink, Deathtouch, Menace, Hexproof, Indestructible, Shroud, Defender, Protection, Madness, Flashback
-- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap
+- ✅ Spell effects: DealDamage (Lightning Bolt), Draw (Ancestral Recall), Destroy (Terror), GainLife (Angel's Mercy), Pump (Giant Growth), Tap/Untap, Mill (Thought Scour)
 - ✅ Creature combat: attackers, blockers, damage calculation, creature death, Trample, Lifelink, Deathtouch
 - ✅ Cleanup/discard phase: players discard to max hand size
 - ✅ Benchmarking: Criterion.rs infrastructure (~7,000 games/sec, 82KB/game allocation)
@@ -102,6 +103,7 @@
   - [x] GainLife spell effects (A:SP$ GainLife with LifeAmount$)
   - [x] Pump spell effects (A:SP$ Pump with NumAtt$/NumDef$)
   - [x] Tap/Untap spell effects (A:SP$ Tap, A:SP$ Untap)
+  - [x] Mill spell effects (A:SP$ Mill with NumCards$)
   - [ ] More spell effects (A:SP$) - Counter
   - [ ] Activated abilities (A:AB$ with Cost$) - tap abilities, mana abilities
   - [ ] Triggered abilities (T:) - ETB, phase triggers, combat triggers
