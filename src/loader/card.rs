@@ -159,6 +159,52 @@ impl CardDefinition {
         // Parse activated abilities
         card.activated_abilities = self.parse_activated_abilities();
 
+        // Add implicit mana ability for basic lands
+        // Basic lands (Plains, Island, Swamp, Mountain, Forest) have an implicit "{T}: Add {color}"
+        // ability that's not written in the card file
+        if card.is_land()
+            && self.subtypes.iter().any(|st| {
+                let st_str = st.as_str();
+                st_str == "Plains"
+                    || st_str == "Island"
+                    || st_str == "Swamp"
+                    || st_str == "Mountain"
+                    || st_str == "Forest"
+            })
+        {
+            // Determine which color to produce based on subtype
+            let mana_to_produce = if self.subtypes.iter().any(|st| st.as_str() == "Plains") {
+                ManaCost::from_string("W")
+            } else if self.subtypes.iter().any(|st| st.as_str() == "Island") {
+                ManaCost::from_string("U")
+            } else if self.subtypes.iter().any(|st| st.as_str() == "Swamp") {
+                ManaCost::from_string("B")
+            } else if self.subtypes.iter().any(|st| st.as_str() == "Mountain") {
+                ManaCost::from_string("R")
+            } else if self.subtypes.iter().any(|st| st.as_str() == "Forest") {
+                ManaCost::from_string("G")
+            } else {
+                ManaCost::new() // Shouldn't happen
+            };
+
+            // Only add if we don't already have a mana ability
+            // (in case the card file explicitly defines one)
+            if !card.activated_abilities.iter().any(|ab| ab.is_mana_ability) {
+                use crate::core::{ActivatedAbility, Cost, Effect, PlayerId};
+
+                let ability = ActivatedAbility::new(
+                    Cost::Tap,
+                    vec![Effect::AddMana {
+                        player: PlayerId::new(0), // Placeholder - will be filled when activated
+                        mana: mana_to_produce.clone(),
+                    }],
+                    format!("Add {}", mana_to_produce),
+                    true, // This IS a mana ability
+                );
+                card.activated_abilities.push(ability);
+            }
+        }
+
         card
     }
 
