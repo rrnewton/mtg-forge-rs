@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 185 passing ✅ (162 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Examples:** 11/11 passing | **Validation:** `make validate` passes all checks ✅
+**Tests:** 188 passing ✅ (165 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Examples:** 12/12 passing | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -30,6 +30,7 @@
 - ✅ **Activated abilities (A:AB$)** - Basic execution of activated abilities with tap and mana costs (e.g., Prodigal Sorcerer "{T}: Deal 1 damage")
 - ✅ **Mana abilities (AB$ Mana)** - Parse and execute mana-producing activated abilities (e.g., Llanowar Elves "{T}: Add {G}", Sol Ring "{T}: Add {C}{C}")
 - ✅ **Implicit basic land mana abilities** - Basic lands (Plains, Island, Swamp, Mountain, Forest) automatically get "{T}: Add {color}" abilities without explicit A:AB$ lines in card files
+- ✅ **Sacrifice costs for activated abilities** - Activated abilities can now use sacrifice costs (e.g., Zuran Orb "Sac<1/Land>: Gain 2 life"). Supports patterns like Sac<1/Land>, Sac<1/Creature.Other>, Sac<1/CARDNAME>. Also added AB$ GainLife parsing.
 - ✅ **Trample keyword** - Excess combat damage tramples over to defending player
 - ✅ **Lifelink keyword** - Creatures with lifelink gain life equal to damage dealt
 - ✅ **Deathtouch keyword** - Any damage from deathtouch source destroys creature

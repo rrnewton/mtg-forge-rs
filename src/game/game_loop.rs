@@ -1316,7 +1316,7 @@ impl<'a> GameLoop<'a> {
                                 // For now, execute effects immediately (not on the stack)
                                 // TODO: Put non-mana abilities on the stack
                                 for effect in &ability.effects {
-                                    // Fix placeholder player IDs for AddMana effects
+                                    // Fix placeholder player IDs for effects
                                     let fixed_effect = match effect {
                                         crate::core::Effect::AddMana { player, mana }
                                             if player.as_u32() == 0 =>
@@ -1325,6 +1325,15 @@ impl<'a> GameLoop<'a> {
                                             crate::core::Effect::AddMana {
                                                 player: current_priority,
                                                 mana: mana.clone(),
+                                            }
+                                        }
+                                        crate::core::Effect::GainLife { player, amount }
+                                            if player.as_u32() == 0 =>
+                                        {
+                                            // Replace placeholder with current player
+                                            crate::core::Effect::GainLife {
+                                                player: current_priority,
+                                                amount: *amount,
                                             }
                                         }
                                         _ => effect.clone(),

@@ -698,6 +698,20 @@ impl CardDefinition {
                 }
             }
 
+            // AB$ GainLife - Activated life gain ability
+            if ability.contains("AB$ GainLife") {
+                if let Some(life_str) = ability.split("LifeAmount$").nth(1) {
+                    if let Some(life_part) = life_str.trim().split(['|', ' ']).next() {
+                        if let Ok(amount) = life_part.trim().parse::<i32>() {
+                            effects.push(Effect::GainLife {
+                                player: crate::core::EntityId::new(0), // Placeholder
+                                amount,
+                            });
+                        }
+                    }
+                }
+            }
+
             // Extract description
             let description = if let Some(desc_str) = ability.split("SpellDescription$").nth(1) {
                 desc_str.trim().to_string()

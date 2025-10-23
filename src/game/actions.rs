@@ -1321,12 +1321,97 @@ impl GameState {
                 Ok(())
             }
 
-            Cost::Sacrifice { card_id: _ } | Cost::Discard { card_id: _ } | Cost::Composite(_) => {
-                // TODO: Implement these cost types
+            Cost::SacrificePattern { count, card_type } => {
+                // Find permanents matching the pattern and sacrifice them
+                // For now, automatically choose without asking the controller
+                // TODO: Let controller choose which permanents to sacrifice
+
+                let mut to_sacrifice = Vec::new();
+
+                // Special case: CARDNAME means the card with this ability
+                if card_type == "CARDNAME" {
+                    to_sacrifice.push(card_id);
+                } else {
+                    // Find permanents on battlefield matching the type
+                    // Collect IDs first to avoid borrowing issues
+                    let battlefield_cards = self.battlefield.cards.to_vec();
+
+                    for permanent_id in battlefield_cards {
+                        if to_sacrifice.len() >= *count as usize {
+                            break;
+                        }
+
+                        let card = self.cards.get(permanent_id)?;
+
+                        // Check ownership
+                        if card.owner != player_id {
+                            continue;
+                        }
+
+                        // Check if it matches the pattern
+                        let matches = if card_type == "Land" {
+                            card.is_land()
+                        } else if card_type.starts_with("Creature") {
+                            if card_type == "Creature.Other" {
+                                // Other means not the card with the ability
+                                card.is_creature() && permanent_id != card_id
+                            } else {
+                                card.is_creature()
+                            }
+                        } else if card_type == "Artifact" {
+                            card.is_artifact()
+                        } else {
+                            // Generic type match - check if any type contains the string
+                            card.types
+                                .iter()
+                                .any(|t| format!("{:?}", t).contains(card_type))
+                        };
+
+                        if matches {
+                            to_sacrifice.push(permanent_id);
+                        }
+                    }
+                }
+
+                // Check if we found enough permanents to sacrifice
+                if to_sacrifice.len() < *count as usize {
+                    return Err(MtgError::InvalidAction(format!(
+                        "Not enough permanents of type {} to sacrifice (need {}, found {})",
+                        card_type,
+                        count,
+                        to_sacrifice.len()
+                    )));
+                }
+
+                // Sacrifice the permanents (move to graveyard)
+                for sac_id in to_sacrifice.iter().take(*count as usize) {
+                    let owner = self.cards.get(*sac_id)?.owner;
+                    self.move_card(*sac_id, Zone::Battlefield, Zone::Graveyard, owner)?;
+                }
+
+                Ok(())
+            }
+
+            Cost::Sacrifice { card_id: sac_id } => {
+                // Sacrifice a specific permanent (move to graveyard)
+                let owner = self.cards.get(*sac_id)?.owner;
+                self.move_card(*sac_id, Zone::Battlefield, Zone::Graveyard, owner)
+            }
+
+            Cost::Discard { card_id: _ } => {
+                // TODO: Implement discard cost
                 Err(MtgError::InvalidAction(format!(
                     "Cost type {:?} not yet implemented",
                     cost
                 )))
+            }
+
+            Cost::Composite(costs) => {
+                // Pay each cost in order
+                for sub_cost in costs {
+                    self.pay_ability_cost(player_id, card_id, sub_cost)?;
+                }
+                Ok(())
             }
         }
     }
