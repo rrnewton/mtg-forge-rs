@@ -858,19 +858,17 @@ impl<'a> GameLoop<'a> {
 
     /// Check if any attacking or blocking creature has first strike or double strike
     fn has_first_strike_combat(&self) -> bool {
-        let attackers = self.game.combat.get_attackers();
-
-        // Check all attackers
-        for attacker_id in &attackers {
-            if let Ok(attacker) = self.game.cards.get(*attacker_id) {
+        // Check all attackers (using iterator to avoid Vec allocation)
+        for attacker_id in self.game.combat.attackers_iter() {
+            if let Ok(attacker) = self.game.cards.get(attacker_id) {
                 if attacker.has_first_strike() || attacker.has_double_strike() {
                     return true;
                 }
             }
 
             // Check all blockers of this attacker
-            if self.game.combat.is_blocked(*attacker_id) {
-                let blockers = self.game.combat.get_blockers(*attacker_id);
+            if self.game.combat.is_blocked(attacker_id) {
+                let blockers = self.game.combat.get_blockers(attacker_id);
                 for blocker_id in &blockers {
                     if let Ok(blocker) = self.game.cards.get(*blocker_id) {
                         if blocker.has_first_strike() || blocker.has_double_strike() {

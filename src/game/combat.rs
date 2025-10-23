@@ -86,14 +86,29 @@ impl CombatState {
         self.attackers.get(&attacker).copied()
     }
 
-    /// Get all attacking creatures
+    /// Get all attacking creatures (returns Vec for compatibility)
     pub fn get_attackers(&self) -> Vec<CardId> {
         self.attackers.keys().copied().collect()
     }
 
-    /// Get all blocking creatures
+    /// Get all attacking creatures as an iterator (zero-allocation)
+    pub fn attackers_iter(&self) -> impl Iterator<Item = CardId> + '_ {
+        self.attackers.keys().copied()
+    }
+
+    /// Check if there are any attackers (zero-allocation)
+    pub fn has_attackers(&self) -> bool {
+        !self.attackers.is_empty()
+    }
+
+    /// Get all blocking creatures (returns Vec for compatibility)
     pub fn get_blockers_list(&self) -> Vec<CardId> {
         self.blockers.keys().copied().collect()
+    }
+
+    /// Get all blocking creatures as an iterator (zero-allocation)
+    pub fn blockers_iter(&self) -> impl Iterator<Item = CardId> + '_ {
+        self.blockers.keys().copied()
     }
 
     /// Clear all combat state (called at end of combat)

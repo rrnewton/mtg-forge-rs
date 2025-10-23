@@ -992,37 +992,35 @@ impl GameState {
         use crate::game::controller::GameStateView;
         use std::collections::HashMap;
 
-        // Get all attackers
-        let attackers = self.combat.get_attackers();
-
         // First pass: collect all damage assignment orders for attackers with multiple blockers
         let mut damage_orders: HashMap<CardId, SmallVec<[CardId; 4]>> = HashMap::new();
 
-        for attacker_id in &attackers {
-            if self.combat.is_blocked(*attacker_id) {
-                let blockers = self.combat.get_blockers(*attacker_id);
+        // Use iterator to avoid Vec allocation for attackers
+        for attacker_id in self.combat.attackers_iter() {
+            if self.combat.is_blocked(attacker_id) {
+                let blockers = self.combat.get_blockers(attacker_id);
 
                 // If multiple blockers, ask attacker's controller for damage assignment order
                 if blockers.len() > 1 {
-                    let attacker = self.cards.get(*attacker_id)?;
+                    let attacker = self.cards.get(attacker_id)?;
                     let attacker_owner = attacker.owner;
                     let view = GameStateView::new(self, attacker_owner);
 
                     let ordered_blockers = if attacker_owner == attacker_controller.player_id() {
                         attacker_controller.choose_damage_assignment_order(
                             &view,
-                            *attacker_id,
+                            attacker_id,
                             &blockers,
                         )
                     } else {
                         blocker_controller.choose_damage_assignment_order(
                             &view,
-                            *attacker_id,
+                            attacker_id,
                             &blockers,
                         )
                     };
 
-                    damage_orders.insert(*attacker_id, ordered_blockers);
+                    damage_orders.insert(attacker_id, ordered_blockers);
                 }
             }
         }
@@ -1036,7 +1034,8 @@ impl GameState {
         let mut deathtouch_damaged_creatures: std::collections::HashSet<CardId> =
             std::collections::HashSet::new();
 
-        for attacker_id in attackers {
+        // Use iterator again for second pass (zero allocation)
+        for attacker_id in self.combat.attackers_iter() {
             // Skip creatures that are no longer on the battlefield
             // (e.g., died in first strike damage step)
             if !self.battlefield.contains(attacker_id) {
