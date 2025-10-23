@@ -513,6 +513,36 @@ impl GameState {
                 // Counter a spell on the stack
                 self.counter_spell(*target)?;
             }
+            Effect::AddMana { player, mana } => {
+                // Add mana to player's mana pool
+                let p = self.get_player_mut(*player)?;
+
+                // Add each component of the mana cost to the pool
+                for _ in 0..mana.white {
+                    p.mana_pool.add_color(crate::core::Color::White);
+                }
+                for _ in 0..mana.blue {
+                    p.mana_pool.add_color(crate::core::Color::Blue);
+                }
+                for _ in 0..mana.black {
+                    p.mana_pool.add_color(crate::core::Color::Black);
+                }
+                for _ in 0..mana.red {
+                    p.mana_pool.add_color(crate::core::Color::Red);
+                }
+                for _ in 0..mana.green {
+                    p.mana_pool.add_color(crate::core::Color::Green);
+                }
+                for _ in 0..mana.colorless {
+                    p.mana_pool.add_color(crate::core::Color::Colorless);
+                }
+
+                // Log the mana addition
+                self.undo_log.log(crate::undo::GameAction::AddMana {
+                    player_id: *player,
+                    mana: mana.clone(),
+                });
+            }
         }
         Ok(())
     }
@@ -754,8 +784,17 @@ impl GameState {
             player.mana_pool.add_color(color);
 
             // Log the mana addition
+            let mut mana = crate::core::ManaCost::new();
+            match color {
+                crate::core::Color::White => mana.white = 1,
+                crate::core::Color::Blue => mana.blue = 1,
+                crate::core::Color::Black => mana.black = 1,
+                crate::core::Color::Red => mana.red = 1,
+                crate::core::Color::Green => mana.green = 1,
+                crate::core::Color::Colorless => mana.colorless = 1,
+            }
             self.undo_log
-                .log(crate::undo::GameAction::AddMana { player_id, color });
+                .log(crate::undo::GameAction::AddMana { player_id, mana });
         }
 
         Ok(())

@@ -568,18 +568,72 @@ impl CardDefinition {
 
             // AB$ Mana - Mana ability
             if ability.contains("AB$ Mana") {
-                // For now, we'll represent this as adding a specific color of mana
-                // Extract Produced$ parameter
+                // Parse mana abilities: A:AB$ Mana | Cost$ T | Produced$ G
                 if let Some(produced_str) = ability.split("Produced$").nth(1) {
                     if let Some(produced_part) = produced_str.trim().split('|').next() {
-                        let _produced = produced_part.trim();
-                        // For simplicity, parse single color mana (W, U, B, R, G, C)
-                        // This is a simplified version - real cards can produce multiple colors
-                        // We'll handle this by creating a special ManaAbility effect later
-                        // For now, just mark it as a mana ability
+                        let produced = produced_part.trim();
+
+                        // Parse the produced mana into a ManaCost
+                        // Simple cases: G, W, U, B, R, C (single color)
+                        // Complex cases: "Combo W U" (choice), "Any" (any color), "C C" (multiple colorless)
+                        let mana_cost = if produced == "Any" {
+                            // Any color - for now, default to colorless
+                            // TODO: Implement player choice for "Any"
+                            ManaCost::from_string("C")
+                        } else if produced.starts_with("Combo") {
+                            // Combo means choice between colors
+                            // For now, just use the first color mentioned
+                            // TODO: Implement player choice for Combo
+                            let colors = produced.strip_prefix("Combo").unwrap_or("").trim();
+                            let first_color = colors.split_whitespace().next().unwrap_or("C");
+                            ManaCost::from_string(first_color)
+                        } else {
+                            // Direct specification: "G", "C C", "W U", etc.
+                            ManaCost::from_string(produced)
+                        };
+
+                        // Check for Amount$ parameter (e.g., Amount$ 2 for Sol Ring)
+                        let amount = if let Some(amount_str) = ability.split("Amount$").nth(1) {
+                            if let Some(amount_part) = amount_str.trim().split('|').next() {
+                                amount_part.trim().parse::<u8>().unwrap_or(1)
+                            } else {
+                                1
+                            }
+                        } else {
+                            1
+                        };
+
+                        // Multiply mana by amount
+                        let final_mana = mana_cost.multiply(amount);
+
+                        // Create AddMana effect
+                        // Note: We don't know the player yet, so we'll use a placeholder
+                        // The actual player will be set when the ability is activated
+                        effects.push(Effect::AddMana {
+                            player: crate::core::EntityId::new(0), // Placeholder
+                            mana: final_mana,
+                        });
                     }
                 }
-                // Skip mana abilities for now - they need special handling
+
+                // Extract description
+                let description = if let Some(desc_str) = ability.split("SpellDescription$").nth(1)
+                {
+                    desc_str.trim().to_string()
+                } else {
+                    "Add mana".to_string()
+                };
+
+                // Add mana ability (marked as is_mana_ability = true)
+                if !effects.is_empty() {
+                    abilities.push(ActivatedAbility::new(
+                        cost.clone(),
+                        effects.clone(),
+                        description,
+                        true, // This IS a mana ability
+                    ));
+                    effects.clear(); // Clear for next ability
+                }
                 continue;
             }
 

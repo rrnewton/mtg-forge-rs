@@ -99,6 +99,13 @@ pub enum Effect {
     /// Counter a spell on the stack
     /// Example: "Counter target spell"
     CounterSpell { target: CardId },
+
+    /// Add mana to a player's mana pool
+    /// Example: "Add {G}" or "Add {C}{C}"
+    AddMana {
+        player: PlayerId,
+        mana: crate::core::ManaCost,
+    },
 }
 
 /// Events that can trigger abilities

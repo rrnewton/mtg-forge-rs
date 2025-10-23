@@ -27,7 +27,7 @@ pub enum GameAction {
     /// Add mana to pool
     AddMana {
         player_id: PlayerId,
-        color: crate::core::Color,
+        mana: crate::core::ManaCost,
     },
 
     /// Empty mana pool (stores previous state for undo)

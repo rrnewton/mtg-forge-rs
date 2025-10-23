@@ -530,6 +530,13 @@ impl<'a> GameLoop<'a> {
                     source_name, source_id, target_name, target
                 );
             }
+            Effect::AddMana { player, mana } => {
+                let player_name = self.get_player_name(*player);
+                println!(
+                    "  {} ({}) adds {} to {}'s mana pool",
+                    source_name, source_id, mana, player_name
+                );
+            }
         }
     }
 
@@ -1309,7 +1316,21 @@ impl<'a> GameLoop<'a> {
                                 // For now, execute effects immediately (not on the stack)
                                 // TODO: Put non-mana abilities on the stack
                                 for effect in &ability.effects {
-                                    if let Err(e) = self.game.execute_effect(effect) {
+                                    // Fix placeholder player IDs for AddMana effects
+                                    let fixed_effect = match effect {
+                                        crate::core::Effect::AddMana { player, mana }
+                                            if player.as_u32() == 0 =>
+                                        {
+                                            // Replace placeholder with current player
+                                            crate::core::Effect::AddMana {
+                                                player: current_priority,
+                                                mana: mana.clone(),
+                                            }
+                                        }
+                                        _ => effect.clone(),
+                                    };
+
+                                    if let Err(e) = self.game.execute_effect(&fixed_effect) {
                                         if self.verbosity >= VerbosityLevel::Normal {
                                             eprintln!("    Failed to execute effect: {}", e);
                                         }

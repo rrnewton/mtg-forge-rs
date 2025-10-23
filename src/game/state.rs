@@ -506,40 +506,27 @@ impl GameState {
                         }
                     }
                 }
-                crate::undo::GameAction::AddMana { player_id, color } => {
+                crate::undo::GameAction::AddMana { player_id, mana } => {
                     // Remove the mana that was added
                     if let Ok(player) = self.get_player_mut(player_id) {
-                        match color {
-                            crate::core::Color::White => {
-                                if player.mana_pool.white > 0 {
-                                    player.mana_pool.white -= 1;
-                                }
-                            }
-                            crate::core::Color::Blue => {
-                                if player.mana_pool.blue > 0 {
-                                    player.mana_pool.blue -= 1;
-                                }
-                            }
-                            crate::core::Color::Black => {
-                                if player.mana_pool.black > 0 {
-                                    player.mana_pool.black -= 1;
-                                }
-                            }
-                            crate::core::Color::Red => {
-                                if player.mana_pool.red > 0 {
-                                    player.mana_pool.red -= 1;
-                                }
-                            }
-                            crate::core::Color::Green => {
-                                if player.mana_pool.green > 0 {
-                                    player.mana_pool.green -= 1;
-                                }
-                            }
-                            crate::core::Color::Colorless => {
-                                if player.mana_pool.colorless > 0 {
-                                    player.mana_pool.colorless -= 1;
-                                }
-                            }
+                        // Subtract each color that was added
+                        if player.mana_pool.white >= mana.white {
+                            player.mana_pool.white -= mana.white;
+                        }
+                        if player.mana_pool.blue >= mana.blue {
+                            player.mana_pool.blue -= mana.blue;
+                        }
+                        if player.mana_pool.black >= mana.black {
+                            player.mana_pool.black -= mana.black;
+                        }
+                        if player.mana_pool.red >= mana.red {
+                            player.mana_pool.red -= mana.red;
+                        }
+                        if player.mana_pool.green >= mana.green {
+                            player.mana_pool.green -= mana.green;
+                        }
+                        if player.mana_pool.colorless >= mana.colorless {
+                            player.mana_pool.colorless -= mana.colorless;
                         }
                     }
                 }

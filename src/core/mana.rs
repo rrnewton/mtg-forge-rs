@@ -81,6 +81,20 @@ impl ManaCost {
     pub fn cmc(&self) -> u8 {
         self.generic + self.white + self.blue + self.black + self.red + self.green + self.colorless
     }
+
+    /// Multiply all mana amounts by a factor
+    /// Useful for abilities like Sol Ring that produce multiple mana (e.g., {C}{C})
+    pub fn multiply(&self, factor: u8) -> Self {
+        ManaCost {
+            generic: self.generic.saturating_mul(factor),
+            white: self.white.saturating_mul(factor),
+            blue: self.blue.saturating_mul(factor),
+            black: self.black.saturating_mul(factor),
+            red: self.red.saturating_mul(factor),
+            green: self.green.saturating_mul(factor),
+            colorless: self.colorless.saturating_mul(factor),
+        }
+    }
 }
 
 impl Default for ManaCost {

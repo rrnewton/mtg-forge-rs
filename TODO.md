@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 185 passing ✅ (162 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Examples:** 9/9 passing | **Validation:** `make validate` passes all checks ✅
+**Tests:** 185 passing ✅ (162 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Examples:** 10/10 passing | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -28,6 +28,7 @@
 - ✅ **Counter spell effects** - Cards that counter spells on the stack now work (e.g., Counterspell, Negate) - instant-speed stack interaction
 - ✅ **ETB (Enters the Battlefield) triggers** - Triggered abilities when permanents enter battlefield with multiple effect types: Draw, DealDamage, GainLife, Destroy, Pump (e.g., Elvish Visionary, Flametongue Kavu, Soul's Attendant)
 - ✅ **Activated abilities (A:AB$)** - Basic execution of activated abilities with tap and mana costs (e.g., Prodigal Sorcerer "{T}: Deal 1 damage")
+- ✅ **Mana abilities (AB$ Mana)** - Parse and execute mana-producing activated abilities (e.g., Llanowar Elves "{T}: Add {G}", Sol Ring "{T}: Add {C}{C}")
 - ✅ **Trample keyword** - Excess combat damage tramples over to defending player
 - ✅ **Lifelink keyword** - Creatures with lifelink gain life equal to damage dealt
 - ✅ **Deathtouch keyword** - Any damage from deathtouch source destroys creature
@@ -109,7 +110,8 @@
   - [x] Mill spell effects (A:SP$ Mill with NumCards$)
   - [x] Counter spell effects (A:SP$ Counter with TargetType$ Spell)
   - [x] Activated abilities (A:AB$ with Cost$) - basic execution with tap/mana costs
-  - [ ] Advanced activated abilities - mana abilities, complex costs, stack interaction, timing restrictions
+  - [x] Mana abilities (AB$ Mana) - produce mana with Produced$ parameter
+  - [ ] Advanced activated abilities - complex costs (sacrifice, discard), stack interaction, timing restrictions, player choice for "Any"/"Combo" mana
   - [x] Triggered abilities (T:) - ETB triggers with Draw, DealDamage, GainLife, Destroy, and Pump effects
   - [ ] Static abilities (S:) - continuous effects
   - [ ] SVar resolution (DB$ sub-abilities)
