@@ -2,7 +2,7 @@
 #
 # Quick reference for common development tasks
 
-.PHONY: help build test validate clean run check fmt clippy doc examples bench profile heapprofile
+.PHONY: help build test validate clean run check fmt clippy doc examples bench profile heapprofile count
 
 # Default target - show available commands
 help:
@@ -58,6 +58,11 @@ clippy:
 	@echo "=== Running clippy ==="
 	cargo clippy --all-targets --all-features -- -D warnings
 
+count:
+	@echo "=== Counting lines of code ==="
+	cargo install cloc 2>/dev/null || true
+	cloc src; cloc scripts; cloc tests
+
 # Run all examples
 examples:
 	@echo "=== Running examples ==="
@@ -67,53 +72,12 @@ examples:
 # Comprehensive pre-commit validation with caching
 # Runs all tests, examples, and checks
 # Caches results based on commit hash to avoid redundant validation
+# See scripts/validate.sh for implementation details
 validate:
-	@echo "=== Starting validation with caching ==="
-	@mkdir -p experiment_results
-	@COMMIT_HASH=$$(git rev-parse HEAD 2>/dev/null || echo "unknown"); \
-	CLEAN_STATUS=$$(git diff-index --quiet HEAD -- 2>/dev/null && echo "clean" || echo "dirty"); \
-	if [ "$$CLEAN_STATUS" = "clean" ]; then \
-		LOG_FILE="experiment_results/validate_$${COMMIT_HASH}.log"; \
-	else \
-		LOG_FILE="experiment_results/validate_$${COMMIT_HASH}_DIRTY.log"; \
-	fi; \
-	if [ "$$CLEAN_STATUS" = "clean" ] && [ -f "$$LOG_FILE" ]; then \
-		echo ""; \
-		echo "===================================";\
-		echo "✓ Validation cache hit for commit $${COMMIT_HASH}"; \
-		echo "✓ Validation already passed!"; \
-		echo "===================================";\
-		echo ""; \
-		echo "Log file: $$LOG_FILE"; \
-		echo ""; \
-	else \
-		echo "Running validation (cache miss or dirty working copy)..."; \
-		echo "Commit: $${COMMIT_HASH} ($$CLEAN_STATUS)"; \
-		echo "Log file: $$LOG_FILE"; \
-		echo ""; \
-		WIP_FILE="$${LOG_FILE}.wip"; \
-		if $(MAKE) validate-impl 2>&1 | tee "$$WIP_FILE"; then \
-			mv "$$WIP_FILE" "$$LOG_FILE"; \
-			echo ""; \
-			echo "===================================";\
-			echo "✓ All validation checks passed!"; \
-			echo "===================================";\
-			echo ""; \
-			echo "Results cached to: $$LOG_FILE"; \
-			echo ""; \
-		else \
-			rm -f "$$WIP_FILE"; \
-			echo ""; \
-			echo "===================================";\
-			echo "✗ Validation failed!"; \
-			echo "===================================";\
-			echo ""; \
-			exit 1; \
-		fi; \
-	fi
+	@./scripts/validate.sh
 
 # Internal target that actually runs validation
-# This is called by the validate target above
+# This is called by scripts/validate.sh
 validate-impl: fmt-check clippy test examples
 	@echo ""
 	@echo "=== All validation steps completed ==="

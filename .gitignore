@@ -19,6 +19,9 @@
 # All profiling output goes to experiment_results/
 experiment_results/
 
+# Validation logs
+validate_logs/
+
 # Legacy patterns (in case files are created in root by mistake)
 *.svg
 *.zst
