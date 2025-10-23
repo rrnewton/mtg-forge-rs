@@ -12,6 +12,7 @@
 .beads/*.db-*
 .beads/daemon.*
 .beads/*.sock
+.beads/inbox/*
 
 # Added by cargo
 /target
