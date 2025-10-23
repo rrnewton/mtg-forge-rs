@@ -77,9 +77,16 @@ impl PlayerController for RandomController {
         // For now, just pick a random target if any are available
         // TODO: Improve targeting logic based on spell requirements
         if valid_targets.is_empty() {
+            // Only log when there are no targets (could be meaningful)
             println!(">>> RANDOM chose no targets (none available)");
             SmallVec::new()
+        } else if valid_targets.len() == 1 {
+            // Only one target available - no choice to make, don't log
+            let mut targets = SmallVec::new();
+            targets.push(valid_targets[0]);
+            targets
         } else {
+            // Multiple targets - this is a real choice
             let index = self.rng.gen_range(0..valid_targets.len());
             println!(
                 ">>> RANDOM chose target {} out of choices 0-{}",
@@ -107,11 +114,14 @@ impl PlayerController for RandomController {
         let mut shuffled: Vec<CardId> = available_sources.to_vec();
         shuffled.shuffle(&mut self.rng);
 
-        println!(
-            ">>> RANDOM chose {} mana sources (shuffled from {} available sources)",
-            needed.min(available_sources.len()),
-            available_sources.len()
-        );
+        // Only log if there's a real choice (more sources than needed)
+        if available_sources.len() > needed {
+            println!(
+                ">>> RANDOM chose {} mana sources (shuffled from {} available sources)",
+                needed.min(available_sources.len()),
+                available_sources.len()
+            );
+        }
 
         for &source_id in shuffled.iter().take(needed) {
             sources.push(source_id);
@@ -192,10 +202,13 @@ impl PlayerController for RandomController {
         let mut ordered_blockers: Vec<CardId> = blockers.to_vec();
         ordered_blockers.shuffle(&mut self.rng);
 
-        println!(
-            ">>> RANDOM chose damage assignment order (shuffled {} blockers)",
-            blockers.len()
-        );
+        // Only log if there's a real choice (2+ blockers to order)
+        if blockers.len() >= 2 {
+            println!(
+                ">>> RANDOM chose damage assignment order (shuffled {} blockers)",
+                blockers.len()
+            );
+        }
 
         ordered_blockers.into_iter().collect()
     }
@@ -211,11 +224,15 @@ impl PlayerController for RandomController {
         hand_vec.shuffle(&mut self.rng);
 
         let num_discarding = count.min(hand.len());
-        println!(
-            ">>> RANDOM chose {} cards to discard (shuffled from {} cards in hand)",
-            num_discarding,
-            hand.len()
-        );
+
+        // Only log if there's a real choice (more cards than we need to discard)
+        if hand.len() > count {
+            println!(
+                ">>> RANDOM chose {} cards to discard (shuffled from {} cards in hand)",
+                num_discarding,
+                hand.len()
+            );
+        }
 
         hand_vec.iter().take(num_discarding).copied().collect()
     }
