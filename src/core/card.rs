@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 /// Card types in MTG
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Copy-eligible since it's a simple enum with no data fields
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardType {
     Creature,
     Instant,
