@@ -2,7 +2,9 @@
 //!
 //! Loads card definitions from Forge's cardsfolder format
 
-use crate::core::{Card, CardName, CardType, Color, Keyword, ManaCost, Subtype};
+use crate::core::{
+    Card, CardName, CardType, Color, Keyword, ManaCost, Subtype, Trigger, TriggerEvent,
+};
 use crate::{MtgError, Result};
 use smallvec::SmallVec;
 use std::fs;
@@ -150,6 +152,9 @@ impl CardDefinition {
 
         // Parse abilities into effects (simplified parser for common cases)
         card.effects = self.parse_effects();
+
+        // Parse triggered abilities
+        card.triggers = self.parse_triggers();
 
         card
     }
@@ -355,6 +360,90 @@ impl CardDefinition {
         }
 
         effects
+    }
+
+    /// Parse triggered abilities (T: lines)
+    /// This is a simplified parser for common ETB triggers
+    fn parse_triggers(&self) -> Vec<Trigger> {
+        use crate::core::{Effect, PlayerId};
+
+        let mut triggers = Vec::new();
+
+        for ability in &self.raw_abilities {
+            // Only process T: lines (triggered abilities)
+            if !ability.starts_with("T:") {
+                continue;
+            }
+
+            // Parse ETB triggers
+            // Format: "T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigDraw | TriggerDescription$ When..."
+            if ability.contains("Mode$ ChangesZone")
+                && ability.contains("Destination$ Battlefield")
+                && ability.contains("ValidCard$ Card.Self")
+            {
+                // Extract the Execute$ parameter to determine what effects to apply
+                let mut effects = Vec::new();
+
+                // Check if this is a draw trigger
+                if ability.contains("Execute$ TrigDraw") || ability.contains("Draw") {
+                    // Look for NumCards in the ability string
+                    // For now, default to drawing 1 card if we can't find the number
+                    let count = if let Some(cards_str) = ability.split("NumCards$").nth(1) {
+                        cards_str
+                            .trim()
+                            .split(['|', ' ', '\n'])
+                            .next()
+                            .and_then(|s| s.trim().parse::<u8>().ok())
+                            .unwrap_or(1)
+                    } else {
+                        1
+                    };
+
+                    effects.push(Effect::DrawCards {
+                        player: PlayerId::new(0), // Placeholder - will be filled when triggered
+                        count,
+                    });
+                }
+
+                // Check if this is a damage trigger
+                if ability.contains("Execute$ TrigDealDamage") || ability.contains("DealDamage") {
+                    // Look for NumDmg in the ability string
+                    let amount = if let Some(dmg_str) = ability.split("NumDmg$").nth(1) {
+                        dmg_str
+                            .trim()
+                            .split(['|', ' ', '\n'])
+                            .next()
+                            .and_then(|s| s.trim().parse::<i32>().ok())
+                            .unwrap_or(1)
+                    } else {
+                        1
+                    };
+
+                    effects.push(Effect::DealDamage {
+                        target: crate::core::TargetRef::None, // Will be filled when triggered
+                        amount,
+                    });
+                }
+
+                if !effects.is_empty() {
+                    // Extract description from TriggerDescription$ if available
+                    let description =
+                        if let Some(desc_str) = ability.split("TriggerDescription$").nth(1) {
+                            desc_str.trim().to_string()
+                        } else {
+                            "When this enters the battlefield".to_string()
+                        };
+
+                    triggers.push(Trigger::new(
+                        TriggerEvent::EntersBattlefield,
+                        effects,
+                        description,
+                    ));
+                }
+            }
+        }
+
+        triggers
     }
 }
 

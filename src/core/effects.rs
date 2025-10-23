@@ -97,6 +97,66 @@ pub enum Effect {
     Mill { player: PlayerId, count: u8 },
 }
 
+/// Events that can trigger abilities
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerEvent {
+    /// When a card enters the battlefield
+    /// Corresponds to: T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self
+    EntersBattlefield,
+
+    /// When a card leaves the battlefield
+    /// Corresponds to: T:Mode$ ChangesZone | Origin$ Battlefield | Destination$ Any | ValidCard$ Card.Self
+    LeavesBattlefield,
+
+    /// At the beginning of upkeep
+    /// Corresponds to: T:Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You
+    BeginningOfUpkeep,
+
+    /// At the beginning of end step
+    /// Corresponds to: T:Mode$ Phase | Phase$ EndOfTurn | ValidPlayer$ You
+    BeginningOfEndStep,
+
+    /// When a spell is cast
+    /// Corresponds to: T:Mode$ SpellCast | ValidCard$ ...
+    SpellCast,
+
+    /// When a creature attacks
+    /// Corresponds to: T:Mode$ Attacks | ValidCard$ Card.Self
+    Attacks,
+
+    /// When a creature blocks
+    /// Corresponds to: T:Mode$ Blocks | ValidCard$ Card.Self
+    Blocks,
+
+    /// When a creature deals combat damage
+    /// Corresponds to: T:Mode$ DamageDone | ValidSource$ Card.Self | CombatDamage$ True
+    DealsCombatDamage,
+}
+
+/// A triggered ability that executes when an event occurs
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Trigger {
+    /// The event that triggers this ability
+    pub event: TriggerEvent,
+
+    /// The effects to execute when triggered
+    pub effects: Vec<Effect>,
+
+    /// Description of the trigger (for logging)
+    pub description: String,
+}
+
+impl Trigger {
+    /// Create a new trigger
+    pub fn new(event: TriggerEvent, effects: Vec<Effect>, description: String) -> Self {
+        Trigger {
+            event,
+            effects,
+            description,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

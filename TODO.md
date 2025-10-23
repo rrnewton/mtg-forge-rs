@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 171 passing ✅ (148 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 173 passing ✅ (150 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -25,6 +25,7 @@
 - ✅ **Pump spell effects** - Cards that temporarily boost creature stats now work (e.g., Giant Growth)
 - ✅ **Tap/Untap spell effects** - Cards that tap or untap permanents now work
 - ✅ **Mill spell effects** - Cards that mill cards from library to graveyard now work (e.g., Thought Scour, Mind Sculpt)
+- ✅ **ETB (Enters the Battlefield) triggers** - Triggered abilities when permanents enter battlefield (e.g., Elvish Visionary, Flametongue Kavu)
 - ✅ **Trample keyword** - Excess combat damage tramples over to defending player
 - ✅ **Lifelink keyword** - Creatures with lifelink gain life equal to damage dealt
 - ✅ **Deathtouch keyword** - Any damage from deathtouch source destroys creature
@@ -106,7 +107,7 @@
   - [x] Mill spell effects (A:SP$ Mill with NumCards$)
   - [ ] More spell effects (A:SP$) - Counter
   - [ ] Activated abilities (A:AB$ with Cost$) - tap abilities, mana abilities
-  - [ ] Triggered abilities (T:) - ETB, phase triggers, combat triggers
+  - [x] Triggered abilities (T:) - ETB triggers with Draw and DealDamage effects (basic support)
   - [ ] Static abilities (S:) - continuous effects
   - [ ] SVar resolution (DB$ sub-abilities)
 

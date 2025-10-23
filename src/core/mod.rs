@@ -9,7 +9,7 @@ pub mod spell_ability;
 pub mod types;
 
 pub use card::{Card, CardType};
-pub use effects::{Effect, Keyword, TargetRef};
+pub use effects::{Effect, Keyword, TargetRef, Trigger, TriggerEvent};
 pub use entity::{EntityId, EntityStore, GameEntity};
 pub use mana::{Color, ManaCost, ManaPool};
 pub use player::Player;

@@ -1,6 +1,6 @@
 //! Game actions and mechanics
 
-use crate::core::{CardId, CardType, Effect, Keyword, PlayerId, TargetRef};
+use crate::core::{CardId, CardType, Effect, Keyword, PlayerId, TargetRef, TriggerEvent};
 use crate::game::GameState;
 use crate::zones::Zone;
 use crate::{MtgError, Result};
@@ -295,6 +295,9 @@ impl GameState {
             if let Ok(card) = self.cards.get_mut(card_id) {
                 card.turn_entered_battlefield = Some(self.turn.turn_number);
             }
+
+            // Check for ETB triggers on all permanents (including the one that just entered)
+            self.check_triggers(TriggerEvent::EntersBattlefield, card_id)?;
         }
 
         Ok(())
@@ -485,6 +488,94 @@ impl GameState {
                 self.mill_cards(*player, *count)?;
             }
         }
+        Ok(())
+    }
+
+    /// Check for triggered abilities and execute them
+    ///
+    /// This checks all permanents on the battlefield for triggers matching the given event.
+    /// When triggers are found, their effects are executed immediately (for now).
+    ///
+    /// TODO: In full MTG rules, triggers should go on the stack and wait for priority,
+    /// but for simplicity we're executing them immediately.
+    pub fn check_triggers(&mut self, event: TriggerEvent, source_card_id: CardId) -> Result<()> {
+        // Collect all triggered effects to execute (without holding a borrow on self.cards)
+        let triggered_effects: Vec<(CardId, Vec<Effect>)> = self
+            .battlefield
+            .cards
+            .iter()
+            .filter_map(|&card_id| {
+                if let Ok(card) = self.cards.get(card_id) {
+                    // Find triggers matching this event
+                    let matching_triggers: Vec<Effect> = card
+                        .triggers
+                        .iter()
+                        .filter(|trigger| trigger.event == event)
+                        .flat_map(|trigger| trigger.effects.clone())
+                        .collect();
+
+                    if !matching_triggers.is_empty() {
+                        Some((card_id, matching_triggers))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // Execute all triggered effects
+        for (_trigger_source, effects) in triggered_effects {
+            for mut effect in effects {
+                // Fill in placeholder values in trigger effects
+                // Similar to resolve_spell, we need to fill in targets
+                match &mut effect {
+                    Effect::DrawCards { player, .. } if player.as_u32() == 0 => {
+                        // Placeholder player ID 0 means the controller of the trigger source
+                        let controller = self.cards.get(source_card_id)?.controller;
+                        if let Effect::DrawCards { player: _, count } = effect {
+                            effect = Effect::DrawCards {
+                                player: controller,
+                                count,
+                            };
+                        }
+                    }
+                    Effect::DealDamage {
+                        target: TargetRef::None,
+                        amount,
+                    } => {
+                        // Find a valid target (opponent's creature)
+                        let controller = self.cards.get(source_card_id)?.controller;
+                        if let Some(target_id) = self
+                            .battlefield
+                            .cards
+                            .iter()
+                            .find(|&card_id| {
+                                if let Ok(card) = self.cards.get(*card_id) {
+                                    card.is_creature()
+                                        && card.owner != controller
+                                        && !card.has_hexproof()
+                                        && !card.has_shroud()
+                                } else {
+                                    false
+                                }
+                            })
+                            .copied()
+                        {
+                            effect = Effect::DealDamage {
+                                target: TargetRef::Permanent(target_id),
+                                amount: *amount,
+                            };
+                        }
+                    }
+                    _ => {}
+                }
+
+                self.execute_effect(&effect)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -4316,6 +4407,123 @@ mod tests {
                 zones.graveyard.cards.len(),
                 2,
                 "Should have milled only 2 cards"
+            );
+        }
+    }
+
+    #[test]
+    fn test_etb_trigger_draw() {
+        use crate::core::{Effect, Trigger, TriggerEvent};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players.first().unwrap().id;
+
+        // Add cards to P1's library for drawing
+        for i in 0..5 {
+            let card_id = game.next_card_id();
+            let card = Card::new(card_id, format!("Card {i}"), p1_id);
+            game.cards.insert(card_id, card);
+            if let Some(zones) = game.get_player_zones_mut(p1_id) {
+                zones.library.add(card_id);
+            }
+        }
+
+        // Create a creature with an ETB trigger (like Elvish Visionary)
+        let creature_id = game.next_entity_id();
+        let mut creature = Card::new(creature_id, "Elvish Visionary".to_string(), p1_id);
+        creature.types.push(CardType::Creature);
+        creature.power = Some(1);
+        creature.toughness = Some(1);
+        creature.mana_cost = ManaCost::from_string("1G");
+
+        // Add ETB trigger: "When this enters the battlefield, draw a card"
+        creature.triggers.push(Trigger::new(
+            TriggerEvent::EntersBattlefield,
+            vec![Effect::DrawCards {
+                player: p1_id,
+                count: 1,
+            }],
+            "When Elvish Visionary enters, draw a card.".to_string(),
+        ));
+
+        game.cards.insert(creature_id, creature);
+
+        // Put the creature on the stack (as if it was cast)
+        game.stack.add(creature_id);
+
+        // Resolve the creature spell (moves it to battlefield and triggers ETB)
+        assert!(game.resolve_spell(creature_id).is_ok());
+
+        // Verify the creature is on the battlefield
+        assert!(game.battlefield.contains(creature_id));
+
+        // Verify the ETB trigger drew a card
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert_eq!(zones.hand.cards.len(), 1, "Should have drawn 1 card");
+            assert_eq!(
+                zones.library.cards.len(),
+                4,
+                "Should have 4 cards left in library"
+            );
+        }
+    }
+
+    #[test]
+    fn test_etb_trigger_damage() {
+        use crate::core::{Effect, TargetRef, Trigger, TriggerEvent};
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+        let p2_id = game.players[1].id;
+
+        // P2: Create a target creature
+        let target_creature_id = game.next_entity_id();
+        let mut target = Card::new(target_creature_id, "Grizzly Bears".to_string(), p2_id);
+        target.types.push(CardType::Creature);
+        target.power = Some(2);
+        target.toughness = Some(2);
+        game.cards.insert(target_creature_id, target);
+        game.battlefield.add(target_creature_id);
+
+        // P1: Create a creature with ETB damage trigger (like Flametongue Kavu)
+        let kavu_id = game.next_entity_id();
+        let mut kavu = Card::new(kavu_id, "Flametongue Kavu".to_string(), p1_id);
+        kavu.types.push(CardType::Creature);
+        kavu.power = Some(4);
+        kavu.toughness = Some(2);
+        kavu.mana_cost = ManaCost::from_string("3R");
+
+        // Add ETB trigger: "When this enters the battlefield, deal 4 damage to target creature"
+        kavu.triggers.push(Trigger::new(
+            TriggerEvent::EntersBattlefield,
+            vec![Effect::DealDamage {
+                target: TargetRef::None, // Will be filled to target an opponent's creature
+                amount: 4,
+            }],
+            "When Flametongue Kavu enters, it deals 4 damage to target creature.".to_string(),
+        ));
+
+        game.cards.insert(kavu_id, kavu);
+
+        // Put the kavu on the stack (as if it was cast)
+        game.stack.add(kavu_id);
+
+        // Resolve the kavu spell (moves it to battlefield and triggers ETB)
+        assert!(game.resolve_spell(kavu_id).is_ok());
+
+        // Verify the kavu is on the battlefield
+        assert!(game.battlefield.contains(kavu_id));
+
+        // Verify the target creature took lethal damage (2 toughness, 4 damage dealt)
+        // The creature should have been destroyed and moved to graveyard
+        assert!(
+            !game.battlefield.contains(target_creature_id),
+            "Target creature should be destroyed"
+        );
+        if let Some(zones) = game.get_player_zones(p2_id) {
+            assert!(
+                zones.graveyard.contains(target_creature_id),
+                "Target creature should be in graveyard"
             );
         }
     }

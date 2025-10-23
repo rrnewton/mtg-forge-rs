@@ -2,6 +2,7 @@
 
 use crate::core::{
     CardId, CardName, Color, CounterType, Effect, GameEntity, Keyword, ManaCost, PlayerId, Subtype,
+    Trigger,
 };
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -82,6 +83,10 @@ pub struct Card {
     /// For spells: effects execute when spell resolves
     /// For permanents: effects may be triggered or activated abilities
     pub effects: Vec<Effect>,
+
+    /// Triggered abilities (ETB, phase triggers, etc.)
+    /// These execute automatically when their trigger condition is met
+    pub triggers: Vec<Trigger>,
 }
 
 impl Card {
@@ -105,6 +110,7 @@ impl Card {
             counters: SmallVec::new(),
             keywords: Vec::new(),
             effects: Vec::new(),
+            triggers: Vec::new(),
         }
     }
 
