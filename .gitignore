@@ -8,7 +8,10 @@
 .unison.*
 
 # Issue tracking
-.beads/
+.beads/*.db
+.beads/*.db-*
+.beads/daemon.*
+.beads/*.sock
 
 # Added by cargo
 /target

@@ -8,7 +8,7 @@ Read the PROJECT_VISION.md document.
 
 This project is an experiment in largely-unattended longer time-horizon development with Claude. That means you should be continuing to work toward the project vision, implementing new features iteratively, and not stopping for approval. 
 
-If you become stuck with an issue you cannot debug, you can file an issue for it and leave it to work on other topics. Of course, the tests should be always passing before each commit and achieve reasonably good code coverage.
+If you become stuck with an issue you cannot debug, you can file an issue for it and leave it to work on other topics. Of course, the tests should be always passing before each commit and achieve reasonably good code coverage as described below.
 
 References
 ========================================
@@ -34,6 +34,7 @@ Read the PROJECT_VISION description of coding conventions we should follow for h
 - Avoid clone: instead take a temporary reference to the object and manage lifetimes appropriately.
 - Avoid collect: instead take an iterator with references to the original collection without copying.
 
+Read OPTIMIZATION.md for more details.
 
 Workflow: Tasks and Commits
 ========================================
@@ -43,19 +44,32 @@ Commit to git as described in the PROJECT_VISION.
 Task Tracking
 ----------------------------------------
 
-We track work in TODO.md at the repository root. This file contains:
-- Current status and latest commit
-- Completed features organized by phase
-- Next priorities with checkboxes
-- Known issues
-- Progress summary
+We use "beads" to track our issues locally. Review `bd quickstart` to learn how to use it.
 
-Every time we do a git commit, update TODO.md to reflect:
-- What was just completed (check off items, move to completed section)
-- What's next (update priorities)
-- Any new issues discovered
+Every time we do a git commit, update our beads issues to reflect:
+- What was just completed (check off items in lists, close completed task(s))
+- What's next (update priorities in tracking issues)
+- Any individual new issues discovered become new tasks with references from trackig issues
 
-The TODO.md serves as our primary tracking document, so if we lose conversation history we can start again from there.  You should periodically do documentation work, usually before committing, to make sure TODO.md is up-to-date.
+The beads database is our primary tracking mechanism, so if we lose conversation history we can start again from there.  You should periodically do documentation work, usually before committing, to make sure information in the issues is up-to-date.
+
+### Beads CONVENTIONS for this project
+
+#### Tracking issues
+
+#### Mark transient information
+
+We often record transient information, like benchmark results, that quickly gets out of date. We want to label such information so we can tell how old it is. Rather than a realtime timestamp, our convention is to use `./scripts/gitdepth.sh` which prints out the number of commits in the repo, and then the shorthand `commit#161(387498cecf)` becomes our timestamp for information that came from a particular commit. Sometimes this requires us to split our commits into (1) functionality and then (2) documentation-update.
+
+#### Reference issues in code TODO
+
+We don't want TODO items to be in floating code alone. For anything but the most trivial TODOs, we adopt the convention of referencing issues that tracks the TODO:
+
+```
+// TODO(mtg-13): brief summary here
+```
+
+Then, the commit that fixes the issue both removes the comment and closes the issue in beads.
 
 Before beginning work on a task
 ----------------------------------------
@@ -67,19 +81,7 @@ Before committing to git
 
 Run `make validate` and ensure that it passes or fix any problems before committing.
 
-Also include a Test Results Summary section in every commit message for example like this:
-
-```
-## Test Results Summary
-
-    $ make validate 2>&1  | grep -E '(test result: |Running |Doc-tests )'
-         Running unittests src/lib.rs (target/debug/deps/mtg_forge_rs-dbfccebd340e260f)
-    test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-         Running unittests src/main.rs (target/debug/deps/mtg_forge_rs-d765597e7833fdac)
-    test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-       Doc-tests mtg_forge_rs
-    test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-```
+Also include a `Test Results Summary` section in every commit message that summarizes how many tests passed of what kind.
 
 If you validate some changes with a new manual or temporary test, that test should be added to either the unit tests, examples, or e2e tests and it should be called consistently from both `make validate` and Github CI.
 
@@ -94,5 +96,3 @@ Finally, also before committing reanalyze the relationship between (1) what you 
 - this Rust reimplementation does X
 - the upstream Java version does Y
 ```
-
-Do NOT bother making an extra commit just to update TODO.md with a commit hash. Don't even bother with having a "Latest Commit" field in TODO.md, because that is clear in the version history.

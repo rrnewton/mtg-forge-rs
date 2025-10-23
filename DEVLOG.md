@@ -1612,27 +1612,37 @@ We can symlink the `validate_OLDHASH[_dirty].log` to our
 coverage of the new commit.
 
 
-TODO: Migrate back to beads
+TODO: Migrate to beads for issue tracking
 ----------------------------------------
 
 Read `bd quickstart` and get ready to migrate our TODO.md tracking to beads.
 I've run `bd init -p mtg` to initialize the database.
 
-- issue mtg-1 should be the OVERALL tracking issue, which primarily will reference other tracking issues
+- create issue mtg-1 should be the OVERALL tracking issue, which primarily will reference other tracking issues
   and document some of these conventions. It will be priority 0. We want to keep it pretty short.
     
-- other tracking issues will have priority 1, move away from 
+- other tracking issues will have priority 1, and we will move away from "phases" as the main organization
+  and instead use a few major topics:
   - Optimization tracking: migrate and remove from the relevant section in OPTIMIZATION.md
   - MTG feature completeness: supporting keywords/abilities/complex mana and effects.
-  - Gameplay feautures: like an actual TUI to play as a human
-  - Testing cover
+  - Gameplay feautures: like an actual TUI to play as a human.
+  - Cross-cutting codebase issues: APIs (player, controller, etc), testing coverage and methodology.
+
+- tracking issues refer to granular issues by name in their text, e.g. "mtg-42"
+- all other granular issues will have priority 3 or 4 unless they are seen as a critical bug, which will bump them to priority 1.
 
 - issues labeled "human" are created by me and will always have 0 priority
 - you can ignore the "completed work" in TODO.md in this migration
 - delete TODO.md when you're sure everything we need has been copied over
 
+### CONVENTIONS:
 
-`./scripts/gitdepth.sh` prints out the number of commits in the repo, and we can use "commit#161(387498cecf)" as a shorthand that gives us a rough sense of time.
+Our TODO file had TRANSIENT information in it that quickly gets out of
+date, like benchmark results. Moving forward we want to have a notion
+of timestamp for any transient information. Specificallyy
+`./scripts/gitdepth.sh` prints out the number of commits in the repo,
+and we can use "commit#161(387498cecf)" as a shorthand that gives us a
+rough sense of time (in the repository) that information dates from.
 
 Start adopting the convention of referencing issues from todo comments:
 
