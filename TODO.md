@@ -25,7 +25,7 @@
 - ✅ **Pump spell effects** - Cards that temporarily boost creature stats now work (e.g., Giant Growth)
 - ✅ **Tap/Untap spell effects** - Cards that tap or untap permanents now work
 - ✅ **Mill spell effects** - Cards that mill cards from library to graveyard now work (e.g., Thought Scour, Mind Sculpt)
-- ✅ **ETB (Enters the Battlefield) triggers** - Triggered abilities when permanents enter battlefield (e.g., Elvish Visionary, Flametongue Kavu)
+- ✅ **ETB (Enters the Battlefield) triggers** - Triggered abilities when permanents enter battlefield with multiple effect types: Draw, DealDamage, GainLife, Destroy, Pump (e.g., Elvish Visionary, Flametongue Kavu, Soul's Attendant)
 - ✅ **Trample keyword** - Excess combat damage tramples over to defending player
 - ✅ **Lifelink keyword** - Creatures with lifelink gain life equal to damage dealt
 - ✅ **Deathtouch keyword** - Any damage from deathtouch source destroys creature
