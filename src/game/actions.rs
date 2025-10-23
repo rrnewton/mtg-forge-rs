@@ -1188,6 +1188,109 @@ impl GameState {
 
         Ok(())
     }
+
+    /// Pay the cost for an activated ability
+    ///
+    /// This method pays costs in the correct order:
+    /// 1. Tap costs (must happen before zone changes)
+    /// 2. Mana costs (pay from mana pool)
+    /// 3. Other costs (sacrifice, discard, etc.) - TODO
+    ///
+    /// Returns Ok(()) if costs were successfully paid, Err otherwise.
+    ///
+    /// Note: This is a simplified implementation. Full implementation would:
+    /// - Support cost refund if payment fails midway
+    /// - Handle cost ordering more comprehensively
+    /// - Support all cost types (sacrifice, discard, pay life, etc.)
+    pub fn pay_ability_cost(
+        &mut self,
+        player_id: PlayerId,
+        card_id: CardId,
+        cost: &crate::core::Cost,
+    ) -> Result<()> {
+        use crate::core::Cost;
+
+        match cost {
+            Cost::Tap => {
+                // Tap the permanent
+                let card = self.cards.get_mut(card_id)?;
+                if card.tapped {
+                    return Err(MtgError::InvalidAction(
+                        "Permanent is already tapped".to_string(),
+                    ));
+                }
+                card.tap();
+                Ok(())
+            }
+
+            Cost::Mana(mana_cost) => {
+                // Pay mana from pool
+                let player = self.get_player_mut(player_id)?;
+                if !player.mana_pool.can_pay(mana_cost) {
+                    return Err(MtgError::InvalidAction("Cannot pay mana cost".to_string()));
+                }
+                player
+                    .mana_pool
+                    .pay_cost(mana_cost)
+                    .map_err(MtgError::InvalidAction)?;
+                Ok(())
+            }
+
+            Cost::TapAndMana(mana_cost) => {
+                // Pay both tap and mana
+                // Tap first (must happen before zone changes)
+                let card = self.cards.get_mut(card_id)?;
+                if card.tapped {
+                    return Err(MtgError::InvalidAction(
+                        "Permanent is already tapped".to_string(),
+                    ));
+                }
+                card.tap();
+
+                // Then pay mana
+                let player = self.get_player_mut(player_id)?;
+                if !player.mana_pool.can_pay(mana_cost) {
+                    // TODO: Should refund the tap here
+                    return Err(MtgError::InvalidAction("Cannot pay mana cost".to_string()));
+                }
+                player
+                    .mana_pool
+                    .pay_cost(mana_cost)
+                    .map_err(MtgError::InvalidAction)?;
+                Ok(())
+            }
+
+            Cost::PayLife { amount } => {
+                // Pay life
+                let player = self.get_player_mut(player_id)?;
+                if player.life < *amount {
+                    return Err(MtgError::InvalidAction("Not enough life".to_string()));
+                }
+                player.life -= amount;
+                Ok(())
+            }
+
+            Cost::Untap => {
+                // Untap the permanent
+                let card = self.cards.get_mut(card_id)?;
+                if !card.tapped {
+                    return Err(MtgError::InvalidAction(
+                        "Permanent is not tapped".to_string(),
+                    ));
+                }
+                card.untap();
+                Ok(())
+            }
+
+            Cost::Sacrifice { card_id: _ } | Cost::Discard { card_id: _ } | Cost::Composite(_) => {
+                // TODO: Implement these cost types
+                Err(MtgError::InvalidAction(format!(
+                    "Cost type {:?} not yet implemented",
+                    cost
+                )))
+            }
+        }
+    }
 }
 
 #[cfg(test)]

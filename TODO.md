@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 182 passing ✅ (162 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 185 passing ✅ (162 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Examples:** 9/9 passing | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -27,6 +27,7 @@
 - ✅ **Mill spell effects** - Cards that mill cards from library to graveyard now work (e.g., Thought Scour, Mind Sculpt)
 - ✅ **Counter spell effects** - Cards that counter spells on the stack now work (e.g., Counterspell, Negate) - instant-speed stack interaction
 - ✅ **ETB (Enters the Battlefield) triggers** - Triggered abilities when permanents enter battlefield with multiple effect types: Draw, DealDamage, GainLife, Destroy, Pump (e.g., Elvish Visionary, Flametongue Kavu, Soul's Attendant)
+- ✅ **Activated abilities (A:AB$)** - Basic execution of activated abilities with tap and mana costs (e.g., Prodigal Sorcerer "{T}: Deal 1 damage")
 - ✅ **Trample keyword** - Excess combat damage tramples over to defending player
 - ✅ **Lifelink keyword** - Creatures with lifelink gain life equal to damage dealt
 - ✅ **Deathtouch keyword** - Any damage from deathtouch source destroys creature
@@ -107,8 +108,8 @@
   - [x] Tap/Untap spell effects (A:SP$ Tap, A:SP$ Untap)
   - [x] Mill spell effects (A:SP$ Mill with NumCards$)
   - [x] Counter spell effects (A:SP$ Counter with TargetType$ Spell)
-  - [x] Activated abilities (A:AB$ with Cost$) - parsing and data structures (execution pending)
-  - [ ] Activated abilities execution - activation logic, priority, mana abilities
+  - [x] Activated abilities (A:AB$ with Cost$) - basic execution with tap/mana costs
+  - [ ] Advanced activated abilities - mana abilities, complex costs, stack interaction, timing restrictions
   - [x] Triggered abilities (T:) - ETB triggers with Draw, DealDamage, GainLife, Destroy, and Pump effects
   - [ ] Static abilities (S:) - continuous effects
   - [ ] SVar resolution (DB$ sub-abilities)

@@ -1270,10 +1270,53 @@ impl<'a> GameLoop<'a> {
                                 }
                             }
                         }
-                        crate::core::SpellAbility::ActivateAbility { .. } => {
-                            // TODO: Implement activated abilities
-                            if self.verbosity >= VerbosityLevel::Normal {
-                                eprintln!("  Activated abilities not yet implemented");
+                        crate::core::SpellAbility::ActivateAbility {
+                            card_id,
+                            ability_index,
+                        } => {
+                            // Activate ability from a permanent
+                            // Get the card and ability
+                            let card_name =
+                                self.game.cards.get(card_id).ok().map(|c| c.name.clone());
+                            let ability =
+                                self.game.cards.get(card_id).ok().and_then(|c| {
+                                    c.activated_abilities.get(ability_index).cloned()
+                                });
+
+                            if let Some(ability) = ability {
+                                if self.verbosity >= VerbosityLevel::Normal {
+                                    let name =
+                                        card_name.as_ref().map(|n| n.as_str()).unwrap_or("Unknown");
+                                    eprintln!(
+                                        "  {} activates ability: {}",
+                                        name, ability.description
+                                    );
+                                }
+
+                                // Pay costs
+                                if let Err(e) = self.game.pay_ability_cost(
+                                    current_priority,
+                                    card_id,
+                                    &ability.cost,
+                                ) {
+                                    if self.verbosity >= VerbosityLevel::Normal {
+                                        eprintln!("    Failed to pay cost: {}", e);
+                                    }
+                                    continue;
+                                }
+
+                                // Execute effects
+                                // For now, execute effects immediately (not on the stack)
+                                // TODO: Put non-mana abilities on the stack
+                                for effect in &ability.effects {
+                                    if let Err(e) = self.game.execute_effect(effect) {
+                                        if self.verbosity >= VerbosityLevel::Normal {
+                                            eprintln!("    Failed to execute effect: {}", e);
+                                        }
+                                    }
+                                }
+                            } else if self.verbosity >= VerbosityLevel::Normal {
+                                eprintln!("  Ability not found");
                             }
                         }
                     }
@@ -1518,6 +1561,60 @@ impl<'a> GameLoop<'a> {
         spells
     }
 
+    /// Get activatable abilities on player's permanents (v2 interface)
+    fn get_activatable_abilities(&self, player_id: PlayerId) -> Vec<(CardId, usize)> {
+        use crate::game::mana_engine::ManaEngine;
+
+        let mut abilities = Vec::new();
+
+        // Create a mana engine to check cost payability
+        let mut mana_engine = ManaEngine::new(player_id);
+        mana_engine.update(self.game);
+
+        // Check all permanents controlled by this player
+        for &card_id in &self.game.battlefield.cards {
+            if let Ok(card) = self.game.cards.get(card_id) {
+                // Only check permanents controlled by this player
+                if card.controller != player_id {
+                    continue;
+                }
+
+                // Check each activated ability on this card
+                for (ability_index, ability) in card.activated_abilities.iter().enumerate() {
+                    // Skip mana abilities for now (they'll be handled specially)
+                    if ability.is_mana_ability {
+                        continue;
+                    }
+
+                    // Check if cost can be paid
+                    let mut can_activate = true;
+
+                    // Check tap cost
+                    if ability.cost.includes_tap() && card.tapped {
+                        can_activate = false;
+                    }
+
+                    // Check mana cost
+                    if let Some(mana_cost) = ability.cost.get_mana_cost() {
+                        if !mana_engine.can_pay(mana_cost) {
+                            can_activate = false;
+                        }
+                    }
+
+                    // TODO: Check other cost types (sacrifice, discard, etc.)
+                    // TODO: Check timing restrictions (sorcery speed abilities)
+                    // TODO: Check activation limits
+
+                    if can_activate {
+                        abilities.push((card_id, ability_index));
+                    }
+                }
+            }
+        }
+
+        abilities
+    }
+
     /// Get all available spell abilities for a player
     ///
     /// This matches Java Forge's approach where lands, spells, and activated
@@ -1550,8 +1647,14 @@ impl<'a> GameLoop<'a> {
             abilities.push(SpellAbility::CastSpell { card_id: spell_id });
         }
 
-        // TODO: Add activated abilities
-        // For now, only lands and spells are supported
+        // Add activated abilities
+        let activatable = self.get_activatable_abilities(player_id);
+        for (card_id, ability_index) in activatable {
+            abilities.push(SpellAbility::ActivateAbility {
+                card_id,
+                ability_index,
+            });
+        }
 
         abilities
     }
