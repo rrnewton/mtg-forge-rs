@@ -103,7 +103,7 @@ impl GameState {
         // Get the mana cost (need to do this before mutable borrow)
         let mana_cost = {
             let card = self.cards.get(card_id)?;
-            card.mana_cost.clone()
+            card.mana_cost
         };
 
         // Pay the mana cost
@@ -384,7 +384,7 @@ impl GameState {
         // Step 5: Determine total cost
         let mana_cost = {
             let card = self.cards.get(card_id)?;
-            card.mana_cost.clone()
+            card.mana_cost
         };
 
         // Step 6: Activate mana abilities
@@ -540,7 +540,7 @@ impl GameState {
                 // Log the mana addition
                 self.undo_log.log(crate::undo::GameAction::AddMana {
                     player_id: *player,
-                    mana: mana.clone(),
+                    mana: *mana,
                 });
             }
         }

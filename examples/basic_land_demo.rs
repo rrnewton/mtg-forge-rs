@@ -119,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 mtg_forge_rs::core::Effect::AddMana { player, mana } if player.as_u32() == 0 => {
                     mtg_forge_rs::core::Effect::AddMana {
                         player: alice_id,
-                        mana: mana.clone(),
+                        mana: *mana,
                     }
                 }
                 _ => effect.clone(),

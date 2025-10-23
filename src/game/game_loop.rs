@@ -1344,7 +1344,7 @@ impl<'a> GameLoop<'a> {
                                             // Replace placeholder with current player
                                             crate::core::Effect::AddMana {
                                                 player: current_priority,
-                                                mana: mana.clone(),
+                                                mana: *mana,
                                             }
                                         }
                                         crate::core::Effect::GainLife { player, amount }

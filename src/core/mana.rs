@@ -28,7 +28,8 @@ impl fmt::Display for Color {
 }
 
 /// Represents a mana cost (e.g., "2RR" = 2 generic + 2 red)
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Copy-eligible since it's just 7 u8 fields (7 bytes)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManaCost {
     pub generic: u8,
     pub white: u8,
@@ -131,7 +132,8 @@ impl fmt::Display for ManaCost {
 }
 
 /// Mana pool for a player
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Copy-eligible since it's just 6 u8 fields (6 bytes)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManaPool {
     pub white: u8,
     pub blue: u8,

@@ -139,7 +139,7 @@ impl CardDefinition {
     /// Create a Card instance from this definition
     pub fn instantiate(&self, id: crate::core::CardId, owner: crate::core::PlayerId) -> Card {
         let mut card = Card::new(id, self.name.clone(), owner);
-        card.mana_cost = self.mana_cost.clone();
+        card.mana_cost = self.mana_cost;
         card.types = SmallVec::from_vec(self.types.clone());
         card.subtypes = SmallVec::from_vec(self.subtypes.clone());
         card.colors = SmallVec::from_vec(self.colors.clone());
@@ -196,7 +196,7 @@ impl CardDefinition {
                     Cost::Tap,
                     vec![Effect::AddMana {
                         player: PlayerId::new(0), // Placeholder - will be filled when activated
-                        mana: mana_to_produce.clone(),
+                        mana: mana_to_produce,
                     }],
                     format!("Add {}", mana_to_produce),
                     true, // This IS a mana ability
