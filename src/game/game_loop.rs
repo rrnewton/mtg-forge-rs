@@ -565,7 +565,8 @@ impl<'a> GameLoop<'a> {
         }
 
         // Empty mana pools at start of turn
-        let player_ids: Vec<_> = self.game.players.iter().map(|p| p.id).collect();
+        // Use fixed-size array instead of Vec allocation (MTG always has 2 players)
+        let player_ids: [PlayerId; 2] = [self.game.players[0].id, self.game.players[1].id];
         for player_id in player_ids {
             if let Ok(player) = self.game.get_player_mut(player_id) {
                 player.mana_pool.clear();
@@ -611,7 +612,8 @@ impl<'a> GameLoop<'a> {
         let active_player = self.game.turn.active_player;
 
         // Untap all permanents controlled by active player
-        let cards_to_untap: Vec<_> = self
+        // Use SmallVec to avoid heap allocation for typical small counts of tapped cards
+        let cards_to_untap: SmallVec<[CardId; 8]> = self
             .game
             .battlefield
             .cards
