@@ -712,6 +712,70 @@ impl CardDefinition {
                 }
             }
 
+            // AB$ Draw - Activated card draw ability
+            if ability.contains("AB$ Draw") {
+                if let Some(cards_str) = ability.split("NumCards$").nth(1) {
+                    if let Some(cards_part) = cards_str.trim().split(['|', ' ']).next() {
+                        if let Ok(count) = cards_part.trim().parse::<u8>() {
+                            effects.push(Effect::DrawCards {
+                                player: crate::core::EntityId::new(0), // Placeholder
+                                count,
+                            });
+                        }
+                    }
+                }
+            }
+
+            // AB$ Pump - Activated creature boost ability
+            if ability.contains("AB$ Pump") {
+                let mut power_bonus = 0;
+                let mut toughness_bonus = 0;
+
+                // Parse NumAtt$ (power bonus)
+                if let Some(att_str) = ability.split("NumAtt$").nth(1) {
+                    if let Some(att_part) = att_str.trim().split(['|', ' ']).next() {
+                        // Handle +X or -X format
+                        let att_clean = att_part.trim().trim_start_matches('+');
+                        if let Ok(bonus) = att_clean.parse::<i32>() {
+                            power_bonus = bonus;
+                        }
+                    }
+                }
+
+                // Parse NumDef$ (toughness bonus)
+                if let Some(def_str) = ability.split("NumDef$").nth(1) {
+                    if let Some(def_part) = def_str.trim().split(['|', ' ']).next() {
+                        // Handle +X or -X format
+                        let def_clean = def_part.trim().trim_start_matches('+');
+                        if let Ok(bonus) = def_clean.parse::<i32>() {
+                            toughness_bonus = bonus;
+                        }
+                    }
+                }
+
+                // TODO: Parse KW$ (keywords to add) when PumpCreature effect supports it
+
+                effects.push(Effect::PumpCreature {
+                    target: crate::core::EntityId::new(0), // Placeholder
+                    power_bonus,
+                    toughness_bonus,
+                });
+            }
+
+            // AB$ Tap - Activated tap ability
+            if ability.contains("AB$ Tap") {
+                effects.push(Effect::TapPermanent {
+                    target: crate::core::EntityId::new(0), // Placeholder
+                });
+            }
+
+            // AB$ Untap - Activated untap ability
+            if ability.contains("AB$ Untap") {
+                effects.push(Effect::UntapPermanent {
+                    target: crate::core::EntityId::new(0), // Placeholder
+                });
+            }
+
             // Extract description
             let description = if let Some(desc_str) = ability.split("SpellDescription$").nth(1) {
                 desc_str.trim().to_string()
