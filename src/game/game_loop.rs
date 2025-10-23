@@ -997,29 +997,35 @@ impl<'a> GameLoop<'a> {
 
                 // Move cards to graveyard
                 for card_id in cards_to_discard {
-                    if let Some(zones) = self.game.get_player_zones_mut(player_id) {
-                        if zones.hand.contains(card_id) {
-                            zones.hand.remove(card_id);
-                            zones.graveyard.add(card_id);
-
-                            let card_name = self
-                                .game
-                                .cards
-                                .get(card_id)
-                                .map(|c| c.name.as_str())
-                                .unwrap_or("Unknown");
-                            let player_name = self.get_player_name(player_id);
-                            self.log_normal(&format!(
-                                "{} discards {} ({})",
-                                player_name, card_name, card_id
-                            ));
-                        } else {
+                    // Verify card is in hand before moving
+                    if let Some(zones) = self.game.get_player_zones(player_id) {
+                        if !zones.hand.contains(card_id) {
                             return Err(crate::MtgError::InvalidAction(format!(
                                 "Card {:?} not in player's hand",
                                 card_id
                             )));
                         }
                     }
+
+                    // Use move_card to properly log the action for undo
+                    self.game.move_card(
+                        card_id,
+                        crate::zones::Zone::Hand,
+                        crate::zones::Zone::Graveyard,
+                        player_id,
+                    )?;
+
+                    let card_name = self
+                        .game
+                        .cards
+                        .get(card_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown");
+                    let player_name = self.get_player_name(player_id);
+                    self.log_normal(&format!(
+                        "{} discards {} ({})",
+                        player_name, card_name, card_id
+                    ));
                 }
             }
         }

@@ -370,7 +370,10 @@ impl GameState {
                                 if let Some(zone) = zones.get_zone_mut(to_zone) {
                                     zone.remove(card_id)
                                 } else {
-                                    eprintln!("UNDO BUG: Failed to get zone {:?} for undo", to_zone);
+                                    eprintln!(
+                                        "UNDO BUG: Failed to get zone {:?} for undo",
+                                        to_zone
+                                    );
                                     false
                                 }
                             } else {

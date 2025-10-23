@@ -67,12 +67,22 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let initial_p2_exile = initial_p2_zones.exile.cards.len();
 
     println!("Initial snapshot state:");
-    println!("  P1: {} library, {} hand, {} graveyard, {} exile (total: {})",
-             initial_p1_library, initial_p1_hand, initial_p1_graveyard, initial_p1_exile,
-             initial_p1_library + initial_p1_hand + initial_p1_graveyard + initial_p1_exile);
-    println!("  P2: {} library, {} hand, {} graveyard, {} exile (total: {})",
-             initial_p2_library, initial_p2_hand, initial_p2_graveyard, initial_p2_exile,
-             initial_p2_library + initial_p2_hand + initial_p2_graveyard + initial_p2_exile);
+    println!(
+        "  P1: {} library, {} hand, {} graveyard, {} exile (total: {})",
+        initial_p1_library,
+        initial_p1_hand,
+        initial_p1_graveyard,
+        initial_p1_exile,
+        initial_p1_library + initial_p1_hand + initial_p1_graveyard + initial_p1_exile
+    );
+    println!(
+        "  P2: {} library, {} hand, {} graveyard, {} exile (total: {})",
+        initial_p2_library,
+        initial_p2_hand,
+        initial_p2_graveyard,
+        initial_p2_exile,
+        initial_p2_library + initial_p2_hand + initial_p2_graveyard + initial_p2_exile
+    );
 
     // Use seeded random controllers for determinism
     let mut controller1 = RandomController::with_seed(p1_id, 42424);
@@ -173,7 +183,9 @@ async fn test_full_game_undo_replay() -> Result<()> {
         match action {
             mtg_forge_rs::undo::GameAction::ChangeTurn { .. } => change_turn_count += 1,
             mtg_forge_rs::undo::GameAction::AdvanceStep { .. } => advance_step_count += 1,
-            mtg_forge_rs::undo::GameAction::MoveCard { from_zone, to_zone, .. } => {
+            mtg_forge_rs::undo::GameAction::MoveCard {
+                from_zone, to_zone, ..
+            } => {
                 move_card_count += 1;
                 use mtg_forge_rs::zones::Zone;
                 match (from_zone, to_zone) {
@@ -204,7 +216,15 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
     // Before undoing, print last few actions in undo log for debugging
     println!("\nLast 5 actions in undo log (will be undone first):");
-    for (idx, action) in game_loop.game.undo_log.actions().iter().rev().take(5).enumerate() {
+    for (idx, action) in game_loop
+        .game
+        .undo_log
+        .actions()
+        .iter()
+        .rev()
+        .take(5)
+        .enumerate()
+    {
         println!("  -{}: {:?}", idx + 1, action);
     }
 
@@ -219,8 +239,16 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
         // Print turn number every 100 actions to debug
         if (i + 1) % 100 == 0 || i == remaining_actions - 1 || i < 5 {
-            let p1_lib = game_loop.game.get_player_zones(p1_id).map(|z| z.library.cards.len()).unwrap_or(0);
-            let p1_grave = game_loop.game.get_player_zones(p1_id).map(|z| z.graveyard.cards.len()).unwrap_or(0);
+            let p1_lib = game_loop
+                .game
+                .get_player_zones(p1_id)
+                .map(|z| z.library.cards.len())
+                .unwrap_or(0);
+            let p1_grave = game_loop
+                .game
+                .get_player_zones(p1_id)
+                .map(|z| z.graveyard.cards.len())
+                .unwrap_or(0);
             println!(
                 "  After undoing {} actions: Turn = {}, P1: {} lib / {} grave",
                 i + 1,
@@ -266,13 +294,26 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("  P1 life: {} (initial: 20)", p1_life_after_rewind);
     println!("  P2 life: {} (initial: 20)", p2_life_after_rewind);
     println!("  Turn number: {} (initial: 1)", turn_after_rewind);
-    println!("  P1 zones: {} library, {} hand, {} graveyard, {} exile",
-             p1_library_size, p1_hand_size, p1_graveyard_size, p1_exile_size);
-    println!("  P2 zones: {} library, {} hand, {} graveyard, {} exile",
-             p2_library_size, p2_hand_size, p2_graveyard_size, p2_exile_size);
-    println!("  Battlefield: {} cards, Stack: {} cards", battlefield_size, stack_size);
-    println!("  P1 total: {} cards", p1_library_size + p1_hand_size + p1_graveyard_size + p1_exile_size);
-    println!("  P2 total: {} cards", p2_library_size + p2_hand_size + p2_graveyard_size + p2_exile_size);
+    println!(
+        "  P1 zones: {} library, {} hand, {} graveyard, {} exile",
+        p1_library_size, p1_hand_size, p1_graveyard_size, p1_exile_size
+    );
+    println!(
+        "  P2 zones: {} library, {} hand, {} graveyard, {} exile",
+        p2_library_size, p2_hand_size, p2_graveyard_size, p2_exile_size
+    );
+    println!(
+        "  Battlefield: {} cards, Stack: {} cards",
+        battlefield_size, stack_size
+    );
+    println!(
+        "  P1 total: {} cards",
+        p1_library_size + p1_hand_size + p1_graveyard_size + p1_exile_size
+    );
+    println!(
+        "  P2 total: {} cards",
+        p2_library_size + p2_hand_size + p2_graveyard_size + p2_exile_size
+    );
 
     // Verify turn number was reset
     assert_eq!(
