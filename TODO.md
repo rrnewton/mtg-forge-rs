@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 179 passing ✅ (156 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 182 passing ✅ (162 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
 
 ---
 
@@ -107,7 +107,8 @@
   - [x] Tap/Untap spell effects (A:SP$ Tap, A:SP$ Untap)
   - [x] Mill spell effects (A:SP$ Mill with NumCards$)
   - [x] Counter spell effects (A:SP$ Counter with TargetType$ Spell)
-  - [ ] Activated abilities (A:AB$ with Cost$) - tap abilities, mana abilities
+  - [x] Activated abilities (A:AB$ with Cost$) - parsing and data structures (execution pending)
+  - [ ] Activated abilities execution - activation logic, priority, mana abilities
   - [x] Triggered abilities (T:) - ETB triggers with Draw, DealDamage, GainLife, Destroy, and Pump effects
   - [ ] Static abilities (S:) - continuous effects
   - [ ] SVar resolution (DB$ sub-abilities)

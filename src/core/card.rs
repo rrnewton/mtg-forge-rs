@@ -87,6 +87,10 @@ pub struct Card {
     /// Triggered abilities (ETB, phase triggers, etc.)
     /// These execute automatically when their trigger condition is met
     pub triggers: Vec<Trigger>,
+
+    /// Activated abilities (costs and effects)
+    /// These can be activated by paying their cost
+    pub activated_abilities: Vec<crate::core::ActivatedAbility>,
 }
 
 impl Card {
@@ -111,6 +115,7 @@ impl Card {
             keywords: Vec::new(),
             effects: Vec::new(),
             triggers: Vec::new(),
+            activated_abilities: Vec::new(),
         }
     }
 

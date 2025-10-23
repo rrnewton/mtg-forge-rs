@@ -156,6 +156,9 @@ impl CardDefinition {
         // Parse triggered abilities
         card.triggers = self.parse_triggers();
 
+        // Parse activated abilities
+        card.activated_abilities = self.parse_activated_abilities();
+
         card
     }
 
@@ -531,6 +534,90 @@ impl CardDefinition {
 
         triggers
     }
+
+    /// Parse activated abilities (A:AB$ lines)
+    fn parse_activated_abilities(&self) -> Vec<crate::core::ActivatedAbility> {
+        use crate::core::{ActivatedAbility, Cost, Effect};
+
+        let mut abilities = Vec::new();
+
+        for ability in &self.raw_abilities {
+            // Only process A:AB$ lines (activated abilities)
+            if !ability.starts_with("A:AB$") {
+                continue;
+            }
+
+            // Extract cost from Cost$ parameter
+            let cost = if let Some(cost_str) = ability.split("Cost$").nth(1) {
+                if let Some(cost_part) = cost_str.trim().split('|').next() {
+                    Cost::parse(cost_part.trim())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if cost.is_none() {
+                continue; // Skip abilities we can't parse the cost for
+            }
+            let cost = cost.unwrap();
+
+            // Parse effects from the ability
+            let mut effects = Vec::new();
+
+            // AB$ Mana - Mana ability
+            if ability.contains("AB$ Mana") {
+                // For now, we'll represent this as adding a specific color of mana
+                // Extract Produced$ parameter
+                if let Some(produced_str) = ability.split("Produced$").nth(1) {
+                    if let Some(produced_part) = produced_str.trim().split('|').next() {
+                        let _produced = produced_part.trim();
+                        // For simplicity, parse single color mana (W, U, B, R, G, C)
+                        // This is a simplified version - real cards can produce multiple colors
+                        // We'll handle this by creating a special ManaAbility effect later
+                        // For now, just mark it as a mana ability
+                    }
+                }
+                // Skip mana abilities for now - they need special handling
+                continue;
+            }
+
+            // AB$ DealDamage - Activated damage ability
+            if ability.contains("AB$ DealDamage") {
+                if let Some(dmg_str) = ability.split("NumDmg$").nth(1) {
+                    if let Some(dmg_part) = dmg_str.trim().split(['|', ' ']).next() {
+                        if let Ok(amount) = dmg_part.trim().parse::<i32>() {
+                            use crate::core::TargetRef;
+                            effects.push(Effect::DealDamage {
+                                target: TargetRef::None, // Placeholder
+                                amount,
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Extract description
+            let description = if let Some(desc_str) = ability.split("SpellDescription$").nth(1) {
+                desc_str.trim().to_string()
+            } else {
+                "Activated ability".to_string()
+            };
+
+            // Only add if we have effects
+            if !effects.is_empty() {
+                abilities.push(ActivatedAbility::new(
+                    cost,
+                    effects,
+                    description,
+                    false, // Not a mana ability
+                ));
+            }
+        }
+
+        abilities
+    }
 }
 
 #[cfg(test)]
@@ -715,6 +802,44 @@ Oracle:You gain 7 life.
                 assert_eq!(*amount, 7, "Should gain 7 life");
             }
             _ => panic!("Expected GainLife effect, got {:?}", effects[0]),
+        }
+    }
+
+    #[test]
+    fn test_parse_activated_ability() {
+        let content = r#"
+Name:Prodigal Sorcerer
+ManaCost:2 U
+Types:Creature Human Wizard
+PT:1/1
+A:AB$ DealDamage | Cost$ T | ValidTgts$ Any | NumDmg$ 1 | SpellDescription$ CARDNAME deals 1 damage to any target.
+Oracle:{T}: Prodigal Sorcerer deals 1 damage to any target.
+"#;
+
+        let def = CardLoader::parse(content).unwrap();
+        assert_eq!(def.name.as_str(), "Prodigal Sorcerer");
+        assert_eq!(def.mana_cost.generic, 2);
+        assert_eq!(def.mana_cost.blue, 1);
+        assert!(def.types.contains(&CardType::Creature));
+
+        // Check that the activated ability is parsed
+        let abilities = def.parse_activated_abilities();
+        assert_eq!(
+            abilities.len(),
+            1,
+            "Prodigal Sorcerer should have 1 activated ability"
+        );
+
+        let ability = &abilities[0];
+        assert!(ability.cost.includes_tap(), "Should have tap cost");
+        assert_eq!(ability.effects.len(), 1, "Should have 1 effect");
+
+        use crate::core::Effect;
+        match &ability.effects[0] {
+            Effect::DealDamage { target: _, amount } => {
+                assert_eq!(*amount, 1, "Should deal 1 damage");
+            }
+            _ => panic!("Expected DealDamage effect, got {:?}", ability.effects[0]),
         }
     }
 }

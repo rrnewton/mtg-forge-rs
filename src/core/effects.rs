@@ -161,6 +161,40 @@ impl Trigger {
     }
 }
 
+/// An activated ability that can be activated by paying a cost
+/// Example: "{T}: Deal 1 damage to any target" (Prodigal Sorcerer)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActivatedAbility {
+    /// The cost to activate this ability
+    pub cost: crate::core::Cost,
+
+    /// The effects that execute when this ability resolves
+    pub effects: Vec<Effect>,
+
+    /// Description of the ability (for logging and display)
+    pub description: String,
+
+    /// Whether this is a mana ability (doesn't use the stack)
+    pub is_mana_ability: bool,
+}
+
+impl ActivatedAbility {
+    /// Create a new activated ability
+    pub fn new(
+        cost: crate::core::Cost,
+        effects: Vec<Effect>,
+        description: String,
+        is_mana_ability: bool,
+    ) -> Self {
+        ActivatedAbility {
+            cost,
+            effects,
+            description,
+            is_mana_ability,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
