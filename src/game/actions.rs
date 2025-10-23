@@ -4563,8 +4563,15 @@ mod tests {
         let creature = card_def.instantiate(creature_id, p1_id);
 
         // Verify it has an ETB trigger
-        assert!(!creature.triggers.is_empty(), "Elvish Visionary should have triggers");
-        assert_eq!(creature.triggers.len(), 1, "Elvish Visionary should have 1 trigger");
+        assert!(
+            !creature.triggers.is_empty(),
+            "Elvish Visionary should have triggers"
+        );
+        assert_eq!(
+            creature.triggers.len(),
+            1,
+            "Elvish Visionary should have 1 trigger"
+        );
 
         game.cards.insert(creature_id, creature);
 
@@ -4579,7 +4586,11 @@ mod tests {
 
         // Verify the ETB trigger drew a card
         if let Some(zones) = game.get_player_zones(p1_id) {
-            assert_eq!(zones.hand.cards.len(), 1, "Should have drawn 1 card from ETB trigger");
+            assert_eq!(
+                zones.hand.cards.len(),
+                1,
+                "Should have drawn 1 card from ETB trigger"
+            );
             assert_eq!(
                 zones.library.cards.len(),
                 4,
