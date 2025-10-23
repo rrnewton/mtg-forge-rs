@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Tests:** 173 passing ✅ (150 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
+**Tests:** 174 passing ✅ (151 lib + 10 card_loading + 4 determinism + 7 tui + 2 undo) | **Validation:** `make validate` passes all checks ✅
 
 ---
 

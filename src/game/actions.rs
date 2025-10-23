@@ -4527,4 +4527,64 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_elvish_visionary_from_cardsfolder() {
+        // Test loading Elvish Visionary from the actual cardsfolder and verifying
+        // its ETB trigger works correctly
+        use crate::loader::CardDatabase;
+        use std::path::PathBuf;
+
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players.first().unwrap().id;
+
+        // Add cards to P1's library for drawing
+        for i in 0..5 {
+            let card_id = game.next_card_id();
+            let card = Card::new(card_id, format!("Card {i}"), p1_id);
+            game.cards.insert(card_id, card);
+            if let Some(zones) = game.get_player_zones_mut(p1_id) {
+                zones.library.add(card_id);
+            }
+        }
+
+        // Load Elvish Visionary from cardsfolder
+        let cardsfolder = PathBuf::from("./cardsfolder");
+        let db = CardDatabase::new(cardsfolder);
+
+        let card_def = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { db.get_card("Elvish Visionary").await })
+            .expect("Failed to get card")
+            .expect("Elvish Visionary not found");
+
+        // Create card instance
+        let creature_id = game.next_entity_id();
+        let creature = card_def.instantiate(creature_id, p1_id);
+
+        // Verify it has an ETB trigger
+        assert!(!creature.triggers.is_empty(), "Elvish Visionary should have triggers");
+        assert_eq!(creature.triggers.len(), 1, "Elvish Visionary should have 1 trigger");
+
+        game.cards.insert(creature_id, creature);
+
+        // Put the creature on the stack (as if it was cast)
+        game.stack.add(creature_id);
+
+        // Resolve the creature spell (moves it to battlefield and triggers ETB)
+        assert!(game.resolve_spell(creature_id).is_ok());
+
+        // Verify the creature is on the battlefield
+        assert!(game.battlefield.contains(creature_id));
+
+        // Verify the ETB trigger drew a card
+        if let Some(zones) = game.get_player_zones(p1_id) {
+            assert_eq!(zones.hand.cards.len(), 1, "Should have drawn 1 card from ETB trigger");
+            assert_eq!(
+                zones.library.cards.len(),
+                4,
+                "Should have 4 cards left in library"
+            );
+        }
+    }
 }
