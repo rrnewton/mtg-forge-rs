@@ -7,13 +7,6 @@
 \#*\#
 .unison.*
 
-# Issue tracking
-.beads/*.db
-.beads/*.db-*
-.beads/daemon.*
-.beads/*.sock
-.beads/inbox/*
-
 # Added by cargo
 /target
 # Cargo.lock # We would like to track the Cargo.lock for now.

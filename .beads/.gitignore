@@ -1,2 +1,5 @@
 *.db
 *.db-*
+daemon.*
+*.sock
+
