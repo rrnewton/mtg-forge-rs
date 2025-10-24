@@ -70,7 +70,7 @@ cat claude_workstream02.jsonl | jq  -r 'select (.type == "assistant" or .type ==
 Trying the github MCP tool
 ----------------------------------------
 
-claude mcp add --transport http github https://api.githubcopilot.com/mcp -H "Authorization: Bearer 
+claude mcp add --transport http github https://api.githubcopilot.com/mcp -H "Authorization: Bearer
 YOUR_GITHUB_PAT"
 
 My first 4 attempts at making a token DID NOTHING.  Reducing the time from 90 days to 30 seems to have helped.
@@ -121,7 +121,7 @@ And here's my rough glance at plaintext messages:
 
 It looks like we have lots of methods that take a player ID as an EntityID: `get_player_zones`, `Card::new`, etc. This is rather weakly typed. EntityID is used for many different kinds of entities---cards, players etc.
 
-Before we go further let's refactor this so that we use distinct types for these different uses of `EntityID` and get a type error otherwise. They can all share the same 
+Before we go further let's refactor this so that we use distinct types for these different uses of `EntityID` and get a type error otherwise. They can all share the same
 physical representation of an unboxed integer.
 
 We can accomplish this by making EntitID take a "phantom type parameter", e.g. `EntityID<Player>`. That indicates which kind of entity it as an ID for, using the actual type (`Player`) of the entity that will be looked up. This makes entity lookup strongly typed, because an `EntityID<T>` will resolve to a `T`.
@@ -137,7 +137,7 @@ CardID = EntityID<Card>
 Note I have also updated Claude.md to reflect the emphasis on strong typing and include some extra requirements on validation and commit messages.
 
 
--------------------------------- 
+--------------------------------
 
 I also noticed weakly typed indices into maps:
 
@@ -306,7 +306,7 @@ Run ALL examples and add one for combat
 
 Both `make examples` and the Github CI script are running ONLY one
 lightning bolt example. As mentioned in Claude.md, we need to keep
-our examples all running as part of testing. 
+our examples all running as part of testing.
 
 To this end, rather than try to keep our Makefile and our github CI
 always up-to-date let's dynamically run ALL examples. It's possible to
@@ -381,7 +381,7 @@ yes 0 | ./headless.sh sim -d $decks/monored.dck $decks/monored.dck
 And we can optionally use the `headless.sh` script to invoke the TUI.
 
 ```
-root@c8d7e426b2af:/workspace/forge-java# 
+root@c8d7e426b2af:/workspace/forge-java#
 ./headless.sh tui `pwd`/forge-headless/test_decks/monored.dck `pwd`/forge-headless/test_decks/monored.dck
 ```
 
@@ -520,9 +520,9 @@ gamestate.
 
 We will need more instrumentation to count the metrics we want. Return
 
-- average cycles/turn, 
-- actions/sec, 
-- turns/sec. 
+- average cycles/turn,
+- actions/sec,
+- turns/sec.
 - allocation bytes/turn
 - allocation bytes/sec
 
@@ -651,13 +651,13 @@ Update the profile.rs example to use this prefetching method and NOT load the en
 ------------------------------------------------
 
 The repository and folder are named `mtg-forge-rs`.
-But I would like the binary to be simply `target/release/mtg` 
+But I would like the binary to be simply `target/release/mtg`
 instead of `target/release/mtg-forge-rs`.
 
 Is this possible?
 
 
-Use streaming for card file discovery 
+Use streaming for card file discovery
 --------------------------------------------
 
 The following code waits until we walk the directory (probably about 10ms)
@@ -925,7 +925,7 @@ do not fix in your first commit.
 Many of these accesses to `game.players.iter()` actually don't make
 sense. We should not assume a stable ordering for hashmap iteration.
 There will never be very many players, so Vec seems like a far more
-logical data structure for storing the GameState::players. 
+logical data structure for storing the GameState::players.
 
 Let's change that type and refactor references. But let's go one step
 further.  We can abstract some of these searches for the "next player"
@@ -934,11 +934,11 @@ turn number and active player (ID) but also the active players index
 in the Vec of players.. well, then a `next_player()` method could be
 as simple as incrementing the counter (mod vector length).
 
---- 
+---
 
 Continue on your backlog of eliminating extra copies (collect and
 clone).  If you check the `make bench` output we are still allocating
-over 4000 bytes/turn on average. 
+over 4000 bytes/turn on average.
 
 
 ---- FORK JOIN IN CLAUDE ----
@@ -1098,7 +1098,7 @@ on the stack but costs are not paid.)
 
 In order to move in this direction let's add a function for computing
 whether, given the current board state, the active player is ABLE to
-produce a given ManaCost. 
+produce a given ManaCost.
 
 We cannot simply compute the max mana we can produce of each
 color. Because some lands produce, e.g. {R} or {G}, so therefore we
@@ -1159,7 +1159,7 @@ after the name "Mountain (1)" vs "Mountain (2)". This matches the Java TUI.
 Determinism failure.
 ----------------------------------------
 
-We are having a determinism test failure. 
+We are having a determinism test failure.
 
 Before fixing it, please improve the output on a test failure. Use an
 existing library for pretty colorful diffs, and show a bounded amount
@@ -1235,7 +1235,7 @@ Update gogo_claude.sh script to take an extra prompt
 ----------------------------------------
 
 If we call `./scripts/gogo_claude.sh ITERS prompt.txt`, then the extra prompt is
-one we handle in the first iteration.  After that first iteration, the remaining 
+one we handle in the first iteration.  After that first iteration, the remaining
 iterations can go back to using the generic prompt.
 
 ---
@@ -1247,7 +1247,7 @@ EACH iteration, rather than globally at the start of the script.
 Write an optimization guide/backlog and improve profiling
 ----------------------------------------
 
-Our key performance metrics for this project are: 
+Our key performance metrics for this project are:
 
 - turns/sec and games/sec: though these will change over time as we add more game features
 - actions/sec: should be fairly stable
@@ -1393,7 +1393,7 @@ should be calling the `.clear()` methods on these collections to zero
 them out NOT dropping them and reallocating.
 
 It is sufficient to just print out snippets like the above with the
-top few lines of context, without additional post-processing. 
+top few lines of context, without additional post-processing.
 
 ---
 
@@ -1407,14 +1407,14 @@ on `fmt-check clippy test examples` targets, it wraps a little more
 setup around a recursive call to make.
 
 - first it checks if the current working copy is clean, with no modified tracked files
-- select an output log: `experiment_results/validate_<COMMITHASH>.log` if 
+- select an output log: `experiment_results/validate_<COMMITHASH>.log` if
   the working copy is clean and `experiment_results/validate_<COMMITHASH>_DIRTY.log`
   if it is not.
 
 - if we are clean, then before we run the recursive make (to do the
   work of fmt-check clippy test examples), first we check if the file
   in question exists already, in which case we return immediately.
-  
+
 - if the file does not exist, we do the work of validating and `tee` the output to the log.
 
 - we can make the commit of the log atomic by FIRST writing to a `.log.wip` file and then atomically renaming it to `.log` only once validation completes.
@@ -1493,7 +1493,7 @@ Fix issues with undo e2e test
 ----------------------------------------
 
 Setting verbosity to normal and running this undo_e2e test shows that
-significant problems remain that need to be fixed.  
+significant problems remain that need to be fixed.
 
 ```
 cargo test -- undo --nocapture
@@ -1545,7 +1545,7 @@ comparison of the rewound gamestate to the snapshot of the original.
 This represents progress, but it is still NOT playing the game FORWARD after rewinding in phase 2 and phase 3.
 That is a critical part of what we want working here. It's not just that we can rewind but that we can play forward after rewinding, and then repeat that process as much as we want.
 
--- 
+--
 
 Ok, that's again progress. But this final result makes no sense, where playing forward in phase 4 takes ZERO turns:
 
@@ -1565,7 +1565,7 @@ And that the game ended from decking seems to indicate that rewinding is NOT rev
  Wait a second, explain to me why this is a problem. Undo SHOULD be permanent. The goal of the test is to play forward 100%, rewind 50%, then play forward till the end of the game in a
   NEW SECOND HALF -- a brand new evaluation which adds new actions to the undo log. When we are back up to 100% execution at the end of phase2, the first ~half of the undolog should be old
   (from phase1) and the second half should be brand new. That's still a fine starting state for phase3 which will unroll the entire undo log back to the starting point.
-  
+
 
 moved: Elide random choices with one option only
 ----------------------------------------
@@ -1584,7 +1584,7 @@ be more careful with it.
 - The validate logs files will move to `./validate_logs/` which will be added to .gitignore.
 - The files will be called `validate_HASH[_dirty].log[.wip]`
 - We failed to implement the ATOMIC nature of adding validation log and will do that now.
-  - During validation runs, log to `.log.wip` and then atomically move it to `.log` 
+  - During validation runs, log to `.log.wip` and then atomically move it to `.log`
     ONLY once validation succeeds.
 - The last successful run will also by symlinked to `validate_latest.log`.
 
@@ -1620,7 +1620,7 @@ I've run `bd init -p mtg` to initialize the database.
 
 - create issue mtg-1 should be the OVERALL tracking issue, which primarily will reference other tracking issues
   and document some of these conventions. It will be priority 0. We want to keep it pretty short.
-    
+
 - other tracking issues will have priority 1, and we will move away from "phases" as the main organization
   and instead use a few major topics:
   - Optimization tracking: migrate and remove from the relevant section in OPTIMIZATION.md
@@ -1654,14 +1654,14 @@ Start adopting the convention of referencing issues from todo comments:
 make bench showing RANDOM choices it should not
 ----------------------------------------
 
-These messages should go through the normal logging interface and be at verbosity=2 
+These messages should go through the normal logging interface and be at verbosity=2
 
     >>> RANDOM chose creature 0 to attack (50% probability) out of 3 available creatures
 
 An invariant we want is that make bench should produce O(1) logging output and not spend much time in printing os we can benchmark the real game logic.
 
 
--- 
+--
 
 Let's try out another approach for that. We should have a centralized
 object for logging during the game, which INTERNALLY remembers the
@@ -1673,7 +1673,7 @@ that same pattern.  Maybe the gamestate reference could even provide access to t
 : random choices of 1 option still present.
 ----------------------------------------
 
-Look at an e2e game: 
+Look at an e2e game:
 
 ```
 $ cargo run --release --bin mtg -- tui test_decks/simple_bolt.dck test_decks/grizzly_bears.dck --p1=random --p2=random --seed=41 -v2
@@ -1700,7 +1700,7 @@ I still see all these choices where the ONLY option is pass
 priority. These should NOT be logged as a choice, but should be
 suppressed (the player should not be asked the choice).
 
-Our guiding principle here is to only invoke the PlayerController 
+Our guiding principle here is to only invoke the PlayerController
  - when a choice is needed
  - presenting VALID options only
 
@@ -1738,11 +1738,9 @@ tasks which are both duplicate AND polluting priority 0.
 
 Review CLAUDE.md and the conventions for beads issues. Merge the
 duplicate issues into one and put it at the appropriate priority.
- 
 
 
-
-TODO: aggressive random undo testing
+: aggressive random undo testing
 ----------------------------------------
 
 
@@ -1760,7 +1758,7 @@ TODO: Abstract the logging framework to redirect logs
 ----------------------------------------
 
 Sometimes it may help us to capture the logs in memory, for exmaple
-during testing. 
+during testing.
 
 
 
@@ -1888,7 +1886,7 @@ TODO: Performance Anti-patterns to find and fix
 TODO: use a popular and appropriate parser library
 ----------------------------------------
 
-The 
+The
 
 
 TODO: get rid of any silent failure / ignoring in parser
@@ -1931,7 +1929,7 @@ Comparison to transcript of Java forge-headless games
 --------------------------------------------------------------------------------
 
 ```
-sudo dnf install 
+sudo dnf install
 ```
 
 

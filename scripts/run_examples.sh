@@ -62,23 +62,31 @@ if [ "$FORCE_SEQUENTIAL" = true ] || ! command -v parallel &> /dev/null; then
     FAILED_EXAMPLES=""
 
     while IFS= read -r example; do
-        echo "----------------------------------------"
-        echo "Running example: $example"
-        echo "----------------------------------------"
+        OUTPUT_FILE="$RESULTS_DIR/$example.log"
 
-        if cargo run --example "$example" 2>&1; then
-            echo ""
-            echo "✅ $example: PASSED"
+        echo "----------------------------------------" > "$OUTPUT_FILE"
+        echo "Running example: $example" >> "$OUTPUT_FILE"
+        echo "----------------------------------------" >> "$OUTPUT_FILE"
+
+        if cargo run --example "$example" >> "$OUTPUT_FILE" 2>&1; then
+            echo "" >> "$OUTPUT_FILE"
+            echo "✅ $example: PASSED" >> "$OUTPUT_FILE"
             PASSED=$((PASSED + 1))
+            echo -n "."
         else
-            echo ""
-            echo "❌ $example: FAILED"
+            echo "" >> "$OUTPUT_FILE"
+            echo "❌ $example: FAILED" >> "$OUTPUT_FILE"
             FAILED=$((FAILED + 1))
             FAILED_EXAMPLES="$FAILED_EXAMPLES\n  - $example"
+            echo ""
+            echo "❌ FAILED: $example"
+            cat "$OUTPUT_FILE"
+            echo ""
         fi
-        echo ""
     done <<< "$EXAMPLES"
 
+    echo ""
+    echo ""
     echo "========================================"
     echo "Summary: $PASSED/$TOTAL examples passed"
     echo "========================================"
@@ -103,6 +111,7 @@ fi
 
 # Create temp directory for results
 RESULTS_DIR=$(mktemp -d)
+echo "Redirecting output to temporary results directory: $RESULTS_DIR"
 trap "rm -rf $RESULTS_DIR" EXIT
 
 # Run function for each example
@@ -129,9 +138,11 @@ export -f run_example
 
 # Run examples in parallel with output buffering
 # Use --jobs 4 for moderate parallelism (adjust based on testing)
-if echo "$EXAMPLES" | parallel --jobs 4 --halt soon,fail=1 --line-buffer \
-    'run_example {} '"$RESULTS_DIR"'/{}.log && cat '"$RESULTS_DIR"'/{}.log || (cat '"$RESULTS_DIR"'/{}.log; exit 1)'; then
+# Only print output for failed tests; on success just show a dot
+if echo "$EXAMPLES" | parallel --jobs 4 --halt soon,fail=1 \
+    'run_example {} '"$RESULTS_DIR"'/{}.log && echo -n "." || (echo ""; echo "❌ FAILED: {}"; cat '"$RESULTS_DIR"'/{}.log; exit 1)'; then
 
+    echo ""
     echo ""
     echo "========================================"
     echo "Summary: $TOTAL/$TOTAL examples passed"
