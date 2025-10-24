@@ -71,9 +71,10 @@ examples:
 # Comprehensive pre-commit validation with caching
 # Runs all tests, examples, and checks
 # Caches results based on commit hash to avoid redundant validation
+# Use: make validate ARGS=--force to skip cache
 # See scripts/validate.sh for implementation details
 validate:
-	@./scripts/validate.sh
+	@./scripts/validate.sh $(ARGS)
 
 # Internal target that actually runs validation
 # This is called by scripts/validate.sh

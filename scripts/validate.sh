@@ -10,9 +10,31 @@
 #
 # Results are cached based on commit hash to avoid redundant validation.
 # Smart caching: treats documentation-only changes (*.md) as cache hits.
+#
+# Usage:
+#   ./validate.sh [--force]
+#
+# Options:
+#   --force    Skip cache checks and always run validation
 
 set -e  # Exit on error
 set -o pipefail  # Propagate pipeline errors
+
+# Parse command line arguments
+FORCE_VALIDATION=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force)
+            FORCE_VALIDATION=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--force]"
+            exit 1
+            ;;
+    esac
+done
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -62,30 +84,49 @@ COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 
 # Determine log file name
 if [ "$CREATED_WIP_COMMIT" = true ]; then
-    LOG_FILE="$LOG_DIR/validate_${COMMIT_HASH}_dirty.log"
+    BASE_LOG_FILE="$LOG_DIR/validate_${COMMIT_HASH}_dirty.log"
     STATUS_LABEL="dirty"
 else
-    LOG_FILE="$LOG_DIR/validate_${COMMIT_HASH}.log"
+    BASE_LOG_FILE="$LOG_DIR/validate_${COMMIT_HASH}.log"
     STATUS_LABEL="clean"
+fi
+
+# If --force is set and the log file already exists, find a unique name with counter suffix
+LOG_FILE="$BASE_LOG_FILE"
+if [ "$FORCE_VALIDATION" = true ] && [ -f "$LOG_FILE" ]; then
+    COUNTER=2
+    BASE_NAME="${BASE_LOG_FILE%.log}"
+    while [ -f "${BASE_NAME}_${COUNTER}.log" ]; do
+        COUNTER=$((COUNTER + 1))
+    done
+    LOG_FILE="${BASE_NAME}_${COUNTER}.log"
+    echo ""
+    echo -e "${YELLOW}--force specified: bypassing cache${NC}"
+    echo -e "${YELLOW}Log file collision detected, using: $(basename "$LOG_FILE")${NC}"
+    echo ""
 fi
 
 WIP_FILE="${LOG_FILE}.wip"
 
-# Simple cache hit: exact match for this commit
-if [ -f "$LOG_FILE" ]; then
-    echo ""
-    echo "==================================="
-    echo -e "${GREEN}✓ Validation cache hit for commit ${COMMIT_HASH}${NC}"
-    echo -e "${GREEN}✓ Validation already passed!${NC}"
-    echo "==================================="
-    echo ""
-    echo "Log file: $LOG_FILE"
-    echo ""
-    exit 0
+# Skip cache checks if --force is specified
+if [ "$FORCE_VALIDATION" = false ]; then
+    # Simple cache hit: exact match for this commit
+    if [ -f "$LOG_FILE" ]; then
+        echo ""
+        echo "==================================="
+        echo -e "${GREEN}✓ Validation cache hit for commit ${COMMIT_HASH}${NC}"
+        echo -e "${GREEN}✓ Validation already passed!${NC}"
+        echo "==================================="
+        echo ""
+        echo "Log file: $LOG_FILE"
+        echo ""
+        exit 0
+    fi
 fi
 
 # Smart cache hit: check if only *.md files changed compared to latest validation
-if [ -L "$LATEST_SYMLINK" ]; then
+# (also skipped if --force is specified)
+if [ "$FORCE_VALIDATION" = false ] && [ -L "$LATEST_SYMLINK" ]; then
     # Extract the hash from the latest symlink target
     LATEST_LOG=$(readlink "$LATEST_SYMLINK")
     # Extract hash from filename: validate_HASH[_dirty].log
