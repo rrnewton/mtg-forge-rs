@@ -35,7 +35,7 @@ build-release:
 # Run unit tests
 test:
 	@echo "=== Running unit tests ==="
-	cargo test
+	cargo nextest run
 
 # Fast compilation check (no codegen)
 check:

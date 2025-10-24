@@ -114,7 +114,7 @@ ENV RUSTUP_HOME=/opt/multirust
 RUN mkdir -p "$CARGO_HOME" && rustup toolchain install stable
 
 RUN apt-get install -y heaptrack
-RUN cargo install cargo-heaptrack
+RUN cargo install cargo-heaptrack cargo-nextest
 
 RUN apt-get install -y golang
 RUN mkdir -p /opt/local/bin && \
