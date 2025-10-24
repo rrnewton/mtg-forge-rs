@@ -19,13 +19,13 @@ use std::path::PathBuf;
 /// 5. Replay entire game (should get same result)
 #[tokio::test]
 async fn test_full_game_undo_replay() -> Result<()> {
-    // Load card database
+    // Load card database (lazy loading - only loads cards from deck)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -483,7 +483,7 @@ async fn test_action_undo() -> Result<()> {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/grizzly_bears.dck");
@@ -588,7 +588,7 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");

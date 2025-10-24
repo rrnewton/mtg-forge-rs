@@ -13,20 +13,20 @@ use std::path::PathBuf;
 /// Test that two zero controllers can complete a game with simple decks
 #[tokio::test]
 async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
-    // Load card database
+    // Load card database (lazy loading - only loads cards from deck)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         // Skip test if cardsfolder doesn't exist
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only cards from the deck
 
     // Load test decks
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
-    // Initialize game
+    // Initialize game (this will lazily load Mountain and Lightning Bolt from cardsfolder)
     let game_init = GameInitializer::new(&card_db);
     let mut game = game_init
         .init_game(
@@ -94,13 +94,13 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
 /// Test that the game respects the deterministic seed
 #[tokio::test]
 async fn test_tui_deterministic_with_seed() -> Result<()> {
-    // Load card database
+    // Load card database (lazy loading)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -146,13 +146,13 @@ async fn test_tui_deterministic_with_seed() -> Result<()> {
 /// Test that the game runs to completion without errors (sanity check)
 #[tokio::test]
 async fn test_tui_runs_to_completion() -> Result<()> {
-    // Load card database
+    // Load card database (lazy loading)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -199,13 +199,13 @@ async fn test_tui_runs_to_completion() -> Result<()> {
 /// Test that random controllers successfully play lands and cast spells
 #[tokio::test]
 async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
-    // Load card database
+    // Load card database (lazy loading)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck with Mountains and Lightning Bolts
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -278,13 +278,13 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
 async fn test_discard_to_hand_size() -> Result<()> {
     use mtg_forge_rs::core::{Card, CardType, EntityId};
 
-    // Load card database
+    // Load card database (lazy loading)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
     let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
@@ -371,13 +371,13 @@ async fn test_discard_to_hand_size() -> Result<()> {
 /// This tests vigilance, combat, and creature interactions in a full game
 #[tokio::test]
 async fn test_creature_combat_game() -> Result<()> {
-    // Load card database
+    // Load card database (lazy loading)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load creature decks
     let vigilance_deck_path = PathBuf::from("test_decks/vigilance_deck.dck");
@@ -482,13 +482,13 @@ async fn test_creature_combat_game() -> Result<()> {
 async fn test_different_deck_matchup() -> Result<()> {
     use mtg_forge_rs::core::CardType;
 
-    // Load card database
+    // Load card database (lazy loading)
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         return Ok(());
     }
     let card_db = CardDatabase::new(cardsfolder);
-    card_db.eager_load().await?;
+    // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load two different decks
     let bolt_deck_path = PathBuf::from("test_decks/simple_bolt.dck");
