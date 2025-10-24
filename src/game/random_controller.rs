@@ -6,7 +6,6 @@
 use crate::core::{CardId, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
-use crate::game::VerbosityLevel;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use smallvec::SmallVec;
@@ -15,7 +14,6 @@ use smallvec::SmallVec;
 pub struct RandomController {
     player_id: PlayerId,
     rng: Box<dyn rand::RngCore>,
-    verbosity: VerbosityLevel,
 }
 
 impl RandomController {
@@ -24,7 +22,6 @@ impl RandomController {
         RandomController {
             player_id,
             rng: Box::new(rand::thread_rng()),
-            verbosity: VerbosityLevel::default(),
         }
     }
 
@@ -34,20 +31,6 @@ impl RandomController {
         RandomController {
             player_id,
             rng: Box::new(rand::rngs::StdRng::seed_from_u64(seed)),
-            verbosity: VerbosityLevel::default(),
-        }
-    }
-
-    /// Set the verbosity level for random choice logging
-    pub fn with_verbosity(mut self, verbosity: VerbosityLevel) -> Self {
-        self.verbosity = verbosity;
-        self
-    }
-
-    /// Helper to log a RANDOM choice message at Normal verbosity level
-    fn log_choice(&self, message: &str) {
-        if self.verbosity >= VerbosityLevel::Normal {
-            println!("  >>> RANDOM: {message}");
         }
     }
 }
@@ -59,38 +42,45 @@ impl PlayerController for RandomController {
 
     fn choose_spell_ability_to_play(
         &mut self,
-        _view: &GameStateView,
+        view: &GameStateView,
         available: &[SpellAbility],
     ) -> Option<SpellAbility> {
         if available.is_empty() {
             // No available actions - pass priority
-            self.log_choice("chose to pass priority (no available actions)");
+            view.logger()
+                .controller_choice("RANDOM", "chose to pass priority (no available actions)");
             None
         } else {
             // Random controller passes priority with 30% probability
             // This allows actions to be taken most of the time while still preventing infinite loops
             if self.rng.gen_bool(0.3) {
-                self.log_choice(&format!(
-                    "chose to pass priority (30% probability triggered) out of {} available actions",
-                    available.len()
-                ));
+                view.logger().controller_choice(
+                    "RANDOM",
+                    &format!(
+                        "chose to pass priority (30% probability triggered) out of {} available actions",
+                        available.len()
+                    ),
+                );
                 return None;
             }
 
             // Randomly choose one of the available spell abilities
             let index = self.rng.gen_range(0..available.len());
-            self.log_choice(&format!(
-                "chose spell/ability {} out of choices 0-{}",
-                index,
-                available.len() - 1
-            ));
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!(
+                    "chose spell/ability {} out of choices 0-{}",
+                    index,
+                    available.len() - 1
+                ),
+            );
             Some(available[index].clone())
         }
     }
 
     fn choose_targets(
         &mut self,
-        _view: &GameStateView,
+        view: &GameStateView,
         _spell: CardId,
         valid_targets: &[CardId],
     ) -> SmallVec<[CardId; 4]> {
@@ -98,7 +88,8 @@ impl PlayerController for RandomController {
         // TODO: Improve targeting logic based on spell requirements
         if valid_targets.is_empty() {
             // Only log when there are no targets (could be meaningful)
-            self.log_choice("chose no targets (none available)");
+            view.logger()
+                .controller_choice("RANDOM", "chose no targets (none available)");
             SmallVec::new()
         } else if valid_targets.len() == 1 {
             // Only one target available - no choice to make, don't log
@@ -108,11 +99,14 @@ impl PlayerController for RandomController {
         } else {
             // Multiple targets - this is a real choice
             let index = self.rng.gen_range(0..valid_targets.len());
-            self.log_choice(&format!(
-                "chose target {} out of choices 0-{}",
-                index,
-                valid_targets.len() - 1
-            ));
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!(
+                    "chose target {} out of choices 0-{}",
+                    index,
+                    valid_targets.len() - 1
+                ),
+            );
             let mut targets = SmallVec::new();
             targets.push(valid_targets[index]);
             targets
@@ -121,7 +115,7 @@ impl PlayerController for RandomController {
 
     fn choose_mana_sources_to_pay(
         &mut self,
-        _view: &GameStateView,
+        view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
     ) -> SmallVec<[CardId; 8]> {
@@ -136,11 +130,14 @@ impl PlayerController for RandomController {
 
         // Only log if there's a real choice (more sources than needed)
         if available_sources.len() > needed {
-            self.log_choice(&format!(
-                "chose {} mana sources (shuffled from {} available sources)",
-                needed.min(available_sources.len()),
-                available_sources.len()
-            ));
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!(
+                    "chose {} mana sources (shuffled from {} available sources)",
+                    needed.min(available_sources.len()),
+                    available_sources.len()
+                ),
+            );
         }
 
         for &source_id in shuffled.iter().take(needed) {
@@ -152,7 +149,7 @@ impl PlayerController for RandomController {
 
     fn choose_attackers(
         &mut self,
-        _view: &GameStateView,
+        view: &GameStateView,
         available_creatures: &[CardId],
     ) -> SmallVec<[CardId; 8]> {
         // Randomly decide whether each creature attacks
@@ -161,20 +158,26 @@ impl PlayerController for RandomController {
         for (idx, &creature_id) in available_creatures.iter().enumerate() {
             // 50% chance each creature attacks
             if self.rng.gen_bool(0.5) {
-                self.log_choice(&format!(
-                    "chose creature {} to attack (50% probability) out of {} available creatures",
-                    idx,
-                    available_creatures.len()
-                ));
+                view.logger().controller_choice(
+                    "RANDOM",
+                    &format!(
+                        "chose creature {} to attack (50% probability) out of {} available creatures",
+                        idx,
+                        available_creatures.len()
+                    ),
+                );
                 attackers.push(creature_id);
             }
         }
 
         if attackers.is_empty() && !available_creatures.is_empty() {
-            self.log_choice(&format!(
-                "chose no attackers from {} available creatures",
-                available_creatures.len()
-            ));
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!(
+                    "chose no attackers from {} available creatures",
+                    available_creatures.len()
+                ),
+            );
         }
 
         attackers
@@ -182,7 +185,7 @@ impl PlayerController for RandomController {
 
     fn choose_blockers(
         &mut self,
-        _view: &GameStateView,
+        view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
     ) -> SmallVec<[(CardId, CardId); 8]> {
@@ -190,7 +193,8 @@ impl PlayerController for RandomController {
         let mut blocks = SmallVec::new();
 
         if attackers.is_empty() {
-            self.log_choice("chose no blockers (no attackers to block)");
+            view.logger()
+                .controller_choice("RANDOM", "chose no blockers (no attackers to block)");
             return blocks;
         }
 
@@ -199,21 +203,27 @@ impl PlayerController for RandomController {
             if self.rng.gen_bool(0.5) {
                 // Pick a random attacker to block
                 let attacker_idx = self.rng.gen_range(0..attackers.len());
-                self.log_choice(&format!(
-                    "chose blocker {} (50% probability) to block attacker {} out of {} attackers",
-                    blocker_idx,
-                    attacker_idx,
-                    attackers.len()
-                ));
+                view.logger().controller_choice(
+                    "RANDOM",
+                    &format!(
+                        "chose blocker {} (50% probability) to block attacker {} out of {} attackers",
+                        blocker_idx,
+                        attacker_idx,
+                        attackers.len()
+                    ),
+                );
                 blocks.push((blocker_id, attackers[attacker_idx]));
             }
         }
 
         if blocks.is_empty() && !available_blockers.is_empty() {
-            self.log_choice(&format!(
-                "chose no blockers from {} available blockers",
-                available_blockers.len()
-            ));
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!(
+                    "chose no blockers from {} available blockers",
+                    available_blockers.len()
+                ),
+            );
         }
 
         blocks
@@ -221,7 +231,7 @@ impl PlayerController for RandomController {
 
     fn choose_damage_assignment_order(
         &mut self,
-        _view: &GameStateView,
+        view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
     ) -> SmallVec<[CardId; 4]> {
@@ -231,10 +241,13 @@ impl PlayerController for RandomController {
 
         // Only log if there's a real choice (2+ blockers to order)
         if blockers.len() >= 2 {
-            self.log_choice(&format!(
-                "chose damage assignment order (shuffled {} blockers)",
-                blockers.len()
-            ));
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!(
+                    "chose damage assignment order (shuffled {} blockers)",
+                    blockers.len()
+                ),
+            );
         }
 
         ordered_blockers.into_iter().collect()
@@ -242,7 +255,7 @@ impl PlayerController for RandomController {
 
     fn choose_cards_to_discard(
         &mut self,
-        _view: &GameStateView,
+        view: &GameStateView,
         hand: &[CardId],
         count: usize,
     ) -> SmallVec<[CardId; 7]> {
@@ -254,11 +267,14 @@ impl PlayerController for RandomController {
 
         // Only log if there's a real choice (more cards than we need to discard)
         if hand.len() > count {
-            self.log_choice(&format!(
-                "chose {} cards to discard (shuffled from {} cards in hand)",
-                num_discarding,
-                hand.len()
-            ));
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!(
+                    "chose {} cards to discard (shuffled from {} cards in hand)",
+                    num_discarding,
+                    hand.len()
+                ),
+            );
         }
 
         hand_vec.iter().take(num_discarding).copied().collect()

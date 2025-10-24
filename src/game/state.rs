@@ -1,7 +1,7 @@
 //! Main game state structure
 
 use crate::core::{Card, CardId, EntityId, EntityStore, Player, PlayerId};
-use crate::game::{CombatState, TurnStructure};
+use crate::game::{CombatState, GameLogger, TurnStructure};
 use crate::undo::UndoLog;
 use crate::zones::{CardZone, PlayerZones, Zone};
 use crate::Result;
@@ -42,6 +42,9 @@ pub struct GameState {
 
     /// Undo log for tracking all game actions
     pub undo_log: UndoLog,
+
+    /// Centralized logger for game events
+    pub logger: GameLogger,
 }
 
 impl GameState {
@@ -81,6 +84,7 @@ impl GameState {
             rng_seed: 0,
             next_entity_id: next_id,
             undo_log: UndoLog::new(),
+            logger: GameLogger::new(),
         }
     }
 

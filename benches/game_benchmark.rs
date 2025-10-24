@@ -168,10 +168,8 @@ where
         )
     };
 
-    let mut controller1 =
-        RandomController::with_seed(p1_id, seed).with_verbosity(VerbosityLevel::Silent);
-    let mut controller2 =
-        RandomController::with_seed(p2_id, seed + 1).with_verbosity(VerbosityLevel::Silent);
+    let mut controller1 = RandomController::with_seed(p1_id, seed);
+    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
 
     // Run game (still within timing)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);

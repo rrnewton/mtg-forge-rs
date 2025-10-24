@@ -126,6 +126,14 @@ impl<'a> GameStateView<'a> {
             .unwrap_or(false)
     }
 
+    /// Get access to the game logger
+    ///
+    /// This allows controllers and other game components to log messages
+    /// at appropriate verbosity levels without needing to track verbosity themselves.
+    pub fn logger(&self) -> &crate::game::GameLogger {
+        &self.game.logger
+    }
+
     /// Get player's current life total
     pub fn life(&self) -> i32 {
         self.game

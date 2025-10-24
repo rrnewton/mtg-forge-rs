@@ -48,7 +48,18 @@ enum PlayerAction {
 use smallvec::SmallVec;
 
 /// Verbosity level for game output
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub enum VerbosityLevel {
     /// Silent - no output during game
     Silent = 0,
@@ -97,7 +108,7 @@ pub struct GameLoop<'a> {
     max_turns: u32,
     /// Turn counter for the loop
     turns_elapsed: u32,
-    /// Verbosity level for output
+    /// Verbosity level for output (cached from game.logger)
     pub verbosity: VerbosityLevel,
     /// Track if current step header has been printed (for lazy printing)
     step_header_printed: bool,
@@ -106,11 +117,12 @@ pub struct GameLoop<'a> {
 impl<'a> GameLoop<'a> {
     /// Create a new game loop for the given game state
     pub fn new(game: &'a mut GameState) -> Self {
+        let verbosity = game.logger.verbosity();
         GameLoop {
             game,
             max_turns: 1000, // Default maximum turns
             turns_elapsed: 0,
-            verbosity: VerbosityLevel::default(),
+            verbosity,
             step_header_printed: false,
         }
     }
@@ -122,19 +134,25 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Set verbosity level for output
+    ///
+    /// This sets the verbosity on both the game loop and the game's centralized logger,
+    /// which is accessed by controllers via GameStateView.
     pub fn with_verbosity(mut self, verbosity: VerbosityLevel) -> Self {
         self.verbosity = verbosity;
+        self.game.logger.set_verbosity(verbosity);
         self
     }
 
     /// Enable verbose output (deprecated, use with_verbosity)
     #[deprecated(note = "Use with_verbosity instead")]
     pub fn with_verbose(mut self, verbose: bool) -> Self {
-        self.verbosity = if verbose {
+        let verbosity = if verbose {
             VerbosityLevel::Verbose
         } else {
             VerbosityLevel::Silent
         };
+        self.verbosity = verbosity;
+        self.game.logger.set_verbosity(verbosity);
         self
     }
 
@@ -145,6 +163,7 @@ impl<'a> GameLoop<'a> {
     pub fn reset(&mut self) {
         self.turns_elapsed = 0;
         self.step_header_printed = false;
+        self.game.logger.reset_step_header();
     }
 
     /// Run the game loop with the given player controllers

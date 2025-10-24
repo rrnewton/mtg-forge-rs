@@ -1661,6 +1661,14 @@ These messages should go through the normal logging interface and be at verbosit
 An invariant we want is that make bench should produce O(1) logging output and not spend much time in printing os we can benchmark the real game logic.
 
 
+-- 
+
+Let's try out another approach for that. We should have a centralized
+object for logging during the game, which INTERNALLY remembers the
+verbosity level.  Different parts of the code that need to log should
+retain a handle on this logger.  Try to make the controllers follow
+that same pattern.  Maybe the gamestate reference could even provide access to the logger.
+
 
 TODO: random choices of 1 option still present.
 ----------------------------------------
