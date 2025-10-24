@@ -114,11 +114,11 @@ RUN apt-get install -y maven time
 RUN apt-get install rustup
 RUN rustup toolchain install stable
 
-# RUN apt-get install -y golang
-# RUN go install github.com/steveyegge/beads/cmd/bd@latest
-
 RUN apt-get install -y heaptrack
 RUN cargo install cargo-heaptrack
+
+RUN apt-get install -y golang
+RUN go install github.com/steveyegge/beads/cmd/bd@latest
 
 ENV IS_SANDBOX=1
 ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
@@ -131,4 +131,9 @@ ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
 # Hobble what Claude can install:
 # RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-USER $MYUSER
+# USER $MYUSER
+
+
+# In Claude Code
+# /plugin marketplace add steveyegge/beads
+# /plugin install beads

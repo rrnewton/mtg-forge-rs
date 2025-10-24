@@ -4,8 +4,8 @@ USER=node
 
 TAG=mtg-forge
 
-# CONTAINER=docker
-CONTAINER=podman
+CONTAINER=docker
+# CONTAINER=podman
 
 build:
 	$(CONTAINER) build -t $(TAG)-$(SLOT) .
