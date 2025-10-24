@@ -108,9 +108,6 @@ USER root
 # RUN apt-get update
 RUN apt-get install -y maven time
 
-# RUN apt-get install -y cargo
-# RUN cargo install rustfmt-nightly
-
 RUN apt-get install rustup
 RUN rustup toolchain install stable
 
@@ -118,12 +115,20 @@ RUN apt-get install -y heaptrack
 RUN cargo install cargo-heaptrack
 
 RUN apt-get install -y golang
-RUN go install github.com/steveyegge/beads/cmd/bd@latest
+RUN mkdir -p /opt/local/bin && \
+    export GOBIN="/opt/local/bin" && \
+    go install github.com/steveyegge/beads/cmd/bd@latest
 
-RUN apt-get install -y python3
+RUN npm install -g happy-coder
+RUN apt-get install -y python3 pip python3-venv
+RUN python3 -m venv /opt/venv
+RUN /opt/venv/bin/python3 -m pip install uv
 
 ENV IS_SANDBOX=1
-ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
+# USER $MYUSER
+ENV PATH="$PATH:$HOME/bin"
+ENV PATH="$PATH:$HOME/.cargo/bin"
+
 
 # ADD --chown=node:node dot-claude-init /home/node/.claude/
 # Share the config directory from the host:
@@ -132,9 +137,6 @@ ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
 
 # Hobble what Claude can install:
 # RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# USER $MYUSER
-
 
 
 # In Claude Code

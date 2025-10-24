@@ -11,6 +11,8 @@
 /target
 # Cargo.lock # We would like to track the Cargo.lock for now.
 
+.session_title.txt
+
 # Benchmarking and Profiling:
 
 # All profiling output goes to experiment_results/
@@ -33,3 +35,4 @@ heaptrack.profile.*
 logs/claude_workstream*
 trash/
 prompts/
+.claude

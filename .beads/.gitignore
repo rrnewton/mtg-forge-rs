@@ -5,8 +5,7 @@
 *.db-shm
 
 # Daemon runtime files
-daemon.log
-daemon.pid
+daemon.*
 bd.sock
 
 # Legacy database files
@@ -15,3 +14,4 @@ bd.db
 
 # Keep JSONL exports (source of truth for git)
 !*.jsonl
+

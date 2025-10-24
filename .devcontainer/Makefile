@@ -4,8 +4,15 @@ USER=node
 
 TAG=mtg-forge
 
-CONTAINER=docker
-# CONTAINER=podman
+OS := $(shell uname)
+
+ifeq ($(OS),Darwin)
+    CONTAINER=docker
+else ifeq ($(OS),Linux)
+    CONTAINER=podman
+else
+    CONTAINER= echo Unsupported_OS && exit 1
+endif
 
 build:
 	$(CONTAINER) build -t $(TAG)-$(SLOT) .
