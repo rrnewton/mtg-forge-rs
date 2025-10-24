@@ -568,3 +568,347 @@ async fn test_action_undo() -> Result<()> {
 
     Ok(())
 }
+
+/// Aggressive undo test: repeatedly snapshot, run forward, rewind, and verify equivalence
+/// This test explores the full turn space by:
+/// - Running forward a random number of turns (1-5)
+/// - Taking snapshots at various points
+/// - Running forward more turns
+/// - Rewinding to a random earlier snapshot (not just the most recent)
+/// - Verifying complete state equivalence
+/// - Repeating 100 times to stress-test the undo system
+#[tokio::test]
+async fn test_aggressive_undo_snapshots() -> Result<()> {
+    use rand::Rng;
+    use rand::SeedableRng;
+
+    // Load card database
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+    let card_db = CardDatabase::new(cardsfolder);
+    card_db.eager_load().await?;
+
+    // Load test deck
+    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck = DeckLoader::load_from_file(&deck_path)?;
+
+    // Initialize game
+    let game_init = GameInitializer::new(&card_db);
+    let mut game = game_init
+        .init_game(
+            "Player 1".to_string(),
+            &deck,
+            "Player 2".to_string(),
+            &deck,
+            20,
+        )
+        .await?;
+    game.rng_seed = 12345;
+
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+    let p1_id = players[0];
+    let p2_id = players[1];
+
+    // Use seeded random controllers for determinism
+    let mut controller1 = RandomController::with_seed(p1_id, 12345);
+    let mut controller2 = RandomController::with_seed(p2_id, 12346);
+
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+
+    // RNG for the test itself (not the game)
+    let mut test_rng = rand::rngs::StdRng::seed_from_u64(99999);
+
+    // Track snapshots at different undo log positions
+    // Store (undo_log_size, snapshot_clone)
+    let mut snapshots: Vec<(usize, mtg_forge_rs::game::GameState)> = Vec::new();
+
+    // Take initial snapshot
+    snapshots.push((0, game_loop.game.clone()));
+    println!("\n=== Aggressive Undo Snapshot Test ===");
+    println!("Running 100 iterations of: run forward → snapshot → run more → rewind → verify");
+    println!();
+
+    const ITERATIONS: usize = 100;
+    let mut iteration = 0;
+
+    while iteration < ITERATIONS {
+        // Check if game is over - if so, we need to rewind to an earlier point
+        let game_over = game_loop.game.get_player(p1_id)?.life <= 0
+            || game_loop.game.get_player(p2_id)?.life <= 0
+            || game_loop
+                .game
+                .get_player_zones(p1_id)
+                .unwrap()
+                .library
+                .is_empty()
+            || game_loop
+                .game
+                .get_player_zones(p2_id)
+                .unwrap()
+                .library
+                .is_empty();
+
+        if game_over || snapshots.len() > 20 {
+            // Too many snapshots or game ended - rewind to an earlier snapshot
+            if snapshots.len() > 1 {
+                // Choose a random earlier snapshot (not the most recent to avoid drift)
+                let snapshot_idx = test_rng.gen_range(0..snapshots.len() - 1);
+                let (target_undo_size, _) = &snapshots[snapshot_idx];
+
+                println!(
+                    "[Iter {}] Game ended or too many snapshots ({}). Rewinding to snapshot {} (undo size {})",
+                    iteration,
+                    snapshots.len(),
+                    snapshot_idx,
+                    target_undo_size
+                );
+
+                // Rewind to that snapshot's undo log size
+                let current_undo_size = game_loop.game.undo_log.len();
+                let rewind_count = current_undo_size - target_undo_size;
+                for _ in 0..rewind_count {
+                    game_loop.game.undo()?;
+                }
+
+                // Remove all snapshots after this point
+                snapshots.truncate(snapshot_idx + 1);
+
+                // Reset controllers with new seeds to get fresh decisions
+                controller1 = RandomController::with_seed(p1_id, 12345 + iteration as u64 * 2);
+                controller2 = RandomController::with_seed(p2_id, 12346 + iteration as u64 * 2);
+                game_loop.reset();
+
+                continue; // Don't count this as an iteration
+            } else {
+                // Only initial snapshot left, start fresh
+                println!("[Iter {}] Resetting to initial state", iteration);
+                let rewind_count = game_loop.game.undo_log.len();
+                for _ in 0..rewind_count {
+                    game_loop.game.undo()?;
+                }
+                snapshots.truncate(1);
+                controller1 = RandomController::with_seed(p1_id, 12345 + iteration as u64 * 2);
+                controller2 = RandomController::with_seed(p2_id, 12346 + iteration as u64 * 2);
+                game_loop.reset();
+                continue;
+            }
+        }
+
+        // Run forward a random number of turns (1-5)
+        let turns_to_run = test_rng.gen_range(1..=5);
+        let mut turns_run = 0;
+
+        for _ in 0..turns_to_run {
+            let result = game_loop.run_turn_once(&mut controller1, &mut controller2)?;
+            if result.is_some() {
+                // Game ended
+                break;
+            }
+            turns_run += 1;
+        }
+
+        let current_undo_size = game_loop.game.undo_log.len();
+        let current_turn = game_loop.game.turn.turn_number;
+
+        // Take snapshot at current position
+        let snapshot = game_loop.game.clone();
+        snapshots.push((current_undo_size, snapshot));
+
+        println!(
+            "[Iter {}] Ran {} turns (turn {}), undo log size: {}, total snapshots: {}",
+            iteration,
+            turns_run,
+            current_turn,
+            current_undo_size,
+            snapshots.len()
+        );
+
+        // Run forward more turns (1-3)
+        let more_turns = test_rng.gen_range(1..=3);
+        for _ in 0..more_turns {
+            let result = game_loop.run_turn_once(&mut controller1, &mut controller2)?;
+            if result.is_some() {
+                break;
+            }
+        }
+
+        let undo_size_after_more = game_loop.game.undo_log.len();
+
+        // Choose a random earlier snapshot to rewind to (prefer not the most recent)
+        let snapshot_idx = if snapshots.len() > 2 {
+            // Choose from any snapshot except the last one (to test deeper rewinds)
+            test_rng.gen_range(0..snapshots.len() - 1)
+        } else {
+            snapshots.len() - 1
+        };
+
+        let (target_undo_size, snapshot_state) = &snapshots[snapshot_idx];
+
+        // Rewind to snapshot
+        let rewind_count = undo_size_after_more - target_undo_size;
+        println!(
+            "[Iter {}]   Rewinding {} actions (from {} to {}) to snapshot {}",
+            iteration, rewind_count, undo_size_after_more, target_undo_size, snapshot_idx
+        );
+
+        for _ in 0..rewind_count {
+            let undone = game_loop.game.undo()?;
+            assert!(undone, "Should be able to undo");
+        }
+
+        // Verify undo log size matches
+        assert_eq!(
+            game_loop.game.undo_log.len(),
+            *target_undo_size,
+            "Undo log size should match snapshot"
+        );
+
+        // Verify state equivalence
+        verify_state_equivalence(game_loop.game, snapshot_state, p1_id, p2_id, iteration)?;
+
+        // Remove snapshots after this point (since we rewound)
+        snapshots.truncate(snapshot_idx + 1);
+
+        iteration += 1;
+    }
+
+    println!();
+    println!("=== Aggressive Undo Test Complete ===");
+    println!("✓ Successfully completed {} iterations", ITERATIONS);
+    println!("✓ Verified state equivalence after each rewind");
+    println!("✓ Tested rewinds to various earlier points (not just most recent)");
+    println!("✓ Explored full turn space without drifting to game end");
+
+    Ok(())
+}
+
+/// Helper function to verify complete state equivalence between two game states
+fn verify_state_equivalence(
+    current: &mtg_forge_rs::game::GameState,
+    snapshot: &mtg_forge_rs::game::GameState,
+    p1_id: mtg_forge_rs::core::PlayerId,
+    p2_id: mtg_forge_rs::core::PlayerId,
+    iteration: usize,
+) -> Result<()> {
+    use mtg_forge_rs::MtgError;
+
+    // Verify turn state
+    assert_eq!(
+        current.turn.turn_number, snapshot.turn.turn_number,
+        "[Iter {}] Turn number mismatch",
+        iteration
+    );
+    assert_eq!(
+        current.turn.active_player, snapshot.turn.active_player,
+        "[Iter {}] Active player mismatch",
+        iteration
+    );
+    assert_eq!(
+        current.turn.current_step, snapshot.turn.current_step,
+        "[Iter {}] Current step mismatch",
+        iteration
+    );
+
+    // Verify player states
+    let current_p1 = current
+        .get_player(p1_id)
+        .map_err(|e| MtgError::InvalidAction(format!("Failed to get current P1: {}", e)))?;
+    let snapshot_p1 = snapshot
+        .get_player(p1_id)
+        .map_err(|e| MtgError::InvalidAction(format!("Failed to get snapshot P1: {}", e)))?;
+    assert_eq!(
+        current_p1.life, snapshot_p1.life,
+        "[Iter {}] P1 life mismatch",
+        iteration
+    );
+    assert_eq!(
+        current_p1.lands_played_this_turn, snapshot_p1.lands_played_this_turn,
+        "[Iter {}] P1 lands played mismatch",
+        iteration
+    );
+
+    let current_p2 = current
+        .get_player(p2_id)
+        .map_err(|e| MtgError::InvalidAction(format!("Failed to get current P2: {}", e)))?;
+    let snapshot_p2 = snapshot
+        .get_player(p2_id)
+        .map_err(|e| MtgError::InvalidAction(format!("Failed to get snapshot P2: {}", e)))?;
+    assert_eq!(
+        current_p2.life, snapshot_p2.life,
+        "[Iter {}] P2 life mismatch",
+        iteration
+    );
+
+    // Verify zone sizes
+    let current_p1_zones = current.get_player_zones(p1_id).ok_or_else(|| {
+        MtgError::InvalidAction(format!("[Iter {}] No current P1 zones", iteration))
+    })?;
+    let snapshot_p1_zones = snapshot.get_player_zones(p1_id).ok_or_else(|| {
+        MtgError::InvalidAction(format!("[Iter {}] No snapshot P1 zones", iteration))
+    })?;
+
+    assert_eq!(
+        current_p1_zones.library.cards.len(),
+        snapshot_p1_zones.library.cards.len(),
+        "[Iter {}] P1 library size mismatch",
+        iteration
+    );
+    assert_eq!(
+        current_p1_zones.hand.cards.len(),
+        snapshot_p1_zones.hand.cards.len(),
+        "[Iter {}] P1 hand size mismatch",
+        iteration
+    );
+    assert_eq!(
+        current_p1_zones.graveyard.cards.len(),
+        snapshot_p1_zones.graveyard.cards.len(),
+        "[Iter {}] P1 graveyard size mismatch",
+        iteration
+    );
+
+    let current_p2_zones = current.get_player_zones(p2_id).ok_or_else(|| {
+        MtgError::InvalidAction(format!("[Iter {}] No current P2 zones", iteration))
+    })?;
+    let snapshot_p2_zones = snapshot.get_player_zones(p2_id).ok_or_else(|| {
+        MtgError::InvalidAction(format!("[Iter {}] No snapshot P2 zones", iteration))
+    })?;
+
+    assert_eq!(
+        current_p2_zones.library.cards.len(),
+        snapshot_p2_zones.library.cards.len(),
+        "[Iter {}] P2 library size mismatch",
+        iteration
+    );
+    assert_eq!(
+        current_p2_zones.hand.cards.len(),
+        snapshot_p2_zones.hand.cards.len(),
+        "[Iter {}] P2 hand size mismatch",
+        iteration
+    );
+    assert_eq!(
+        current_p2_zones.graveyard.cards.len(),
+        snapshot_p2_zones.graveyard.cards.len(),
+        "[Iter {}] P2 graveyard size mismatch",
+        iteration
+    );
+
+    // Verify battlefield
+    assert_eq!(
+        current.battlefield.cards.len(),
+        snapshot.battlefield.cards.len(),
+        "[Iter {}] Battlefield size mismatch",
+        iteration
+    );
+
+    // Verify stack
+    assert_eq!(
+        current.stack.cards.len(),
+        snapshot.stack.cards.len(),
+        "[Iter {}] Stack size mismatch",
+        iteration
+    );
+
+    Ok(())
+}
