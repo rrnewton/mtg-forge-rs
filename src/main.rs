@@ -93,6 +93,21 @@ enum Commands {
         #[arg(long, default_value = "normal", short = 'v')]
         verbosity: VerbosityArg,
     },
+
+    /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
+    Profile {
+        /// Number of games to run
+        #[arg(long, short = 'g', default_value_t = 1000)]
+        games: usize,
+
+        /// Random seed for deterministic profiling
+        #[arg(long, default_value_t = 42)]
+        seed: u64,
+
+        /// Deck file to use (uses same deck for both players)
+        #[arg(long, short = 'd', default_value = "test_decks/simple_bolt.dck")]
+        deck: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -109,6 +124,7 @@ async fn main() -> Result<()> {
             load_all_cards,
             verbosity,
         } => run_tui(deck1, deck2, p1, p2, seed, load_all_cards, verbosity).await?,
+        Commands::Profile { games, seed, deck } => run_profile(games, seed, deck).await?,
     }
 
     Ok(())
@@ -234,6 +250,80 @@ async fn run_tui(
             println!("  {}: {} life", player.name, player.life);
         }
     }
+
+    Ok(())
+}
+
+/// Run profiling games
+async fn run_profile(iterations: usize, seed: u64, deck_path: PathBuf) -> Result<()> {
+    println!("=== MTG Forge Rust - Profiling Mode ===\n");
+
+    // Load deck
+    println!("Loading deck...");
+    let deck = DeckLoader::load_from_file(&deck_path)?;
+    println!("  Deck: {} cards", deck.total_cards());
+
+    // Create card database (lazy loading - only loads cards on-demand)
+    let cardsfolder = PathBuf::from("cardsfolder");
+    let card_db = CardDatabase::new(cardsfolder);
+
+    // Prefetch deck cards (not all 31k cards, just what we need)
+    let start = std::time::Instant::now();
+    let unique_names = deck.unique_card_names();
+    let (count, _) = card_db.load_cards(&unique_names).await?;
+    let duration = start.elapsed();
+    println!(
+        "  Loaded {count} cards in {:.2}ms\n",
+        duration.as_secs_f64() * 1000.0
+    );
+
+    println!("Profiling game execution...");
+    println!("Running {iterations} games with seed {seed}");
+    println!();
+
+    // Run games in a tight loop for profiling
+    for i in 0..iterations {
+        // Initialize game
+        let game_init = GameInitializer::new(&card_db);
+        let mut game = game_init
+            .init_game(
+                "Player 1".to_string(),
+                &deck,
+                "Player 2".to_string(),
+                &deck,
+                20,
+            )
+            .await?;
+        game.rng_seed = seed;
+
+        // Create random controllers
+        let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+        let p1_id = players[0];
+        let p2_id = players[1];
+
+        let mut controller1 = RandomController::with_seed(p1_id, seed);
+        let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+
+        // Run game
+        let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+        game_loop.run_game(&mut controller1, &mut controller2)?;
+
+        // Print progress every 100 games
+        if (i + 1) % 100 == 0 {
+            println!("Completed {} games", i + 1);
+        }
+    }
+
+    println!();
+    println!("Profiling complete! {iterations} games executed.");
+    println!();
+    println!("For heap profiling:");
+    println!("  cargo heaptrack --bin mtg -- profile --games {iterations} --seed {seed}");
+    println!("  Or: make heapprofile");
+    println!();
+    println!("For CPU profiling:");
+    println!("  cargo flamegraph --bin mtg -- profile --games {iterations} --seed {seed}");
+    println!("  Or: make profile");
 
     Ok(())
 }
