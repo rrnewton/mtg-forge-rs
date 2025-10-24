@@ -197,10 +197,10 @@ impl<'a> GameLoop<'a> {
             ));
         }
 
-        // Main game loop
+        // Main game loop - repeatedly run turns until game ends
         loop {
-            // Check win conditions
-            if let Some(result) = self.check_win_condition() {
+            // Run one turn and check if game should end
+            if let Some(result) = self.run_turn_once(controller1, controller2)? {
                 // Notify controllers of game end
                 let winner_id = result.winner;
                 controller1.on_game_end(
@@ -213,23 +213,54 @@ impl<'a> GameLoop<'a> {
                 );
                 return Ok(result);
             }
-
-            // Check turn limit
-            if self.turns_elapsed >= self.max_turns {
-                return Ok(GameResult {
-                    winner: None,
-                    turns_played: self.turns_elapsed,
-                    end_reason: GameEndReason::TurnLimit,
-                });
-            }
-
-            // Run one turn
-            self.run_turn(controller1, controller2)?;
-            self.turns_elapsed += 1;
         }
     }
 
-    /// Run a single turn
+    /// Run a single turn and check for game-ending conditions
+    ///
+    /// This method runs exactly one turn of the game, including all phases and steps.
+    /// After the turn completes, it checks for win conditions and turn limits.
+    ///
+    /// Returns:
+    /// - `Ok(Some(GameResult))` if the game should end (win condition or turn limit reached)
+    /// - `Ok(None)` if the game should continue with another turn
+    /// - `Err(_)` if an error occurred during turn execution
+    pub fn run_turn_once(
+        &mut self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+    ) -> Result<Option<GameResult>> {
+        // Check win conditions before running the turn
+        if let Some(result) = self.check_win_condition() {
+            return Ok(Some(result));
+        }
+
+        // Check turn limit
+        if self.turns_elapsed >= self.max_turns {
+            return Ok(Some(GameResult {
+                winner: None,
+                turns_played: self.turns_elapsed,
+                end_reason: GameEndReason::TurnLimit,
+            }));
+        }
+
+        // Run the turn
+        self.run_turn(controller1, controller2)?;
+        self.turns_elapsed += 1;
+
+        // Check win conditions after running the turn
+        if let Some(result) = self.check_win_condition() {
+            return Ok(Some(result));
+        }
+
+        // Game continues
+        Ok(None)
+    }
+
+    /// Run a single turn through all its phases and steps
+    ///
+    /// This is an internal method that executes one complete turn from untap through cleanup.
+    /// For running one turn and checking end conditions, use `run_turn_once` instead.
     fn run_turn(
         &mut self,
         controller1: &mut dyn PlayerController,
