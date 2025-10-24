@@ -109,7 +109,9 @@ USER root
 RUN apt-get install -y maven time
 
 RUN apt-get install rustup
-RUN rustup default stable && rustup toolchain install stable
+ENV CARGO_HOME=/opt/cargo
+ENV RUSTUP_HOME=/opt/multirust
+RUN mkdir -p "$CARGO_HOME" && rustup toolchain install stable
 
 RUN apt-get install -y heaptrack
 RUN cargo install cargo-heaptrack
