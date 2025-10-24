@@ -1125,8 +1125,13 @@ impl<'a> GameLoop<'a> {
             // Get all available spell abilities for this player
             let available = self.get_available_spell_abilities(current_priority);
 
-            // Ask controller to choose one (or None to pass)
-            let choice = {
+            // If no actions available, automatically pass priority without asking controller
+            // Only invoke controller when there's an actual choice to make
+            let choice = if available.is_empty() {
+                // No available actions - automatically pass priority
+                None
+            } else {
+                // Ask controller to choose one (or None to pass)
                 let view = GameStateView::new(self.game, current_priority);
                 controller.choose_spell_ability_to_play(&view, &available)
             };
