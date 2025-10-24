@@ -45,6 +45,8 @@ cleanup() {
 trap cleanup EXIT
 
 # Check if working copy is dirty
+# Refresh the index to avoid false positives from stale stat information
+git update-index --refresh -q 2>/dev/null || true
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
     echo ""
     echo -e "${CYAN}Working copy is dirty - creating temporary WIP commit...${NC}"
