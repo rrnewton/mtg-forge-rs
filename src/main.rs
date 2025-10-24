@@ -41,8 +41,7 @@ impl std::str::FromStr for VerbosityArg {
             "normal" | "2" => Ok(VerbosityArg(VerbosityLevel::Normal)),
             "verbose" | "3" => Ok(VerbosityArg(VerbosityLevel::Verbose)),
             _ => Err(format!(
-                "invalid verbosity level '{}' (expected: silent/0, minimal/1, normal/2, verbose/3)",
-                s
+                "invalid verbosity level '{s}' (expected: silent/0, minimal/1, normal/2, verbose/3)"
             )),
         }
     }
@@ -150,7 +149,7 @@ async fn run_tui(
         unique_names.extend(deck2.unique_card_names());
         card_db.load_cards(&unique_names).await?
     };
-    println!("  Loaded {} cards", count);
+    println!("  Loaded {count} cards");
     eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
 
     // Initialize game
@@ -173,8 +172,8 @@ async fn run_tui(
     }
 
     println!("Game initialized!");
-    println!("  Player 1: Player 1 ({:?})", p1_type);
-    println!("  Player 2: Player 2 ({:?})\n", p2_type);
+    println!("  Player 1: Player 1 ({p1_type:?})");
+    println!("  Player 2: Player 2 ({p2_type:?})\n");
 
     // Create controllers based on agent types
     let (p1_id, p2_id) = {

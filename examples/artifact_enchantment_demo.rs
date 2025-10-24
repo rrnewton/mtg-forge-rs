@@ -89,8 +89,8 @@ async fn main() {
     }
 
     println!("\n=== Alice's Library Contents ===");
-    println!("  Artifacts: {}", artifact_count);
-    println!("  Lands: {}", land_count);
+    println!("  Artifacts: {artifact_count}");
+    println!("  Lands: {land_count}");
     println!("  Total cards: {}", alice_zones.library.cards.len());
 
     // Try to find a Sol Ring in Alice's library
@@ -144,7 +144,7 @@ async fn main() {
                 }
             })
             .count();
-        println!("  Battlefield now has {} lands", battlefield_lands);
+        println!("  Battlefield now has {battlefield_lands} lands");
 
         // Tap the mountain for mana
         println!("\n=== Alice taps Mountain for mana ===");
@@ -171,7 +171,7 @@ async fn main() {
 
                 // Check stack
                 let stack_size = game.stack.cards.len();
-                println!("  Stack has {} card(s)", stack_size);
+                println!("  Stack has {stack_size} card(s)");
 
                 // Resolve the spell
                 println!("\n=== Resolving Sol Ring ===");
@@ -192,13 +192,10 @@ async fn main() {
                     })
                     .count();
                 println!("  ✓ Sol Ring entered the battlefield");
-                println!(
-                    "  Battlefield now has {} artifact(s)",
-                    battlefield_artifacts
-                );
+                println!("  Battlefield now has {battlefield_artifacts} artifact(s)");
             }
             Err(e) => {
-                println!("  ✗ Failed to cast Sol Ring: {}", e);
+                println!("  ✗ Failed to cast Sol Ring: {e}");
             }
         }
     } else {

@@ -401,8 +401,7 @@ impl GameState {
             // and untap mana sources
             // For now, just return error (TODO: proper unwinding)
             return Err(MtgError::InvalidAction(format!(
-                "Failed to pay mana cost: {}",
-                e
+                "Failed to pay mana cost: {e}"
             )));
         }
 
@@ -920,8 +919,7 @@ impl GameState {
         for &attacker in &attackers {
             if !self.combat.is_attacking(attacker) {
                 return Err(MtgError::InvalidAction(format!(
-                    "Card {:?} is not attacking",
-                    attacker
+                    "Card {attacker:?} is not attacking"
                 )));
             }
         }
@@ -1363,7 +1361,7 @@ impl GameState {
                             // Generic type match - check if any type contains the string
                             card.types
                                 .iter()
-                                .any(|t| format!("{:?}", t).contains(card_type))
+                                .any(|t| format!("{t:?}").contains(card_type))
                         };
 
                         if matches {
@@ -1400,8 +1398,7 @@ impl GameState {
             Cost::Discard { card_id: _ } => {
                 // TODO: Implement discard cost
                 Err(MtgError::InvalidAction(format!(
-                    "Cost type {:?} not yet implemented",
-                    cost
+                    "Cost type {cost:?} not yet implemented"
                 )))
             }
 
@@ -1435,7 +1432,7 @@ mod tests {
         let card_def = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(async { db.get_card(card_name).await })?
-            .ok_or_else(|| MtgError::InvalidCardFormat(format!("Card not found: {}", card_name)))?;
+            .ok_or_else(|| MtgError::InvalidCardFormat(format!("Card not found: {card_name}")))?;
 
         // Create card instance from definition
         let card = card_def.instantiate(card_id, owner_id);

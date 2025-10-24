@@ -199,10 +199,7 @@ fn print_aggregated_metrics(
     aggregated: &GameMetrics,
     iteration_count: usize,
 ) {
-    println!(
-        "\n=== Aggregated Metrics - {} Mode (seed {}, {} games) ===",
-        mode, seed, iteration_count
-    );
+    println!("\n=== Aggregated Metrics - {mode} Mode (seed {seed}, {iteration_count} games) ===");
     println!("  Total turns: {}", aggregated.turns);
     println!("  Total actions: {}", aggregated.actions);
     println!("  Total duration: {:?}", aggregated.duration);
@@ -245,7 +242,7 @@ fn bench_game_fresh(c: &mut Criterion) {
     let setup = match BenchmarkSetup::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Skipping benchmark - failed to load resources: {}", e);
+            eprintln!("Skipping benchmark - failed to load resources: {e}");
             return;
         }
     };
@@ -259,7 +256,7 @@ fn bench_game_fresh(c: &mut Criterion) {
     let seed = 42u64;
 
     // Run a warmup game to print metrics
-    println!("\nWarmup game - Fresh mode (seed {}):", seed);
+    println!("\nWarmup game - Fresh mode (seed {seed}):");
     let game_init_fn = || {
         let game_init = GameInitializer::new(&setup.card_db);
         setup.runtime.block_on(async {
@@ -336,7 +333,7 @@ fn bench_game_snapshot(c: &mut Criterion) {
     let setup = match BenchmarkSetup::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Skipping benchmark - failed to load resources: {}", e);
+            eprintln!("Skipping benchmark - failed to load resources: {e}");
             return;
         }
     };
@@ -364,7 +361,7 @@ fn bench_game_snapshot(c: &mut Criterion) {
         })
         .expect("Failed to initialize game");
 
-    println!("\nSnapshot mode (seed {}):", seed);
+    println!("\nSnapshot mode (seed {seed}):");
     println!("  Pre-creating initial game state for cloning...");
 
     // Accumulator for aggregating metrics across benchmark iterations

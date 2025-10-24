@@ -63,14 +63,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let land_def = db
             .get_card(land_name)
             .await?
-            .unwrap_or_else(|| panic!("{} not found in cardsfolder", land_name));
+            .unwrap_or_else(|| panic!("{land_name} not found in cardsfolder"));
 
         let land_id = game.next_card_id();
         let land = land_def.instantiate(land_id, alice_id);
         game.cards.insert(land_id, land);
         game.battlefield.add(land_id);
 
-        println!("  Added {} to battlefield", land_name);
+        println!("  Added {land_name} to battlefield");
     }
 
     println!("\n=== Current State ===");
@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Activating Zuran Orb ===");
 
     for activation in 1..=3 {
-        println!("\nActivation {}:", activation);
+        println!("\nActivation {activation}:");
 
         let lands_before = count_lands(&game, alice_id);
         let life_before = game.get_player(alice_id)?.life;
@@ -111,10 +111,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let graveyard_after = count_graveyard(&game, alice_id);
 
         println!("  ✓ Sacrificed 1 land");
-        println!("    Lands: {} → {}", lands_before, lands_after);
-        println!("    Graveyard: {} → {}", graveyard_before, graveyard_after);
+        println!("    Lands: {lands_before} → {lands_after}");
+        println!("    Graveyard: {graveyard_before} → {graveyard_after}");
         println!("  ✓ Gained 2 life");
-        println!("    Life: {} → {}", life_before, life_after);
+        println!("    Life: {life_before} → {life_after}");
     }
 
     println!("\n=== Final State ===");

@@ -342,7 +342,7 @@ mod tests {
                         || matches!(costs[1], Cost::Tap)
                 );
             }
-            _ => panic!("Expected Composite cost, got {:?}", cost),
+            _ => panic!("Expected Composite cost, got {cost:?}"),
         }
     }
 }

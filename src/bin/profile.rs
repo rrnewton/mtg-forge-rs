@@ -45,12 +45,12 @@ async fn main() {
         .await
         .expect("Failed to prefetch deck cards");
     let duration = start.elapsed();
-    println!("Prefetched {} deck cards in {:.2?}", count, duration);
+    println!("Prefetched {count} deck cards in {duration:.2?}");
 
     let iterations = args.iterations;
 
     println!("Profiling game execution...");
-    println!("Running {} games with seed 42", iterations);
+    println!("Running {iterations} games with seed 42");
     println!();
 
     let seed = 42u64;
@@ -92,5 +92,5 @@ async fn main() {
     }
 
     println!();
-    println!("Profiling complete! {} games executed.", iterations);
+    println!("Profiling complete! {iterations} games executed.");
 }

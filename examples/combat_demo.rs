@@ -503,7 +503,7 @@ fn create_creature(
     game.cards.insert(card_id, card);
     game.battlefield.add(card_id);
 
-    println!("  {}: {} ({}/{})", description, name, power, toughness);
+    println!("  {description}: {name} ({power}/{toughness})");
 
     card_id
 }

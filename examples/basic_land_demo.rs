@@ -41,13 +41,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut land_ids = Vec::new();
 
     for (land_name, mana_symbol, color_name) in &basic_lands {
-        println!("Loading {}...", land_name);
+        println!("Loading {land_name}...");
 
         // Load the land from cardsfolder
         let card_def = db
             .get_card(land_name)
             .await?
-            .unwrap_or_else(|| panic!("{} not found in cardsfolder", land_name));
+            .unwrap_or_else(|| panic!("{land_name} not found in cardsfolder"));
 
         // Instantiate the card
         let card_id = game.next_card_id();
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Verify it has a mana ability
         let has_mana_ability = card.activated_abilities.iter().any(|ab| ab.is_mana_ability);
-        println!("  Has mana ability: {}", has_mana_ability);
+        println!("  Has mana ability: {has_mana_ability}");
 
         if let Some(mana_ability) = card
             .activated_abilities
@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             game.execute_effect(&fixed_effect)?;
         }
-        println!("  ✓ Added {{{}}}", expected_mana);
+        println!("  ✓ Added {{{expected_mana}}}");
         println!();
     }
 

@@ -116,10 +116,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("\n=== Phase 2: Rewind 50% of actions, then play forward ===");
 
     let rewind_count = total_actions / 2;
-    println!(
-        "Rewinding {} out of {} actions",
-        rewind_count, total_actions
-    );
+    println!("Rewinding {rewind_count} out of {total_actions} actions");
 
     for i in 0..rewind_count {
         let undone = game_loop.game.undo()?;
@@ -134,8 +131,8 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let actions_at_halfway = game_loop.game.undo_log.len();
     let turn_at_halfway = game_loop.game.turn.turn_number;
     println!("After rewind:");
-    println!("  Undo log size: {}", actions_at_halfway);
-    println!("  Turn number: {}", turn_at_halfway);
+    println!("  Undo log size: {actions_at_halfway}");
+    println!("  Turn number: {turn_at_halfway}");
 
     // Now play forward from the 50% point with fresh controllers
     println!("\nPlaying forward from 50% point...");
@@ -146,7 +143,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let phase2_result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
     println!("\nPhase 2 replay completed!");
-    println!("  Started from turn: {}", turn_at_halfway);
+    println!("  Started from turn: {turn_at_halfway}");
     println!("  Winner: {:?}", phase2_result.winner);
     println!("  Turns played: {}", phase2_result.turns_played);
     println!("  End reason: {:?}", phase2_result.end_reason);
@@ -164,7 +161,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("\n=== Phase 3: Rewinding 100% to beginning ===");
 
     let remaining_actions = game_loop.game.undo_log.len();
-    println!("Rewinding all {} remaining actions", remaining_actions);
+    println!("Rewinding all {remaining_actions} remaining actions");
     println!(
         "Turn number before full rewind: {}",
         game_loop.game.turn.turn_number
@@ -201,7 +198,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
                         other_moves += 1;
                     }
                     _ => {
-                        println!("  DEBUG: Other move: {:?} → {:?}", from_zone, to_zone);
+                        println!("  DEBUG: Other move: {from_zone:?} → {to_zone:?}");
                         other_moves += 1;
                     }
                 }
@@ -210,8 +207,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
         }
     }
     println!(
-        "Actions in undo log: {} ChangeTurn, {} AdvanceStep, {} MoveCard ({} Lib→Hand, {} Hand→Stack, {} Stack→Grave, {} other), {} other actions",
-        change_turn_count, advance_step_count, move_card_count, lib_to_hand, hand_to_stack, stack_to_grave, other_moves, other_count
+        "Actions in undo log: {change_turn_count} ChangeTurn, {advance_step_count} AdvanceStep, {move_card_count} MoveCard ({lib_to_hand} Lib→Hand, {hand_to_stack} Hand→Stack, {stack_to_grave} Stack→Grave, {other_moves} other), {other_count} other actions"
     );
 
     // Before undoing, print last few actions in undo log for debugging
@@ -291,21 +287,16 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let stack_size = game_loop.game.stack.cards.len();
 
     println!("\nGame state after full rewind:");
-    println!("  P1 life: {} (initial: 20)", p1_life_after_rewind);
-    println!("  P2 life: {} (initial: 20)", p2_life_after_rewind);
-    println!("  Turn number: {} (initial: 1)", turn_after_rewind);
+    println!("  P1 life: {p1_life_after_rewind} (initial: 20)");
+    println!("  P2 life: {p2_life_after_rewind} (initial: 20)");
+    println!("  Turn number: {turn_after_rewind} (initial: 1)");
     println!(
-        "  P1 zones: {} library, {} hand, {} graveyard, {} exile",
-        p1_library_size, p1_hand_size, p1_graveyard_size, p1_exile_size
+        "  P1 zones: {p1_library_size} library, {p1_hand_size} hand, {p1_graveyard_size} graveyard, {p1_exile_size} exile"
     );
     println!(
-        "  P2 zones: {} library, {} hand, {} graveyard, {} exile",
-        p2_library_size, p2_hand_size, p2_graveyard_size, p2_exile_size
+        "  P2 zones: {p2_library_size} library, {p2_hand_size} hand, {p2_graveyard_size} graveyard, {p2_exile_size} exile"
     );
-    println!(
-        "  Battlefield: {} cards, Stack: {} cards",
-        battlefield_size, stack_size
-    );
+    println!("  Battlefield: {battlefield_size} cards, Stack: {stack_size} cards");
     println!(
         "  P1 total: {} cards",
         p1_library_size + p1_hand_size + p1_graveyard_size + p1_exile_size
@@ -324,28 +315,23 @@ async fn test_full_game_undo_replay() -> Result<()> {
     // Verify zone sizes match initial snapshot
     assert_eq!(
         p1_library_size, initial_p1_library,
-        "P1 library should match snapshot: {} vs {}",
-        p1_library_size, initial_p1_library
+        "P1 library should match snapshot: {p1_library_size} vs {initial_p1_library}"
     );
     assert_eq!(
         p1_hand_size, initial_p1_hand,
-        "P1 hand should match snapshot: {} vs {}",
-        p1_hand_size, initial_p1_hand
+        "P1 hand should match snapshot: {p1_hand_size} vs {initial_p1_hand}"
     );
     assert_eq!(
         p1_graveyard_size, initial_p1_graveyard,
-        "P1 graveyard should match snapshot: {} vs {}. Full rewind should restore all cards!",
-        p1_graveyard_size, initial_p1_graveyard
+        "P1 graveyard should match snapshot: {p1_graveyard_size} vs {initial_p1_graveyard}. Full rewind should restore all cards!"
     );
     assert_eq!(
         p2_library_size, initial_p2_library,
-        "P2 library should match snapshot: {} vs {}",
-        p2_library_size, initial_p2_library
+        "P2 library should match snapshot: {p2_library_size} vs {initial_p2_library}"
     );
     assert_eq!(
         p2_graveyard_size, initial_p2_graveyard,
-        "P2 graveyard should match snapshot: {} vs {}. Full rewind should restore all cards!",
-        p2_graveyard_size, initial_p2_graveyard
+        "P2 graveyard should match snapshot: {p2_graveyard_size} vs {initial_p2_graveyard}. Full rewind should restore all cards!"
     );
 
     // Compare rewound state with initial snapshot
@@ -439,14 +425,8 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let replay_p2_life = game_loop.game.get_player(p2_id)?.life;
 
     println!("\nFinal state comparison:");
-    println!(
-        "  P1 life: initial={}, replay={}",
-        initial_p1_life, replay_p1_life
-    );
-    println!(
-        "  P2 life: initial={}, replay={}",
-        initial_p2_life, replay_p2_life
-    );
+    println!("  P1 life: initial={initial_p1_life}, replay={replay_p1_life}");
+    println!("  P2 life: initial={initial_p2_life}, replay={replay_p2_life}");
 
     // Life totals should match for winner/loser pattern
     let initial_winner_life = if initial_winner == Some(p1_id) {
@@ -469,8 +449,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("\n=== Undo/Replay Test Complete ===");
     println!("Successfully demonstrated rewind/replay cycle:");
     println!(
-        "  ✓ Phase 1: Played initial game ({} turns, {} actions logged)",
-        initial_turns, total_actions
+        "  ✓ Phase 1: Played initial game ({initial_turns} turns, {total_actions} actions logged)"
     );
     println!(
         "  ✓ Phase 2: Rewound 50% → played forward ({} turns)",

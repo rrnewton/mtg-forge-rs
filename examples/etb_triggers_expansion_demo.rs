@@ -62,14 +62,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let alice_life_after = game.get_player(alice_id)?.life;
 
     println!("Soul's Attendant (1/1) enters the battlefield");
-    println!(
-        "✓ ETB trigger: Alice gains 1 life ({} → {})",
-        alice_life_before, alice_life_after
-    );
-    println!(
-        "Alice: {} life, 1 creature on battlefield\n",
-        alice_life_after
-    );
+    println!("✓ ETB trigger: Alice gains 1 life ({alice_life_before} → {alice_life_after})");
+    println!("Alice: {alice_life_after} life, 1 creature on battlefield\n");
 
     // Scenario 2: Alice casts Elvish Visionary
     println!("=== Turn 2: Alice casts Elvish Visionary ===");
@@ -103,14 +97,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or(0);
 
     println!("Elvish Visionary (1/1) enters the battlefield");
-    println!(
-        "✓ ETB trigger: Alice draws a card (hand: {} → {})",
-        hand_before, hand_after
-    );
-    println!(
-        "Alice: {} life, 2 creatures on battlefield\n",
-        alice_life_after
-    );
+    println!("✓ ETB trigger: Alice draws a card (hand: {hand_before} → {hand_after})");
+    println!("Alice: {alice_life_after} life, 2 creatures on battlefield\n");
 
     // Scenario 3: Bob deploys a creature
     println!("=== Turn 3: Bob casts Grizzly Bears ===");
@@ -176,18 +164,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Flametongue Kavu (4/2) enters the battlefield");
     println!("✓ ETB trigger: Deals 4 damage to Grizzly Bears (2 toughness), destroying it");
-    println!(
-        "Bob's creatures on battlefield: {} → {}",
-        bob_creatures_before, bob_creatures_after
-    );
-    println!(
-        "Alice: {} life, 3 creatures on battlefield\n",
-        alice_life_after
-    );
+    println!("Bob's creatures on battlefield: {bob_creatures_before} → {bob_creatures_after}");
+    println!("Alice: {alice_life_after} life, 3 creatures on battlefield\n");
 
     // Final summary
     println!("=== Final Board State ===");
-    println!("Alice ({} life):", alice_life_after);
+    println!("Alice ({alice_life_after} life):");
     for card_id in &game.battlefield.cards {
         if let Ok(card) = game.cards.get(*card_id) {
             if card.owner == alice_id {
@@ -217,7 +199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get_player_zones(alice_id)
         .map(|z| z.hand.cards.len())
         .unwrap_or(0);
-    println!("  Hand: {} cards", alice_hand_size);
+    println!("  Hand: {alice_hand_size} cards");
 
     println!("\nBob (20 life):");
     let bob_battlefield_count = game
@@ -232,7 +214,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or(false)
         })
         .count();
-    println!("  Battlefield: {} creatures", bob_battlefield_count);
+    println!("  Battlefield: {bob_battlefield_count} creatures");
 
     println!("\n=== Demo Complete ===");
     println!("\nKey Observations:");

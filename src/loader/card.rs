@@ -198,7 +198,7 @@ impl CardDefinition {
                         player: PlayerId::new(0), // Placeholder - will be filled when activated
                         mana: mana_to_produce,
                     }],
-                    format!("Add {}", mana_to_produce),
+                    format!("Add {mana_to_produce}"),
                     true, // This IS a mana ability
                 );
                 card.activated_abilities.push(ability);

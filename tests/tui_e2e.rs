@@ -85,9 +85,7 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
     // The losing player should have 0 or less life
     assert!(
         p1_life <= 0 || p2_life <= 0,
-        "At least one player should have 0 or less life. P1: {}, P2: {}",
-        p1_life,
-        p2_life
+        "At least one player should have 0 or less life. P1: {p1_life}, P2: {p2_life}"
     );
 
     Ok(())
@@ -245,9 +243,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
 
     assert!(
         p1_life != 20 || p2_life != 20,
-        "At least one player should have taken damage. P1: {}, P2: {}",
-        p1_life,
-        p2_life
+        "At least one player should have taken damage. P1: {p1_life}, P2: {p2_life}"
     );
 
     // With the simple bolt deck and random controllers, someone should die
@@ -267,8 +263,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     let loser_life = game.get_player(loser)?.life;
     assert!(
         loser_life <= 0,
-        "Loser should have <= 0 life, got {}",
-        loser_life
+        "Loser should have <= 0 life, got {loser_life}"
     );
 
     // Note: Winner may also have negative life if both players dealt lethal
@@ -429,9 +424,7 @@ async fn test_creature_combat_game() -> Result<()> {
 
     assert!(
         p1_life != 20 || p2_life != 20,
-        "At least one player should have taken damage from combat. P1: {}, P2: {}",
-        p1_life,
-        p2_life
+        "At least one player should have taken damage from combat. P1: {p1_life}, P2: {p2_life}"
     );
 
     // Game should end by player death (not deck out) with creature combat
@@ -450,8 +443,7 @@ async fn test_creature_combat_game() -> Result<()> {
     let loser_life = game.get_player(loser)?.life;
     assert!(
         loser_life <= 0,
-        "Loser should have <= 0 life, got {}",
-        loser_life
+        "Loser should have <= 0 life, got {loser_life}"
     );
 
     // Verify that creatures were summoned (check graveyard has creatures)
@@ -534,8 +526,7 @@ async fn test_different_deck_matchup() -> Result<()> {
         // Verify game completed successfully
         assert!(
             result.winner.is_some(),
-            "Game with seed {} should have a winner",
-            seed
+            "Game with seed {seed} should have a winner"
         );
         assert!(
             result.turns_played > 0 && result.turns_played <= 200,
@@ -570,9 +561,7 @@ async fn test_different_deck_matchup() -> Result<()> {
 
         assert!(
             winner_life >= loser_life,
-            "Winner should have >= life than loser. Winner: {}, Loser: {}",
-            winner_life,
-            loser_life
+            "Winner should have >= life than loser. Winner: {winner_life}, Loser: {loser_life}"
         );
 
         // Verify cards are in valid zones (not lost or duplicated)

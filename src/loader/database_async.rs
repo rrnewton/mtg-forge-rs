@@ -20,7 +20,7 @@ fn card_name_to_path(cardsfolder: &Path, card_name: &str) -> PathBuf {
 
     cardsfolder
         .join(first_char.to_string())
-        .join(format!("{}.txt", normalized))
+        .join(format!("{normalized}.txt"))
 }
 
 /// Async card database with lazy and eager loading support
@@ -101,8 +101,7 @@ impl CardDatabase {
                 Ok(Err(e)) => return Err(e),
                 Err(e) => {
                     return Err(crate::MtgError::InvalidCardFormat(format!(
-                        "Task join error: {}",
-                        e
+                        "Task join error: {e}"
                     )))
                 }
             }
@@ -147,7 +146,7 @@ impl CardDatabase {
                     }
                     Err(e) => {
                         // Fail fast: directory walking errors are fatal
-                        eprintln!("Fatal error walking directory: {}", e);
+                        eprintln!("Fatal error walking directory: {e}");
                         return;
                     }
                 }
@@ -164,7 +163,7 @@ impl CardDatabase {
                     // Send the result (success or error) - don't filter
                     let result = Self::load_card_async(path.clone()).await;
                     if let Err(e) = &result {
-                        eprintln!("Fatal error loading card from {:?}: {}", path, e);
+                        eprintln!("Fatal error loading card from {path:?}: {e}");
                     }
                     let _ = result_tx.send(result);
                 });
@@ -181,7 +180,7 @@ impl CardDatabase {
         }
 
         let loaded = cards_map.len();
-        println!("Loaded {} cards via streaming discovery", loaded);
+        println!("Loaded {loaded} cards via streaming discovery");
 
         // Update cache
         let mut cards = self.cards.write().await;
@@ -287,6 +286,6 @@ mod tests {
 
         let (loaded, duration) = db.load_cards(&cards).await.unwrap();
         assert_eq!(loaded, 3);
-        println!("Loaded {} cards in {:?}", loaded, duration);
+        println!("Loaded {loaded} cards in {duration:?}");
     }
 }

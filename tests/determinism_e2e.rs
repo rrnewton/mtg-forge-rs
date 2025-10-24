@@ -27,7 +27,7 @@ fn run_game_with_seed(deck_path: &str, seed: u64, verbosity: &str) -> String {
             &seed.to_string(),
             "--p1=random",
             "--p2=random",
-            &format!("--verbosity={}", verbosity),
+            &format!("--verbosity={verbosity}"),
         ])
         .output()
         .expect("Failed to run mtg binary");
@@ -57,7 +57,7 @@ fn test_deck_determinism(fixture: Fixture<&str>) {
     let run2 = run_game_with_seed(deck_path, seed, verbosity);
 
     // Verify output is not empty
-    assert!(!run1.is_empty(), "Deck {} produced empty output", deck_path);
+    assert!(!run1.is_empty(), "Deck {deck_path} produced empty output");
 
     // Verify both runs produce identical output
     assert_eq!(

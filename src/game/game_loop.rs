@@ -276,7 +276,7 @@ impl<'a> GameLoop<'a> {
         self.game
             .get_player(player_id)
             .map(|p| p.name.to_string())
-            .unwrap_or_else(|_| format!("Player {:?}", player_id))
+            .unwrap_or_else(|_| format!("Player {player_id:?}"))
     }
 
     /// Get step name for display
@@ -410,7 +410,7 @@ impl<'a> GameLoop<'a> {
     fn log_normal(&mut self, message: &str) {
         if self.verbosity >= VerbosityLevel::Normal {
             self.print_step_header_if_needed();
-            println!("  {}", message);
+            println!("  {message}");
         }
     }
 
@@ -420,7 +420,7 @@ impl<'a> GameLoop<'a> {
     fn log_verbose(&mut self, message: &str) {
         if self.verbosity >= VerbosityLevel::Verbose {
             self.print_step_header_if_needed();
-            println!("  {}", message);
+            println!("  {message}");
         }
     }
 
@@ -429,7 +429,7 @@ impl<'a> GameLoop<'a> {
     #[allow(dead_code)]
     fn log_minimal(&mut self, message: &str) {
         if self.verbosity >= VerbosityLevel::Minimal {
-            println!("{}", message);
+            println!("{message}");
         }
     }
 
@@ -448,8 +448,7 @@ impl<'a> GameLoop<'a> {
                 TargetRef::Player(target_player_id) => {
                     let target_name = self.get_player_name(*target_player_id);
                     println!(
-                        "  {} ({}) deals {} damage to {}",
-                        source_name, source_id, amount, target_name
+                        "  {source_name} ({source_id}) deals {amount} damage to {target_name}"
                     );
                 }
                 TargetRef::Permanent(target_card_id) => {
@@ -460,8 +459,7 @@ impl<'a> GameLoop<'a> {
                         .map(|c| c.name.as_str())
                         .unwrap_or("Unknown");
                     println!(
-                        "  {} ({}) deals {} damage to {} ({})",
-                        source_name, source_id, amount, target_name, target_card_id
+                        "  {source_name} ({source_id}) deals {amount} damage to {target_name} ({target_card_id})"
                     );
                 }
                 TargetRef::None => {
@@ -475,8 +473,7 @@ impl<'a> GameLoop<'a> {
                     {
                         let target_name = self.get_player_name(opponent_id);
                         println!(
-                            "  {} ({}) deals {} damage to {}",
-                            source_name, source_id, amount, target_name
+                            "  {source_name} ({source_id}) deals {amount} damage to {target_name}"
                         );
                     }
                 }
@@ -484,15 +481,13 @@ impl<'a> GameLoop<'a> {
             Effect::DrawCards { player, count } => {
                 let player_name = self.get_player_name(*player);
                 println!(
-                    "  {} ({}) causes {} to draw {} card(s)",
-                    source_name, source_id, player_name, count
+                    "  {source_name} ({source_id}) causes {player_name} to draw {count} card(s)"
                 );
             }
             Effect::GainLife { player, amount } => {
                 let player_name = self.get_player_name(*player);
                 println!(
-                    "  {} ({}) causes {} to gain {} life",
-                    source_name, source_id, player_name, amount
+                    "  {source_name} ({source_id}) causes {player_name} to gain {amount} life"
                 );
             }
             Effect::DestroyPermanent { target } => {
@@ -502,10 +497,7 @@ impl<'a> GameLoop<'a> {
                     .get(*target)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                println!(
-                    "  {} ({}) destroys {} ({})",
-                    source_name, source_id, target_name, target
-                );
+                println!("  {source_name} ({source_id}) destroys {target_name} ({target})");
             }
             Effect::TapPermanent { target } => {
                 let target_name = self
@@ -514,10 +506,7 @@ impl<'a> GameLoop<'a> {
                     .get(*target)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                println!(
-                    "  {} ({}) taps {} ({})",
-                    source_name, source_id, target_name, target
-                );
+                println!("  {source_name} ({source_id}) taps {target_name} ({target})");
             }
             Effect::UntapPermanent { target } => {
                 let target_name = self
@@ -526,10 +515,7 @@ impl<'a> GameLoop<'a> {
                     .get(*target)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                println!(
-                    "  {} ({}) untaps {} ({})",
-                    source_name, source_id, target_name, target
-                );
+                println!("  {source_name} ({source_id}) untaps {target_name} ({target})");
             }
             Effect::PumpCreature {
                 target,
@@ -543,15 +529,13 @@ impl<'a> GameLoop<'a> {
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
                 println!(
-                    "  {} ({}) gives {} ({}) {:+}/{:+} until end of turn",
-                    source_name, source_id, target_name, target, power_bonus, toughness_bonus
+                    "  {source_name} ({source_id}) gives {target_name} ({target}) {power_bonus:+}/{toughness_bonus:+} until end of turn"
                 );
             }
             Effect::Mill { player, count } => {
                 let player_name = self.get_player_name(*player);
                 println!(
-                    "  {} ({}) causes {} to mill {} card(s)",
-                    source_name, source_id, player_name, count
+                    "  {source_name} ({source_id}) causes {player_name} to mill {count} card(s)"
                 );
             }
             Effect::CounterSpell { target } => {
@@ -561,17 +545,11 @@ impl<'a> GameLoop<'a> {
                     .get(*target)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                println!(
-                    "  {} ({}) counters {} ({})",
-                    source_name, source_id, target_name, target
-                );
+                println!("  {source_name} ({source_id}) counters {target_name} ({target})");
             }
             Effect::AddMana { player, mana } => {
                 let player_name = self.get_player_name(*player);
-                println!(
-                    "  {} ({}) adds {} to {}'s mana pool",
-                    source_name, source_id, mana, player_name
-                );
+                println!("  {source_name} ({source_id}) adds {mana} to {player_name}'s mana pool");
             }
         }
     }
@@ -949,13 +927,7 @@ impl<'a> GameLoop<'a> {
                             let blocker_power = blocker.current_power();
                             let blocker_name = &blocker.name;
                             println!(
-                                "  Combat: {} ({}) ({} damage) ↔ {} ({}) ({} damage)",
-                                attacker_name,
-                                attacker_id,
-                                power,
-                                blocker_name,
-                                blocker_id,
-                                blocker_power
+                                "  Combat: {attacker_name} ({attacker_id}) ({power} damage) ↔ {blocker_name} ({blocker_id}) ({blocker_power} damage)"
                             );
                         }
                     }
@@ -967,8 +939,7 @@ impl<'a> GameLoop<'a> {
                         let defender_name = self.get_player_name(defending_player);
                         if power > 0 {
                             println!(
-                                "  {} ({}) deals {} damage to {}",
-                                attacker_name, attacker_id, power, defender_name
+                                "  {attacker_name} ({attacker_id}) deals {power} damage to {defender_name}"
                             );
                         }
                     }
@@ -1054,8 +1025,7 @@ impl<'a> GameLoop<'a> {
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
                     return Err(crate::MtgError::InvalidAction(format!(
-                        "Must discard exactly {} cards, got {}",
-                        discard_count,
+                        "Must discard exactly {discard_count} cards, got {}",
                         cards_to_discard.len()
                     )));
                 }
@@ -1066,8 +1036,7 @@ impl<'a> GameLoop<'a> {
                     if let Some(zones) = self.game.get_player_zones(player_id) {
                         if !zones.hand.contains(card_id) {
                             return Err(crate::MtgError::InvalidAction(format!(
-                                "Card {:?} not in player's hand",
-                                card_id
+                                "Card {card_id:?} not in player's hand"
                             )));
                         }
                     }
@@ -1141,8 +1110,7 @@ impl<'a> GameLoop<'a> {
             action_count += 1;
             if action_count > MAX_ACTIONS_PER_PRIORITY {
                 return Err(crate::MtgError::InvalidAction(format!(
-                    "Priority round exceeded max actions ({}), possible infinite loop",
-                    MAX_ACTIONS_PER_PRIORITY
+                    "Priority round exceeded max actions ({MAX_ACTIONS_PER_PRIORITY}), possible infinite loop"
                 )));
             }
 
@@ -1186,7 +1154,7 @@ impl<'a> GameLoop<'a> {
                             // Play land - resolves directly (no stack)
                             if let Err(e) = self.game.play_land(current_priority, card_id) {
                                 if self.verbosity >= VerbosityLevel::Normal {
-                                    eprintln!("  Error playing land: {}", e);
+                                    eprintln!("  Error playing land: {e}");
                                 }
                             } else if self.verbosity >= VerbosityLevel::Normal {
                                 let card_name = self
@@ -1268,7 +1236,7 @@ impl<'a> GameLoop<'a> {
                                 mana_callback,
                             ) {
                                 if self.verbosity >= VerbosityLevel::Normal {
-                                    eprintln!("  Error casting spell: {}", e);
+                                    eprintln!("  Error casting spell: {e}");
                                 }
                             } else {
                                 // Read card effects before resolution (for logging)
@@ -1286,11 +1254,11 @@ impl<'a> GameLoop<'a> {
                                 // Immediately resolve spell (simplified - no stack interaction yet)
                                 if let Err(e) = self.game.resolve_spell(card_id) {
                                     if self.verbosity >= VerbosityLevel::Normal {
-                                        eprintln!("  Error resolving spell: {}", e);
+                                        eprintln!("  Error resolving spell: {e}");
                                     }
                                 } else if self.verbosity >= VerbosityLevel::Normal {
                                     // Log resolution
-                                    println!("  {} ({}) resolves", card_name, card_id);
+                                    println!("  {card_name} ({card_id}) resolves");
 
                                     // Log effects for instants/sorceries
                                     if let Some(effects) = card_effects {
@@ -1346,7 +1314,7 @@ impl<'a> GameLoop<'a> {
                                     &ability.cost,
                                 ) {
                                     if self.verbosity >= VerbosityLevel::Normal {
-                                        eprintln!("    Failed to pay cost: {}", e);
+                                        eprintln!("    Failed to pay cost: {e}");
                                     }
                                     continue;
                                 }
@@ -1389,7 +1357,7 @@ impl<'a> GameLoop<'a> {
 
                                     if let Err(e) = self.game.execute_effect(&fixed_effect) {
                                         if self.verbosity >= VerbosityLevel::Normal {
-                                            eprintln!("    Failed to execute effect: {}", e);
+                                            eprintln!("    Failed to execute effect: {e}");
                                         }
                                     }
                                 }
@@ -1743,7 +1711,7 @@ impl<'a> GameLoop<'a> {
         if !matches!(action, PlayerAction::PassPriority) {
             let player_name = self.get_player_name(player_id);
             let action_desc = self.describe_action(action);
-            self.log_verbose(&format!("{} {}", player_name, action_desc));
+            self.log_verbose(&format!("{player_name} {action_desc}"));
         }
 
         match action {
@@ -1809,7 +1777,7 @@ impl<'a> GameLoop<'a> {
                     .get(*card_id)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                format!("plays {}", card_name)
+                format!("plays {card_name}")
             }
             PlayerAction::TapForMana(card_id) => {
                 let card_name = self
@@ -1818,7 +1786,7 @@ impl<'a> GameLoop<'a> {
                     .get(*card_id)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                format!("taps {} for mana", card_name)
+                format!("taps {card_name} for mana")
             }
             PlayerAction::CastSpell { card_id, .. } => {
                 let card_name = self
@@ -1827,7 +1795,7 @@ impl<'a> GameLoop<'a> {
                     .get(*card_id)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                format!("casts {}", card_name)
+                format!("casts {card_name}")
             }
             PlayerAction::DeclareAttacker(card_id) => {
                 let card_name = self
@@ -1836,7 +1804,7 @@ impl<'a> GameLoop<'a> {
                     .get(*card_id)
                     .map(|c| c.name.as_str())
                     .unwrap_or("Unknown");
-                format!("declares {} as attacker", card_name)
+                format!("declares {card_name} as attacker")
             }
             PlayerAction::DeclareBlocker { blocker, attackers } => {
                 let blocker_name = self
@@ -1849,10 +1817,7 @@ impl<'a> GameLoop<'a> {
                     .iter()
                     .filter_map(|id| self.game.cards.get(*id).ok().map(|c| c.name.as_str()))
                     .collect();
-                format!(
-                    "blocks with {} (blocking {:?})",
-                    blocker_name, attacker_names
-                )
+                format!("blocks with {blocker_name} (blocking {attacker_names:?})")
             }
             PlayerAction::FinishDeclareAttackers => "finishes declaring attackers".to_string(),
             PlayerAction::FinishDeclareBlockers => "finishes declaring blockers".to_string(),

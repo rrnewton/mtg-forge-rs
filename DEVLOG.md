@@ -1710,8 +1710,6 @@ When `get_available_spell_abilities` returns only a single action
 
 
 
-
-
 TODO: aggressive random undo testing
 ----------------------------------------
 

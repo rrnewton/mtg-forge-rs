@@ -46,7 +46,7 @@ fn main() -> Result<()> {
     println!("  If it resolves, Bob will take 3 damage (20 → 17 life)\n");
 
     // Show stack state
-    println!("Stack (top to bottom): [Lightning Bolt ({})]", bolt_id);
+    println!("Stack (top to bottom): [Lightning Bolt ({bolt_id})]");
     println!("Stack size: {} spell(s)\n", game.stack.cards.len());
 
     // Bob responds with Counterspell
@@ -68,19 +68,16 @@ fn main() -> Result<()> {
     println!("  If it resolves, Lightning Bolt will be countered\n");
 
     // Show stack state
-    println!(
-        "Stack (top to bottom): [Counterspell ({}), Lightning Bolt ({})]",
-        counter_id, bolt_id
-    );
+    println!("Stack (top to bottom): [Counterspell ({counter_id}), Lightning Bolt ({bolt_id})]");
     println!("Stack size: {} spell(s)\n", game.stack.cards.len());
 
     // Resolve Counterspell (LIFO - Last In, First Out)
     println!("=== Resolving the Stack ===");
     println!("Stack resolves in Last-In-First-Out (LIFO) order:\n");
 
-    println!("1. Counterspell ({}) resolves:", counter_id);
+    println!("1. Counterspell ({counter_id}) resolves:");
     game.resolve_spell(counter_id)?;
-    println!("   ✓ Countered Lightning Bolt ({})", bolt_id);
+    println!("   ✓ Countered Lightning Bolt ({bolt_id})");
     println!("   ✓ Lightning Bolt moved from stack to graveyard");
     println!("   ✓ Counterspell moved to graveyard\n");
 

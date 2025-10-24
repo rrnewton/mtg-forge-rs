@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Pay costs
             if let Err(e) = game.pay_ability_cost(alice_id, elder_id, &ability.cost) {
-                println!("  Failed to pay cost: {}", e);
+                println!("  Failed to pay cost: {e}");
             } else {
                 println!("  ✓ Paid cost");
 
@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
 
                     if let Err(e) = game.execute_effect(&fixed_effect) {
-                        println!("  Failed to execute effect: {}", e);
+                        println!("  Failed to execute effect: {e}");
                     } else {
                         println!("  ✓ Executed effect");
                     }
