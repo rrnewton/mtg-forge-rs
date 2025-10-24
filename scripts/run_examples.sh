@@ -1,8 +1,30 @@
 #!/bin/bash
 # Dynamically discover and run all examples in parallel using GNU parallel
 # Exits with success only if all examples succeed
+#
+# Usage:
+#   ./run_examples.sh [--sequential]
+#
+# Options:
+#   --sequential    Force sequential execution even if GNU parallel is available
 
 set -e  # Exit on error
+
+# Parse command line arguments
+FORCE_SEQUENTIAL=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --sequential)
+            FORCE_SEQUENTIAL=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--sequential]"
+            exit 1
+            ;;
+    esac
+done
 
 echo "=== Discovering available examples ==="
 # Get list of examples by parsing cargo output
@@ -23,11 +45,16 @@ TOTAL=$(echo "$EXAMPLES" | wc -l)
 echo "=== Running $TOTAL examples in parallel ==="
 echo ""
 
-# Check if GNU parallel is available
-if ! command -v parallel &> /dev/null; then
-    echo "WARNING: GNU parallel not found, falling back to sequential execution"
-    echo "Install with: apt-get install parallel (Ubuntu/Debian) or brew install parallel (macOS)"
-    echo ""
+# Check if GNU parallel is available and not forcing sequential
+if [ "$FORCE_SEQUENTIAL" = true ] || ! command -v parallel &> /dev/null; then
+    if [ "$FORCE_SEQUENTIAL" = true ]; then
+        echo "INFO: --sequential flag specified, using sequential execution"
+        echo ""
+    else
+        echo "WARNING: GNU parallel not found, falling back to sequential execution"
+        echo "Install with: apt-get install parallel (Ubuntu/Debian) or brew install parallel (macOS)"
+        echo ""
+    fi
 
     # Fallback to sequential execution
     PASSED=0
