@@ -48,14 +48,27 @@ We use "beads" to track our issues locally. Review `bd quickstart` to learn how 
 
 Every time we do a git commit, update our beads issues to reflect:
 - What was just completed (check off items in lists, close completed task(s))
-- What's next (update priorities in tracking issues)
+- What's next (update the in tracking issues that track the granular issues)
 - Any individual new issues discovered become new tasks with references from trackig issues
 
 The beads database is our primary tracking mechanism, so if we lose conversation history we can start again from there.  You should periodically do documentation work, usually before committing, to make sure information in the issues is up-to-date.
 
 ### Beads CONVENTIONS for this project
 
-#### Tracking issues
+#### Tracking issues and Priorities
+
+- Issues labeled "human" are created by me and will always have 0 priority.
+- Issue mtg-1, at priority 0, is the OVERALL tracking issue. It primarily references other tracking issues
+  and reiterate some of these conventions. We want to keep it pretty short.
+
+- The next tracking issues, e.g. mtg-2 and on have priority 1 and are topic-specific trackers:
+  - Optimization tracking
+  - MTG feature completeness: supporting keywords/abilities/complex mana and effects.
+  - Gameplay feautures: like an actual TUI to play as a human.
+  - Cross-cutting codebase issues: APIs (player, controller, etc), testing coverage and methodology.
+
+ - All tracking issues refer to granular issues by name in their text, e.g. "mtg-42"
+ - All other granular issues will have priority 3 to 4 unless they are seen as a critical bug, which will bump them to priority 2.
 
 #### Mark transient information
 
@@ -71,13 +84,13 @@ We don't want TODO items to be in floating code alone. For anything but the most
 
 Then, the commit that fixes the issue both removes the comment and closes the issue in beads.
 
-Before beginning work on a task
-----------------------------------------
+Clean Start: Before beginning work on a task
+--------------------------------------------
 
 Make sure we start in a clean state. Check that we have no uncommitted changes in our working copy. Perform `git pull origin main` to make sure we are starting with the latest version. Check that `make validate` passes in our starting state. 
 
-Before committing to git
-----------------------------------------
+Pre-Commit: checks before committing to git
+--------------------------------------------
 
 Run `make validate` and ensure that it passes or fix any problems before committing.
 

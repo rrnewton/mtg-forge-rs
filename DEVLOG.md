@@ -1670,7 +1670,7 @@ retain a handle on this logger.  Try to make the controllers follow
 that same pattern.  Maybe the gamestate reference could even provide access to the logger.
 
 
-TODO: random choices of 1 option still present.
+: random choices of 1 option still present.
 ----------------------------------------
 
 Look at an e2e game: 
@@ -1707,11 +1707,52 @@ Our guiding principle here is to only invoke the PlayerController
 When `get_available_spell_abilities` returns only a single action
 (PassPriority), then we don't need to call the PlayerController.
 
+TODO[beads] bd show multiple issues
+----------------------------------------
+
+`bd show ID1 ID2` should just show both. Commit this change as one standalone commit.
+
+Also, add a flag `bd show --all-issues` to show all issues. You can warn in the help that this may be an expensive operation. Commit this as a second commit.
+
+Finally, add another flag `bd show --priority 0` to show all issues at a priority (-p for short), which shows all the issues at a given priority, and can be provided multiple times. Commit this as a third commit.
+
+---
+
+Make an additional change. Whenever `bd show` is going to print multiple issues, present them in order of the IDs: issue-1, issue-2, etc.
+
+
+TODO[beads] provide `bd edit ID` subcommand
+----------------------------------------
+
+As a human, it's annoying to have to edit beads issues using `bd
+update`.  Instead, provide a `bd edit` command that opens $EDITOR to
+edit the issue.  `bd edit --description` should be the default, but
+add other options like `--title` to match the format of `bd update`.
+
+Task fixing and dedup
+----------------------------------------
+
+Note that we have multiple duplicate tasks.
+There are especially a set of "error messages in card loader"
+tasks which are both duplicate AND polluting priority 0.
+
+Review CLAUDE.md and the conventions for beads issues. Merge the
+duplicate issues into one and put it at the appropriate priority.
+ 
 
 
 
 TODO: aggressive random undo testing
 ----------------------------------------
+
+
+
+
+
+TODO: aggressive random undo testing
+----------------------------------------
+
+
 
 
 
