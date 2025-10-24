@@ -157,14 +157,14 @@ profile:
 		echo "Install with: cargo install flamegraph"; \
 		exit 1; \
 	fi
-	cargo flamegraph --bin profile --output experiment_results/flamegraph.svg
+	cargo flamegraph --bin mtg --output experiment_results/flamegraph.svg -- profile --games 1000 --seed 42
 	@echo ""
 	@echo "Flamegraph saved to: experiment_results/flamegraph.svg"
 	@echo "Open with: firefox experiment_results/flamegraph.svg (or your browser of choice)"
 
 profile2: build-release
 	@mkdir -p experiment_results
-	cd experiment_results && perf record -g --call-graph dwarf -- ../target/release/profile 5000
+	cd experiment_results && perf record -g --call-graph dwarf -- ../target/release/mtg profile --games 5000 --seed 42
 	cd experiment_results && perf report
 
 # Profile allocations with heaptrack
@@ -186,7 +186,7 @@ heapprofile:
 		echo "  Arch: sudo pacman -S heaptrack"; \
 		exit 1; \
 	fi
-	HEAPTRACK_OUTPUT=experiment_results cargo heaptrack --bin profile --release -- 100
+	HEAPTRACK_OUTPUT=experiment_results cargo heaptrack --bin mtg --release -- profile --games 100 --seed 42
 	@# Move heaptrack files to experiment_results if they were created in root
 	@if ls heaptrack.profile.* 2>/dev/null; then \
 		mv heaptrack.profile.* experiment_results/ 2>/dev/null || true; \
