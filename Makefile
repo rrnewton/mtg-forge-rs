@@ -78,10 +78,34 @@ validate:
 
 # Internal target that actually runs validation
 # This is called by scripts/validate.sh
-validate-impl: fmt-check clippy test examples
+# Runs validation steps in parallel using make -j
+validate-impl:
+	@echo "=== Starting parallel validation ==="
+	@echo ""
+	@$(MAKE) -j4 validate-parallel-steps
 	@echo ""
 	@echo "=== All validation steps completed ==="
 	@echo ""
+
+# Parallel validation steps - these will run concurrently when invoked with -j
+.PHONY: validate-parallel-steps validate-fmt-check-step validate-clippy-step validate-test-step validate-examples-step
+validate-parallel-steps: validate-fmt-check-step validate-clippy-step validate-test-step validate-examples-step
+
+validate-fmt-check-step:
+	@$(MAKE) fmt-check
+	@echo "✓ fmt-check completed"
+
+validate-clippy-step:
+	@$(MAKE) clippy
+	@echo "✓ clippy completed"
+
+validate-test-step:
+	@$(MAKE) test
+	@echo "✓ test completed"
+
+validate-examples-step:
+	@$(MAKE) examples
+	@echo "✓ examples completed"
 
 # Generate documentation
 doc:
