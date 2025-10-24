@@ -1,8 +1,8 @@
 # FROM node:25
 FROM ubuntu:25.10
 
-ARG TZ
-ENV TZ="$TZ"
+# ARG TZ
+# ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
 
@@ -109,7 +109,7 @@ USER root
 RUN apt-get install -y maven time
 
 RUN apt-get install rustup
-RUN rustup toolchain install stable
+RUN rustup default stable && rustup toolchain install stable
 
 RUN apt-get install -y heaptrack
 RUN cargo install cargo-heaptrack
