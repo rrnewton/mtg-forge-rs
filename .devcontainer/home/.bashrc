@@ -6,3 +6,10 @@ eval "$(dircolors)"
 alias ls='ls $LS_OPTIONS'
 alias ll='ls $LS_OPTIONS -l'
 alias l='ls $LS_OPTIONS -lA'
+
+export GITHUB_PERSONAL_ACCESS_TOKEN="$(cat ~/.github/PAT.txt)"
+
+source "$HOME/.local/bin/env"
+
+export PATH=$PATH:$HOME/.local/bin
+

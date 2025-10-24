@@ -120,6 +120,8 @@ RUN cargo install cargo-heaptrack
 RUN apt-get install -y golang
 RUN go install github.com/steveyegge/beads/cmd/bd@latest
 
+RUN apt-get install -y python3
+
 ENV IS_SANDBOX=1
 ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
 
@@ -132,6 +134,7 @@ ENV PATH="$PATH:/root/go/bin:/root/.cargo/bin"
 # RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # USER $MYUSER
+
 
 
 # In Claude Code

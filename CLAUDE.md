@@ -57,6 +57,9 @@ The beads database is our primary tracking mechanism, so if we lose conversation
 
 #### Tracking issues and Priorities
 
+Warning: Be careful to EDIT tracking issues (`bd update`) and not just
+file a new duplicate issue with `bd create`.
+
 - Issues labeled "human" are created by me and will always have 0 priority.
 - Issue mtg-1, at priority 0, is the OVERALL tracking issue. It primarily references other tracking issues
   and reiterate some of these conventions. We want to keep it pretty short.
