@@ -72,6 +72,8 @@ examples:
 # Runs all tests, examples, and checks
 # Caches results based on commit hash to avoid redundant validation
 # Use: make validate ARGS=--force to skip cache
+# Use: make validate ARGS=--sequential to run sequentially (fail on first error)
+# Use: make validate ARGS="--force --sequential" to combine options
 # See scripts/validate.sh for implementation details
 validate:
 	@./scripts/validate.sh $(ARGS)
@@ -87,8 +89,24 @@ validate-impl:
 	@echo "=== All validation steps completed ==="
 	@echo ""
 
+# Sequential validation - runs steps one at a time, fails on first error
+# This is called by scripts/validate.sh when --sequential flag is used
+validate-impl-sequential:
+	@echo "=== Starting sequential validation ==="
+	@echo ""
+	@$(MAKE) validate-fmt-check-step
+	@echo ""
+	@$(MAKE) validate-clippy-step
+	@echo ""
+	@$(MAKE) validate-test-step
+	@echo ""
+	@$(MAKE) validate-examples-step
+	@echo ""
+	@echo "=== All validation steps completed ==="
+	@echo ""
+
 # Parallel validation steps - these will run concurrently when invoked with -j
-.PHONY: validate-parallel-steps validate-fmt-check-step validate-clippy-step validate-test-step validate-examples-step
+.PHONY: validate-parallel-steps validate-impl-sequential validate-fmt-check-step validate-clippy-step validate-test-step validate-examples-step
 validate-parallel-steps: validate-fmt-check-step validate-clippy-step validate-test-step validate-examples-step
 
 validate-fmt-check-step:

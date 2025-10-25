@@ -12,25 +12,31 @@
 # Smart caching: treats documentation-only changes (*.md) as cache hits.
 #
 # Usage:
-#   ./validate.sh [--force]
+#   ./validate.sh [--force] [--sequential]
 #
 # Options:
-#   --force    Skip cache checks and always run validation
+#   --force        Skip cache checks and always run validation
+#   --sequential   Run tests sequentially, failing on first failure (easier debugging)
 
 set -e  # Exit on error
 set -o pipefail  # Propagate pipeline errors
 
 # Parse command line arguments
 FORCE_VALIDATION=false
+SEQUENTIAL_MODE=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force)
             FORCE_VALIDATION=true
             shift
             ;;
+        --sequential)
+            SEQUENTIAL_MODE=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--force]"
+            echo "Usage: $0 [--force] [--sequential]"
             exit 1
             ;;
     esac
@@ -198,7 +204,11 @@ echo ""
 # Run validation via make validate-impl
 # The actual validation logic stays in the Makefile
 run_validation() {
-    make validate-impl
+    if [ "$SEQUENTIAL_MODE" = true ]; then
+        make validate-impl-sequential
+    else
+        make validate-impl
+    fi
 }
 
 # Run validation and capture output to WIP file
