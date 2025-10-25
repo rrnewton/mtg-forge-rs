@@ -202,6 +202,20 @@ impl<'a> GameLoop<'a> {
             ));
         }
 
+        // Shuffle each player's library at game start (MTG Rules 103.2a)
+        // This uses the game's RNG which can be seeded for deterministic testing
+        use rand::SeedableRng;
+        let seed = self.game.rng_seed;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
+        // Extract player IDs to avoid borrow checker issues
+        let player_ids: [PlayerId; 2] = [player1_id, player2_id];
+        for &player_id in &player_ids {
+            if let Some(zones) = self.game.get_player_zones_mut(player_id) {
+                zones.library.shuffle(&mut rng);
+            }
+        }
+
         // Main game loop - repeatedly run turns until game ends
         loop {
             // Run one turn and check if game should end
