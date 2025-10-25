@@ -87,6 +87,10 @@ We don't want TODO items to be in floating code alone. For anything but the most
 
 Then, the commit that fixes the issue both removes the comment and closes the issue in beads.
 
+#### Use description field only, not notes
+
+When creating or updating issues with `bd`, always put ALL content in the description field. Do NOT use the --notes field, as it creates duplication and confusion between what's in description vs notes. Keep all issue information consolidated in the description field only.
+
 Clean Start: Before beginning work on a task
 --------------------------------------------
 
