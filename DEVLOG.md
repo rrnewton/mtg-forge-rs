@@ -1750,6 +1750,10 @@ For our own TUI, we can follow a simiar design. Declaring blockers for example c
 When this is working well, proceed to start adding more test_decks. You can either sample whole decks from the thousands in forge-java/, or you can make more custom decks that demonstrate more choices.
 For example, a deck with royal assasins vs the grizzly bear deck should have the option to tap to kill a tapped grizzly bear in response to its attack.
 
+--- 
+
+
+
 
 
 TODO: Abstract the logging framework to redirect logs
