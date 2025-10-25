@@ -623,7 +623,7 @@ impl<'a> GameLoop<'a> {
         match step {
             Step::Untap => self.untap_step(),
             Step::Upkeep => self.upkeep_step(controller1, controller2),
-            Step::Draw => self.draw_step(),
+            Step::Draw => self.draw_step(controller1, controller2),
             Step::Main1 | Step::Main2 => self.main_phase(controller1, controller2),
             Step::BeginCombat => self.begin_combat_step(controller1, controller2),
             Step::DeclareAttackers => self.declare_attackers_step(controller1, controller2),
@@ -678,7 +678,11 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Draw step - active player draws a card
-    fn draw_step(&mut self) -> Result<()> {
+    fn draw_step(
+        &mut self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+    ) -> Result<()> {
         let active_player = self.game.turn.active_player;
 
         // Skip draw on first turn (player going first doesn't draw)
@@ -697,12 +701,19 @@ impl<'a> GameLoop<'a> {
                 if let Some(&card_id) = zones.hand.cards.last() {
                     if let Ok(card) = self.game.cards.get(card_id) {
                         log_if_verbose!(self, "{} draws {} ({})", player_name, card.name, card_id);
-                        return Ok(());
+                    } else {
+                        log_if_verbose!(self, "{} draws a card", player_name);
                     }
+                } else {
+                    log_if_verbose!(self, "{} draws a card", player_name);
                 }
+            } else {
+                log_if_verbose!(self, "{} draws a card", player_name);
             }
-            log_if_verbose!(self, "{} draws a card", player_name);
         }
+
+        // MTG Rules 504.2: After draw, players receive priority
+        self.priority_round(controller1, controller2)?;
 
         Ok(())
     }
@@ -744,49 +755,49 @@ impl<'a> GameLoop<'a> {
         // Get available creatures that can attack
         let available_creatures = self.get_available_attacker_creatures(active_player);
 
-        if available_creatures.is_empty() {
-            // No creatures to attack with, skip
-            return Ok(());
-        }
+        if !available_creatures.is_empty() {
+            // Ask controller to choose all attackers at once (v2 interface)
+            let view = GameStateView::new(self.game, active_player);
+            let attackers = controller.choose_attackers(&view, &available_creatures);
 
-        // Ask controller to choose all attackers at once (v2 interface)
-        let view = GameStateView::new(self.game, active_player);
-        let attackers = controller.choose_attackers(&view, &available_creatures);
+            // Declare each chosen attacker
+            let defending_player = self
+                .game
+                .get_other_player_id(active_player)
+                .expect("Should have defending player");
 
-        // Declare each chosen attacker
-        let defending_player = self
-            .game
-            .get_other_player_id(active_player)
-            .expect("Should have defending player");
+            for attacker_id in attackers.iter() {
+                self.game
+                    .combat
+                    .declare_attacker(*attacker_id, defending_player);
 
-        for attacker_id in attackers.iter() {
-            self.game
-                .combat
-                .declare_attacker(*attacker_id, defending_player);
+                if self.verbosity >= VerbosityLevel::Normal {
+                    let card_name = self
+                        .game
+                        .cards
+                        .get(*attacker_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown");
 
-            if self.verbosity >= VerbosityLevel::Normal {
-                let card_name = self
-                    .game
-                    .cards
-                    .get(*attacker_id)
-                    .map(|c| c.name.as_str())
-                    .unwrap_or("Unknown");
-
-                // Get power/toughness for more detail
-                if let Ok(card) = self.game.cards.get(*attacker_id) {
-                    let power = card.power.unwrap_or(0);
-                    let toughness = card.toughness.unwrap_or(0);
-                    println!(
-                        "  {} declares {} ({}) ({}/{}) as attacker",
-                        self.get_player_name(active_player),
-                        card_name,
-                        attacker_id,
-                        power,
-                        toughness
-                    );
+                    // Get power/toughness for more detail
+                    if let Ok(card) = self.game.cards.get(*attacker_id) {
+                        let power = card.power.unwrap_or(0);
+                        let toughness = card.toughness.unwrap_or(0);
+                        println!(
+                            "  {} declares {} ({}) ({}/{}) as attacker",
+                            self.get_player_name(active_player),
+                            card_name,
+                            attacker_id,
+                            power,
+                            toughness
+                        );
+                    }
                 }
             }
         }
+
+        // MTG Rules 508.4: After attackers are declared, players receive priority
+        self.priority_round(controller1, controller2)?;
 
         Ok(())
     }
@@ -813,42 +824,42 @@ impl<'a> GameLoop<'a> {
         let available_blockers = self.get_available_blocker_creatures(defending_player);
         let attackers = self.get_current_attackers();
 
-        if available_blockers.is_empty() || attackers.is_empty() {
-            // No blockers or no attackers, skip
-            return Ok(());
-        }
+        if !available_blockers.is_empty() && !attackers.is_empty() {
+            // Ask controller to choose all blocker assignments at once (v2 interface)
+            let view = GameStateView::new(self.game, defending_player);
+            let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
 
-        // Ask controller to choose all blocker assignments at once (v2 interface)
-        let view = GameStateView::new(self.game, defending_player);
-        let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
+            // Declare each blocking assignment
+            for (blocker_id, attacker_id) in blocks.iter() {
+                let mut attackers_vec = SmallVec::new();
+                attackers_vec.push(*attacker_id);
+                self.game.combat.declare_blocker(*blocker_id, attackers_vec);
 
-        // Declare each blocking assignment
-        for (blocker_id, attacker_id) in blocks.iter() {
-            let mut attackers_vec = SmallVec::new();
-            attackers_vec.push(*attacker_id);
-            self.game.combat.declare_blocker(*blocker_id, attackers_vec);
-
-            if self.verbosity >= VerbosityLevel::Verbose {
-                let blocker_name = self
-                    .game
-                    .cards
-                    .get(*blocker_id)
-                    .map(|c| c.name.as_str())
-                    .unwrap_or("Unknown");
-                let attacker_name = self
-                    .game
-                    .cards
-                    .get(*attacker_id)
-                    .map(|c| c.name.as_str())
-                    .unwrap_or("Unknown");
-                println!(
-                    "  {} blocks {} with {}",
-                    self.get_player_name(defending_player),
-                    attacker_name,
-                    blocker_name
-                );
+                if self.verbosity >= VerbosityLevel::Verbose {
+                    let blocker_name = self
+                        .game
+                        .cards
+                        .get(*blocker_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown");
+                    let attacker_name = self
+                        .game
+                        .cards
+                        .get(*attacker_id)
+                        .map(|c| c.name.as_str())
+                        .unwrap_or("Unknown");
+                    println!(
+                        "  {} blocks {} with {}",
+                        self.get_player_name(defending_player),
+                        attacker_name,
+                        blocker_name
+                    );
+                }
             }
         }
+
+        // MTG Rules 509.4: After blockers are declared, players receive priority
+        self.priority_round(controller1, controller2)?;
 
         Ok(())
     }
@@ -1234,12 +1245,16 @@ impl<'a> GameLoop<'a> {
                                 .get_valid_targets_for_spell(card_id)
                                 .unwrap_or_else(|_| SmallVec::new());
 
-                            // Ask controller to choose targets
-                            let view = GameStateView::new(self.game, current_priority);
-                            let chosen_targets =
-                                controller.choose_targets(&view, card_id, &valid_targets);
-                            let chosen_targets_vec: Vec<CardId> =
-                                chosen_targets.into_iter().collect();
+                            // Ask controller to choose targets (only if there are valid targets)
+                            let chosen_targets_vec: Vec<CardId> = if !valid_targets.is_empty() {
+                                let view = GameStateView::new(self.game, current_priority);
+                                let chosen_targets =
+                                    controller.choose_targets(&view, card_id, &valid_targets);
+                                chosen_targets.into_iter().collect()
+                            } else {
+                                // No targets needed - spell has no targeting effects
+                                Vec::new()
+                            };
 
                             // Clone for closure (which will move it)
                             let targets_for_callback = chosen_targets_vec.clone();
@@ -1954,12 +1969,12 @@ mod tests {
     #[test]
     fn test_draw_step() {
         let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let alice = {
-            game.players
-                .iter()
-                .map(|p| p.id)
-                .next()
-                .expect("Should have player 1")
+        let (alice, bob) = {
+            let mut players_iter = game.players.iter().map(|p| p.id);
+            (
+                players_iter.next().expect("Should have player 1"),
+                players_iter.next().expect("Should have player 2"),
+            )
         };
 
         // Add a card to Alice's library
@@ -1973,9 +1988,15 @@ mod tests {
         // Set turn to 2 (so draw happens)
         game.turn.turn_number = 2;
 
+        // Create mock controllers
+        let mut controller1 = crate::game::ZeroController::new(alice);
+        let mut controller2 = crate::game::ZeroController::new(bob);
+
         // Run draw step
         let mut game_loop = GameLoop::new(&mut game);
-        game_loop.draw_step().unwrap();
+        game_loop
+            .draw_step(&mut controller1, &mut controller2)
+            .unwrap();
 
         // Card should be in hand
         if let Some(zones) = game.get_player_zones(alice) {
