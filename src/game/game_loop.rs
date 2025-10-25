@@ -112,6 +112,9 @@ pub struct GameLoop<'a> {
     pub verbosity: VerbosityLevel,
     /// Track if current step header has been printed (for lazy printing)
     step_header_printed: bool,
+    /// Track targets for spells on the stack (spell_id -> chosen_targets)
+    /// This is needed because targets are chosen at cast time but used at resolution time
+    spell_targets: Vec<(CardId, Vec<CardId>)>,
 }
 
 impl<'a> GameLoop<'a> {
@@ -124,6 +127,7 @@ impl<'a> GameLoop<'a> {
             turns_elapsed: 0,
             verbosity,
             step_header_printed: false,
+            spell_targets: Vec::new(),
         }
     }
 
@@ -163,6 +167,7 @@ impl<'a> GameLoop<'a> {
     pub fn reset(&mut self) {
         self.turns_elapsed = 0;
         self.step_header_printed = false;
+        self.spell_targets.clear();
         self.game.logger.reset_step_header();
     }
 
@@ -1118,18 +1123,74 @@ impl<'a> GameLoop<'a> {
         Ok(())
     }
 
+    /// Resolve the top spell from the stack
+    ///
+    /// This removes the spell from the stack and executes its effects.
+    /// Implements MTG Comprehensive Rules 608 (Resolving Spells and Abilities).
+    fn resolve_top_spell_from_stack(&mut self, spell_id: CardId) -> Result<()> {
+        // Look up the targets for this spell
+        let targets = self
+            .spell_targets
+            .iter()
+            .find(|(id, _)| *id == spell_id)
+            .map(|(_, t)| t.clone())
+            .unwrap_or_else(Vec::new);
+
+        // Get card name and effects for logging (before resolution)
+        let (card_name, card_effects, card_owner) = if let Ok(card) = self.game.cards.get(spell_id)
+        {
+            (card.name.to_string(), card.effects.clone(), card.owner)
+        } else {
+            return Err(crate::MtgError::EntityNotFound(spell_id.as_u32()));
+        };
+
+        if self.verbosity >= VerbosityLevel::Normal {
+            println!("  {} ({}) resolves", card_name, spell_id);
+        }
+
+        // Resolve the spell
+        self.game.resolve_spell(spell_id, &targets)?;
+
+        // Log effects for instants/sorceries
+        if self.verbosity >= VerbosityLevel::Normal {
+            for effect in &card_effects {
+                self.log_effect_execution(&card_name, spell_id, effect, card_owner);
+            }
+
+            // Check if it's a permanent entering battlefield
+            if let Ok(card) = self.game.cards.get(spell_id) {
+                if card.is_creature() {
+                    println!(
+                        "  {} ({}) enters the battlefield as a {}/{} creature",
+                        card_name,
+                        spell_id,
+                        card.power.unwrap_or(0),
+                        card.toughness.unwrap_or(0)
+                    );
+                }
+            }
+        }
+
+        // Remove the spell from our targets tracking
+        self.spell_targets.retain(|(id, _)| *id != spell_id);
+
+        Ok(())
+    }
+
     /// Priority round - players get chances to act until both pass
     ///
     /// This implements the priority system where players alternate making choices
-    /// until both pass in succession. Matches Java Forge's priority handling.
+    /// until both pass in succession, then resolves spells from the stack.
     ///
-    /// ## New Implementation (aligned with Java Forge)
+    /// ## MTG Rules Implementation
     /// - Gets all available spell abilities (lands, spells, abilities)
-    /// - Calls controller.choose_spell_ability_to_play() ONCE
+    /// - Calls controller.choose_spell_ability_to_play() for each priority window
     /// - Handles the chosen ability appropriately:
     ///   - PlayLand: Resolves directly (no stack)
-    ///   - CastSpell: Follows 8-step casting process (mana tapped in step 6)
-    ///   - ActivateAbility: TODO
+    ///   - CastSpell: Puts spell on stack (MTG Rules 601)
+    ///   - ActivateAbility: TODO - should go on stack for non-mana abilities
+    /// - When both players pass with spells on stack, resolves top spell (MTG Rules 117.4)
+    /// - Repeats until stack is empty and both players pass
     fn priority_round(
         &mut self,
         controller1: &mut dyn PlayerController,
@@ -1141,309 +1202,293 @@ impl<'a> GameLoop<'a> {
             .get_other_player_id(active_player)
             .expect("Should have non-active player");
 
-        // Active player gets priority first
-        let mut current_priority = active_player;
-        let mut consecutive_passes = 0;
-        let mut action_count = 0;
-        const MAX_ACTIONS_PER_PRIORITY: usize = 1000;
+        // Outer loop: resolve stack until empty
+        loop {
+            // Active player gets priority first in each round
+            let mut current_priority = active_player;
+            let mut consecutive_passes = 0;
+            let mut action_count = 0;
+            const MAX_ACTIONS_PER_PRIORITY: usize = 1000;
 
-        while consecutive_passes < 2 {
-            // Safety check to prevent infinite loops
-            action_count += 1;
-            if action_count > MAX_ACTIONS_PER_PRIORITY {
-                return Err(crate::MtgError::InvalidAction(format!(
+            // Inner loop: pass priority until both players pass
+            while consecutive_passes < 2 {
+                // Safety check to prevent infinite loops
+                action_count += 1;
+                if action_count > MAX_ACTIONS_PER_PRIORITY {
+                    return Err(crate::MtgError::InvalidAction(format!(
                     "Priority round exceeded max actions ({MAX_ACTIONS_PER_PRIORITY}), possible infinite loop"
                 )));
-            }
+                }
 
-            // Get the appropriate controller
-            let controller: &mut dyn PlayerController =
-                if current_priority == controller1.player_id() {
-                    controller1
+                // Get the appropriate controller
+                let controller: &mut dyn PlayerController =
+                    if current_priority == controller1.player_id() {
+                        controller1
+                    } else {
+                        controller2
+                    };
+
+                // Get all available spell abilities for this player
+                let available = self.get_available_spell_abilities(current_priority);
+
+                // If no actions available, automatically pass priority without asking controller
+                // Only invoke controller when there's an actual choice to make
+                let choice = if available.is_empty() {
+                    // No available actions - automatically pass priority
+                    None
                 } else {
-                    controller2
+                    // Ask controller to choose one (or None to pass)
+                    let view = GameStateView::new(self.game, current_priority);
+                    controller.choose_spell_ability_to_play(&view, &available)
                 };
 
-            // Get all available spell abilities for this player
-            let available = self.get_available_spell_abilities(current_priority);
+                match choice {
+                    None => {
+                        // Controller chose to pass priority
+                        consecutive_passes += 1;
+                        let view = GameStateView::new(self.game, current_priority);
+                        controller.on_priority_passed(&view);
 
-            // If no actions available, automatically pass priority without asking controller
-            // Only invoke controller when there's an actual choice to make
-            let choice = if available.is_empty() {
-                // No available actions - automatically pass priority
-                None
-            } else {
-                // Ask controller to choose one (or None to pass)
-                let view = GameStateView::new(self.game, current_priority);
-                controller.choose_spell_ability_to_play(&view, &available)
-            };
+                        // Switch priority to other player
+                        current_priority = if current_priority == active_player {
+                            non_active_player
+                        } else {
+                            active_player
+                        };
+                    }
+                    Some(ability) => {
+                        // Controller chose an ability to play
+                        consecutive_passes = 0; // Reset pass counter
 
-            match choice {
-                None => {
-                    // Controller chose to pass priority
-                    consecutive_passes += 1;
-                    let view = GameStateView::new(self.game, current_priority);
-                    controller.on_priority_passed(&view);
-
-                    // Switch priority to other player
-                    current_priority = if current_priority == active_player {
-                        non_active_player
-                    } else {
-                        active_player
-                    };
-                }
-                Some(ability) => {
-                    // Controller chose an ability to play
-                    consecutive_passes = 0; // Reset pass counter
-
-                    match ability {
-                        crate::core::SpellAbility::PlayLand { card_id } => {
-                            // Play land - resolves directly (no stack)
-                            if let Err(e) = self.game.play_land(current_priority, card_id) {
-                                if self.verbosity >= VerbosityLevel::Normal {
-                                    eprintln!("  Error playing land: {e}");
+                        match ability {
+                            crate::core::SpellAbility::PlayLand { card_id } => {
+                                // Play land - resolves directly (no stack)
+                                if let Err(e) = self.game.play_land(current_priority, card_id) {
+                                    if self.verbosity >= VerbosityLevel::Normal {
+                                        eprintln!("  Error playing land: {e}");
+                                    }
+                                } else if self.verbosity >= VerbosityLevel::Normal {
+                                    let card_name = self
+                                        .game
+                                        .cards
+                                        .get(card_id)
+                                        .map(|c| c.name.as_str())
+                                        .unwrap_or("Unknown");
+                                    println!(
+                                        "  {} plays {} ({})",
+                                        self.get_player_name(current_priority),
+                                        card_name,
+                                        card_id
+                                    );
                                 }
-                            } else if self.verbosity >= VerbosityLevel::Normal {
+                            }
+                            crate::core::SpellAbility::CastSpell { card_id } => {
+                                // Cast spell using 8-step process
+                                // Mana will be tapped during step 6 (NOT here!)
+
                                 let card_name = self
                                     .game
                                     .cards
                                     .get(card_id)
-                                    .map(|c| c.name.as_str())
-                                    .unwrap_or("Unknown");
-                                println!(
-                                    "  {} plays {} ({})",
-                                    self.get_player_name(current_priority),
-                                    card_name,
-                                    card_id
-                                );
-                            }
-                        }
-                        crate::core::SpellAbility::CastSpell { card_id } => {
-                            // Cast spell using 8-step process
-                            // Mana will be tapped during step 6 (NOT here!)
+                                    .map(|c| c.name.to_string())
+                                    .unwrap_or_else(|_| "Unknown".to_string());
 
-                            let card_name = self
-                                .game
-                                .cards
-                                .get(card_id)
-                                .map(|c| c.name.to_string())
-                                .unwrap_or_else(|_| "Unknown".to_string());
-
-                            if self.verbosity >= VerbosityLevel::Normal {
-                                println!(
-                                    "  {} casts {} ({}) (putting on stack)",
-                                    self.get_player_name(current_priority),
-                                    card_name,
-                                    card_id
-                                );
-                            }
-
-                            // Get valid targets BEFORE calling cast_spell_8_step
-                            // (we can't borrow controller inside the closure)
-                            let valid_targets = self
-                                .game
-                                .get_valid_targets_for_spell(card_id)
-                                .unwrap_or_else(|_| SmallVec::new());
-
-                            // Ask controller to choose targets (only if there are valid targets)
-                            let chosen_targets_vec: Vec<CardId> = if !valid_targets.is_empty() {
-                                let view = GameStateView::new(self.game, current_priority);
-                                let chosen_targets =
-                                    controller.choose_targets(&view, card_id, &valid_targets);
-                                chosen_targets.into_iter().collect()
-                            } else {
-                                // No targets needed - spell has no targeting effects
-                                Vec::new()
-                            };
-
-                            // Clone for closure (which will move it)
-                            let targets_for_callback = chosen_targets_vec.clone();
-
-                            // Create callbacks for targeting and mana payment
-                            let targeting_callback = move |_game: &GameState, _spell_id: CardId| {
-                                // Return the pre-selected targets
-                                targets_for_callback.clone()
-                            };
-
-                            let mana_callback = |game: &GameState, cost: &crate::core::ManaCost| {
-                                // For now, automatically choose mana sources
-                                // TODO: Call controller.choose_mana_sources_to_pay()
-                                let mut sources = Vec::new();
-                                let tappable = game
-                                    .battlefield
-                                    .cards
-                                    .iter()
-                                    .filter(|&&card_id| {
-                                        if let Ok(card) = game.cards.get(card_id) {
-                                            card.owner == current_priority
-                                                && card.is_land()
-                                                && !card.tapped
-                                        } else {
-                                            false
-                                        }
-                                    })
-                                    .copied()
-                                    .collect::<Vec<_>>();
-
-                                // Simple greedy algorithm: tap lands until we have enough
-                                for &land_id in &tappable {
-                                    sources.push(land_id);
-                                    if sources.len() >= cost.cmc() as usize {
-                                        break;
-                                    }
-                                }
-                                sources
-                            };
-
-                            // Cast using 8-step process
-                            if let Err(e) = self.game.cast_spell_8_step(
-                                current_priority,
-                                card_id,
-                                targeting_callback,
-                                mana_callback,
-                            ) {
                                 if self.verbosity >= VerbosityLevel::Normal {
-                                    eprintln!("  Error casting spell: {e}");
-                                }
-                            } else {
-                                // Read card effects before resolution (for logging)
-                                let (card_effects, card_owner) =
-                                    if self.verbosity >= VerbosityLevel::Normal {
-                                        if let Ok(card) = self.game.cards.get(card_id) {
-                                            (Some(card.effects.clone()), card.owner)
-                                        } else {
-                                            (None, self.game.players[0].id)
-                                        }
-                                    } else {
-                                        (None, self.game.players[0].id)
-                                    };
-
-                                // Immediately resolve spell (simplified - no stack interaction yet)
-                                // Pass the chosen targets to resolve_spell
-                                if let Err(e) =
-                                    self.game.resolve_spell(card_id, &chosen_targets_vec)
-                                {
-                                    if self.verbosity >= VerbosityLevel::Normal {
-                                        eprintln!("  Error resolving spell: {e}");
-                                    }
-                                } else if self.verbosity >= VerbosityLevel::Normal {
-                                    // Log resolution
-                                    println!("  {card_name} ({card_id}) resolves");
-
-                                    // Log effects for instants/sorceries
-                                    if let Some(effects) = card_effects {
-                                        for effect in &effects {
-                                            self.log_effect_execution(
-                                                &card_name, card_id, effect, card_owner,
-                                            );
-                                        }
-                                    }
-
-                                    // Check if it's a permanent entering battlefield
-                                    if let Ok(card) = self.game.cards.get(card_id) {
-                                        if card.is_creature() {
-                                            println!(
-                                                "  {} ({}) enters the battlefield as a {}/{} creature",
-                                                card_name,
-                                                card_id,
-                                                card.power.unwrap_or(0),
-                                                card.toughness.unwrap_or(0)
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        crate::core::SpellAbility::ActivateAbility {
-                            card_id,
-                            ability_index,
-                        } => {
-                            // Activate ability from a permanent
-                            // Get the card and ability
-                            let card_name =
-                                self.game.cards.get(card_id).ok().map(|c| c.name.clone());
-                            let ability =
-                                self.game.cards.get(card_id).ok().and_then(|c| {
-                                    c.activated_abilities.get(ability_index).cloned()
-                                });
-
-                            if let Some(ability) = ability {
-                                if self.verbosity >= VerbosityLevel::Normal {
-                                    let name =
-                                        card_name.as_ref().map(|n| n.as_str()).unwrap_or("Unknown");
-                                    eprintln!(
-                                        "  {} activates ability: {}",
-                                        name, ability.description
+                                    println!(
+                                        "  {} casts {} ({}) (putting on stack)",
+                                        self.get_player_name(current_priority),
+                                        card_name,
+                                        card_id
                                     );
                                 }
 
-                                // Pay costs
-                                if let Err(e) = self.game.pay_ability_cost(
-                                    current_priority,
-                                    card_id,
-                                    &ability.cost,
-                                ) {
-                                    if self.verbosity >= VerbosityLevel::Normal {
-                                        eprintln!("    Failed to pay cost: {e}");
-                                    }
-                                    continue;
-                                }
+                                // Get valid targets BEFORE calling cast_spell_8_step
+                                // (we can't borrow controller inside the closure)
+                                let valid_targets = self
+                                    .game
+                                    .get_valid_targets_for_spell(card_id)
+                                    .unwrap_or_else(|_| SmallVec::new());
 
-                                // Execute effects
-                                // For now, execute effects immediately (not on the stack)
-                                // TODO: Put non-mana abilities on the stack
-                                for effect in &ability.effects {
-                                    // Fix placeholder player IDs and targets for effects
-                                    let fixed_effect = match effect {
-                                        crate::core::Effect::AddMana { player, mana }
-                                            if player.as_u32() == 0 =>
-                                        {
-                                            // Replace placeholder with current player
-                                            crate::core::Effect::AddMana {
-                                                player: current_priority,
-                                                mana: *mana,
-                                            }
-                                        }
-                                        crate::core::Effect::GainLife { player, amount }
-                                            if player.as_u32() == 0 =>
-                                        {
-                                            // Replace placeholder with current player
-                                            crate::core::Effect::GainLife {
-                                                player: current_priority,
-                                                amount: *amount,
-                                            }
-                                        }
-                                        crate::core::Effect::DrawCards { player, count }
-                                            if player.as_u32() == 0 =>
-                                        {
-                                            // Replace placeholder with current player
-                                            crate::core::Effect::DrawCards {
-                                                player: current_priority,
-                                                count: *count,
-                                            }
-                                        }
-                                        _ => effect.clone(),
+                                // Ask controller to choose targets (only if there are valid targets)
+                                let chosen_targets_vec: Vec<CardId> = if !valid_targets.is_empty() {
+                                    let view = GameStateView::new(self.game, current_priority);
+                                    let chosen_targets =
+                                        controller.choose_targets(&view, card_id, &valid_targets);
+                                    chosen_targets.into_iter().collect()
+                                } else {
+                                    // No targets needed - spell has no targeting effects
+                                    Vec::new()
+                                };
+
+                                // Clone for closure (which will move it)
+                                let targets_for_callback = chosen_targets_vec.clone();
+
+                                // Create callbacks for targeting and mana payment
+                                let targeting_callback =
+                                    move |_game: &GameState, _spell_id: CardId| {
+                                        // Return the pre-selected targets
+                                        targets_for_callback.clone()
                                     };
 
-                                    if let Err(e) = self.game.execute_effect(&fixed_effect) {
+                                let mana_callback =
+                                    |game: &GameState, cost: &crate::core::ManaCost| {
+                                        // For now, automatically choose mana sources
+                                        // TODO: Call controller.choose_mana_sources_to_pay()
+                                        let mut sources = Vec::new();
+                                        let tappable = game
+                                            .battlefield
+                                            .cards
+                                            .iter()
+                                            .filter(|&&card_id| {
+                                                if let Ok(card) = game.cards.get(card_id) {
+                                                    card.owner == current_priority
+                                                        && card.is_land()
+                                                        && !card.tapped
+                                                } else {
+                                                    false
+                                                }
+                                            })
+                                            .copied()
+                                            .collect::<Vec<_>>();
+
+                                        // Simple greedy algorithm: tap lands until we have enough
+                                        for &land_id in &tappable {
+                                            sources.push(land_id);
+                                            if sources.len() >= cost.cmc() as usize {
+                                                break;
+                                            }
+                                        }
+                                        sources
+                                    };
+
+                                // Cast using 8-step process
+                                if let Err(e) = self.game.cast_spell_8_step(
+                                    current_priority,
+                                    card_id,
+                                    targeting_callback,
+                                    mana_callback,
+                                ) {
+                                    if self.verbosity >= VerbosityLevel::Normal {
+                                        eprintln!("  Error casting spell: {e}");
+                                    }
+                                } else {
+                                    // Store targets for this spell (will be used when it resolves)
+                                    self.spell_targets.push((card_id, chosen_targets_vec));
+
+                                    // Spell is now on the stack - it will resolve later
+                                    // when both players pass priority
+                                }
+                            }
+                            crate::core::SpellAbility::ActivateAbility {
+                                card_id,
+                                ability_index,
+                            } => {
+                                // Activate ability from a permanent
+                                // Get the card and ability
+                                let card_name =
+                                    self.game.cards.get(card_id).ok().map(|c| c.name.clone());
+                                let ability = self.game.cards.get(card_id).ok().and_then(|c| {
+                                    c.activated_abilities.get(ability_index).cloned()
+                                });
+
+                                if let Some(ability) = ability {
+                                    if self.verbosity >= VerbosityLevel::Normal {
+                                        let name = card_name
+                                            .as_ref()
+                                            .map(|n| n.as_str())
+                                            .unwrap_or("Unknown");
+                                        eprintln!(
+                                            "  {} activates ability: {}",
+                                            name, ability.description
+                                        );
+                                    }
+
+                                    // Pay costs
+                                    if let Err(e) = self.game.pay_ability_cost(
+                                        current_priority,
+                                        card_id,
+                                        &ability.cost,
+                                    ) {
                                         if self.verbosity >= VerbosityLevel::Normal {
-                                            eprintln!("    Failed to execute effect: {e}");
+                                            eprintln!("    Failed to pay cost: {e}");
+                                        }
+                                        continue;
+                                    }
+
+                                    // Execute effects
+                                    // For now, execute effects immediately (not on the stack)
+                                    // TODO: Put non-mana abilities on the stack
+                                    for effect in &ability.effects {
+                                        // Fix placeholder player IDs and targets for effects
+                                        let fixed_effect = match effect {
+                                            crate::core::Effect::AddMana { player, mana }
+                                                if player.as_u32() == 0 =>
+                                            {
+                                                // Replace placeholder with current player
+                                                crate::core::Effect::AddMana {
+                                                    player: current_priority,
+                                                    mana: *mana,
+                                                }
+                                            }
+                                            crate::core::Effect::GainLife { player, amount }
+                                                if player.as_u32() == 0 =>
+                                            {
+                                                // Replace placeholder with current player
+                                                crate::core::Effect::GainLife {
+                                                    player: current_priority,
+                                                    amount: *amount,
+                                                }
+                                            }
+                                            crate::core::Effect::DrawCards { player, count }
+                                                if player.as_u32() == 0 =>
+                                            {
+                                                // Replace placeholder with current player
+                                                crate::core::Effect::DrawCards {
+                                                    player: current_priority,
+                                                    count: *count,
+                                                }
+                                            }
+                                            _ => effect.clone(),
+                                        };
+
+                                        if let Err(e) = self.game.execute_effect(&fixed_effect) {
+                                            if self.verbosity >= VerbosityLevel::Normal {
+                                                eprintln!("    Failed to execute effect: {e}");
+                                            }
                                         }
                                     }
+                                } else if self.verbosity >= VerbosityLevel::Normal {
+                                    eprintln!("  Ability not found");
                                 }
-                            } else if self.verbosity >= VerbosityLevel::Normal {
-                                eprintln!("  Ability not found");
                             }
                         }
-                    }
 
-                    // After taking an action, switch priority to other player
-                    current_priority = if current_priority == active_player {
-                        non_active_player
-                    } else {
-                        active_player
-                    };
+                        // After taking an action, switch priority to other player
+                        current_priority = if current_priority == active_player {
+                            non_active_player
+                        } else {
+                            active_player
+                        };
+                    }
                 }
+            }
+
+            // Both players passed priority
+            // Check if there are spells on the stack to resolve
+            if self.game.stack.is_empty() {
+                // Stack is empty, priority round is complete
+                break;
+            }
+
+            // Resolve the top spell from the stack (MTG Rules 608: Resolving Spells and Abilities)
+            // In MTG, the stack is LIFO (Last In, First Out)
+            if let Some(&spell_id) = self.game.stack.cards.last() {
+                self.resolve_top_spell_from_stack(spell_id)?;
+                // After resolving a spell, players get priority again
+                // Loop continues to give priority
+            } else {
+                // Stack was reported non-empty but has no cards (shouldn't happen)
+                break;
             }
         }
 

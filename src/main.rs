@@ -92,6 +92,10 @@ enum Commands {
         /// Verbosity level for game output (0=silent, 1=minimal, 2=normal, 3=verbose)
         #[arg(long, default_value = "normal", short = 'v')]
         verbosity: VerbosityArg,
+
+        /// Use numeric-only choice format (for comparison with Java Forge)
+        #[arg(long)]
+        numeric_choices: bool,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -123,7 +127,20 @@ async fn main() -> Result<()> {
             seed,
             load_all_cards,
             verbosity,
-        } => run_tui(deck1, deck2, p1, p2, seed, load_all_cards, verbosity).await?,
+            numeric_choices,
+        } => {
+            run_tui(
+                deck1,
+                deck2,
+                p1,
+                p2,
+                seed,
+                load_all_cards,
+                verbosity,
+                numeric_choices,
+            )
+            .await?
+        }
         Commands::Profile { games, seed, deck } => run_profile(games, seed, deck).await?,
     }
 
@@ -131,6 +148,7 @@ async fn main() -> Result<()> {
 }
 
 /// Run TUI with async card loading
+#[allow(clippy::too_many_arguments)] // CLI parameters naturally map to function args
 async fn run_tui(
     deck1_path: PathBuf,
     deck2_path: PathBuf,
@@ -139,6 +157,7 @@ async fn run_tui(
     seed: Option<u64>,
     load_all_cards: bool,
     verbosity: VerbosityArg,
+    numeric_choices: bool,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
@@ -185,6 +204,12 @@ async fn run_tui(
     if let Some(seed_value) = seed {
         game.rng_seed = seed_value;
         println!("Using random seed: {seed_value}");
+    }
+
+    // Enable numeric choices mode if requested
+    if numeric_choices {
+        game.logger.set_numeric_choices(true);
+        println!("Numeric choices mode: enabled");
     }
 
     println!("Game initialized!");

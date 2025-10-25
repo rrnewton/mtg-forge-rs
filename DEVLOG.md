@@ -1736,6 +1736,19 @@ duplicate issues into one and put it at the appropriate priority.
 ----------------------------------------
 
 
+Use --numeric-choices when comparing against Java
+----------------------------------------
+
+If you do this, you will see the choices to attack or block in a numeric-only choice format:
+
+```
+/headless.sh tui `pwd`/forge-headless/test_decks/grizzly_bears.dck `pwd`/forge-headless/test_decks/grizzly_bears.dck --p1=random --p2=ai --numeric-choices
+```
+
+For our own TUI, we can follow a simiar design. Declaring blockers for example can be done much more quickly with a rich interactive format ("0 blocks 1" "1 blocks 3" "done" is what Java uses). But if we pass `--numeric-choices` we want to only run the choice oracle in the simples mode that pics 0-N with a prompt.
+
+When this is working well, proceed to start adding more test_decks. You can either sample whole decks from the thousands in forge-java/, or you can make more custom decks that demonstrate more choices.
+For example, a deck with royal assasins vs the grizzly bear deck should have the option to tap to kill a tapped grizzly bear in response to its attack.
 
 
 

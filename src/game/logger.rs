@@ -18,6 +18,8 @@ pub struct GameLogger {
     /// Track if we've printed the step header (for lazy printing)
     #[serde(skip)]
     step_header_printed: bool,
+    /// Enable numeric-only choice format (for Java Forge comparison)
+    numeric_choices: bool,
 }
 
 impl GameLogger {
@@ -26,6 +28,7 @@ impl GameLogger {
         GameLogger {
             verbosity: VerbosityLevel::default(),
             step_header_printed: false,
+            numeric_choices: false,
         }
     }
 
@@ -34,7 +37,18 @@ impl GameLogger {
         GameLogger {
             verbosity,
             step_header_printed: false,
+            numeric_choices: false,
         }
+    }
+
+    /// Enable numeric-only choice logging
+    pub fn set_numeric_choices(&mut self, enabled: bool) {
+        self.numeric_choices = enabled;
+    }
+
+    /// Check if numeric choices mode is enabled
+    pub fn numeric_choices_enabled(&self) -> bool {
+        self.numeric_choices
     }
 
     /// Get current verbosity level
@@ -94,10 +108,11 @@ impl GameLogger {
 
     /// Log a controller decision at Normal level
     ///
-    /// This is a convenience method for logging AI/controller choices
+    /// This is a convenience method for logging AI/controller choices.
+    /// If numeric_choices mode is enabled, choices are always logged regardless of verbosity.
     #[inline]
     pub fn controller_choice(&self, controller_name: &str, message: &str) {
-        if self.verbosity >= VerbosityLevel::Normal {
+        if self.numeric_choices || self.verbosity >= VerbosityLevel::Normal {
             println!("  >>> {controller_name}: {message}");
         }
     }
