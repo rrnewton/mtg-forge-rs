@@ -1721,14 +1721,6 @@ Finally, add another flag `bd show --priority 0` to show all issues at a priorit
 Make an additional change. Whenever `bd show` is going to print multiple issues, present them in order of the IDs: issue-1, issue-2, etc.
 
 
-TODO[beads] provide `bd edit ID` subcommand
-----------------------------------------
-
-As a human, it's annoying to have to edit beads issues using `bd
-update`.  Instead, provide a `bd edit` command that opens $EDITOR to
-edit the issue.  `bd edit --description` should be the default, but
-add other options like `--title` to match the format of `bd update`.
-
 Task fixing and dedup
 ----------------------------------------
 
@@ -1741,13 +1733,6 @@ duplicate issues into one and put it at the appropriate priority.
 
 
 : aggressive random undo testing
-----------------------------------------
-
-
-
-
-
-TODO: aggressive random undo testing
 ----------------------------------------
 
 
