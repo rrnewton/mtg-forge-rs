@@ -36,3 +36,4 @@ logs/claude_workstream*
 trash/
 prompts/
 .claude
+*.lock

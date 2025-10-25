@@ -18,6 +18,9 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="$(cat ~/.github/PAT.txt)"
 
 export PATH=$PATH:/opt/local/bin/
 
+# Prioritize this to override other commands.
+export PATH=$HOME/bin:$PATH
+
 if [ -f /opt/venv/bin/activate ]; then
    source /opt/venv/bin/activate
 fi
