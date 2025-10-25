@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{
         random_controller::RandomController, zero_controller::ZeroController, GameLoop,
-        VerbosityLevel,
+        InteractiveController, VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
@@ -20,9 +20,9 @@ enum ControllerType {
     Zero,
     /// Makes random choices
     Random,
-    // TODO: Add these when implemented
-    // /// Interactive text UI controller for human play
-    // Tui,
+    /// Interactive text UI controller for human play
+    Interactive,
+    // TODO: Add this when implemented
     // /// AI controller with strategic decision making
     // Ai,
 }
@@ -207,6 +207,7 @@ async fn run_tui(
                 Box::new(RandomController::new(p1_id))
             }
         }
+        ControllerType::Interactive => Box::new(InteractiveController::new(p1_id)),
     };
 
     let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
@@ -219,6 +220,7 @@ async fn run_tui(
                 Box::new(RandomController::new(p2_id))
             }
         }
+        ControllerType::Interactive => Box::new(InteractiveController::new(p2_id)),
     };
 
     if verbosity >= VerbosityLevel::Minimal {
