@@ -1,3 +1,6 @@
 [submodule "forge-java"]
 	path = forge-java
 	url = git@github.com:rrnewton/forge.git
+[submodule ".devcontainer"]
+	path = .claude_template
+	url = git@github.com:rrnewton/claude_template.git
