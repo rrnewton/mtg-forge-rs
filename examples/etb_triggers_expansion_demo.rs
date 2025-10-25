@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let alice_life_before = game.get_player(alice_id)?.life;
     game.cards.insert(attendant_id, attendant);
     game.stack.add(attendant_id);
-    game.resolve_spell(attendant_id)?;
+    game.resolve_spell(attendant_id, &[])?;
     let alice_life_after = game.get_player(alice_id)?.life;
 
     println!("Soul's Attendant (1/1) enters the battlefield");
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     game.cards.insert(visionary_id, visionary);
     game.stack.add(visionary_id);
-    game.resolve_spell(visionary_id)?;
+    game.resolve_spell(visionary_id, &[])?;
 
     let hand_after = game
         .get_player_zones(alice_id)
@@ -147,7 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     game.cards.insert(kavu_id, kavu);
     game.stack.add(kavu_id);
-    game.resolve_spell(kavu_id)?;
+    game.resolve_spell(kavu_id, &[])?;
 
     let bob_creatures_after = game
         .battlefield

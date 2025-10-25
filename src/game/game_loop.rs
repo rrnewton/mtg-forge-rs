@@ -1227,11 +1227,27 @@ impl<'a> GameLoop<'a> {
                                 );
                             }
 
+                            // Get valid targets BEFORE calling cast_spell_8_step
+                            // (we can't borrow controller inside the closure)
+                            let valid_targets = self
+                                .game
+                                .get_valid_targets_for_spell(card_id)
+                                .unwrap_or_else(|_| SmallVec::new());
+
+                            // Ask controller to choose targets
+                            let view = GameStateView::new(self.game, current_priority);
+                            let chosen_targets =
+                                controller.choose_targets(&view, card_id, &valid_targets);
+                            let chosen_targets_vec: Vec<CardId> =
+                                chosen_targets.into_iter().collect();
+
+                            // Clone for closure (which will move it)
+                            let targets_for_callback = chosen_targets_vec.clone();
+
                             // Create callbacks for targeting and mana payment
-                            let targeting_callback = |_game: &GameState, _spell_id: CardId| {
-                                // For now, return empty targets
-                                // TODO: Call controller.choose_targets()
-                                Vec::new()
+                            let targeting_callback = move |_game: &GameState, _spell_id: CardId| {
+                                // Return the pre-selected targets
+                                targets_for_callback.clone()
                             };
 
                             let mana_callback = |game: &GameState, cost: &crate::core::ManaCost| {
@@ -1288,7 +1304,10 @@ impl<'a> GameLoop<'a> {
                                     };
 
                                 // Immediately resolve spell (simplified - no stack interaction yet)
-                                if let Err(e) = self.game.resolve_spell(card_id) {
+                                // Pass the chosen targets to resolve_spell
+                                if let Err(e) =
+                                    self.game.resolve_spell(card_id, &chosen_targets_vec)
+                                {
                                     if self.verbosity >= VerbosityLevel::Normal {
                                         eprintln!("  Error resolving spell: {e}");
                                     }
@@ -1773,7 +1792,8 @@ impl<'a> GameLoop<'a> {
                 self.game.cast_spell(player_id, *card_id, targets.clone())?;
 
                 // Immediately resolve spell (simplified - no stack interaction yet)
-                self.game.resolve_spell(*card_id)?;
+                // Legacy v1 path - no targets chosen, rely on auto-targeting
+                self.game.resolve_spell(*card_id, &[])?;
 
                 log_if_verbose!(
                     self,

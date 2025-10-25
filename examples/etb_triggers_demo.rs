@@ -94,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         game.cards.insert(creature_id, creature);
         game.stack.add(creature_id);
-        game.resolve_spell(creature_id)?;
+        game.resolve_spell(creature_id, &[])?;
 
         let hand_after = game
             .get_player_zones(alice_id)
@@ -135,7 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         game.cards.insert(creature_id, creature);
         game.stack.add(creature_id);
-        game.resolve_spell(creature_id)?;
+        game.resolve_spell(creature_id, &[])?;
 
         let hand_after = game
             .get_player_zones(alice_id)
@@ -193,7 +193,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     game.cards.insert(kavu_id, kavu);
     game.stack.add(kavu_id);
-    game.resolve_spell(kavu_id)?;
+    game.resolve_spell(kavu_id, &[])?;
 
     let bears_alive_after = game.battlefield.contains(target_id);
     let bears_in_graveyard = game

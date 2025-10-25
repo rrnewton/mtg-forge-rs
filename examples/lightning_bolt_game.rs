@@ -200,7 +200,7 @@ fn main() {
 
     println!("\nLightning Bolt resolves:");
     // Resolve the spell (executes effects and moves to graveyard)
-    game.resolve_spell(bolt_id)
+    game.resolve_spell(bolt_id, &[])
         .expect("Failed to resolve spell");
 
     let bob_player = game.get_player(bob).unwrap();

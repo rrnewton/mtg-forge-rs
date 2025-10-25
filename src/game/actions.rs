@@ -120,7 +120,14 @@ impl GameState {
     }
 
     /// Resolve a spell from the stack
-    pub fn resolve_spell(&mut self, card_id: CardId) -> Result<()> {
+    ///
+    /// ## Parameters
+    /// - `card_id`: The spell card on the stack to resolve
+    /// - `chosen_targets`: Targets selected by the controller during casting (optional)
+    ///
+    /// If targets are provided, they will be used to fill in placeholder targets in effects.
+    /// Otherwise, effects must already have their targets specified.
+    pub fn resolve_spell(&mut self, card_id: CardId, chosen_targets: &[CardId]) -> Result<()> {
         // Get card owner and effects
         let (card_owner, mut effects) = {
             let card = self.cards.get(card_id)?;
@@ -128,15 +135,109 @@ impl GameState {
             (card.owner, card.effects.clone())
         };
 
-        // Fill in missing targets for effects
-        // For now, target an opponent for DealDamage effects with no target
+        // Fill in targets for effects using the chosen targets
+        // If no targets were chosen (empty slice), effects must already be fully specified
+        let mut target_index = 0;
         for effect in &mut effects {
             match effect {
                 Effect::DealDamage {
                     target: TargetRef::None,
                     amount,
+                } if target_index < chosen_targets.len() => {
+                    // Use the chosen target
+                    *effect = Effect::DealDamage {
+                        target: TargetRef::Permanent(chosen_targets[target_index]),
+                        amount: *amount,
+                    };
+                    target_index += 1;
+                }
+                Effect::DestroyPermanent { target }
+                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
+                {
+                    // Use the chosen target
+                    *effect = Effect::DestroyPermanent {
+                        target: chosen_targets[target_index],
+                    };
+                    target_index += 1;
+                }
+                Effect::PumpCreature {
+                    target,
+                    power_bonus,
+                    toughness_bonus,
+                } if target.as_u32() == 0 && target_index < chosen_targets.len() => {
+                    // Use the chosen target
+                    *effect = Effect::PumpCreature {
+                        target: chosen_targets[target_index],
+                        power_bonus: *power_bonus,
+                        toughness_bonus: *toughness_bonus,
+                    };
+                    target_index += 1;
+                }
+                Effect::TapPermanent { target }
+                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
+                {
+                    // Use the chosen target
+                    *effect = Effect::TapPermanent {
+                        target: chosen_targets[target_index],
+                    };
+                    target_index += 1;
+                }
+                Effect::UntapPermanent { target }
+                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
+                {
+                    // Use the chosen target
+                    *effect = Effect::UntapPermanent {
+                        target: chosen_targets[target_index],
+                    };
+                    target_index += 1;
+                }
+                Effect::CounterSpell { target }
+                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
+                {
+                    // Use the chosen target
+                    *effect = Effect::CounterSpell {
+                        target: chosen_targets[target_index],
+                    };
+                    target_index += 1;
+                }
+                _ => {
+                    // Effect doesn't need a target, or target is already specified
+                }
+            }
+        }
+
+        // Handle placeholder player IDs (0 means "controller")
+        // This is still needed for effects that don't require targeting, like:
+        // "Draw a card" or "You gain 3 life"
+        for effect in &mut effects {
+            match effect {
+                Effect::DrawCards { player, count } if player.as_u32() == 0 => {
+                    // Placeholder player ID 0 means "controller"
+                    *effect = Effect::DrawCards {
+                        player: card_owner,
+                        count: *count,
+                    };
+                }
+                Effect::GainLife { player, amount } if player.as_u32() == 0 => {
+                    // Placeholder player ID 0 means "controller"
+                    *effect = Effect::GainLife {
+                        player: card_owner,
+                        amount: *amount,
+                    };
+                }
+                Effect::Mill { player, count } if player.as_u32() == 0 => {
+                    // Placeholder player ID 0 means "controller"
+                    *effect = Effect::Mill {
+                        player: card_owner,
+                        count: *count,
+                    };
+                }
+                Effect::DealDamage {
+                    target: TargetRef::None,
+                    amount,
                 } => {
-                    // Find an opponent
+                    // If no target was chosen, default to opponent for damage
+                    // This handles untargeted damage like "deals 1 damage to each opponent"
                     if let Some(opponent_id) = self
                         .players
                         .iter()
@@ -147,147 +248,6 @@ impl GameState {
                             target: TargetRef::Player(opponent_id),
                             amount: *amount,
                         };
-                    }
-                }
-                Effect::DrawCards { player, count } if player.as_u32() == 0 => {
-                    // Default: the card's controller draws (placeholder player ID 0 means "controller")
-                    *effect = Effect::DrawCards {
-                        player: card_owner,
-                        count: *count,
-                    };
-                }
-                Effect::DestroyPermanent { target } if target.as_u32() == 0 => {
-                    // Default: destroy an opponent's creature (placeholder card ID 0 means "opponent's creature")
-                    // Find an opponent's creature on the battlefield (that doesn't have hexproof or shroud)
-                    if let Some(creature_id) = self
-                        .battlefield
-                        .cards
-                        .iter()
-                        .find(|&card_id| {
-                            if let Ok(card) = self.cards.get(*card_id) {
-                                card.owner != card_owner
-                                    && card.is_creature()
-                                    && !card.has_hexproof()
-                                    && !card.has_shroud()
-                            } else {
-                                false
-                            }
-                        })
-                        .copied()
-                    {
-                        *effect = Effect::DestroyPermanent {
-                            target: creature_id,
-                        };
-                    }
-                }
-                Effect::GainLife { player, amount } if player.as_u32() == 0 => {
-                    // Default: the card's controller gains life (placeholder player ID 0 means "controller")
-                    *effect = Effect::GainLife {
-                        player: card_owner,
-                        amount: *amount,
-                    };
-                }
-                Effect::PumpCreature {
-                    target,
-                    power_bonus,
-                    toughness_bonus,
-                } if target.as_u32() == 0 => {
-                    // Default: target any creature (placeholder card ID 0 means "target creature")
-                    // Hexproof prevents targeting by opponent's spells/abilities
-                    // Find the first valid target creature on the battlefield
-                    if let Some(creature_id) = self
-                        .battlefield
-                        .cards
-                        .iter()
-                        .find(|&card_id| {
-                            if let Ok(card) = self.cards.get(*card_id) {
-                                // Shroud prevents targeting by anyone (including controller)
-                                if card.has_shroud() {
-                                    false
-                                } else if card.owner != card_owner {
-                                    // Opponent's creature: can only target if it doesn't have hexproof
-                                    card.is_creature() && !card.has_hexproof()
-                                } else {
-                                    // Own creature: can target (unless it has shroud, checked above)
-                                    card.is_creature()
-                                }
-                            } else {
-                                false
-                            }
-                        })
-                        .copied()
-                    {
-                        *effect = Effect::PumpCreature {
-                            target: creature_id,
-                            power_bonus: *power_bonus,
-                            toughness_bonus: *toughness_bonus,
-                        };
-                    }
-                }
-                Effect::TapPermanent { target } if target.as_u32() == 0 => {
-                    // Default: target an opponent's untapped creature (that doesn't have hexproof or shroud)
-                    if let Some(creature_id) = self
-                        .battlefield
-                        .cards
-                        .iter()
-                        .find(|&card_id| {
-                            if let Ok(card) = self.cards.get(*card_id) {
-                                card.owner != card_owner
-                                    && card.is_creature()
-                                    && !card.tapped
-                                    && !card.has_hexproof()
-                                    && !card.has_shroud()
-                            } else {
-                                false
-                            }
-                        })
-                        .copied()
-                    {
-                        *effect = Effect::TapPermanent {
-                            target: creature_id,
-                        };
-                    }
-                }
-                Effect::UntapPermanent { target } if target.as_u32() == 0 => {
-                    // Default: target a tapped permanent controlled by the caster
-                    if let Some(permanent_id) = self
-                        .battlefield
-                        .cards
-                        .iter()
-                        .find(|&card_id| {
-                            if let Ok(card) = self.cards.get(*card_id) {
-                                card.owner == card_owner && card.tapped
-                            } else {
-                                false
-                            }
-                        })
-                        .copied()
-                    {
-                        *effect = Effect::UntapPermanent {
-                            target: permanent_id,
-                        };
-                    }
-                }
-                Effect::CounterSpell { target } if target.as_u32() == 0 => {
-                    // Default: target a spell on the stack (other than this one)
-                    // Counter spells typically target opponent's spells
-                    if let Some(spell_id) = self
-                        .stack
-                        .cards
-                        .iter()
-                        .find(|&spell_id| {
-                            // Don't counter self, and prefer opponent's spells
-                            if *spell_id == card_id {
-                                false
-                            } else if let Ok(spell) = self.cards.get(*spell_id) {
-                                spell.owner != card_owner
-                            } else {
-                                false
-                            }
-                        })
-                        .copied()
-                    {
-                        *effect = Effect::CounterSpell { target: spell_id };
                     }
                 }
                 _ => {}
@@ -323,6 +283,119 @@ impl GameState {
         }
 
         Ok(())
+    }
+
+    /// Get valid targets for a spell's effects
+    ///
+    /// This function filters game entities to find valid targets based on:
+    /// - Effect type (damage, destroy, tap, etc.)
+    /// - Targeting restrictions (hexproof, shroud, protection)
+    /// - Controller ownership (can't target opponent's hexproof permanents)
+    /// - Zone requirements (battlefield, stack, etc.)
+    ///
+    /// Returns a vector of valid target CardIds that can be chosen by the controller.
+    /// For effects that target players, use TargetRef::Player instead.
+    pub fn get_valid_targets_for_spell(
+        &self,
+        spell_card_id: CardId,
+    ) -> Result<SmallVec<[CardId; 8]>> {
+        let mut valid_targets = SmallVec::new();
+
+        // Get the spell's owner and effects
+        let card = self.cards.get(spell_card_id)?;
+        let spell_owner = card.owner;
+        let effects = &card.effects;
+
+        // For each effect, determine what targets are valid
+        for effect in effects {
+            match effect {
+                Effect::DealDamage {
+                    target: TargetRef::None,
+                    ..
+                } => {
+                    // Damage can target any creature or player
+                    // Add all creatures that can be legally targeted
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            if card.is_creature() && !card.has_shroud() {
+                                // Hexproof only protects from opponent's spells
+                                if card.owner == spell_owner || !card.has_hexproof() {
+                                    valid_targets.push(card_id);
+                                }
+                            }
+                        }
+                    }
+                    // Note: Players are also valid targets, but we handle them separately
+                    // via TargetRef::Player since they don't have CardIds
+                }
+                Effect::DestroyPermanent { target } if target.as_u32() == 0 => {
+                    // Destroy can target any permanent (typically creatures)
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            if !card.has_shroud() {
+                                // Hexproof only protects from opponent's spells
+                                if card.owner == spell_owner || !card.has_hexproof() {
+                                    valid_targets.push(card_id);
+                                }
+                            }
+                        }
+                    }
+                }
+                Effect::PumpCreature { target, .. } if target.as_u32() == 0 => {
+                    // Pump can target any creature
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            if card.is_creature() && !card.has_shroud() {
+                                // Hexproof only protects from opponent's spells
+                                if card.owner == spell_owner || !card.has_hexproof() {
+                                    valid_targets.push(card_id);
+                                }
+                            }
+                        }
+                    }
+                }
+                Effect::TapPermanent { target } if target.as_u32() == 0 => {
+                    // Tap can target untapped permanents
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            if !card.tapped && !card.has_shroud() {
+                                // Hexproof only protects from opponent's spells
+                                if card.owner == spell_owner || !card.has_hexproof() {
+                                    valid_targets.push(card_id);
+                                }
+                            }
+                        }
+                    }
+                }
+                Effect::UntapPermanent { target } if target.as_u32() == 0 => {
+                    // Untap can target tapped permanents
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            if card.tapped && !card.has_shroud() {
+                                // Hexproof only protects from opponent's spells
+                                if card.owner == spell_owner || !card.has_hexproof() {
+                                    valid_targets.push(card_id);
+                                }
+                            }
+                        }
+                    }
+                }
+                Effect::CounterSpell { target } if target.as_u32() == 0 => {
+                    // Counter can target spells on the stack (except self)
+                    for &card_id in &self.stack.cards {
+                        if card_id != spell_card_id {
+                            valid_targets.push(card_id);
+                        }
+                    }
+                }
+                _ => {
+                    // Other effects either don't need targets or already have them specified
+                    // (DrawCards, GainLife, Mill, AddMana all specify player directly)
+                }
+            }
+        }
+
+        Ok(valid_targets)
     }
 
     /// Cast a spell following the full 8-step process (MTG Rules 601.2)
@@ -1716,7 +1789,7 @@ mod tests {
         game.stack.add(bolt_id);
 
         // Resolve the spell
-        assert!(game.resolve_spell(bolt_id).is_ok());
+        assert!(game.resolve_spell(bolt_id, &[]).is_ok());
 
         // Check damage was dealt
         let p2 = game.get_player(p2_id).unwrap();
@@ -1777,7 +1850,7 @@ mod tests {
 
         // Resolve the spell
         assert!(
-            game.resolve_spell(draw_spell_id).is_ok(),
+            game.resolve_spell(draw_spell_id, &[]).is_ok(),
             "Failed to resolve draw spell"
         );
 
@@ -1839,9 +1912,10 @@ mod tests {
             "Target creature should be on battlefield"
         );
 
-        // Resolve the spell
+        // Resolve the spell with the target creature
         assert!(
-            game.resolve_spell(destroy_spell_id).is_ok(),
+            game.resolve_spell(destroy_spell_id, &[target_creature_id])
+                .is_ok(),
             "Failed to resolve destroy spell"
         );
 
@@ -1896,7 +1970,7 @@ mod tests {
 
         // Resolve the spell
         assert!(
-            game.resolve_spell(gainlife_spell_id).is_ok(),
+            game.resolve_spell(gainlife_spell_id, &[]).is_ok(),
             "Failed to resolve gain life spell"
         );
 
@@ -2767,7 +2841,7 @@ mod tests {
 
         // Resolve the spell
         assert!(
-            game.resolve_spell(pump_spell_id).is_ok(),
+            game.resolve_spell(pump_spell_id, &[]).is_ok(),
             "Failed to resolve pump spell"
         );
 
@@ -2957,7 +3031,7 @@ mod tests {
 
         // Resolve the spell
         assert!(
-            game.resolve_spell(tap_spell_id).is_ok(),
+            game.resolve_spell(tap_spell_id, &[]).is_ok(),
             "Failed to resolve tap spell"
         );
 
@@ -3014,7 +3088,7 @@ mod tests {
 
         // Resolve the spell
         assert!(
-            game.resolve_spell(untap_spell_id).is_ok(),
+            game.resolve_spell(untap_spell_id, &[]).is_ok(),
             "Failed to resolve untap spell"
         );
 
@@ -4066,8 +4140,9 @@ mod tests {
         // Put it on the stack (simulating cast)
         game.stack.add(destroy_spell_id);
 
-        // Resolve the spell
-        let result = game.resolve_spell(destroy_spell_id);
+        // Resolve the spell - explicitly target the normal creature
+        // (controller would have chosen normal_creature_id, not hexproof one)
+        let result = game.resolve_spell(destroy_spell_id, &[normal_creature_id]);
         assert!(result.is_ok(), "Destroy spell should resolve successfully");
 
         // Check that the hexproof creature is still alive
@@ -4126,8 +4201,9 @@ mod tests {
         // Put spell on stack (simulating cast)
         game.stack.add(tap_spell_id);
 
-        // Resolve the spell
-        let result = game.resolve_spell(tap_spell_id);
+        // Resolve the spell - explicitly target the normal creature
+        // (controller would have chosen normal_creature_id, not hexproof one)
+        let result = game.resolve_spell(tap_spell_id, &[normal_creature_id]);
         assert!(result.is_ok(), "Tap spell should resolve successfully");
 
         // Check that the hexproof creature is not tapped
@@ -4177,7 +4253,7 @@ mod tests {
         game.stack.add(pump_spell_id);
 
         // Resolve the spell
-        let result = game.resolve_spell(pump_spell_id);
+        let result = game.resolve_spell(pump_spell_id, &[hexproof_creature_id]);
         assert!(
             result.is_ok(),
             "Pump spell on own hexproof creature should resolve successfully"
@@ -4230,7 +4306,7 @@ mod tests {
         game.stack.add(destroy_spell_id);
 
         // Resolve the spell - should succeed but do nothing (no valid targets)
-        let result = game.resolve_spell(destroy_spell_id);
+        let result = game.resolve_spell(destroy_spell_id, &[]);
         assert!(
             result.is_ok(),
             "Spell with no valid targets should still resolve"
@@ -4336,7 +4412,7 @@ mod tests {
         game.stack.add(destroy_spell_id);
 
         // Resolve the spell
-        let result = game.resolve_spell(destroy_spell_id);
+        let result = game.resolve_spell(destroy_spell_id, &[]);
         assert!(result.is_ok(), "Destroy spell should resolve successfully");
 
         // Indestructible creature should still be alive
@@ -4512,7 +4588,7 @@ mod tests {
         game.cards.insert(destroy_spell_id, destroy_spell);
         game.stack.add(destroy_spell_id);
 
-        let result = game.resolve_spell(destroy_spell_id);
+        let result = game.resolve_spell(destroy_spell_id, &[normal_creature_id]);
         assert!(result.is_ok(), "Destroy spell should resolve");
 
         // Shroud creature should still be alive
@@ -4570,7 +4646,7 @@ mod tests {
         game.cards.insert(pump_spell_id, pump_spell);
         game.stack.add(pump_spell_id);
 
-        let result = game.resolve_spell(pump_spell_id);
+        let result = game.resolve_spell(pump_spell_id, &[normal_creature_id]);
         assert!(result.is_ok(), "Pump spell should resolve");
 
         // Shroud creature should NOT have the pump
@@ -4628,7 +4704,7 @@ mod tests {
         game.cards.insert(tap_spell_id, tap_spell);
         game.stack.add(tap_spell_id);
 
-        let result = game.resolve_spell(tap_spell_id);
+        let result = game.resolve_spell(tap_spell_id, &[normal_creature_id]);
         assert!(result.is_ok(), "Tap spell should resolve");
 
         // Shroud creature should not be tapped
@@ -4753,7 +4829,7 @@ mod tests {
         assert!(game.stack.contains(counter_id));
 
         // Resolve counterspell (counters Lightning Bolt)
-        assert!(game.resolve_spell(counter_id).is_ok());
+        assert!(game.resolve_spell(counter_id, &[]).is_ok());
 
         // Verify counterspell is in graveyard
         if let Some(zones) = game.get_player_zones(p2_id) {
@@ -4808,7 +4884,7 @@ mod tests {
         game.stack.add(counter_id);
 
         // Resolve counterspell - should automatically find and counter Lightning Bolt
-        assert!(game.resolve_spell(counter_id).is_ok());
+        assert!(game.resolve_spell(counter_id, &[bolt_id]).is_ok());
 
         // Verify Lightning Bolt was countered
         assert!(!game.stack.contains(bolt_id));
@@ -4861,7 +4937,7 @@ mod tests {
         game.stack.add(creature_id);
 
         // Resolve the creature spell (moves it to battlefield and triggers ETB)
-        assert!(game.resolve_spell(creature_id).is_ok());
+        assert!(game.resolve_spell(creature_id, &[]).is_ok());
 
         // Verify the creature is on the battlefield
         assert!(game.battlefield.contains(creature_id));
@@ -4918,7 +4994,7 @@ mod tests {
         game.stack.add(kavu_id);
 
         // Resolve the kavu spell (moves it to battlefield and triggers ETB)
-        assert!(game.resolve_spell(kavu_id).is_ok());
+        assert!(game.resolve_spell(kavu_id, &[]).is_ok());
 
         // Verify the kavu is on the battlefield
         assert!(game.battlefield.contains(kavu_id));
@@ -4988,7 +5064,7 @@ mod tests {
         game.stack.add(creature_id);
 
         // Resolve the creature spell (moves it to battlefield and triggers ETB)
-        assert!(game.resolve_spell(creature_id).is_ok());
+        assert!(game.resolve_spell(creature_id, &[]).is_ok());
 
         // Verify the creature is on the battlefield
         assert!(game.battlefield.contains(creature_id));
@@ -5061,7 +5137,7 @@ mod tests {
 
         // Resolve Counterspell (should counter Lightning Bolt)
         assert!(
-            game.resolve_spell(counter_id).is_ok(),
+            game.resolve_spell(counter_id, &[]).is_ok(),
             "Counterspell should resolve successfully"
         );
 
@@ -5122,7 +5198,7 @@ mod tests {
 
         // Put the creature on the stack and resolve it
         game.stack.add(creature_id);
-        assert!(game.resolve_spell(creature_id).is_ok());
+        assert!(game.resolve_spell(creature_id, &[]).is_ok());
 
         // Verify the creature is on the battlefield
         assert!(game.battlefield.contains(creature_id));
@@ -5174,7 +5250,7 @@ mod tests {
 
         // Put the creature on the stack and resolve it
         game.stack.add(creature_id);
-        assert!(game.resolve_spell(creature_id).is_ok());
+        assert!(game.resolve_spell(creature_id, &[]).is_ok());
 
         // Verify the creature is on the battlefield
         assert!(game.battlefield.contains(creature_id));

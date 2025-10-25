@@ -175,7 +175,8 @@ async fn main() {
 
                 // Resolve the spell
                 println!("\n=== Resolving Sol Ring ===");
-                game.resolve_spell(sol_ring).expect("Failed to resolve");
+                game.resolve_spell(sol_ring, &[])
+                    .expect("Failed to resolve");
                 println!("  ✓ Sol Ring resolved");
 
                 // Check battlefield

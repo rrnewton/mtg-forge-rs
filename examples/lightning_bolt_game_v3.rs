@@ -204,7 +204,7 @@ async fn main() {
 
             // Resolve the spell
             println!("\nLightning Bolt resolves:");
-            if let Err(e) = game.resolve_spell(bolt_id) {
+            if let Err(e) = game.resolve_spell(bolt_id, &[]) {
                 println!("  Error: {e:?}");
             } else {
                 let bob_life = game.players[bob.as_u32() as usize].life;

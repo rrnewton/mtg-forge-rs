@@ -76,7 +76,7 @@ fn main() -> Result<()> {
     println!("Stack resolves in Last-In-First-Out (LIFO) order:\n");
 
     println!("1. Counterspell ({counter_id}) resolves:");
-    game.resolve_spell(counter_id)?;
+    game.resolve_spell(counter_id, &[])?;
     println!("   ✓ Countered Lightning Bolt ({bolt_id})");
     println!("   ✓ Lightning Bolt moved from stack to graveyard");
     println!("   ✓ Counterspell moved to graveyard\n");
