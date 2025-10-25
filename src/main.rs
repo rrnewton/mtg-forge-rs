@@ -20,8 +20,8 @@ enum ControllerType {
     Zero,
     /// Makes random choices
     Random,
-    /// Interactive text UI controller for human play
-    Interactive,
+    /// Text UI controller for human play via stdin
+    Tui,
     // TODO: Add this when implemented
     // /// AI controller with strategic decision making
     // Ai,
@@ -207,7 +207,7 @@ async fn run_tui(
                 Box::new(RandomController::new(p1_id))
             }
         }
-        ControllerType::Interactive => Box::new(InteractiveController::new(p1_id)),
+        ControllerType::Tui => Box::new(InteractiveController::new(p1_id)),
     };
 
     let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
@@ -220,7 +220,7 @@ async fn run_tui(
                 Box::new(RandomController::new(p2_id))
             }
         }
-        ControllerType::Interactive => Box::new(InteractiveController::new(p2_id)),
+        ControllerType::Tui => Box::new(InteractiveController::new(p2_id)),
     };
 
     if verbosity >= VerbosityLevel::Minimal {
