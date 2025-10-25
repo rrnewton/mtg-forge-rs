@@ -384,6 +384,155 @@ impl HeuristicController {
         // Pass priority if nothing good to do
         None
     }
+
+    /// Determine if a creature should attack based on evaluation and aggression level
+    ///
+    /// Reference: AiAttackController.java:1470 (shouldAttack method)
+    ///
+    /// This is a simplified port of the Java logic that considers:
+    /// - Evasion abilities (can the creature be blocked?)
+    /// - Power vs available blockers
+    /// - Aggression level settings
+    /// - Creature evaluation scores
+    fn should_attack(&self, attacker: &Card, _view: &GameStateView) -> bool {
+        let power = attacker.power.unwrap_or(0) as i32;
+        let toughness = attacker.toughness.unwrap_or(0) as i32;
+
+        // Check for evasion
+        let has_evasion = attacker.has_flying()
+            || attacker.has_menace()
+            || attacker
+                .keywords
+                .iter()
+                .any(|k| matches!(k, Keyword::Other(s) if s.contains("can't be blocked") || s.contains("unblockable")));
+
+        // Unblockable creatures should always attack (Java logic: always attack if can't be blocked)
+        if has_evasion && power > 0 {
+            return true;
+        }
+
+        // Creatures with 0 power generally don't attack unless they have special abilities
+        if power <= 0 {
+            return false;
+        }
+
+        // Java aggression levels (from AiAttackController.java:1503-1560):
+        // 6 = Exalted/all-in: attack expecting to kill or be unblockable
+        // 5 = All out attacking: always attack
+        // 4 = Expecting to trade or attack for free
+        // 3 = Balanced: expecting to kill something or be unblockable (default)
+        // 2 = Defensive: only attack if very favorable
+        // 1 = Very defensive: rarely attack
+        // 0 = Never attack (not implemented)
+
+        match self.aggression_level {
+            6 | 5 => {
+                // Aggressive/All-out: attack with anything that has power
+                power > 0
+            }
+            4 => {
+                // Expecting to trade: attack with creatures that have power >= 2
+                // or have evasion, or have good combat keywords
+                power >= 2
+                    || has_evasion
+                    || attacker.has_first_strike()
+                    || attacker.has_double_strike()
+                    || attacker.has_deathtouch()
+            }
+            3 => {
+                // Balanced (default): attack with creatures that:
+                // - Have evasion OR
+                // - Have power >= 2 AND (first strike OR deathtouch OR trample) OR
+                // - Have power >= 3
+                has_evasion
+                    || (power >= 2
+                        && (attacker.has_first_strike()
+                            || attacker.has_double_strike()
+                            || attacker.has_deathtouch()
+                            || attacker.has_trample()))
+                    || power >= 3
+            }
+            2 => {
+                // Defensive: only attack with evasive creatures or very strong ones
+                has_evasion || (power >= 4 && toughness >= 4)
+            }
+            1 => {
+                // Very defensive: only unblockable or overwhelming force
+                has_evasion || (power >= 5 && toughness >= 5)
+            }
+            _ => {
+                // Default to balanced if aggression is out of range
+                power >= 2
+            }
+        }
+    }
+
+    /// Determine if we should block an attacker with a specific blocker
+    ///
+    /// Reference: AiBlockController.java (blocking decision logic)
+    ///
+    /// Key considerations:
+    /// - Can the blocker survive? (toughness >= attacker power)
+    /// - Can the blocker kill the attacker? (blocker power >= attacker toughness)
+    /// - Favorable trade? (blocker value < attacker value)
+    /// - Life in danger? (must block to survive)
+    fn should_block(&self, blocker: &Card, attacker: &Card) -> bool {
+        let blocker_power = blocker.power.unwrap_or(0) as i32;
+        let blocker_toughness = blocker.toughness.unwrap_or(0) as i32;
+        let attacker_power = attacker.power.unwrap_or(0) as i32;
+        let attacker_toughness = attacker.toughness.unwrap_or(0) as i32;
+
+        // Check for special blocking keywords
+        let blocker_has_first_strike = blocker.has_first_strike() || blocker.has_double_strike();
+        let attacker_has_first_strike = attacker.has_first_strike() || attacker.has_double_strike();
+        let blocker_has_deathtouch = blocker.has_deathtouch();
+
+        // Can the blocker kill the attacker?
+        let can_kill_attacker = blocker_power >= attacker_toughness || blocker_has_deathtouch;
+
+        // Will the blocker survive?
+        let will_survive = if blocker_has_first_strike && !attacker_has_first_strike {
+            // Blocker strikes first and might kill attacker before taking damage
+            blocker_power < attacker_toughness || blocker_toughness > attacker_power
+        } else {
+            blocker_toughness > attacker_power
+        };
+
+        // Evaluate creatures to determine value trade
+        let blocker_value = self.evaluate_creature(blocker);
+        let attacker_value = self.evaluate_creature(attacker);
+
+        // Java AiBlockController logic (simplified):
+        // - Always block if we can kill attacker without dying (favorable trade)
+        // - Block if attacker is more valuable and we trade
+        // - Block with low-value creatures to save life
+        // - Don't block with valuable creatures unless necessary
+
+        // Case 1: We kill the attacker and survive - always good
+        if can_kill_attacker && will_survive {
+            return true;
+        }
+
+        // Case 2: Trading - kill attacker but die too
+        // Only trade if attacker is more valuable or we're desperate
+        if can_kill_attacker && !will_survive {
+            // Favorable trade: our creature is worth less
+            // Java uses a threshold (typically attacker_value > blocker_value + some margin)
+            return attacker_value > blocker_value;
+        }
+
+        // Case 3: We survive but don't kill the attacker
+        // This is usually bad unless the blocker has very low value
+        if !can_kill_attacker && will_survive {
+            // Only worth it if blocker is low value and might save life
+            return blocker_value < 100; // Low-value blocker threshold
+        }
+
+        // Case 4: We die without killing the attacker - usually avoid
+        // Only in desperate situations (life in danger)
+        // TODO: Check life total and implement "life in danger" logic
+        false
+    }
 }
 
 impl PlayerController for HeuristicController {
@@ -503,8 +652,8 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         available_creatures: &[CardId],
     ) -> SmallVec<[CardId; 8]> {
-        // TODO: Implement full attack logic from AiAttackController
-        // For now, use simple heuristic based on aggression level
+        // Port of Java's AiAttackController.declareAttackers()
+        // Reference: AiAttackController.java:818
 
         let mut attackers = SmallVec::new();
 
@@ -514,16 +663,9 @@ impl PlayerController for HeuristicController {
             .filter_map(|&id| view.get_card(id))
             .collect();
 
-        // Simple heuristic: Attack with creatures that have evasion or high power
+        // Evaluate each creature for attacking
         for creature in creatures {
-            let has_evasion = creature.has_flying()
-                || creature.has_menace()
-                || creature.keywords.iter().any(|k| matches!(k, Keyword::Other(s) if s.contains("can't be blocked") || s.contains("unblockable")));
-
-            let power = creature.power.unwrap_or(0);
-
-            // Aggressive: attack with evasive creatures or creatures with power >= 2
-            if has_evasion || power >= 2 {
+            if self.should_attack(creature, view) {
                 attackers.push(creature.id);
             }
         }
@@ -532,9 +674,19 @@ impl PlayerController for HeuristicController {
             view.logger().controller_choice(
                 "HEURISTIC",
                 &format!(
-                    "chose {} attackers from {} available creatures",
+                    "chose {} attackers from {} available creatures (aggression={})",
                     attackers.len(),
-                    available_creatures.len()
+                    available_creatures.len(),
+                    self.aggression_level
+                ),
+            );
+        } else if !available_creatures.is_empty() {
+            view.logger().controller_choice(
+                "HEURISTIC",
+                &format!(
+                    "chose not to attack with {} available creatures (aggression={})",
+                    available_creatures.len(),
+                    self.aggression_level
                 ),
             );
         }
@@ -548,8 +700,8 @@ impl PlayerController for HeuristicController {
         available_blockers: &[CardId],
         attackers: &[CardId],
     ) -> SmallVec<[(CardId, CardId); 8]> {
-        // TODO: Implement full block logic from AiBlockController
-        // For now, use simple heuristic
+        // Port of Java's AiBlockController.assignBlockersForCombat()
+        // Reference: AiBlockController.java:998
 
         let mut blocks = SmallVec::new();
 
@@ -557,31 +709,90 @@ impl PlayerController for HeuristicController {
             return blocks;
         }
 
-        // Simple heuristic: Block the biggest attackers with our best blockers
+        // Get card references
         let mut attacker_cards: Vec<&Card> = attackers
             .iter()
             .filter_map(|&id| view.get_card(id))
             .collect();
 
-        let mut blocker_cards: Vec<&Card> = available_blockers
+        let blocker_cards: Vec<&Card> = available_blockers
             .iter()
             .filter_map(|&id| view.get_card(id))
             .collect();
 
-        // Sort attackers by power (descending)
-        attacker_cards.sort_by_key(|c| -(c.power.unwrap_or(0)));
+        // Sort attackers by threat level (evaluation score descending)
+        // Block the most threatening creatures first
+        attacker_cards.sort_by_key(|c| -(self.evaluate_creature(c)));
 
-        // Sort blockers by toughness (descending)
-        blocker_cards.sort_by_key(|c| -(c.toughness.unwrap_or(0)));
+        // For each attacker (most threatening first), try to find a blocker
+        for attacker in &attacker_cards {
+            // Find best blocker for this attacker
+            let mut best_blocker: Option<&Card> = None;
+            let mut best_score = i32::MIN;
 
-        // Assign blockers to attackers
-        for (blocker, attacker) in blocker_cards.iter().zip(attacker_cards.iter()) {
-            blocks.push((blocker.id, attacker.id));
+            for &blocker in &blocker_cards {
+                // Skip if this blocker is already assigned
+                if blocks.iter().any(|(b_id, _)| *b_id == blocker.id) {
+                    continue;
+                }
+
+                // Check if this is a good block
+                if self.should_block(blocker, attacker) {
+                    // Score this blocking assignment
+                    // Prefer blockers that:
+                    // 1. Kill the attacker and survive (best)
+                    // 2. Trade favorably (kill high-value attacker with low-value blocker)
+                    // 3. Minimize damage taken
+
+                    let blocker_power = blocker.power.unwrap_or(0) as i32;
+                    let blocker_toughness = blocker.toughness.unwrap_or(0) as i32;
+                    let attacker_power = attacker.power.unwrap_or(0) as i32;
+                    let attacker_toughness = attacker.toughness.unwrap_or(0) as i32;
+
+                    let can_kill = blocker_power >= attacker_toughness || blocker.has_deathtouch();
+                    let will_survive = blocker_toughness > attacker_power;
+
+                    let score = if can_kill && will_survive {
+                        1000 // Best case: kill and survive
+                    } else if can_kill {
+                        500 - self.evaluate_creature(blocker) // Trade, prefer cheaper blocker
+                    } else if will_survive {
+                        100 // Survive without killing (chump block)
+                    } else {
+                        -1000 // Both die - bad unless necessary
+                    };
+
+                    if score > best_score {
+                        best_score = score;
+                        best_blocker = Some(blocker);
+                    }
+                }
+            }
+
+            // Assign the best blocker if we found one
+            if let Some(blocker) = best_blocker {
+                blocks.push((blocker.id, attacker.id));
+            }
         }
 
         if !blocks.is_empty() {
-            view.logger()
-                .controller_choice("HEURISTIC", &format!("chose {} blockers", blocks.len()));
+            view.logger().controller_choice(
+                "HEURISTIC",
+                &format!(
+                    "chose {} blockers for {} attackers",
+                    blocks.len(),
+                    attackers.len()
+                ),
+            );
+        } else if !attackers.is_empty() && !available_blockers.is_empty() {
+            view.logger().controller_choice(
+                "HEURISTIC",
+                &format!(
+                    "chose not to block (no favorable blocks among {} blockers vs {} attackers)",
+                    available_blockers.len(),
+                    attackers.len()
+                ),
+            );
         }
 
         blocks
