@@ -1005,9 +1005,9 @@ async fn test_must_attack_creature() -> Result<()> {
     );
 
     // Verify in logs that Juggernaut was declared as attacker
-    let juggernaut_attacked =
-        logs.iter()
-            .any(|e| e.message.contains("Juggernaut") && e.message.contains("attack"));
+    let juggernaut_attacked = logs
+        .iter()
+        .any(|e| e.message.contains("Juggernaut") && e.message.contains("attack"));
 
     if juggernaut_attacked {
         println!("✓ Juggernaut correctly attacked as required");
