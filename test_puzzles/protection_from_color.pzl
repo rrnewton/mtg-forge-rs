@@ -2,20 +2,20 @@
 Name=Protection from Color Test
 Goal=Win
 Turns=3
-Difficulty=Medium
-Description=P1 has White Knight (2/2 first strike, protection from black). P2 has a black creature. AI should recognize that White Knight cannot be blocked by black creatures.
+Difficulty=Hard
+Description=P1 has White Knight with protection from black. AI should recognize protection prevents damage, targeting, blocking, and enchanting from the specified color.
 
 [state]
-turn=5
+turn=4
 activeplayer=p0
 activephase=MAIN1
 p0life=20
 p0hand=
-p0battlefield=Plains;Plains;White Knight
+p0battlefield=Plains;Plains;Plains;Plains;White Knight;Elite Vanguard
 p0library=Plains;Plains;Plains
 p0graveyard=
-p1life=18
+p1life=20
 p1hand=
-p1battlefield=Swamp;Swamp;Swamp;Grizzly Bears
+p1battlefield=Swamp;Swamp;Swamp;Swamp;Drudge Skeletons;Scathe Zombies
 p1library=Swamp;Swamp;Swamp
 p1graveyard=
