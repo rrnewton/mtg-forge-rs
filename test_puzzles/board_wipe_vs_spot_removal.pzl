@@ -1,0 +1,21 @@
+[metadata]
+Name=Board Wipe vs Spot Removal Decision Test
+Goal=Win
+Turns=4
+Difficulty=Hard
+Description=P1 has board wipe (Wrath of God) available against multiple creatures. AI should recognize when mass removal is valuable against a wide board state.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=12
+p0hand=Wrath of God
+p0battlefield=Plains;Plains;Plains;Plains
+p0library=Plains;Plains;Swamp
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Mountain;Mountain;Mountain;Mountain;Grizzly Bears;Grizzly Bears;Grizzly Bears;Grizzly Bears
+p1library=Mountain;Mountain;Mountain
+p1graveyard=

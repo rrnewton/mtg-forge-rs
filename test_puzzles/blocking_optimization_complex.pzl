@@ -1,0 +1,21 @@
+[metadata]
+Name=Complex Blocking Optimization Test
+Goal=Win
+Turns=3
+Difficulty=Hard
+Description=P1 is defending against multiple attackers with different power/toughness combinations. AI should assign blockers optimally to minimize damage and maximize favorable trades.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Plains;Plains;Plains;Plains;Llanowar Elves;Llanowar Elves;Grizzly Bears
+p0library=Plains;Plains;Plains
+p0graveyard=
+p1life=15
+p1hand=
+p1battlefield=Mountain;Mountain;Mountain;Mountain;Serra Angel;Grizzly Bears;Llanowar Elves
+p1library=Mountain;Mountain;Mountain
+p1graveyard=
