@@ -10,7 +10,9 @@
 //! The benchmark is based on RandomController vs RandomController playing
 //! with simple_bolt.dck (Mountains + Lightning Bolts).
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{
+    black_box, criterion_group, criterion_main, measurement::Measurement, BenchmarkId, Criterion,
+};
 use mtg_forge_rs::{
     game::{random_controller::RandomController, GameLoop, VerbosityLevel},
     loader::{
@@ -30,6 +32,155 @@ static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
 /// Benchmark measurement time in seconds (used by all benchmarks)
 const BENCHMARK_TIME_SECS: u64 = 10;
+
+// ============================================================================
+// Custom Criterion Measurements
+// ============================================================================
+
+/// Custom measurement for counting turns per iteration
+/// Criterion will compute turns/sec from this
+#[derive(Clone)]
+struct TurnCounter;
+
+impl Measurement for TurnCounter {
+    type Intermediate = u32;
+    type Value = u32;
+
+    fn start(&self) -> Self::Intermediate {
+        0
+    }
+
+    fn end(&self, turns: Self::Intermediate) -> Self::Value {
+        turns
+    }
+
+    fn add(&self, v1: &Self::Value, v2: &Self::Value) -> Self::Value {
+        v1 + v2
+    }
+
+    fn zero(&self) -> Self::Value {
+        0
+    }
+
+    fn to_f64(&self, value: &Self::Value) -> f64 {
+        *value as f64
+    }
+
+    fn formatter(&self) -> &dyn criterion::measurement::ValueFormatter {
+        &TurnFormatter
+    }
+}
+
+struct TurnFormatter;
+
+impl criterion::measurement::ValueFormatter for TurnFormatter {
+    fn scale_values(&self, _typical: f64, _values: &mut [f64]) -> &'static str {
+        "turns"
+    }
+
+    fn scale_throughputs(
+        &self,
+        _typical: f64,
+        throughput: &criterion::Throughput,
+        values: &mut [f64],
+    ) -> &'static str {
+        match throughput {
+            criterion::Throughput::Elements(n) => {
+                for val in values {
+                    *val /= *n as f64;
+                }
+                "turns/elem"
+            }
+            criterion::Throughput::Bytes(n) | criterion::Throughput::BytesDecimal(n) => {
+                for val in values {
+                    *val /= *n as f64;
+                }
+                "turns/byte"
+            }
+        }
+    }
+
+    fn scale_for_machines(&self, _values: &mut [f64]) -> &'static str {
+        "turns"
+    }
+}
+
+/// Custom measurement for bytes allocated per turn
+/// This measures bytes/turn directly, and Criterion will compute (bytes/turn)/sec
+/// To get bytes/sec, multiply (bytes/turn) * (turns/sec)
+#[derive(Clone)]
+struct BytesPerTurn;
+
+impl Measurement for BytesPerTurn {
+    type Intermediate = (usize, u32); // (bytes, turns)
+    type Value = f64; // bytes per turn
+
+    fn start(&self) -> Self::Intermediate {
+        (0, 0)
+    }
+
+    fn end(&self, (bytes, turns): Self::Intermediate) -> Self::Value {
+        if turns == 0 {
+            0.0
+        } else {
+            bytes as f64 / turns as f64
+        }
+    }
+
+    fn add(&self, v1: &Self::Value, v2: &Self::Value) -> Self::Value {
+        v1 + v2
+    }
+
+    fn zero(&self) -> Self::Value {
+        0.0
+    }
+
+    fn to_f64(&self, value: &Self::Value) -> f64 {
+        *value
+    }
+
+    fn formatter(&self) -> &dyn criterion::measurement::ValueFormatter {
+        &BytesPerTurnFormatter
+    }
+}
+
+struct BytesPerTurnFormatter;
+
+impl criterion::measurement::ValueFormatter for BytesPerTurnFormatter {
+    fn scale_values(&self, _typical: f64, _values: &mut [f64]) -> &'static str {
+        "bytes/turn"
+    }
+
+    fn scale_throughputs(
+        &self,
+        _typical: f64,
+        throughput: &criterion::Throughput,
+        values: &mut [f64],
+    ) -> &'static str {
+        match throughput {
+            criterion::Throughput::Elements(n) => {
+                for val in values {
+                    *val /= *n as f64;
+                }
+                "(bytes/turn)/elem"
+            }
+            criterion::Throughput::Bytes(n) | criterion::Throughput::BytesDecimal(n) => {
+                for val in values {
+                    *val /= *n as f64;
+                }
+                "(bytes/turn)/byte"
+            }
+        }
+    }
+
+    fn scale_for_machines(&self, _values: &mut [f64]) -> &'static str {
+        "bytes_per_turn"
+    }
+}
+
+// ============================================================================
+// Game Metrics and Helpers
+// ============================================================================
 
 /// Metrics collected during game execution
 #[derive(Debug, Clone)]
@@ -313,19 +464,26 @@ where
 
 /// Helper function to print aggregated metrics
 ///
-/// Note: The "Avg duration/game" shown here is a naive average (total_time / iterations).
-/// For accurate per-iteration timing, refer to Criterion's statistical estimate shown above,
-/// which accounts for outliers, warmup effects, and provides confidence intervals.
+/// This prints context metrics (totals and simple averages).
+/// For throughput measurements (turns/sec, bytes/turn, bytes/sec),
+/// refer to Criterion's statistical estimates in separate benchmark groups above.
 fn print_aggregated_metrics(
     mode: &str,
     seed: u64,
     aggregated: &GameMetrics,
     iteration_count: usize,
 ) {
-    eprintln!("\n=== Aggregated Metrics - {mode} Mode (seed {seed}, {iteration_count} games) ===");
+    eprintln!("\n=== Context Metrics - {mode} Mode (seed {seed}, {iteration_count} games) ===");
     eprintln!("  Total turns: {}", aggregated.turns);
     eprintln!("  Total actions: {}", aggregated.actions);
     eprintln!("  Total duration: {:?}", aggregated.duration);
+    eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
+    eprintln!(
+        "  Total bytes deallocated: {}",
+        aggregated.bytes_deallocated
+    );
+    eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
+    eprintln!();
     eprintln!(
         "  Avg turns/game: {:.2}",
         aggregated.turns as f64 / iteration_count as f64
@@ -334,30 +492,13 @@ fn print_aggregated_metrics(
         "  Avg actions/game: {:.2}",
         aggregated.actions as f64 / iteration_count as f64
     );
-    eprintln!(
-        "  Avg duration/game (naive): {:.2?}",
-        aggregated.duration / iteration_count as u32
-    );
-    eprintln!(
-        "  Games/sec: {:.2}",
-        aggregated.avg_games_per_sec(iteration_count)
-    );
-    eprintln!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
-    eprintln!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
-    eprintln!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
-    eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
-    eprintln!(
-        "  Total bytes deallocated: {}",
-        aggregated.bytes_deallocated
-    );
-    eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
-    eprintln!(
-        "  Avg bytes/game: {:.2}",
-        aggregated.bytes_allocated as f64 / iteration_count as f64
-    );
-    eprintln!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
-    eprintln!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
-    eprintln!("\nNote: For authoritative per-iteration timing, see Criterion's estimate above.");
+    eprintln!("  Avg actions/turn: {:.2}", aggregated.actions_per_turn());
+    eprintln!();
+    eprintln!("Note: For accurate throughput measurements, see Criterion results above:");
+    eprintln!("  - game_execution/{mode} -> games/sec");
+    eprintln!("  - turns_per_sec/{mode} -> turns/sec");
+    eprintln!("  - bytes_per_turn/{mode} -> bytes/turn");
+    eprintln!("  - bytes/sec = (bytes/turn) * (turns/sec)");
 }
 
 /// Benchmark: Fresh mode - allocate new game each iteration
@@ -596,10 +737,6 @@ fn bench_game_snapshot(c: &mut Criterion) {
         }
     };
 
-    let mut group = c.benchmark_group("game_execution");
-    group.sample_size(10);
-    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
-
     let seed = 42u64;
 
     // Pre-create the initial game state (the "snapshot")
@@ -632,6 +769,11 @@ fn bench_game_snapshot(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
+    // Default time-based benchmark (for games/sec)
+    let mut group = c.benchmark_group("game_execution");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
+
     group.bench_function(BenchmarkId::new("snapshot", seed), |b| {
         b.iter(|| {
             let game_init_fn = || Ok(initial_game.clone());
@@ -641,12 +783,11 @@ fn bench_game_snapshot(c: &mut Criterion) {
             iteration_count += 1;
         });
     });
+    group.finish();
 
     if iteration_count > 0 {
         print_aggregated_metrics("Snapshot", seed, &aggregated, iteration_count);
     }
-
-    group.finish();
 }
 
 /// Benchmark: Rewind mode - use undo log to rewind game
@@ -779,6 +920,112 @@ fn bench_game_rewind(c: &mut Criterion) {
     group.finish();
 }
 
+// Benchmark with TurnCounter measurement for snapshot mode
+fn bench_game_snapshot_turns(c: &mut Criterion<TurnCounter>) {
+    let setup = match BenchmarkSetup::load() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Skipping benchmark - failed to load resources: {e}");
+            return;
+        }
+    };
+
+    let seed = 42u64;
+    let game_init = GameInitializer::new(&setup.card_db);
+    let initial_game = setup
+        .runtime
+        .block_on(async {
+            game_init
+                .init_game(
+                    "Player 1".to_string(),
+                    &setup.deck,
+                    "Player 2".to_string(),
+                    &setup.deck,
+                    20,
+                )
+                .await
+        })
+        .expect("Failed to initialize game");
+
+    let mut group = c.benchmark_group("turns_per_sec");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
+
+    group.bench_function(BenchmarkId::new("snapshot", seed), |b| {
+        let mut iteration = 0u64;
+        b.iter_custom(|iters| {
+            let mut total_turns = 0u32;
+            for i in 0..iters {
+                let game_init_fn = || Ok(initial_game.clone());
+                // Use varying seeds to introduce natural variation in turn counts
+                let game_seed = seed.wrapping_add(iteration).wrapping_add(i);
+                let metrics = run_game_with_metrics(game_seed, game_init_fn)
+                    .expect("Game should complete successfully");
+                total_turns += metrics.turns;
+            }
+            iteration = iteration.wrapping_add(iters);
+            total_turns
+        });
+    });
+    group.finish();
+}
+
+// Benchmark with BytesPerTurn measurement for snapshot mode
+fn bench_game_snapshot_bytes(c: &mut Criterion<BytesPerTurn>) {
+    let setup = match BenchmarkSetup::load() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Skipping benchmark - failed to load resources: {e}");
+            return;
+        }
+    };
+
+    let seed = 42u64;
+    let game_init = GameInitializer::new(&setup.card_db);
+    let initial_game = setup
+        .runtime
+        .block_on(async {
+            game_init
+                .init_game(
+                    "Player 1".to_string(),
+                    &setup.deck,
+                    "Player 2".to_string(),
+                    &setup.deck,
+                    20,
+                )
+                .await
+        })
+        .expect("Failed to initialize game");
+
+    let mut group = c.benchmark_group("bytes_per_turn");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
+
+    group.bench_function(BenchmarkId::new("snapshot", seed), |b| {
+        let mut iteration = 0u64;
+        b.iter_custom(|iters| {
+            let mut sum_bytes_per_turn = 0.0;
+            for i in 0..iters {
+                let game_init_fn = || Ok(initial_game.clone());
+                // Use varying seeds to introduce natural variation in bytes/turn
+                let game_seed = seed.wrapping_add(iteration).wrapping_add(i);
+                let metrics = run_game_with_metrics(game_seed, game_init_fn)
+                    .expect("Game should complete successfully");
+                // Compute bytes/turn for this game and add to sum
+                let bytes_per_turn = if metrics.turns == 0 {
+                    0.0
+                } else {
+                    metrics.bytes_allocated as f64 / metrics.turns as f64
+                };
+                sum_bytes_per_turn += bytes_per_turn;
+            }
+            iteration = iteration.wrapping_add(iters);
+            sum_bytes_per_turn
+        });
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_game_fresh,
@@ -787,4 +1034,17 @@ criterion_group!(
     bench_game_snapshot,
     bench_game_rewind
 );
-criterion_main!(benches);
+
+criterion_group! {
+    name = benches_turns;
+    config = Criterion::default().with_measurement(TurnCounter);
+    targets = bench_game_snapshot_turns
+}
+
+criterion_group! {
+    name = benches_bytes;
+    config = Criterion::default().with_measurement(BytesPerTurn);
+    targets = bench_game_snapshot_bytes
+}
+
+criterion_main!(benches, benches_turns, benches_bytes);
