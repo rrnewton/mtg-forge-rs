@@ -266,13 +266,13 @@ async fn test_royal_assassin_with_log_capture() -> Result<()> {
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
     let _result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
-    // Get captured logs
-    let logs: Vec<LogEntry> = game_loop.game.logger.get_logs();
+    // Get captured logs (using iterator interface - no copy!)
+    let logs = game_loop.game.logger.logs();
 
     // Verify we captured some logs
     assert!(!logs.is_empty(), "Should have captured some log entries");
 
-    // Look for evidence of combat
+    // Look for evidence of combat (using iterator - no extra allocation)
     let combat_logs: Vec<&LogEntry> = logs
         .iter()
         .filter(|entry| {
@@ -289,7 +289,7 @@ async fn test_royal_assassin_with_log_capture() -> Result<()> {
         println!("  [{}] {}", log.level as u8, log.message);
     }
 
-    // Verify we captured attack decisions
+    // Verify we captured attack decisions (no allocation needed!)
     let has_attack_decisions = logs.iter().any(|e| {
         e.message.contains("attack") && e.category == Some("controller_choice".to_string())
     });
