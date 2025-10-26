@@ -11,7 +11,7 @@
 
 use crate::game::VerbosityLevel;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 
 /// Output format for log messages
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -101,7 +101,34 @@ impl GameLogger {
         self.capture_logs
     }
 
+    /// Get a reference to captured log entries (no copy)
+    ///
+    /// Returns a guard that dereferences to a slice of log entries. This provides
+    /// read-only access to the log buffer without cloning. Clients can iterate,
+    /// filter, and inspect logs without allocation.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let logs = logger.logs();
+    /// for log in logs.iter() {
+    ///     if log.message.contains("attack") {
+    ///         println!("{}", log.message);
+    ///     }
+    /// }
+    ///
+    /// // Or count matching logs without copying:
+    /// let attack_count = logger.logs().iter()
+    ///     .filter(|log| log.message.contains("attack"))
+    ///     .count();
+    /// ```
+    pub fn logs(&self) -> Ref<'_, [LogEntry]> {
+        Ref::map(self.log_buffer.borrow(), |v| v.as_slice())
+    }
+
     /// Get captured log entries (clones the buffer)
+    ///
+    /// Deprecated: Use `logs()` instead to avoid unnecessary copying.
+    /// This method is kept for backward compatibility.
     pub fn get_logs(&self) -> Vec<LogEntry> {
         self.log_buffer.borrow().clone()
     }

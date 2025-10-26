@@ -187,8 +187,8 @@ async fn test_royal_assassin_with_log_capture() -> Result<()> {
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
     let result = game_loop.run_turns(&mut controller1, &mut controller2, 3)?;
 
-    // Get captured logs
-    let logs: Vec<LogEntry> = game_loop.game.logger.get_logs();
+    // Get captured logs (using iterator interface - no copy!)
+    let logs = game_loop.game.logger.logs();
 
     // Print ALL logs for the 3 turns (so we can see everything with --no-capture)
     println!("\n=== ALL CAPTURED LOGS ({} total) ===", logs.len());
