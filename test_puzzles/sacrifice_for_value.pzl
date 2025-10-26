@@ -1,0 +1,21 @@
+[metadata]
+Name=Sacrifice for Value Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has creatures and sacrifice effects. AI should recognize when sacrificing a creature provides value (e.g., preventing opponent from gaining value through targeted removal).
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Swamp;Swamp;Swamp;Swamp;Grizzly Bears;Llanowar Elves
+p0library=Swamp;Swamp;Swamp
+p0graveyard=
+p1life=20
+p1hand=Terror
+p1battlefield=Swamp;Swamp;Swamp;Swamp
+p1library=Swamp;Swamp;Swamp
+p1graveyard=

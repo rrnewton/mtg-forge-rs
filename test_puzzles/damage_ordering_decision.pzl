@@ -1,0 +1,21 @@
+[metadata]
+Name=Damage Ordering with Trample Test
+Goal=Win
+Turns=3
+Difficulty=Hard
+Description=P1 has a trampling creature blocked by multiple creatures. AI should assign lethal damage correctly to maximize damage to player.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Forest;Forest;Forest;Forest;Forest;Forest;Craw Wurm
+p0library=Forest;Forest;Forest
+p0graveyard=
+p1life=15
+p1hand=
+p1battlefield=Plains;Plains;Plains;Llanowar Elves;Llanowar Elves
+p1library=Plains;Plains;Plains
+p1graveyard=
