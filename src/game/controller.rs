@@ -150,6 +150,35 @@ impl<'a> GameStateView<'a> {
             .unwrap_or(0)
     }
 
+    /// Get a specific player's life total
+    pub fn player_life(&self, player_id: PlayerId) -> i32 {
+        self.game
+            .get_player(player_id)
+            .ok()
+            .map(|p| p.life)
+            .unwrap_or(0)
+    }
+
+    /// Get all opponent player IDs
+    ///
+    /// Returns an iterator over all players except the current player.
+    /// Useful for multiplayer games.
+    pub fn opponents(&self) -> impl Iterator<Item = PlayerId> + '_ {
+        self.game
+            .players
+            .iter()
+            .map(|p| p.id)
+            .filter(move |&id| id != self.player_id)
+    }
+
+    /// Get opponent life total in a 2-player game
+    ///
+    /// For 2-player games, returns the opponent's life total.
+    /// For multiplayer, returns the total life of all opponents combined.
+    pub fn opponent_life(&self) -> i32 {
+        self.opponents().map(|id| self.player_life(id)).sum()
+    }
+
     /// Get player's mana pool
     pub fn available_mana(&self) -> (u8, u8, u8, u8, u8, u8) {
         // Returns (white, blue, black, red, green, colorless)
@@ -310,4 +339,10 @@ pub trait PlayerController {
     /// Called when the game is over, with a boolean indicating whether
     /// this player won.
     fn on_game_end(&mut self, view: &GameStateView, won: bool);
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    include!("controller_tests.rs");
 }

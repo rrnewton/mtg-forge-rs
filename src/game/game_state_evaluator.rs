@@ -198,24 +198,17 @@ impl GameStateEvaluator {
     }
 
     /// Get total hand size for all opponents
-    fn get_opponent_hand_size(&self, _view: &GameStateView, ai_player: PlayerId) -> i32 {
-        // TODO: Support multiplayer (iterate all opponents)
-        // For now, assume 2-player game
-        let opponent_id = if ai_player.as_u32() == 0 {
-            PlayerId::new(1)
-        } else {
-            PlayerId::new(0)
-        };
-        _view.player_hand(opponent_id).len() as i32
+    fn get_opponent_hand_size(&self, view: &GameStateView, _ai_player: PlayerId) -> i32 {
+        // Sum hand sizes of all opponents (supports multiplayer)
+        view.opponents()
+            .map(|opp_id| view.player_hand(opp_id).len() as i32)
+            .sum()
     }
 
     /// Get total life for all opponents
-    fn get_opponent_life(&self, _view: &GameStateView, _ai_player: PlayerId) -> i32 {
-        // TODO: Support multiplayer (iterate all opponents)
-        // For now, assume 2-player game and hardcode access
-        // We need a way to get opponent life from view
-        // For now, return a placeholder
-        20 // TODO(vc-6): Need GameStateView.opponent_life()
+    fn get_opponent_life(&self, view: &GameStateView, _ai_player: PlayerId) -> i32 {
+        // Use GameStateView's opponent_life() method (supports multiplayer)
+        view.opponent_life()
     }
 }
 
