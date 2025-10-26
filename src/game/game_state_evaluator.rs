@@ -118,8 +118,10 @@ impl GameStateEvaluator {
         score -= 2 * opponent_life;
 
         // Evaluate mana base quality
-        // TODO(vc-2): Port evalManaBase() (lines 176-216)
-        // For now, skip mana base evaluation
+        // TODO(mtg-78): Full evalManaBase() port requires deck statistics (AiDeckStatistics)
+        // For now, use simplified evaluation that doesn't need deck stats
+        let mana_base_value = self.evaluate_mana_base_simplified(view, ai_player);
+        score += mana_base_value;
 
         // Evaluate battlefield permanents
         // Java: Loop through all battlefield cards, evaluate each (lines 148-170)
@@ -160,6 +162,83 @@ impl GameStateEvaluator {
         }
 
         Score::with_summon_sick(score, summon_sick_score)
+    }
+
+    /// Evaluate mana base quality (simplified version without deck statistics)
+    ///
+    /// This is a simplified version of Java's evalManaBase() that doesn't require
+    /// deck statistics. The full port would need AiDeckStatistics (maxPips, maxCost).
+    ///
+    /// Reference: GameStateEvaluator.evalManaBase() (lines 176-216)
+    fn evaluate_mana_base_simplified(&self, view: &GameStateView, ai_player: PlayerId) -> i32 {
+        let mut value = 0;
+        let mut total_mana_sources = 0;
+        let mut colors_available = [false; 5]; // WUBRG
+
+        // Count mana sources on battlefield
+        for &card_id in view.battlefield() {
+            if let Some(card) = view.get_card(card_id) {
+                // Only count our own mana sources
+                if card.owner != ai_player {
+                    continue;
+                }
+
+                // Check for mana abilities
+                for ability in &card.activated_abilities {
+                    if !ability.is_mana_ability {
+                        continue;
+                    }
+
+                    // Check what mana this produces
+                    for effect in &ability.effects {
+                        if let crate::core::Effect::AddMana { mana, .. } = effect {
+                            // Count total mana produced
+                            let mana_amount = mana.cmc() as i32;
+                            total_mana_sources += mana_amount.max(1); // At least 1 per source
+
+                            // Track colors available (simplified - just check if cost has color)
+                            if mana.white > 0 {
+                                colors_available[0] = true;
+                            }
+                            if mana.blue > 0 {
+                                colors_available[1] = true;
+                            }
+                            if mana.black > 0 {
+                                colors_available[2] = true;
+                            }
+                            if mana.red > 0 {
+                                colors_available[3] = true;
+                            }
+                            if mana.green > 0 {
+                                colors_available[4] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Value mana sources
+        // Java awards +100 per mana source up to deck needs, then +5 for excess
+        // Without deck stats, we'll use a simple heuristic:
+        // - First 6 mana sources: +100 each (typical early/mid game needs)
+        // - Next 4 mana sources: +50 each (late game)
+        // - Beyond 10: +5 each (excess)
+        if total_mana_sources <= 6 {
+            value += total_mana_sources * 100;
+        } else if total_mana_sources <= 10 {
+            value += 600 + (total_mana_sources - 6) * 50;
+        } else {
+            value += 800 + (total_mana_sources - 10) * 5;
+        }
+
+        // Value color fixing
+        // Java awards +100 per color pip up to deck needs
+        // Without deck stats, award +50 per color available (encouraging fixing)
+        let colors_count = colors_available.iter().filter(|&&x| x).count() as i32;
+        value += colors_count * 50;
+
+        value
     }
 
     /// Evaluate a single card on the battlefield
@@ -246,5 +325,25 @@ mod tests {
     fn test_win_loss_scores() {
         assert_eq!(Score::WIN.value, i32::MAX);
         assert_eq!(Score::LOSS.value, i32::MIN);
+    }
+
+    #[test]
+    fn test_mana_base_evaluation() {
+        use crate::game::controller::GameStateView;
+        use crate::game::state::GameState;
+
+        // Create a simple game with two players
+        let game = GameState::new_two_player("AI".to_string(), "Opponent".to_string(), 20);
+        let player_id = game.players[0].id;
+
+        // Create evaluator and view
+        let evaluator = GameStateEvaluator::new(player_id);
+        let view = GameStateView::new(&game, player_id);
+
+        // Evaluate mana base (empty battlefield should give 0)
+        let mana_value = evaluator.evaluate_mana_base_simplified(&view, player_id);
+
+        // Empty battlefield should have 0 mana base value
+        assert_eq!(mana_value, 0);
     }
 }
