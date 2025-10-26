@@ -485,162 +485,195 @@ fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
 
 /// Benchmark: Snapshot mode - save/restore game state each iteration using Clone
 fn bench_game_snapshot(c: &mut Criterion) {
-    let setup = match BenchmarkSetup::load() {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Skipping benchmark - failed to load resources: {e}");
-            return;
-        }
-    };
-
-    // Pre-create the initial game state (the "snapshot")
-    let game_init = GameInitializer::new(&setup.card_db);
-    let initial_game = setup
-        .runtime
-        .block_on(async {
-            game_init
-                .init_game(
-                    "Player 1".to_string(),
-                    &setup.deck,
-                    "Player 2".to_string(),
-                    &setup.deck,
-                    20,
-                )
-                .await
-        })
-        .expect("Failed to initialize game");
+    use std::cell::OnceCell;
+    use std::cell::RefCell;
 
     let mut group = c.benchmark_group("game_execution");
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
 
-    let mut metrics_acc = MetricsAccumulator::new();
+    // OnceCell OUTSIDE bench_function so it persists across Criterion's calls
+    let initial_game = OnceCell::new();
+    let metrics_acc = RefCell::new(MetricsAccumulator::new());
 
     group.bench_function("snapshot", |b| {
-        b.iter(|| {
-            let game_init_fn = || Ok(initial_game.clone());
-            let metrics = run_game_with_metrics(DEFAULT_SEED, game_init_fn)
-                .expect("Game should complete successfully");
-            metrics_acc.add(&metrics);
-        });
+        b.iter_batched_ref(
+            || {
+                // Setup closure - OnceCell ensures this only initializes ONCE total
+                initial_game
+                    .get_or_init(|| {
+                        eprintln!(
+                            "\nSnapshot mode: Pre-creating initial game state for cloning..."
+                        );
+                        let setup = BenchmarkSetup::load().expect("Failed to load benchmark setup");
+                        let game_init = GameInitializer::new(&setup.card_db);
+                        setup
+                            .runtime
+                            .block_on(async {
+                                game_init
+                                    .init_game(
+                                        "Player 1".to_string(),
+                                        &setup.deck,
+                                        "Player 2".to_string(),
+                                        &setup.deck,
+                                        20,
+                                    )
+                                    .await
+                            })
+                            .expect("Failed to initialize game")
+                    })
+                    .clone() // Clone for this batch
+            },
+            |game| {
+                // Benchmark closure - runs many times
+                let metrics = run_game_with_metrics(DEFAULT_SEED, || Ok(game.clone()))
+                    .expect("Game should complete successfully");
+                metrics_acc.borrow_mut().add(&metrics);
+            },
+            criterion::BatchSize::SmallInput,
+        );
     });
+
     group.finish();
 
-    metrics_acc.print_statistics("Snapshot");
+    metrics_acc.borrow().print_statistics("Snapshot");
 }
 
 /// Benchmark: Rewind mode - use undo log to rewind game
 fn bench_game_rewind(c: &mut Criterion) {
-    let setup = match BenchmarkSetup::load() {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Skipping benchmark - failed to load resources: {e}");
-            return;
-        }
-    };
-
-    // Pre-create and run an initial game to completion
-    let game_init = GameInitializer::new(&setup.card_db);
-    let mut initial_game = setup
-        .runtime
-        .block_on(async {
-            game_init
-                .init_game(
-                    "Player 1".to_string(),
-                    &setup.deck,
-                    "Player 2".to_string(),
-                    &setup.deck,
-                    20,
-                )
-                .await
-        })
-        .expect("Failed to initialize game");
-
-    initial_game.rng_seed = DEFAULT_SEED;
-
-    // Play the game once to build the undo log
-    {
-        let (p1_id, p2_id) = {
-            let mut players_iter = initial_game.players.iter().map(|p| p.id);
-            (
-                players_iter.next().expect("Should have player 1"),
-                players_iter.next().expect("Should have player 2"),
-            )
-        };
-
-        let mut controller1 = RandomController::with_seed(p1_id, DEFAULT_SEED);
-        let mut controller2 = RandomController::with_seed(p2_id, DEFAULT_SEED + 1);
-
-        let mut game_loop = GameLoop::new(&mut initial_game).with_verbosity(VerbosityLevel::Silent);
-        let _ = game_loop
-            .run_game(&mut controller1, &mut controller2)
-            .expect("Initial game should complete");
-    }
-
-    let _actions_count = initial_game.undo_log.len();
+    use std::cell::OnceCell;
+    use std::cell::RefCell;
 
     let mut group = c.benchmark_group("game_execution");
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
 
-    let mut metrics_acc = MetricsAccumulator::new();
+    // OnceCell OUTSIDE bench_function so it persists across Criterion's calls
+    let initial_game_with_log = OnceCell::new();
+    let metrics_acc = RefCell::new(MetricsAccumulator::new());
 
     group.bench_function("rewind", |b| {
-        b.iter(|| {
-            let reg = Region::new(GLOBAL);
-            let start = std::time::Instant::now();
+        b.iter_batched_ref(
+            || {
+                // Setup closure - OnceCell ensures expensive initialization only happens ONCE total
+                initial_game_with_log
+                    .get_or_init(|| {
+                        eprintln!("\nRewind mode: Setting up...");
 
-            // Rewind all actions
-            let mut rewind_count = 0;
-            while initial_game.undo().expect("Undo should succeed") {
-                rewind_count += 1;
-            }
+                        let setup = BenchmarkSetup::load().expect("Failed to load benchmark setup");
+                        let game_init = GameInitializer::new(&setup.card_db);
+                        let mut game = setup
+                            .runtime
+                            .block_on(async {
+                                game_init
+                                    .init_game(
+                                        "Player 1".to_string(),
+                                        &setup.deck,
+                                        "Player 2".to_string(),
+                                        &setup.deck,
+                                        20,
+                                    )
+                                    .await
+                            })
+                            .expect("Failed to initialize game");
 
-            let duration = start.elapsed();
-            let stats = reg.change();
+                        game.rng_seed = DEFAULT_SEED;
 
-            let metrics = GameMetrics {
-                turns: 18, // Known from fresh run
-                actions: rewind_count,
-                duration,
-                bytes_allocated: stats.bytes_allocated,
-                bytes_deallocated: stats.bytes_deallocated,
-            };
-            metrics_acc.add(&metrics);
+                        // Play the game once to build the undo log (expensive!)
+                        {
+                            let (p1_id, p2_id) = {
+                                let mut players_iter = game.players.iter().map(|p| p.id);
+                                (
+                                    players_iter.next().expect("Should have player 1"),
+                                    players_iter.next().expect("Should have player 2"),
+                                )
+                            };
 
-            // Re-run the game to populate undo log for next iteration
-            {
-                let (p1_id, p2_id) = {
-                    let mut players_iter = initial_game.players.iter().map(|p| p.id);
-                    (
-                        players_iter.next().expect("Should have player 1"),
-                        players_iter.next().expect("Should have player 2"),
-                    )
+                            let mut controller1 = RandomController::with_seed(p1_id, DEFAULT_SEED);
+                            let mut controller2 =
+                                RandomController::with_seed(p2_id, DEFAULT_SEED + 1);
+
+                            let mut game_loop =
+                                GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+                            let _ = game_loop
+                                .run_game(&mut controller1, &mut controller2)
+                                .expect("Initial game should complete");
+                        }
+
+                        let actions_count = game.undo_log.len();
+                        eprintln!(
+                            "  Game completed with {} actions in undo log",
+                            actions_count
+                        );
+                        eprintln!("  Will rewind to start for each iteration...");
+
+                        game
+                    })
+                    .clone() // Clone for this batch (includes undo log)
+            },
+            |game| {
+                // Benchmark closure - runs many times
+                let reg = Region::new(GLOBAL);
+                let start = std::time::Instant::now();
+
+                // Rewind all actions
+                let mut rewind_count = 0;
+                while game.undo().expect("Undo should succeed") {
+                    rewind_count += 1;
+                }
+
+                let duration = start.elapsed();
+                let stats = reg.change();
+
+                let metrics = GameMetrics {
+                    turns: 18, // Known from fresh run
+                    actions: rewind_count,
+                    duration,
+                    bytes_allocated: stats.bytes_allocated,
+                    bytes_deallocated: stats.bytes_deallocated,
                 };
+                metrics_acc.borrow_mut().add(&metrics);
 
-                let mut controller1 = RandomController::with_seed(p1_id, DEFAULT_SEED);
-                let mut controller2 = RandomController::with_seed(p2_id, DEFAULT_SEED + 1);
+                // Re-run the game to populate undo log for next iteration
+                {
+                    let (p1_id, p2_id) = {
+                        let mut players_iter = game.players.iter().map(|p| p.id);
+                        (
+                            players_iter.next().expect("Should have player 1"),
+                            players_iter.next().expect("Should have player 2"),
+                        )
+                    };
 
-                let mut game_loop =
-                    GameLoop::new(&mut initial_game).with_verbosity(VerbosityLevel::Silent);
-                let _ = game_loop
-                    .run_game(&mut controller1, &mut controller2)
-                    .expect("Game should complete");
-            }
-        });
+                    let mut controller1 = RandomController::with_seed(p1_id, DEFAULT_SEED);
+                    let mut controller2 = RandomController::with_seed(p2_id, DEFAULT_SEED + 1);
+
+                    let mut game_loop = GameLoop::new(game).with_verbosity(VerbosityLevel::Silent);
+                    let _ = game_loop
+                        .run_game(&mut controller1, &mut controller2)
+                        .expect("Game should complete");
+                }
+            },
+            criterion::BatchSize::SmallInput,
+        );
     });
+
     group.finish();
 
-    metrics_acc.print_statistics("Rewind");
+    metrics_acc.borrow().print_statistics("Rewind");
 }
 
-criterion_group!(
-    benches,
-    bench_game_fresh,
-    bench_game_fresh_with_logging,
-    bench_game_fresh_with_stdout_logging,
-    bench_game_snapshot,
-    bench_game_rewind
-);
+// Separate criterion groups so filtering works correctly
+// Running `cargo bench snapshot` will only call bench_game_snapshot
+criterion_group!(benches_fresh, bench_game_fresh);
+criterion_group!(benches_fresh_logging, bench_game_fresh_with_logging);
+criterion_group!(benches_fresh_stdout, bench_game_fresh_with_stdout_logging);
+criterion_group!(benches_snapshot, bench_game_snapshot);
+criterion_group!(benches_rewind, bench_game_rewind);
 
-criterion_main!(benches);
+criterion_main!(
+    benches_fresh,
+    benches_fresh_logging,
+    benches_fresh_stdout,
+    benches_snapshot,
+    benches_rewind
+);
