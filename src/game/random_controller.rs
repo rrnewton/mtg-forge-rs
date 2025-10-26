@@ -343,10 +343,10 @@ mod tests {
         let mut found_choice = false;
         for _ in 0..20 {
             let choice = controller.choose_spell_ability_to_play(&view, &abilities);
-            if choice.is_some() {
+            if let Some(chosen) = choice {
                 found_choice = true;
                 // The choice should be one of the available abilities
-                assert!(abilities.contains(&choice.unwrap()));
+                assert!(abilities.contains(&chosen));
             }
         }
         // With 30% pass rate, over 20 tries we should see at least one choice
