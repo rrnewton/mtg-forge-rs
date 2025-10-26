@@ -1,2 +1,5 @@
-no-db: true
-issue-prefix: "mtg-"
+prefix: mtg-
+backend: markdown
+no-db: false
+no-json: true
+
