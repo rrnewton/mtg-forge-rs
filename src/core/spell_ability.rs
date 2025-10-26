@@ -38,7 +38,7 @@ pub enum SpellAbility {
     /// Activate an ability of a permanent
     ///
     /// Activated abilities have a cost and an effect, formatted as
-    /// "[Cost]: [Effect]" on the card. For example, tapping a creature
+    /// "\[Cost\]: \[Effect\]" on the card. For example, tapping a creature
     /// to deal damage.
     ///
     /// The ability_index distinguishes multiple abilities on the same card.

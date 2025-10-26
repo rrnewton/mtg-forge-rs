@@ -1,7 +1,7 @@
 # MTG Forge Rust - Development Makefile
 #
 # Quick reference for common development tasks
-.PHONY: help build test validate clean run check fmt clippy doc examples full-benchmark bench-snapshot bench-logging profile heapprofile count setup-claude claude-github claude-beads happy
+.PHONY: help build test validate clean run check fmt clippy doc docs examples full-benchmark bench-snapshot bench-logging profile heapprofile count setup-claude claude-github claude-beads happy
 
 # Default target - show available commands
 help:
@@ -21,7 +21,8 @@ help:
 	@echo "  make check          - Fast compilation check (cargo check)"
 	@echo "  make fmt            - Format code (cargo fmt)"
 	@echo "  make clippy         - Run linter (cargo clippy)"
-	@echo "  make doc            - Generate documentation (cargo doc)"
+	@echo "  make doc            - Generate documentation and open in browser"
+	@echo "  make docs           - Generate documentation (no browser)"
 	@echo ""
 
 # Build the project
@@ -127,10 +128,15 @@ validate-examples-step:
 	@$(MAKE) examples
 	@echo "✓ examples completed"
 
-# Generate documentation
+# Generate documentation and open in browser
 doc:
 	@echo "=== Generating documentation ==="
 	cargo doc --no-deps --open
+
+# Generate documentation without opening browser
+docs:
+	@echo "=== Generating documentation ==="
+	cargo doc --no-deps
 
 # Clean build artifacts
 clean:
