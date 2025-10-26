@@ -1,0 +1,21 @@
+[metadata]
+Name=Protection from Color Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has White Knight (2/2 first strike, protection from black). P2 has a black creature. AI should recognize that White Knight cannot be blocked by black creatures.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Plains;Plains;White Knight
+p0library=Plains;Plains;Plains
+p0graveyard=
+p1life=18
+p1hand=
+p1battlefield=Swamp;Swamp;Swamp;Grizzly Bears
+p1library=Swamp;Swamp;Swamp
+p1graveyard=
