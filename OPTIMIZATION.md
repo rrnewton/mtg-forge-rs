@@ -4,16 +4,32 @@ This document provides guidance on high-performance Rust patterns for the MTG Fo
 
 ## Current Performance Metrics
 
-Our key performance metrics (as of latest benchmarks):
+Our key performance metrics (as of 2025-10-26_#333(dc90c78b)):
 
-- **Games/sec**: ~4,694 (seed 42, fresh mode)
-- **Actions/sec**: ~338,000
-- **Turns/sec**: ~413,000
-- **Actions/turn**: 0.82
-- **Avg allocations/turn**: 25,890 bytes
-- **Avg duration/game**: 213.03µs
+**Fresh Mode (seed 42):**
+- **Games/sec**: ~3,842
+- **Actions/sec**: ~464,585
+- **Turns/sec**: ~28,066
+- **Actions/turn**: 16.56
+- **Avg bytes/game**: ~233,426
+- **Avg bytes/turn**: ~12,968
+- **Avg duration/game**: 260.36µs
 
-These metrics will change over time as we add more game features, but actions/sec should remain fairly stable as a normalized metric.
+**Snapshot Mode (seed 42):**
+- **Games/sec**: ~9,177
+- **Actions/sec**: ~2,734,713
+- **Avg bytes/game**: ~122,884
+- **Avg duration/game**: 108.97µs
+
+**Rewind Mode (seed 42):**
+- **Rewinds/sec**: ~332,103
+- **Actions/sec (rewind)**: ~107,686,651
+- **Avg bytes allocated**: 0 (zero-copy)
+
+**Note:** These metrics reflect a much richer game implementation compared to earlier versions.
+The lower games/sec in fresh mode is offset by dramatically increased actions/turn (0.82 → 16.56),
+showing that each game now involves substantially more gameplay. Actions/sec remains a good
+normalized metric for raw engine performance.
 
 ## Zero-Copy Patterns and Best Practices
 
