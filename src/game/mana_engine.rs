@@ -1,16 +1,116 @@
-//! Mana availability computation
+//! Mana availability computation and cost payment checking
 //!
 //! This module provides efficient querying of whether a player can produce
 //! enough mana to pay a given cost. It maintains cached state of available
 //! mana sources partitioned into simple and complex sources.
 //!
-//! ## Design
+//! # Architecture
 //!
-//! - **Simple sources**: Lands that produce a single specific color (e.g., Mountain → R)
+//! The mana engine operates in two phases:
+//!
+//! 1. **Update Phase**: Scans the battlefield to identify and cache mana-producing permanents
+//! 2. **Query Phase**: Answers questions about whether specific costs can be paid
+//!
+//! ## Mana Source Classification
+//!
+//! - **Simple sources**: Lands that produce a single specific color (e.g., Mountain → R, Plains → W)
+//!   - Cached as `ManaCapacity` counters (WUBRGC)
+//!   - O(1) query time - just compare counts
+//!   - Currently supports: Plains, Island, Swamp, Mountain, Forest, Wastes
+//!
 //! - **Complex sources**: Lands with choices or conditional costs (e.g., City of Brass → any color)
+//!   - Stored as list of `CardId`s for future search
+//!   - Not yet implemented - requires search algorithm
+//!   - Examples: dual lands, fetch lands, City of Brass
 //!
-//! Simple sources can be cached as counters (WUBRGC). Complex sources require
-//! search to determine payability.
+//! ## Performance Characteristics
+//!
+//! - **Update**: O(n) where n = number of battlefield permanents
+//!   - Linear scan of battlefield
+//!   - Should be called when permanents enter/leave or tap/untap
+//!   - Not called on every mana payment - only when state changes
+//!
+//! - **Query (simple sources only)**: O(1)
+//!   - Just arithmetic comparisons of cached counters
+//!   - Critical path for spell selection AI
+//!
+//! - **Query (with complex sources)**: Not yet implemented
+//!   - Will require small search (likely << 20 sources in practice)
+//!
+//! ## Integration with GameState
+//!
+//! The `ManaEngine` does not directly modify `GameState`. It is a read-only
+//! cache layer that:
+//!
+//! 1. Reads battlefield state during `update()`
+//! 2. Answers queries about mana availability
+//! 3. Actual mana pool modification happens in `GameState::mana_pool`
+//!
+//! This separation allows the engine to be used speculatively (e.g., "what if
+//! I had these lands?") without affecting the game state.
+//!
+//! # Usage Examples
+//!
+//! ## Basic Usage - Check if a spell is castable
+//!
+//! ```ignore
+//! use mtg_forge_rs::game::{ManaEngine, GameState};
+//! use mtg_forge_rs::core::{ManaCost, PlayerId};
+//!
+//! let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
+//! let alice_id = game.players[0].id;
+//!
+//! // Create and update the mana engine
+//! let mut engine = ManaEngine::new(alice_id);
+//! engine.update(&game);
+//!
+//! // Check if we can cast Lightning Bolt (R)
+//! let mut bolt_cost = ManaCost::new();
+//! bolt_cost.red = 1;
+//! let can_cast = engine.can_pay(&bolt_cost);
+//! ```
+//!
+//! ## Integrating with AI Controllers
+//!
+//! ```ignore
+//! // In your controller's choose_spell_ability_to_play():
+//! let mut engine = ManaEngine::new(player_id);
+//! engine.update(&game);
+//!
+//! // Filter available spells to only those we can afford
+//! let affordable_spells: Vec<_> = available_spells
+//!     .into_iter()
+//!     .filter(|spell| {
+//!         let cost = get_spell_cost(spell);
+//!         engine.can_pay(&cost)
+//!     })
+//!     .collect();
+//! ```
+//!
+//! ## Maintaining the Engine Across Game Actions
+//!
+//! For efficiency, you can maintain a `ManaEngine` instance and update it
+//! only when the battlefield changes:
+//!
+//! ```ignore
+//! impl MyController {
+//!     fn on_permanent_entered(&mut self, card_id: CardId, game: &GameState) {
+//!         self.mana_engine.update(game);  // Rebuild cache
+//!     }
+//!
+//!     fn on_permanent_tapped(&mut self, card_id: CardId, game: &GameState) {
+//!         self.mana_engine.update(game);  // Rebuild cache
+//!     }
+//! }
+//! ```
+//!
+//! # Future Enhancements
+//!
+//! - **Complex source handling**: Implement search algorithm for dual lands, City of Brass, etc.
+//! - **Creature mana abilities**: Recognize Llanowar Elves, Birds of Paradise
+//! - **Conditional sources**: Handle lands with tap conditions (e.g., "T: Add G if you control a Forest")
+//! - **Mana filtering**: Track color identity restrictions (e.g., Commander format)
+//! - **Cost reduction**: Handle effects like Goblin Electromancer that reduce spell costs
 
 use crate::core::{CardId, ManaCost, PlayerId};
 use crate::game::GameState;
