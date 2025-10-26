@@ -1,0 +1,21 @@
+[metadata]
+Name=First Strike Combat Math Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has creatures with first strike (White Knight) that can win favorable combats. AI should recognize first strike advantage in combat calculations.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Plains;Plains;Plains;White Knight
+p0library=Plains;Plains;Plains
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Swamp;Swamp;Swamp;Scathe Zombies
+p1library=Swamp;Swamp;Swamp
+p1graveyard=

@@ -1,0 +1,21 @@
+[metadata]
+Name=Activated Ability Usage Test
+Goal=Win
+Turns=4
+Difficulty=Hard
+Description=P1 has creatures with activated abilities (Prodigal Sorcerer) that can control the board. AI should recognize when to use mana for activated abilities vs casting spells.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=15
+p0hand=
+p0battlefield=Island;Island;Island;Island;Prodigal Sorcerer
+p0library=Island;Island;Island
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Forest;Forest;Forest;Llanowar Elves;Llanowar Elves
+p1library=Forest;Forest;Forest
+p1graveyard=
