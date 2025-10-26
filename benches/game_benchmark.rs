@@ -192,6 +192,60 @@ where
     Ok(metrics)
 }
 
+/// Run a single game with in-memory logging enabled at Normal verbosity
+fn run_game_with_logging<F>(seed: u64, game_init_fn: F) -> Result<GameMetrics>
+where
+    F: FnOnce() -> Result<mtg_forge_rs::game::GameState>,
+{
+    let reg = Region::new(GLOBAL);
+    let start = std::time::Instant::now();
+
+    // Initialize game using provided function
+    let mut game = game_init_fn()?;
+    game.rng_seed = seed;
+
+    // Enable log capture
+    game.logger.enable_capture();
+
+    // Create random controllers
+    let (p1_id, p2_id) = {
+        let mut players_iter = game.players.iter().map(|p| p.id);
+        (
+            players_iter.next().expect("Should have player 1"),
+            players_iter.next().expect("Should have player 2"),
+        )
+    };
+
+    let mut controller1 = RandomController::with_seed(p1_id, seed);
+    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+
+    // Run game with Normal verbosity to capture logs
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
+    let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+    let duration = start.elapsed();
+
+    // Collect metrics
+    let actions = game_loop.game.undo_log.len();
+    let log_entries = game_loop.game.logger.get_logs().len();
+    let stats = reg.change();
+
+    let metrics = GameMetrics {
+        turns: result.turns_played,
+        actions,
+        duration,
+        bytes_allocated: stats.bytes_allocated,
+        bytes_deallocated: stats.bytes_deallocated,
+    };
+
+    // Report log entries captured
+    if log_entries > 0 {
+        println!("  Log entries captured: {}", log_entries);
+    }
+
+    Ok(metrics)
+}
+
 /// Helper function to print aggregated metrics
 fn print_aggregated_metrics(
     mode: &str,
@@ -322,6 +376,101 @@ fn bench_game_fresh(c: &mut Criterion) {
     });
 
     print_aggregated_metrics("Fresh", seed, &aggregated, iteration_count);
+
+    group.finish();
+}
+
+/// Benchmark: Fresh mode with in-memory logging at Normal verbosity
+/// Measures allocation overhead of logging infrastructure
+fn bench_game_fresh_with_logging(c: &mut Criterion) {
+    // Check if test resources exist and load once
+    let setup = match BenchmarkSetup::load() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Skipping benchmark - failed to load resources: {e}");
+            return;
+        }
+    };
+
+    let mut group = c.benchmark_group("game_execution");
+
+    // Configure for long-running benchmarks
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(10));
+
+    let seed = 42u64;
+
+    // Run a warmup game to print metrics
+    println!("\nWarmup game - Fresh mode with logging (seed {seed}):");
+    let game_init_fn = || {
+        let game_init = GameInitializer::new(&setup.card_db);
+        setup.runtime.block_on(async {
+            game_init
+                .init_game(
+                    "Player 1".to_string(),
+                    &setup.deck,
+                    "Player 2".to_string(),
+                    &setup.deck,
+                    20,
+                )
+                .await
+        })
+    };
+
+    if let Ok(metrics) = run_game_with_logging(seed, game_init_fn) {
+        println!("  Turns: {}", metrics.turns);
+        println!("  Actions: {}", metrics.actions);
+        println!("  Duration: {:?}", metrics.duration);
+        println!("  Games/sec: {:.2}", metrics.games_per_sec());
+        println!("  Actions/sec: {:.2}", metrics.actions_per_sec());
+        println!("  Turns/sec: {:.2}", metrics.turns_per_sec());
+        println!("  Actions/turn: {:.2}", metrics.actions_per_turn());
+        println!("  Bytes allocated: {}", metrics.bytes_allocated);
+        println!("  Bytes deallocated: {}", metrics.bytes_deallocated);
+        println!("  Net bytes: {}", metrics.net_bytes_allocated());
+        println!("  Bytes/turn: {:.2}", metrics.bytes_per_turn());
+        println!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
+    }
+
+    // Accumulator for aggregating metrics across benchmark iterations
+    let mut aggregated = GameMetrics {
+        turns: 0,
+        actions: 0,
+        duration: Duration::ZERO,
+        bytes_allocated: 0,
+        bytes_deallocated: 0,
+    };
+    let mut iteration_count = 0;
+
+    group.bench_with_input(
+        BenchmarkId::new("fresh_logging", seed),
+        &seed,
+        |b, &seed| {
+            b.iter(|| {
+                let game_init_fn = || {
+                    let game_init = GameInitializer::new(&setup.card_db);
+                    setup.runtime.block_on(async {
+                        game_init
+                            .init_game(
+                                "Player 1".to_string(),
+                                &setup.deck,
+                                "Player 2".to_string(),
+                                &setup.deck,
+                                20,
+                            )
+                            .await
+                    })
+                };
+
+                let metrics = run_game_with_logging(black_box(seed), game_init_fn)
+                    .expect("Game should complete successfully");
+                aggregated += metrics.clone();
+                iteration_count += 1;
+            });
+        },
+    );
+
+    print_aggregated_metrics("Fresh with Logging", seed, &aggregated, iteration_count);
 
     group.finish();
 }
@@ -520,6 +669,7 @@ fn bench_game_rewind(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_game_fresh,
+    bench_game_fresh_with_logging,
     bench_game_snapshot,
     bench_game_rewind
 );
