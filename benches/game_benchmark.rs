@@ -240,7 +240,7 @@ where
 
     // Report log entries captured
     if log_entries > 0 {
-        println!("  Log entries captured: {}", log_entries);
+        eprintln!("  Log entries captured: {}", log_entries);
     }
 
     Ok(metrics)
@@ -314,47 +314,52 @@ where
 }
 
 /// Helper function to print aggregated metrics
+///
+/// Note: The "Avg duration/game" shown here is a naive average (total_time / iterations).
+/// For accurate per-iteration timing, refer to Criterion's statistical estimate shown above,
+/// which accounts for outliers, warmup effects, and provides confidence intervals.
 fn print_aggregated_metrics(
     mode: &str,
     seed: u64,
     aggregated: &GameMetrics,
     iteration_count: usize,
 ) {
-    println!("\n=== Aggregated Metrics - {mode} Mode (seed {seed}, {iteration_count} games) ===");
-    println!("  Total turns: {}", aggregated.turns);
-    println!("  Total actions: {}", aggregated.actions);
-    println!("  Total duration: {:?}", aggregated.duration);
-    println!(
+    eprintln!("\n=== Aggregated Metrics - {mode} Mode (seed {seed}, {iteration_count} games) ===");
+    eprintln!("  Total turns: {}", aggregated.turns);
+    eprintln!("  Total actions: {}", aggregated.actions);
+    eprintln!("  Total duration: {:?}", aggregated.duration);
+    eprintln!(
         "  Avg turns/game: {:.2}",
         aggregated.turns as f64 / iteration_count as f64
     );
-    println!(
+    eprintln!(
         "  Avg actions/game: {:.2}",
         aggregated.actions as f64 / iteration_count as f64
     );
-    println!(
-        "  Avg duration/game: {:.2?}",
+    eprintln!(
+        "  Avg duration/game (naive): {:.2?}",
         aggregated.duration / iteration_count as u32
     );
-    println!(
+    eprintln!(
         "  Games/sec: {:.2}",
         aggregated.avg_games_per_sec(iteration_count)
     );
-    println!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
-    println!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
-    println!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
-    println!("  Total bytes allocated: {}", aggregated.bytes_allocated);
-    println!(
+    eprintln!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
+    eprintln!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
+    eprintln!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
+    eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
+    eprintln!(
         "  Total bytes deallocated: {}",
         aggregated.bytes_deallocated
     );
-    println!("  Net bytes: {}", aggregated.net_bytes_allocated());
-    println!(
+    eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
+    eprintln!(
         "  Avg bytes/game: {:.2}",
         aggregated.bytes_allocated as f64 / iteration_count as f64
     );
-    println!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
-    println!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
+    eprintln!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
+    eprintln!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
+    eprintln!("\nNote: For authoritative per-iteration timing, see Criterion's estimate above.");
 }
 
 /// Benchmark: Fresh mode - allocate new game each iteration
@@ -375,38 +380,6 @@ fn bench_game_fresh(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10)); // 30 seconds per benchmark
 
     let seed = 42u64;
-
-    // Run a warmup game to print metrics
-    println!("\nWarmup game - Fresh mode (seed {seed}):");
-    let game_init_fn = || {
-        let game_init = GameInitializer::new(&setup.card_db);
-        setup.runtime.block_on(async {
-            game_init
-                .init_game(
-                    "Player 1".to_string(),
-                    &setup.deck,
-                    "Player 2".to_string(),
-                    &setup.deck,
-                    20,
-                )
-                .await
-        })
-    };
-
-    if let Ok(metrics) = run_game_with_metrics(seed, game_init_fn) {
-        println!("  Turns: {}", metrics.turns);
-        println!("  Actions: {}", metrics.actions);
-        println!("  Duration: {:?}", metrics.duration);
-        println!("  Games/sec: {:.2}", metrics.games_per_sec());
-        println!("  Actions/sec: {:.2}", metrics.actions_per_sec());
-        println!("  Turns/sec: {:.2}", metrics.turns_per_sec());
-        println!("  Actions/turn: {:.2}", metrics.actions_per_turn());
-        println!("  Bytes allocated: {}", metrics.bytes_allocated);
-        println!("  Bytes deallocated: {}", metrics.bytes_deallocated);
-        println!("  Net bytes: {}", metrics.net_bytes_allocated());
-        println!("  Bytes/turn: {:.2}", metrics.bytes_per_turn());
-        println!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
-    }
 
     // Accumulator for aggregating metrics across benchmark iterations
     let mut aggregated = GameMetrics {
@@ -468,38 +441,6 @@ fn bench_game_fresh_with_logging(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
 
     let seed = 42u64;
-
-    // Run a warmup game to print metrics
-    println!("\nWarmup game - Fresh mode with logging (seed {seed}):");
-    let game_init_fn = || {
-        let game_init = GameInitializer::new(&setup.card_db);
-        setup.runtime.block_on(async {
-            game_init
-                .init_game(
-                    "Player 1".to_string(),
-                    &setup.deck,
-                    "Player 2".to_string(),
-                    &setup.deck,
-                    20,
-                )
-                .await
-        })
-    };
-
-    if let Ok(metrics) = run_game_with_logging(seed, game_init_fn) {
-        println!("  Turns: {}", metrics.turns);
-        println!("  Actions: {}", metrics.actions);
-        println!("  Duration: {:?}", metrics.duration);
-        println!("  Games/sec: {:.2}", metrics.games_per_sec());
-        println!("  Actions/sec: {:.2}", metrics.actions_per_sec());
-        println!("  Turns/sec: {:.2}", metrics.turns_per_sec());
-        println!("  Actions/turn: {:.2}", metrics.actions_per_turn());
-        println!("  Bytes allocated: {}", metrics.bytes_allocated);
-        println!("  Bytes deallocated: {}", metrics.bytes_deallocated);
-        println!("  Net bytes: {}", metrics.net_bytes_allocated());
-        println!("  Bytes/turn: {:.2}", metrics.bytes_per_turn());
-        println!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
-    }
 
     // Accumulator for aggregating metrics across benchmark iterations
     let mut aggregated = GameMetrics {
@@ -566,38 +507,6 @@ fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
 
     let seed = 42u64;
 
-    // Run a warmup game to print metrics (note: output will be suppressed)
-    eprintln!("\nWarmup game - Fresh mode with stdout logging (seed {seed}):");
-    let game_init_fn = || {
-        let game_init = GameInitializer::new(&setup.card_db);
-        setup.runtime.block_on(async {
-            game_init
-                .init_game(
-                    "Player 1".to_string(),
-                    &setup.deck,
-                    "Player 2".to_string(),
-                    &setup.deck,
-                    20,
-                )
-                .await
-        })
-    };
-
-    if let Ok(metrics) = run_game_with_stdout_logging(seed, game_init_fn) {
-        eprintln!("  Turns: {}", metrics.turns);
-        eprintln!("  Actions: {}", metrics.actions);
-        eprintln!("  Duration: {:?}", metrics.duration);
-        eprintln!("  Games/sec: {:.2}", metrics.games_per_sec());
-        eprintln!("  Actions/sec: {:.2}", metrics.actions_per_sec());
-        eprintln!("  Turns/sec: {:.2}", metrics.turns_per_sec());
-        eprintln!("  Actions/turn: {:.2}", metrics.actions_per_turn());
-        eprintln!("  Bytes allocated: {}", metrics.bytes_allocated);
-        eprintln!("  Bytes deallocated: {}", metrics.bytes_deallocated);
-        eprintln!("  Net bytes: {}", metrics.net_bytes_allocated());
-        eprintln!("  Bytes/turn: {:.2}", metrics.bytes_per_turn());
-        eprintln!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
-    }
-
     // Accumulator for aggregating metrics across benchmark iterations
     let mut aggregated = GameMetrics {
         turns: 0,
@@ -636,41 +545,43 @@ fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
         },
     );
 
-    eprintln!("\n=== Aggregated Metrics - Fresh with Stdout Logging Mode (seed {seed}, {iteration_count} games) ===");
-    eprintln!("  Total turns: {}", aggregated.turns);
-    eprintln!("  Total actions: {}", aggregated.actions);
-    eprintln!("  Total duration: {:?}", aggregated.duration);
-    eprintln!(
-        "  Avg turns/game: {:.2}",
-        aggregated.turns as f64 / iteration_count as f64
-    );
-    eprintln!(
-        "  Avg actions/game: {:.2}",
-        aggregated.actions as f64 / iteration_count as f64
-    );
-    eprintln!(
-        "  Avg duration/game: {:.2?}",
-        aggregated.duration / iteration_count as u32
-    );
-    eprintln!(
-        "  Games/sec: {:.2}",
-        aggregated.avg_games_per_sec(iteration_count)
-    );
-    eprintln!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
-    eprintln!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
-    eprintln!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
-    eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
-    eprintln!(
-        "  Total bytes deallocated: {}",
-        aggregated.bytes_deallocated
-    );
-    eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
-    eprintln!(
-        "  Avg bytes/game: {:.2}",
-        aggregated.bytes_allocated as f64 / iteration_count as f64
-    );
-    eprintln!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
-    eprintln!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
+    if iteration_count > 0 {
+        eprintln!("\n=== Aggregated Metrics - Fresh with Stdout Logging Mode (seed {seed}, {iteration_count} games) ===");
+        eprintln!("  Total turns: {}", aggregated.turns);
+        eprintln!("  Total actions: {}", aggregated.actions);
+        eprintln!("  Total duration: {:?}", aggregated.duration);
+        eprintln!(
+            "  Avg turns/game: {:.2}",
+            aggregated.turns as f64 / iteration_count as f64
+        );
+        eprintln!(
+            "  Avg actions/game: {:.2}",
+            aggregated.actions as f64 / iteration_count as f64
+        );
+        eprintln!(
+            "  Avg duration/game: {:.2?}",
+            aggregated.duration / iteration_count as u32
+        );
+        eprintln!(
+            "  Games/sec: {:.2}",
+            aggregated.avg_games_per_sec(iteration_count)
+        );
+        eprintln!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
+        eprintln!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
+        eprintln!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
+        eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
+        eprintln!(
+            "  Total bytes deallocated: {}",
+            aggregated.bytes_deallocated
+        );
+        eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
+        eprintln!(
+            "  Avg bytes/game: {:.2}",
+            aggregated.bytes_allocated as f64 / iteration_count as f64
+        );
+        eprintln!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
+        eprintln!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
+    }
 
     group.finish();
 }
@@ -710,8 +621,8 @@ fn bench_game_snapshot(c: &mut Criterion) {
         })
         .expect("Failed to initialize game");
 
-    println!("\nSnapshot mode (seed {seed}):");
-    println!("  Pre-creating initial game state for cloning...");
+    eprintln!("\nSnapshot mode (seed {seed}):");
+    eprintln!("  Pre-creating initial game state for cloning...");
 
     // Accumulator for aggregating metrics across benchmark iterations
     let mut aggregated = GameMetrics {
@@ -797,12 +708,12 @@ fn bench_game_rewind(c: &mut Criterion) {
     }
 
     let actions_count = initial_game.undo_log.len();
-    println!("\nRewind mode (seed {seed}):");
-    println!(
+    eprintln!("\nRewind mode (seed {seed}):");
+    eprintln!(
         "  Game completed with {} actions in undo log",
         actions_count
     );
-    println!("  Will rewind to start for each iteration...");
+    eprintln!("  Will rewind to start for each iteration...");
 
     // Accumulator for aggregating metrics
     let mut aggregated = GameMetrics {
