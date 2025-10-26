@@ -23,6 +23,7 @@ thiserror = "1.0"
 
 # Parsing
 nom = "7.1"
+chumsky = "0.9"
 
 # Random number generation
 rand = "0.8"
@@ -48,6 +49,10 @@ similar-asserts = "1.5"
 # Performance benchmarks
 [[bench]]
 name = "game_benchmark"
+harness = false
+
+[[bench]]
+name = "puzzle_parse_comparison"
 harness = false
 
 [features]

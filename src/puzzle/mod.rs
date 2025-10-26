@@ -9,6 +9,7 @@ pub mod card_notation;
 pub mod format;
 pub mod loader;
 pub mod metadata;
+pub mod parser_chumsky;
 pub mod state;
 
 pub use card_notation::CardModifier;
