@@ -1899,7 +1899,7 @@ Let's back up, stash these changes, and instead refactor so that we instead prov
 TODO:
 `cargo doc` reports some warnings. Fix those and add a `make docs` target to remind us to build the docs.
 
-TODO:
+done:
 I'm still seeing some spurious output AND divide-by-zero errors when running `make bench-snapshot`. We want these to be clean and reliable and run only the target benchmark with one warmup round + aggregated criterion results.
 
 This is a good time to ask if there are other metrics from criterion we should be collecting other than its estimate of duration/iteration. In fact, right now we are using our OWN aggregation of total-iterations/total-duration rather than criterion's more sophisticated statistical estimate of the marginal cost of one iteration. We should store both.
@@ -2107,7 +2107,26 @@ introducing any uses of the unsafe keyword. Unsafe should be banned everywhere b
 We'll merge this feature branch IFF we get a version that meets all the requirements.
 
 
+# TODO: more fixes for issue_history.py
+
+The `--only-changed` field doesn't seem to be working.
+It still shows issues that only have a Create line:
+
+```
+Created in a6b374e/HEAD~9:
+```
+
+And not a changed line like "Changed in ac3368b/HEAD:"
+
+Let's fix that. And in addition to --only-changed, which filters WHICH issues we consider,
+let's add `--hide-creation` which will suppress the "Created in" dump of the initial state
+and ONLY show the colorful deltas.
+
+
+
 ## TODO: I still see over eager logging from the benchmark binary
+
+We want this kind of output to be only when the benchmark is RUN.
 
 ```
 $ ./target/release/deps/game_benchmark-bc96a72691c0f0b7 --list
