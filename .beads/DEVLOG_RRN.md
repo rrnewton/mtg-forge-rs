@@ -1778,7 +1778,7 @@ Port this script to python and improve it to fix these deficiencies.
 Check if `bd -h` reports that it takes the `--no-db` option, and if it does,
 prefer that.
 
-If bd does NOT take --no-db, and bd reports `Error: no beads database found`, then 
+If bd does NOT take --no-db, and bd reports `Error: no beads database found`, then
 the script can switch to `.beads/..` and run `bd init -p mtg` with the appropriate prefix for this project.
 
 
@@ -1818,7 +1818,7 @@ Let's try to write our royal assassin test in that way.
 
 
 
-: script to see issues diffs
+: script to see issues changes
 ----------------------------------------
 
 Now for something completely different.
@@ -1867,6 +1867,262 @@ Issue mtg-XYQ
 ================================================================================
 ```
 
+MTG session FROM OBSIDIAN 2025-10-25
+================================================================================
+
+The logger could be a good place to start to take more control of our allocation with arenas.
+
+Inside our logger object we should never free memory until the logger is cleared/dropped.
+
+Let’s add a benchmark variant which plays forward multiple games like fresh, but runs forward with in memory logging on at Normal verbosity. Report the allocation per turn for that and then we will plan further changes.
+
+--
+
+The complete benchmark takes too long to run. Let’s not run with make bench. Let’s instead cargo bench individual benchmarks. Rename make bench as make full-benchmark and search for any references to it. Add convenient targets for make bench-snapshot and make bench-logging for the snapshot games and the logging to dev/null benchmarks.
+
+----------------
+
+Wait, regardjng this recent logging change to use the buffer, are we only using this temp buffer to append the indentation to the message? Let’s avoid that exterior and just call println twice to write both chunks to our destination without the extra copy. We will trust buffering on our file handles. We can eliminate this scratch buffer if that’s its only use.
+
+As a prerequisite for arenas we need to switch to rust nightly and make sure everything still validates and our benchmarks don’t regress.
+
+Ok now let’s give arenas a try and see how it affects in-memory logging performance. We will use the string_alloc crate and bumpalo. The logger will own the bumpalo arena just as it did then temp buffer before. When it is copying strings into the log, it can bump alloc the strings with the new type. It can use write support rather than to_string.
+
+----------------
+
+We are not going to use unsafe features in this project. CLAUDE.md is updated to that effect. We want to use `bumpalo::collections::string`, but it looks like we are bending over backwards to try to support `get_logs` which is a bad interface.
+
+Let's back up, stash these changes, and instead refactor so that we instead provide an ITERATOR interface for accessing the logs inside the logger. The client should get borrow access only and it's up to them whether they want to copy out any strings.
+
+----
+
+TODO:
+`cargo doc` reports some warnings. Fix those and add a `make docs` target to remind us to build the docs.
+
+TODO:
+I'm still seeing some spurious output AND divide-by-zero errors when running `make bench-snapshot`. We want these to be clean and reliable and run only the target benchmark with one warmup round + aggregated criterion results.
+
+This is a good time to ask if there are other metrics from criterion we should be collecting other than its estimate of duration/iteration. In fact, right now we are using our OWN aggregation of total-iterations/total-duration rather than criterion's more sophisticated statistical estimate of the marginal cost of one iteration. We should store both.
+
+
+## Criterion custom measurements
+
+As per the docs (https://bheisler.github.io/criterion.rs/book/user_guide/custom_measurements.html) criterion can support custom measurements.
+
+Most of our currently "Aggregated metrics" should actually be measured by criterion for greater accuracy:
+```
+=== Aggregated Metrics - Snapshot Mode (seed 42, 242250 games) ===
+  Total turns: 4360500
+  Total actions: 72190500
+  Total duration: 12.291457926s
+  Avg turns/game: 18.00
+  Avg actions/game: 298.00
+  Avg duration/game (naive): 50.74µs
+  Games/sec: 19708.81
+  Actions/sec: 5873225.16
+  Turns/sec: 354758.57
+  Actions/turn: 16.56
+  Total bytes allocated: 29768649000
+  Total bytes deallocated: 4103715381
+  Net bytes: 25664933619
+  Avg bytes/game: 122884.00
+  Bytes/turn: 6826.89
+  Bytes/sec: 2421897319.20
+```
+We can continue to report total games, turns, actions, bytes, duration just so we know how much work we did.
+We can report average for these non-timing metrics:
+* turns/game
+* actions/game
+But these should come from criterion:
+* turns/sec (turn duration can be derived as the inverse or vice versa)
+* bytes/sec (computed from / with bytes/turn)
+* games/sec
+Make it so.
+
+If that works well, the next step would be to add cycles/turn, and cache-misses/turn as performance counter metrics.
+
+---
+Whoa, hold up this is running mulitple benchmarks to measure these separate properties:
+```
+game_execution/snapshot/42
+turns_per_sec/snapshot/42
+bytes_per_turn/snapshot/42
+```
+First, let's just remove the seed from the benchmark names once and for all. We will only need one test with constant seed, and we can maybe have tests with varying seeds separately.
+
+But more importantly, can't we do a single experimental measurement (10 seconds) and measure multiple custom properties of that experiment? I want `make snapshot-bench` to do exactly that.
+
+---
+Ok, this game_benchmark.rs approach with our own variance measurements seems like overkill, and we added a lot of code that partially duplicates what criterion does and adds O(iterations) storage that we access in the middle of our benchmarking loop. We also don't do the fit-to-a-line linear regression criterion does.
+
+Let's back up, research Criterion.rs more thoroughly in its docs, and make a better effort to define:
+* a SINGLE benchmark run
+* MULTIPLE custom measurements
+* Criterion handling all the fancy analysis.
+
+It seems to me that the custom type we provide for the custom analysis could itself simply be a compound type (struct), which stores the WallTime (Criterion default), plus our TurnCounter and BytesPerTuurn combined.
+
+Also, please don't push commits until we get this benchmarking situation sorted out. I don't want to cause too much thrash in the repo history.
+
+---
+Ok it looks like criterion has a kind of multi-phase execution where it runs everything to collect benchmarks even if it doesn't use those benchmarks. One more question, does it have any way to register a delayed initialization action, like when we play one game to get a rewind recording. That should not happen if we are not RUNNING the benchmark, but if we could defer it to some setup step, then we could also print our little setup messages there too as well as saving computation (and errors) that we don't want in a targeted run.
+
+---
+No, this is still running initialization for every BATCH of iterations. Too often. We should use iter_batched_ref, like in the doc examples for sort:
+```
+c.bench_function("with_setup", move |b| {
+	b.iter_batched_ref(|| data.clone(), |mut data| sort(&mut data), BatchSize::SmallInput)
+});
+```
+Except, in our case, because there are visible side effects of the setup, we probably want to NOT allocate the data before calling bench_function, but instead have a lazy setup closure (maybe with Once::).  As criterion sweeps over our benchmarks, it will run the code but not force these setup closures. Each time a batch of iterations runs, it will force the initialization (and clone the result if needed). So the initialization/setup code that prints a message will only run ONCE.
+
+
+: Benchmark history
+--------
+Let's graduate from our direct call to `cargo bench` to our own scripts/run_benchmark script (in Shell or Python), which adds some additional functionality.
+
+When we run our benchmarks, we will update a CSV file in `experiment_results/perf_history.csv`.
+
+- Primary key
+	- commit depth on the main branch. (We'll only track performance history on the main branch.)
+	- benchmark name, for our most important benchmark modes
+		- fresh_games
+		- snapshot_games
+		- rewind_games
+		- inmem_logger_games
+		- devnull_logger_games
+- Columns for our most important benchmark metrics:
+	- duration/turn
+	- allocation/turn
+	- actions/sec
+	- marginal duration/turn (via criterion)
+
+If we run multiple times on the same commit for the same benchmark, we will overwrite with the last result in the CSV.
+
+Then we want a plotting script that generates time series graphs from this for our performance regression testing purposes.
+
+P.S. Do you have suggestion for other metrics we should track?
+
+----
+Follow up - Let's add an extra script entrypoint to `backfill_history`, alongside the `perf_history.csv`. The idea here is that we will not run `make full-bench` on every commit.
+But when we want to take a dedicated look at performance, we will want to fill in our CSV file so that we have a row for each recent commit.
+The logic here should be to look at the last result vs the current git depth. If the last result was at commit number 1100 but we are currently on commit 1109, then -- if the working copy is clean -- we need to zoom back to 1101, 1102, ... 1109, and run the full benchmark on each commit.  Because the result recording is already baked into `make full-bench` that's really all we should need to run to extend the CSV.
+In the forward pass, we will have a dirtied CSV file, so we cannot insist on a clean working copy as we move forward 1101..1109. But at the end we should have a fully updated CSV file.
+
+----
+
+First, let's change the benchamrk names to not include the seeds. We want these to be stable and simple they will be used in our primary keys.
+
+Second, benchmarking is producing a TON of output.
+
+     Benchmarking game_execution/fresh_logging/42: Warming up for 3.0000 s
+	========================================
+	Turn 1 - Player 1's turn
+	========================================
+
+	Player 1 (active):
+	  Life: 20
+	  Hand: 0 | Library: 60 | Graveyard: 0 | Exile: 0
+	  Battlefield: (empty)
+
+This fresh_logging test is supposed to redirect stdout to /dev/null.
+
+---
+When it looks good, go ahead and run_benchmark.sh to collect results for THIS commit in the perf_history.csv.
+
+----
+Let's do an experiment in slow integration of changes while monitoring performance metrics.
+We're on the `main` branch and the `devolop` branch has several commits that have not been brought over yet since the common ancestor of the two.
+- rebase or cherry pick commits one at a time, oldest first, from the develop branch
+	- of course fix any merge conflicts and make sure validate passes
+- run the benchmarks and make a small "Performance Regression Testing" commit between each patch that you integrate
+- continue until main is caught up with develop
+
+# Royal assassin tests not working
+
+This test is not doing the right thing:
+
+```
+cargo nextest run  --no-capture test_royal_assassin_destroys_attacker
+```
+
+First, it runs till the end of the game. If we expect the heuristic AI to take an appropriate action in a few turns, we should only run it for a few turns. In addition to `run_game` and `run_turn_once`, provide a `run_turns` convenience method that calls run_turn_once a bounded number of times unless the game ends (and returns a GameResult or the number of turns run).
+
+Second, I do not see any evidence that the royal assassin is actually using it's tap-ability to kill the grizzly bear in response to attacking.
+
+Third, it is making BOTH players heuristic AI. But in this case we really want one player to have a fixed action (attack with grizzly bear) and the AI player to respond. This kind of combination of a scripted behavior and an AI behavior will be common.
+
+We can do such tests by piping in choice to stdin of an `mtg tui --p1=tui` process. But for testing in code it would be more straightforward to introduce a new controller, "FixedScript" in addition to random, heuristic, and zero.  This one would not be exposed to the user via `--p1/--p2` flags, but it is meant to be used by code:
+* at construction, take an array of choices `[1,1,3]` etc.
+* when asked to make choices, rather than random, pull from the choice list.
+* when it runs out, make constant option-zero choices.
+You may want to share code with the random controller to prevent duplication.
+
+If the respond-to-attack priority is NOT correctly implemented now we won't be able to get the royal assassin test truly working. If that's the case, still make these controller improvements but leave commented the actual assertion that the grizzly bear died or the destroy triggered ability fired.
+
+
+---
+
+Let's port all those updates and TODO notes from test_royal_assassin_destroys_attacker
+to test_royal_assassin_with_log_capture and delete the former. The latter will be a better context in which to finish this test and include BOTH assertions about the logged actions AND the final state.
+Also, tweak that log_capture test so that it prints all the logs for the 3 turns run so that I can see everything when I do `cargo nextest run  --no-capture test_royal_assassin_with_log_capture`.
+
+With that committed, start taking steps to make this test really work, addressing the gaps you identified.
+
+---
+
+
+
+Done: Let's expose our tests/*.sh scripts as tests
+--------------
+To keep everything simple under `cargo [nex]test`, maybe we can just wrap them with a very thing Rust wrapper.
+I.e. we could use dynamic test discovery to run a rust test for every `test/*.sh` script that exists. Each script should be simple and robust and run with no arguments irrespective of what working directory it's called in.
+
+
+
+
+CONTINUING HERE 2025-10-26
+================================================================================
+
+## Try again with bump-allocating in-memory logs
+
+Let's return to the topic of storing a bumpalo bump allocator inside the logger.
+We want to use `bumpalo::collections::string` for the buffered log messages.
+We want to make sure that clients access the log by iterating, not by copying.
+And that should be compatible with the lifetime constraints we'll have from storing
+strings in the arena.
+
+Of course we want to avoid unnecessary copies. It's always better to do multiple
+"write!" operations rather than make an intermediate copy.
+
+Report what difference this makes on the `game_execution/fresh_logging` benchmark.
+
+
+## TODO: I still see over eager logging from the benchmark binary
+
+```
+$ ./target/release/deps/game_benchmark-bc96a72691c0f0b7 --list
+...
+Snapshot mode (seed 42):
+  Pre-creating initial game state for cloning...
+game_execution/snapshot: benchmark
+
+Rewind mode (seed 42):
+  Game completed with 298 actions in undo log
+  Will rewind to start for each iteration...
+game_execution/rewind: benchmark
+```
+
+
+## TODO: Let's warn on and try to avoid illegal targets
+Right now we have a comment in action.rs
+
+	// Check if targets are still valid before executing effects
+	// MTG Rules 608.2b: If all targets are illegal, the spell doesn't resolve
+
+While MTG may allow scenarios where a spell fizzles, our philosophy in this implementation is to prescreen castable, spells, abilities, targets so that only legal ones are selected. There may be edge cases where we NEED to keep this fizzle behavior, but let's issue a prominent warning to the log for it.  Let's even set a boolean in the GameState, and unless `--allow-fizzle` is passed to the engine let's panic instead of warning and treat it as a bug.
+
+That will force us to look at whether our existing tests are triggering this.
 
 
 TODO: Optimized mode to cut down on choices
@@ -1874,7 +2130,7 @@ TODO: Optimized mode to cut down on choices
 
 Following the full magic rules, we will give players priority at every opportunity.
 If we are doing aggressive filtering of valid actions, then many of these priorities
-should be skipped (only one option). 
+should be skipped (only one option).
 
 - I.e. if they don't have an instant or don't have mana to play an instant.
 - We won't count mana-actions, i.e. we'll never interrupt the player to ask if they want to tap a land when they technically have priority but no other actions.
@@ -1957,7 +2213,7 @@ TODO: Port the Java mana system
 TODO: switch to bump allocator for temporary storage
 --------------------------------------------
 
-
+This would be the per-step / per turn storage.
 
 
 TODO: Bring back layered design, DecisionMaker
