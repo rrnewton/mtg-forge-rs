@@ -2107,7 +2107,7 @@ introducing any uses of the unsafe keyword. Unsafe should be banned everywhere b
 We'll merge this feature branch IFF we get a version that meets all the requirements.
 
 
-# TODO: more fixes for issue_history.py
+# done: more fixes for issue_history.py
 
 The `--only-changed` field doesn't seem to be working.
 It still shows issues that only have a Create line:
@@ -2124,7 +2124,7 @@ and ONLY show the colorful deltas.
 
 
 
-## TODO: I still see over eager logging from the benchmark binary
+## : I still see over eager logging from the benchmark binary
 
 We want this kind of output to be only when the benchmark is RUN.
 
@@ -2141,8 +2141,10 @@ Rewind mode (seed 42):
 game_execution/rewind: benchmark
 ```
 
+Make sure all benchmarks use the lazy initialization (Once) pattern.
 
-## TODO: Let's warn on and try to avoid illegal targets
+
+## : Let's warn on and try to avoid illegal targets
 Right now we have a comment in action.rs
 
 	// Check if targets are still valid before executing effects
@@ -2151,6 +2153,8 @@ Right now we have a comment in action.rs
 While MTG may allow scenarios where a spell fizzles, our philosophy in this implementation is to prescreen castable, spells, abilities, targets so that only legal ones are selected. There may be edge cases where we NEED to keep this fizzle behavior, but let's issue a prominent warning to the log for it.  Let's even set a boolean in the GameState, and unless `--allow-fizzle` is passed to the engine let's panic instead of warning and treat it as a bug.
 
 That will force us to look at whether our existing tests are triggering this.
+
+
 
 
 TODO: Optimized mode to cut down on choices

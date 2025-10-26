@@ -12,7 +12,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use mtg_forge_rs::{
-    game::{random_controller::RandomController, GameLoop, VerbosityLevel},
+    game::{random_controller::RandomController, GameLoop, GameState, VerbosityLevel},
     loader::{
         prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckList, DeckLoader,
         GameInitializer,
@@ -614,26 +614,6 @@ fn bench_game_snapshot(c: &mut Criterion) {
 
     let seed = 42u64;
 
-    // Pre-create the initial game state (the "snapshot")
-    let game_init = GameInitializer::new(&setup.card_db);
-    let initial_game = setup
-        .runtime
-        .block_on(async {
-            game_init
-                .init_game(
-                    "Player 1".to_string(),
-                    &setup.deck,
-                    "Player 2".to_string(),
-                    &setup.deck,
-                    20,
-                )
-                .await
-        })
-        .expect("Failed to initialize game");
-
-    eprintln!("\nSnapshot mode (seed {seed}):");
-    eprintln!("  Pre-creating initial game state for cloning...");
-
     // Accumulator for aggregating metrics across benchmark iterations
     let mut aggregated = GameMetrics {
         turns: 0,
@@ -644,9 +624,38 @@ fn bench_game_snapshot(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
+    // Lazy initialization - only create initial game on first iteration
+    let mut initial_game = None;
+
     group.bench_function("snapshot", |b| {
         b.iter(|| {
-            let game_init_fn = || Ok(initial_game.clone());
+            // Initialize on first iteration
+            if initial_game.is_none() {
+                eprintln!("\nSnapshot mode (seed {seed}):");
+                eprintln!("  Pre-creating initial game state for cloning...");
+
+                let game_init = GameInitializer::new(&setup.card_db);
+                let mut game = setup
+                    .runtime
+                    .block_on(async {
+                        game_init
+                            .init_game(
+                                "Player 1".to_string(),
+                                &setup.deck,
+                                "Player 2".to_string(),
+                                &setup.deck,
+                                20,
+                            )
+                            .await
+                    })
+                    .expect("Failed to initialize game");
+
+                game.rng_seed = seed;
+                initial_game = Some(game);
+            }
+
+            let game_template = initial_game.as_ref().unwrap();
+            let game_init_fn = || Ok(game_template.clone());
             let metrics = run_game_with_metrics(seed, game_init_fn)
                 .expect("Game should complete successfully");
             aggregated += metrics.clone();
@@ -679,52 +688,6 @@ fn bench_game_rewind(c: &mut Criterion) {
 
     let seed = 42u64;
 
-    // Pre-create and run an initial game to completion
-    let game_init = GameInitializer::new(&setup.card_db);
-    let mut initial_game = setup
-        .runtime
-        .block_on(async {
-            game_init
-                .init_game(
-                    "Player 1".to_string(),
-                    &setup.deck,
-                    "Player 2".to_string(),
-                    &setup.deck,
-                    20,
-                )
-                .await
-        })
-        .expect("Failed to initialize game");
-
-    initial_game.rng_seed = seed;
-
-    // Play the game once to build the undo log
-    {
-        let (p1_id, p2_id) = {
-            let mut players_iter = initial_game.players.iter().map(|p| p.id);
-            (
-                players_iter.next().expect("Should have player 1"),
-                players_iter.next().expect("Should have player 2"),
-            )
-        };
-
-        let mut controller1 = RandomController::with_seed(p1_id, seed);
-        let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
-
-        let mut game_loop = GameLoop::new(&mut initial_game).with_verbosity(VerbosityLevel::Silent);
-        let _ = game_loop
-            .run_game(&mut controller1, &mut controller2)
-            .expect("Initial game should complete");
-    }
-
-    let actions_count = initial_game.undo_log.len();
-    eprintln!("\nRewind mode (seed {seed}):");
-    eprintln!(
-        "  Game completed with {} actions in undo log",
-        actions_count
-    );
-    eprintln!("  Will rewind to start for each iteration...");
-
     // Accumulator for aggregating metrics
     let mut aggregated = GameMetrics {
         turns: 0,
@@ -735,14 +698,70 @@ fn bench_game_rewind(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
+    // Lazy initialization - only create and run initial game on first iteration
+    let mut initial_game: Option<GameState> = None;
+
     group.bench_function("rewind", |b| {
         b.iter(|| {
+            // Initialize on first iteration
+            if initial_game.is_none() {
+                let game_init = GameInitializer::new(&setup.card_db);
+                let mut game = setup
+                    .runtime
+                    .block_on(async {
+                        game_init
+                            .init_game(
+                                "Player 1".to_string(),
+                                &setup.deck,
+                                "Player 2".to_string(),
+                                &setup.deck,
+                                20,
+                            )
+                            .await
+                    })
+                    .expect("Failed to initialize game");
+
+                game.rng_seed = seed;
+
+                // Play the game once to build the undo log
+                {
+                    let (p1_id, p2_id) = {
+                        let mut players_iter = game.players.iter().map(|p| p.id);
+                        (
+                            players_iter.next().expect("Should have player 1"),
+                            players_iter.next().expect("Should have player 2"),
+                        )
+                    };
+
+                    let mut controller1 = RandomController::with_seed(p1_id, seed);
+                    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+
+                    let mut game_loop =
+                        GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+                    let _ = game_loop
+                        .run_game(&mut controller1, &mut controller2)
+                        .expect("Initial game should complete");
+                }
+
+                let actions_count = game.undo_log.len();
+                eprintln!("\nRewind mode (seed {seed}):");
+                eprintln!(
+                    "  Game completed with {} actions in undo log",
+                    actions_count
+                );
+                eprintln!("  Will rewind to start for each iteration...");
+
+                initial_game = Some(game);
+            }
+
+            let game = initial_game.as_mut().unwrap();
+
             let reg = Region::new(GLOBAL);
             let start = std::time::Instant::now();
 
             // Rewind all actions to get back to initial state
             let mut rewind_count = 0;
-            while initial_game.undo().expect("Undo should succeed") {
+            while game.undo().expect("Undo should succeed") {
                 rewind_count += 1;
             }
 
@@ -765,7 +784,7 @@ fn bench_game_rewind(c: &mut Criterion) {
             // (This happens outside the timing, as we're measuring rewind cost)
             {
                 let (p1_id, p2_id) = {
-                    let mut players_iter = initial_game.players.iter().map(|p| p.id);
+                    let mut players_iter = game.players.iter().map(|p| p.id);
                     (
                         players_iter.next().expect("Should have player 1"),
                         players_iter.next().expect("Should have player 2"),
@@ -775,8 +794,7 @@ fn bench_game_rewind(c: &mut Criterion) {
                 let mut controller1 = RandomController::with_seed(p1_id, seed);
                 let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
 
-                let mut game_loop =
-                    GameLoop::new(&mut initial_game).with_verbosity(VerbosityLevel::Silent);
+                let mut game_loop = GameLoop::new(game).with_verbosity(VerbosityLevel::Silent);
                 let _ = game_loop
                     .run_game(&mut controller1, &mut controller2)
                     .expect("Game should complete");
