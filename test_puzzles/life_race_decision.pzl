@@ -1,0 +1,21 @@
+[metadata]
+Name=Life Race Decision Test
+Goal=Win
+Turns=3
+Difficulty=Hard
+Description=P1 has lethal damage next turn if unblocked. P2 can either block defensively or race. AI should recognize when racing is better.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=8
+p0hand=
+p0battlefield=Mountain;Mountain;Mountain;Mountain;Earth Elemental
+p0library=Mountain;Mountain;Mountain
+p0graveyard=
+p1life=12
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Serra Angel
+p1library=Plains;Plains;Plains
+p1graveyard=
