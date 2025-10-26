@@ -510,8 +510,6 @@ fn bench_game_snapshot(c: &mut Criterion) {
         })
         .expect("Failed to initialize game");
 
-    eprintln!("\nSnapshot mode: Pre-creating initial game state for cloning...");
-
     let mut group = c.benchmark_group("game_execution");
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
@@ -579,12 +577,7 @@ fn bench_game_rewind(c: &mut Criterion) {
             .expect("Initial game should complete");
     }
 
-    let actions_count = initial_game.undo_log.len();
-    eprintln!(
-        "\nRewind mode: Game completed with {} actions in undo log",
-        actions_count
-    );
-    eprintln!("  Will rewind to start for each iteration...");
+    let _actions_count = initial_game.undo_log.len();
 
     let mut group = c.benchmark_group("game_execution");
     group.sample_size(10);
