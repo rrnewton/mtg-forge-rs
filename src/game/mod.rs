@@ -19,7 +19,7 @@ pub use controller::{GameStateView, PlayerController};
 pub use game_loop::{GameEndReason, GameLoop, GameResult, VerbosityLevel};
 pub use heuristic_controller::HeuristicController;
 pub use interactive_controller::InteractiveController;
-pub use logger::GameLogger;
+pub use logger::{GameLogger, LogEntry, OutputFormat};
 pub use mana_engine::{ManaCapacity, ManaEngine};
 pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;

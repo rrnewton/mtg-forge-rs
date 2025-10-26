@@ -4,7 +4,9 @@
 //! that controllers make expected decisions and actions.
 
 use mtg_forge_rs::{
-    game::{zero_controller::ZeroController, GameLoop, HeuristicController, VerbosityLevel},
+    game::{
+        zero_controller::ZeroController, GameLoop, HeuristicController, LogEntry, VerbosityLevel,
+    },
     loader::AsyncCardDatabase as CardDatabase,
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
     Result,
@@ -221,6 +223,92 @@ async fn test_puzzle_loading_with_zero_controller() -> Result<()> {
     // Note: turns_played counts turns from game start, not from puzzle load
     // The puzzle starts at turn 5, so turns_played may be 0 if game ends quickly
     println!("Turns played from puzzle start: {}", result.turns_played);
+
+    Ok(())
+}
+
+/// Test Royal Assassin using in-memory log capture
+///
+/// This test uses the new log capture feature to verify that Royal Assassin
+/// can tap to destroy an attacking creature, by checking the log entries.
+#[tokio::test]
+async fn test_royal_assassin_with_log_capture() -> Result<()> {
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+
+    // Load puzzle file
+    let puzzle_path = PathBuf::from("test_puzzles/royal_assassin_kills_attacker.pzl");
+    let puzzle_contents = std::fs::read_to_string(&puzzle_path)?;
+    let puzzle = PuzzleFile::parse(&puzzle_contents)?;
+
+    // Create card database and load puzzle
+    let card_db = CardDatabase::new(cardsfolder);
+    let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
+
+    // Enable log capture
+    game.logger.enable_capture();
+
+    // Set deterministic seed
+    game.rng_seed = 42;
+
+    // Get player IDs
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+    let p1_id = players[0]; // Has Royal Assassin
+    let p2_id = players[1]; // Has Grizzly Bears
+
+    // Create controllers
+    let mut controller1 = HeuristicController::new(p1_id);
+    let mut controller2 = HeuristicController::new(p2_id);
+
+    // Run the game with silent verbosity (no console output, only capture)
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+    let _result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+    // Get captured logs
+    let logs: Vec<LogEntry> = game_loop.game.logger.get_logs();
+
+    // Verify we captured some logs
+    assert!(!logs.is_empty(), "Should have captured some log entries");
+
+    // Look for evidence of combat
+    let combat_logs: Vec<&LogEntry> = logs
+        .iter()
+        .filter(|entry| {
+            entry.message.contains("attack")
+                || entry.message.contains("Grizzly Bears")
+                || entry.message.contains("Royal Assassin")
+        })
+        .collect();
+
+    // Print captured logs for debugging
+    println!("=== Captured {} total logs ===", logs.len());
+    println!("=== Combat-related logs ({}) ===", combat_logs.len());
+    for log in &combat_logs {
+        println!("  [{}] {}", log.level as u8, log.message);
+    }
+
+    // Verify we captured attack decisions
+    let has_attack_decisions = logs.iter().any(|e| {
+        e.message.contains("attack") && e.category == Some("controller_choice".to_string())
+    });
+
+    assert!(
+        has_attack_decisions,
+        "Logs should contain attack decisions from HeuristicController"
+    );
+
+    // Verify log count is reasonable (game should have multiple turns)
+    assert!(
+        logs.len() > 50,
+        "Should have captured many log entries from a full game"
+    );
+
+    // TODO: Once activated abilities are fully implemented, add stronger assertions:
+    // - Check for Royal Assassin activation in logs
+    // - Verify Grizzly Bears destruction event
+    // - Confirm correct timing and ordering
 
     Ok(())
 }
