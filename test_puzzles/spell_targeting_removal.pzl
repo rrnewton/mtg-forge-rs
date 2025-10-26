@@ -1,0 +1,21 @@
+[metadata]
+Name=Spell Targeting Test - Removal
+Goal=Win
+Turns=2
+Difficulty=Medium
+Description=P1 has Terror in hand and enough mana. P2 has Serra Angel (4/4) and Grizzly Bears (2/2). AI should target the more valuable creature (Serra Angel) with Terror.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=Terror
+p0battlefield=Swamp;Swamp
+p0library=Swamp;Swamp;Swamp
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Plains;Serra Angel;Forest;Forest;Grizzly Bears
+p1library=Forest;Forest;Forest
+p1graveyard=
