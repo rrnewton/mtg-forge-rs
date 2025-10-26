@@ -155,6 +155,15 @@ impl<'a> GameStateView<'a> {
             .unwrap_or(0)
     }
 
+    /// Get player's name
+    pub fn player_name(&self) -> String {
+        self.game
+            .get_player(self.player_id)
+            .ok()
+            .map(|p| p.name.to_string())
+            .unwrap_or_else(|| format!("Player {:?}", self.player_id))
+    }
+
     /// Get a specific player's life total
     pub fn player_life(&self, player_id: PlayerId) -> i32 {
         self.game

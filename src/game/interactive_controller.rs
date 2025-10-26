@@ -82,7 +82,7 @@ impl PlayerController for InteractiveController {
             return None;
         }
 
-        println!("\n=== Your Turn (Player {:?}) ===", self.player_id);
+        println!("\n=== Your Turn ({}) ===", view.player_name());
         println!("Life: {}", view.life());
         println!("Step: {:?}", view.current_step());
 

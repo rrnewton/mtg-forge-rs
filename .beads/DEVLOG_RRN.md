@@ -2154,6 +2154,15 @@ While MTG may allow scenarios where a spell fizzles, our philosophy in this impl
 
 That will force us to look at whether our existing tests are triggering this.
 
+----
+
+I'm still seeing messages like this from the heuristic AI:
+
+  Player 2 declares Royal Assassin (114) (1/1) as attacker
+  Error declaring attacker: Invalid game action: Creature has summoning sickness and can't attack this turn
+
+
+
 
 ## The TUI interface is significantly lagging behind
 
@@ -2177,6 +2186,90 @@ DEBUG get_activatable_abilities: Found Royal Assassin (121) for player 1
 I think it's important that you directly use the TUI more to see how it is doing. To make that easier for you, add a `--p1=fixed` option with a `--fixed-inputs="1 1 2"` argument so that you can directly pass in choices without piping to stdin.
 
 Please fix the above missing choices.
+
+Fix names for consistency
+---------
+
+We use p1/p2 and elsewhere "P0/P1". Let's purge uses of the latter and make sure
+we're consistent. Right now I see all three of these in a game, which is
+DEFINITELY a bug:
+
+```
+Turn 22 - Player 2's turn
+...
+  Player 1 discards Royal Assassin (35)
+...
+=== Your Turn (Player 0) ===
+```
+
+There should at least be one consistent name for each player
+that is the only name ever displayed on the TUI. We should also have `--p1-name`
+and `--p2-name` for setting the names to whatever we like. And if we pass
+"Alice" and "Bob", then we'd better not see any other names during the game.
+
+
+TODO: feature for stop and go games
+----------
+
+I want you to be able to have the same experience that I do playing through the
+`mtg tui` interface. We could build something complicated, like an MCP server
+just for playing magic games. But I think there is a simpler solution that will
+also stress test our serialization support.
+
+ - Add an mtg tui flag `--stop-every=p1:1:choice`, where we provide a stop
+   condition for the game.  Right now it only accepts "[p1|p2|both]:<NUM>:choice" but we
+   could expand it in the future.
+ - When this is passed, then IRRESPECTIVE of the controller used player(s) in question
+   we stop at the next choice point. So if --p1=tui and --p2=heuristic and `--stop-every=p1:1:choice`,
+   then the AI will play its turns but the game will stop on our (p1's) turns.
+ - When we stop the game we write out to a file in the current directory ()
+
+
+TODO: this turn makes no sense, investigate
+------
+
+      $ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck
+      ========================================
+      Turn 22 - Player 2's turn
+      ========================================
+
+      Player 1:
+        Life: 17
+        Hand: 7 | Library: 50 | Graveyard: 3 | Exile: 0
+        Battlefield: (empty)
+
+
+      Player 2 (active):
+        Life: 20
+        Hand: 0 | Library: 50 | Graveyard: 3 | Exile: 0
+        Battlefield:
+          Swamp (77)
+          Swamp (83)
+          Swamp (73)
+          Swamp (91)
+          Swamp (84)
+          Swamp (76)
+          Royal Assassin (114) - 1/1 (tapped)
+
+      --- Draw Step ---
+        Player 2 draws Royal Assassin (121)
+        >>> HEURISTIC: chose to play spell/ability: CastSpell { card_id: 121 }
+        Player 2 casts Royal Assassin (121) (putting on stack)
+
+      === Your Turn (Player 0) ===
+      Life: 17
+      Step: Main1
+
+      Available actions:
+        [0] Play land: Swamp
+        [1] Play land: Swamp
+        [2] Play land: Swamp
+
+      Choose action (0-2 or 'p' to pass):
+        Royal Assassin (121) resolves
+        Royal Assassin (121) enters the battlefield as a 1/1 creature
+
+
 
 
 

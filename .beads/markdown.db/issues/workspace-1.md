@@ -1,10 +1,10 @@
 ---
 title: 'TUI: Fix missing choices and remove DEBUG messages'
-status: open
+status: closed
 priority: 2
 issue_type: task
 created_at: "2025-10-26T23:01:11Z"
-updated_at: "2025-10-26T23:01:11Z"
+updated_at: "2025-10-26T23:10:18Z"
 ---
 
 # Description

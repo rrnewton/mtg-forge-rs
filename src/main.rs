@@ -88,6 +88,14 @@ enum Commands {
         #[arg(long, value_enum, default_value = "random")]
         p2: ControllerType,
 
+        /// Player 1 name
+        #[arg(long, default_value = "Player 1")]
+        p1_name: String,
+
+        /// Player 2 name
+        #[arg(long, default_value = "Player 2")]
+        p2_name: String,
+
         /// Fixed script input for player 1 (space or comma separated indices, e.g., "1 1 2" or "1,1,2")
         #[arg(long, value_name = "CHOICES")]
         p1_fixed_inputs: Option<String>,
@@ -140,6 +148,8 @@ async fn main() -> Result<()> {
             start_state,
             p1,
             p2,
+            p1_name,
+            p2_name,
             p1_fixed_inputs,
             p2_fixed_inputs,
             seed,
@@ -153,6 +163,8 @@ async fn main() -> Result<()> {
                 start_state,
                 p1,
                 p2,
+                p1_name,
+                p2_name,
                 p1_fixed_inputs,
                 p2_fixed_inputs,
                 seed,
@@ -188,6 +200,8 @@ async fn run_tui(
     puzzle_path: Option<PathBuf>,
     p1_type: ControllerType,
     p2_type: ControllerType,
+    p1_name: String,
+    p2_name: String,
     p1_fixed_inputs: Option<String>,
     p2_fixed_inputs: Option<String>,
     seed: Option<u64>,
@@ -269,9 +283,9 @@ async fn run_tui(
         let game_init = GameInitializer::new(&card_db);
         game_init
             .init_game(
-                "Player 1".to_string(),
+                p1_name.clone(),
                 &deck1,
-                "Player 2".to_string(),
+                p2_name.clone(),
                 &deck2,
                 20, // starting life
             )
@@ -291,8 +305,8 @@ async fn run_tui(
     }
 
     println!("Game initialized!");
-    println!("  Player 1: Player 1 ({p1_type:?})");
-    println!("  Player 2: Player 2 ({p2_type:?})\n");
+    println!("  {}: ({p1_type:?})", p1_name);
+    println!("  {}: ({p2_type:?})\n", p2_name);
 
     // Create controllers based on agent types
     let (p1_id, p2_id) = {

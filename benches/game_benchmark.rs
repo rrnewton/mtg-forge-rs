@@ -777,7 +777,7 @@ fn bench_game_rewind(c: &mut Criterion) {
                 bytes_deallocated: stats.bytes_deallocated,
             };
 
-            aggregated += metrics.clone();
+            aggregated += metrics;
             iteration_count += 1;
 
             // Re-run the game to populate undo log for next iteration
