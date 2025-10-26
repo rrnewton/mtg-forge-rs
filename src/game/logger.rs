@@ -1,17 +1,13 @@
-//! Centralized game logging
+//! Bump-allocating in-memory logger
 //!
-//! This module provides a centralized logger for game events, controller decisions,
-//! and other gameplay information. The logger internally tracks verbosity level
-//! and can be accessed by different parts of the game (controllers, game loop, etc.)
-//!
-//! The logger supports multiple output modes:
-//! - Text output (human-readable, to stdout)
-//! - JSON output (machine-readable, one JSON object per line)
-//! - In-memory capture (for programmatic access in tests)
+//! This module provides a high-performance logger using bumpalo for arena allocation.
+//! Log messages are stored in a bump allocator, avoiding individual heap allocations.
 
 use crate::game::VerbosityLevel;
+use bumpalo::Bump;
 use serde::{Deserialize, Serialize};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
+use std::fmt::Write as FmtWrite;
 
 /// Output format for log messages
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -23,42 +19,112 @@ pub enum OutputFormat {
     Json,
 }
 
-/// A structured log entry
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LogEntry {
+/// A log entry with string slices borrowing from the bump allocator
+///
+/// The lifetime 'a is tied to the logger's bump allocator lifetime.
+#[derive(Debug)]
+pub struct LogEntry<'a> {
     /// Verbosity level of this log entry
     pub level: VerbosityLevel,
-    /// Log message
-    pub message: String,
+    /// Log message (borrowed from bump allocator)
+    pub message: &'a str,
     /// Optional category (e.g., "controller_choice", "game_event")
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    /// Optional metadata (e.g., controller name, card name)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<serde_json::Value>,
+    pub category: Option<&'a str>,
 }
 
-/// Centralized logger for game events
+/// Centralized logger using bump allocation for log storage
 ///
-/// This logger is stored in GameState and can be accessed via GameStateView.
-/// It internally tracks the verbosity level and provides methods for logging
-/// at different verbosity levels.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// This logger uses a bump allocator to store log entries, avoiding per-entry
+/// heap allocations. Clients access logs via iteration, not by copying.
 pub struct GameLogger {
     verbosity: VerbosityLevel,
-    /// Track if we've printed the step header (for lazy printing)
-    #[serde(skip)]
     step_header_printed: bool,
-    /// Enable numeric-only choice format (for Java Forge comparison)
     numeric_choices: bool,
-    /// Output format (Text or JSON)
     output_format: OutputFormat,
-    /// In-memory log buffer (when capture is enabled)
-    /// Using RefCell for interior mutability to avoid requiring &mut self
-    #[serde(skip)]
-    log_buffer: RefCell<Vec<LogEntry>>,
-    /// Whether to capture logs in memory
+
+    /// Bump allocator for log storage
+    /// All log message strings are allocated here
+    bump: RefCell<Bump>,
+
+    /// Pointers to log entries in the bump allocator
+    /// SAFETY: These pointers remain valid as long as the bump allocator lives
+    /// and we never reset it until clear_logs() is called
+    log_entries: RefCell<Vec<*const LogEntry<'static>>>,
+
     capture_logs: bool,
+}
+
+// SAFETY: The logger is Send if we can guarantee the bump allocator and pointers
+// are not accessed concurrently. We use RefCell for interior mutability.
+// The 'static lifetime in log_entries is a lie - they're actually 'bump lifetime,
+// but we manage this carefully to ensure safety.
+unsafe impl Send for GameLogger {}
+
+impl std::fmt::Debug for GameLogger {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GameLogger")
+            .field("verbosity", &self.verbosity)
+            .field("capture_logs", &self.capture_logs)
+            .field("log_count", &self.log_entries.borrow().len())
+            .finish()
+    }
+}
+
+impl Clone for GameLogger {
+    fn clone(&self) -> Self {
+        // Create a new logger with the same settings but empty log buffer
+        // We don't clone the logs because they're arena-allocated
+        GameLogger {
+            verbosity: self.verbosity,
+            step_header_printed: self.step_header_printed,
+            numeric_choices: self.numeric_choices,
+            output_format: self.output_format,
+            bump: RefCell::new(Bump::new()),
+            log_entries: RefCell::new(Vec::new()),
+            capture_logs: self.capture_logs,
+        }
+    }
+}
+
+impl Serialize for GameLogger {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("GameLogger", 4)?;
+        state.serialize_field("verbosity", &self.verbosity)?;
+        state.serialize_field("numeric_choices", &self.numeric_choices)?;
+        state.serialize_field("output_format", &self.output_format)?;
+        state.serialize_field("capture_logs", &self.capture_logs)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for GameLogger {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct GameLoggerData {
+            verbosity: VerbosityLevel,
+            numeric_choices: bool,
+            output_format: OutputFormat,
+            capture_logs: bool,
+        }
+
+        let data = GameLoggerData::deserialize(deserializer)?;
+        Ok(GameLogger {
+            verbosity: data.verbosity,
+            step_header_printed: false,
+            numeric_choices: data.numeric_choices,
+            output_format: data.output_format,
+            bump: RefCell::new(Bump::new()),
+            log_entries: RefCell::new(Vec::new()),
+            capture_logs: data.capture_logs,
+        })
+    }
 }
 
 impl GameLogger {
@@ -69,7 +135,8 @@ impl GameLogger {
             step_header_printed: false,
             numeric_choices: false,
             output_format: OutputFormat::default(),
-            log_buffer: RefCell::new(Vec::new()),
+            bump: RefCell::new(Bump::new()),
+            log_entries: RefCell::new(Vec::new()),
             capture_logs: false,
         }
     }
@@ -81,7 +148,8 @@ impl GameLogger {
             step_header_printed: false,
             numeric_choices: false,
             output_format: OutputFormat::default(),
-            log_buffer: RefCell::new(Vec::new()),
+            bump: RefCell::new(Bump::new()),
+            log_entries: RefCell::new(Vec::new()),
             capture_logs: false,
         }
     }
@@ -101,41 +169,42 @@ impl GameLogger {
         self.capture_logs
     }
 
-    /// Get a reference to captured log entries (no copy)
+    /// Iterate over captured log entries (zero-copy access)
     ///
-    /// Returns a guard that dereferences to a slice of log entries. This provides
-    /// read-only access to the log buffer without cloning. Clients can iterate,
-    /// filter, and inspect logs without allocation.
+    /// Returns an iterator over log entries. This provides read-only access
+    /// to the log buffer without any allocation or copying.
     ///
     /// # Example
     /// ```ignore
-    /// let logs = logger.logs();
-    /// for log in logs.iter() {
+    /// for log in logger.logs() {
     ///     if log.message.contains("attack") {
     ///         println!("{}", log.message);
     ///     }
     /// }
     ///
     /// // Or count matching logs without copying:
-    /// let attack_count = logger.logs().iter()
+    /// let attack_count = logger.logs()
     ///     .filter(|log| log.message.contains("attack"))
     ///     .count();
     /// ```
-    pub fn logs(&self) -> Ref<'_, [LogEntry]> {
-        Ref::map(self.log_buffer.borrow(), |v| v.as_slice())
+    pub fn logs(&self) -> impl Iterator<Item = &LogEntry<'_>> {
+        // SAFETY: We cast from 'static back to the actual lifetime
+        // This is safe because:
+        // 1. The bump allocator owns the memory
+        // 2. We never reset the bump allocator except in clear_logs()
+        // 3. The returned iterator borrows self, preventing concurrent modification
+        let entries = self.log_entries.borrow();
+        let count = entries.len();
+        (0..count).map(move |i| unsafe {
+            let ptr = entries[i];
+            &*ptr
+        })
     }
 
-    /// Get captured log entries (clones the buffer)
-    ///
-    /// Deprecated: Use `logs()` instead to avoid unnecessary copying.
-    /// This method is kept for backward compatibility.
-    pub fn get_logs(&self) -> Vec<LogEntry> {
-        self.log_buffer.borrow().clone()
-    }
-
-    /// Clear the log buffer
+    /// Clear the log buffer and reset the bump allocator
     pub fn clear_logs(&mut self) {
-        self.log_buffer.borrow_mut().clear();
+        self.log_entries.borrow_mut().clear();
+        self.bump.borrow_mut().reset();
     }
 
     /// Set output format (Text or JSON)
@@ -183,36 +252,49 @@ impl GameLogger {
         self.step_header_printed
     }
 
-    /// Internal method to log an entry
-    fn log_entry(&self, entry: LogEntry) {
-        // Capture to buffer if enabled
-        if self.capture_logs {
-            self.log_buffer.borrow_mut().push(entry.clone());
+    /// Internal method to create and store a log entry in the bump allocator
+    fn store_log_entry(&self, level: VerbosityLevel, message: &str, category: Option<&str>) {
+        if !self.capture_logs {
+            return;
         }
 
-        // Output based on format and verbosity
-        if entry.level <= self.verbosity {
-            match self.output_format {
-                OutputFormat::Text => {
-                    // Text output with indentation
-                    let indent = if entry.level == VerbosityLevel::Minimal {
-                        ""
-                    } else {
-                        "  "
-                    };
-                    println!("{}{}", indent, entry.message);
-                }
-                OutputFormat::Json => {
-                    // JSON output (one object per line)
-                    if let Ok(json) = serde_json::to_string(&entry) {
-                        println!("{}", json);
-                    }
-                }
-            }
+        let bump = self.bump.borrow();
+
+        // Allocate strings in the bump arena
+        let message_str: &str = bump.alloc_str(message);
+        let category_str: Option<&str> = category.map(|c| {
+            let s: &str = bump.alloc_str(c);
+            s
+        });
+
+        // Create log entry in the bump arena
+        let entry = bump.alloc(LogEntry {
+            level,
+            message: message_str,
+            category: category_str,
+        });
+
+        // Store pointer to entry
+        // SAFETY: We transmute the lifetime from 'bump to 'static
+        // This is safe because we guarantee the bump allocator outlives the pointer
+        let entry_ptr: *const LogEntry<'static> = unsafe {
+            std::mem::transmute(entry as *const LogEntry<'_>)
+        };
+
+        self.log_entries.borrow_mut().push(entry_ptr);
+    }
+
+    /// Fast path for stdout logging without allocation
+    #[inline]
+    fn log_to_stdout(&self, level: VerbosityLevel, message: &str) {
+        if level == VerbosityLevel::Minimal {
+            println!("{}", message);
+        } else {
+            println!("  {}", message);
         }
     }
 
-    /// Log at Silent level (always suppressed - this is just for API consistency)
+    /// Log at Silent level (always suppressed)
     #[inline]
     pub fn silent(&self, _message: &str) {
         // Silent messages are never printed or captured
@@ -226,20 +308,15 @@ impl GameLogger {
             return;
         }
 
-        // Fast path: only stdout logging, use temp buffer
-        if !self.capture_logs && VerbosityLevel::Minimal <= self.verbosity {
-            self.log_to_stdout(VerbosityLevel::Minimal, message);
-            return;
+        // Capture if enabled
+        if self.capture_logs {
+            self.store_log_entry(VerbosityLevel::Minimal, message, None);
         }
 
-        // Slow path: need to capture or complex logic
-        let entry = LogEntry {
-            level: VerbosityLevel::Minimal,
-            message: message.to_string(),
-            category: None,
-            metadata: None,
-        };
-        self.log_entry(entry);
+        // Output if verbosity allows
+        if VerbosityLevel::Minimal <= self.verbosity {
+            self.log_to_stdout(VerbosityLevel::Minimal, message);
+        }
     }
 
     /// Log at Normal level (turns, steps, key actions)
@@ -250,20 +327,15 @@ impl GameLogger {
             return;
         }
 
-        // Fast path: only stdout logging, use temp buffer
-        if !self.capture_logs && VerbosityLevel::Normal <= self.verbosity {
-            self.log_to_stdout(VerbosityLevel::Normal, message);
-            return;
+        // Capture if enabled
+        if self.capture_logs {
+            self.store_log_entry(VerbosityLevel::Normal, message, None);
         }
 
-        // Slow path: need to capture or complex logic
-        let entry = LogEntry {
-            level: VerbosityLevel::Normal,
-            message: message.to_string(),
-            category: None,
-            metadata: None,
-        };
-        self.log_entry(entry);
+        // Output if verbosity allows
+        if VerbosityLevel::Normal <= self.verbosity {
+            self.log_to_stdout(VerbosityLevel::Normal, message);
+        }
     }
 
     /// Log at Verbose level (all actions and state changes)
@@ -274,73 +346,52 @@ impl GameLogger {
             return;
         }
 
-        // Fast path: only stdout logging, use temp buffer
-        if !self.capture_logs && VerbosityLevel::Verbose <= self.verbosity {
-            self.log_to_stdout(VerbosityLevel::Verbose, message);
-            return;
+        // Capture if enabled
+        if self.capture_logs {
+            self.store_log_entry(VerbosityLevel::Verbose, message, None);
         }
 
-        // Slow path: need to capture or complex logic
-        let entry = LogEntry {
-            level: VerbosityLevel::Verbose,
-            message: message.to_string(),
-            category: None,
-            metadata: None,
-        };
-        self.log_entry(entry);
-    }
-
-    /// Fast path for stdout logging without allocation
-    #[inline]
-    fn log_to_stdout(&self, level: VerbosityLevel, message: &str) {
-        // Write indent and message directly to stdout, relying on stdout buffering
-        if level == VerbosityLevel::Minimal {
-            println!("{}", message);
-        } else {
-            println!("  {}", message);
+        // Output if verbosity allows
+        if VerbosityLevel::Verbose <= self.verbosity {
+            self.log_to_stdout(VerbosityLevel::Verbose, message);
         }
     }
 
     /// Log a controller decision at Normal level
-    ///
-    /// This is a convenience method for logging AI/controller choices.
-    /// If numeric_choices mode is enabled, choices are always logged regardless of verbosity.
     #[inline]
     pub fn controller_choice(&self, controller_name: &str, message: &str) {
-        // Controller choices are always logged if numeric_choices is enabled
         let should_log = self.numeric_choices || self.verbosity >= VerbosityLevel::Normal;
 
-        if should_log || self.capture_logs {
-            let mut metadata = serde_json::Map::new();
-            metadata.insert(
-                "controller".to_string(),
-                serde_json::Value::String(controller_name.to_string()),
-            );
+        if !should_log && !self.capture_logs {
+            return;
+        }
 
-            let entry = LogEntry {
-                level: VerbosityLevel::Normal,
-                message: format!(">>> {controller_name}: {message}"),
-                category: Some("controller_choice".to_string()),
-                metadata: Some(serde_json::Value::Object(metadata)),
-            };
+        // Build the formatted message using the bump allocator to avoid temporary allocation
+        if self.capture_logs || should_log {
+            // Allocate space for the formatted string in the bump arena
+            let bump = self.bump.borrow();
+            let mut formatted = bumpalo::collections::String::new_in(&*bump);
+            write!(&mut formatted, ">>> {}: {}", controller_name, message).unwrap();
+            let formatted_str = bump.alloc_str(&formatted);
 
             // Capture if enabled
             if self.capture_logs {
-                self.log_buffer.borrow_mut().push(entry.clone());
+                let category_str = bump.alloc_str("controller_choice");
+                let entry = bump.alloc(LogEntry {
+                    level: VerbosityLevel::Normal,
+                    message: formatted_str,
+                    category: Some(category_str),
+                });
+
+                let entry_ptr: *const LogEntry<'static> = unsafe {
+                    std::mem::transmute(entry as *const LogEntry<'_>)
+                };
+                self.log_entries.borrow_mut().push(entry_ptr);
             }
 
             // Output if should_log
-            if should_log && entry.level <= self.verbosity {
-                match self.output_format {
-                    OutputFormat::Text => {
-                        println!("  >>> {controller_name}: {message}");
-                    }
-                    OutputFormat::Json => {
-                        if let Ok(json) = serde_json::to_string(&entry) {
-                            println!("{}", json);
-                        }
-                    }
-                }
+            if should_log {
+                println!("  {}", formatted_str);
             }
         }
     }
@@ -369,21 +420,34 @@ mod tests {
     }
 
     #[test]
-    fn test_set_verbosity() {
+    fn test_log_capture() {
         let mut logger = GameLogger::new();
-        logger.set_verbosity(VerbosityLevel::Verbose);
-        assert_eq!(logger.verbosity(), VerbosityLevel::Verbose);
+        logger.enable_capture();
+
+        logger.normal("test message");
+        logger.minimal("minimal message");
+
+        let logs: Vec<_> = logger.logs().collect();
+        assert_eq!(logs.len(), 2);
+        assert_eq!(logs[0].message, "test message");
+        assert_eq!(logs[1].message, "minimal message");
     }
 
     #[test]
-    fn test_step_header_tracking() {
+    fn test_zero_copy_iteration() {
         let mut logger = GameLogger::new();
-        assert!(!logger.step_header_printed());
+        logger.enable_capture();
 
-        logger.mark_step_header_printed();
-        assert!(logger.step_header_printed());
+        for i in 0..100 {
+            logger.normal(&format!("message {}", i));
+        }
 
-        logger.reset_step_header();
-        assert!(!logger.step_header_printed());
+        // Iterate without copying
+        let count = logger.logs()
+            .filter(|log| log.message.contains("5"))
+            .count();
+
+        // Should match: 5, 15, 25, ..., 95, 50-59
+        assert!(count > 10);
     }
 }

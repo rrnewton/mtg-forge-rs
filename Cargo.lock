@@ -511,6 +511,7 @@ name = "mtg-forge-rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "clap",
  "criterion",
  "dir-test",

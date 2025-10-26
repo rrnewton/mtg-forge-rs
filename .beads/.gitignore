@@ -15,3 +15,4 @@ bd.db
 
 # Keep JSONL exports (source of truth for git)
 !*.jsonl
+TRASH

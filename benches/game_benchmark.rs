@@ -245,7 +245,7 @@ where
 
     // Collect metrics
     let actions = game_loop.game.undo_log.len();
-    let log_entries = game_loop.game.logger.get_logs().len();
+    let log_entries = game_loop.game.logger.logs().count();
     let stats = reg.change();
 
     let metrics = GameMetrics {
