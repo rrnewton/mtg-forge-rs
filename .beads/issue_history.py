@@ -179,6 +179,19 @@ def main():
         help="Hide the initial 'Created in' state, only show changes",
     )
 
+    # Mutually exclusive status filters
+    status_group = parser.add_mutually_exclusive_group()
+    status_group.add_argument(
+        "--open",
+        action="store_true",
+        help="Only show issues that are open in the most recent commit (HEAD)",
+    )
+    status_group.add_argument(
+        "--closed",
+        action="store_true",
+        help="Only show issues that are closed in the most recent commit (HEAD)",
+    )
+
     args = parser.parse_args()
 
     # Get commit history
@@ -233,6 +246,25 @@ def main():
                 filtered_issues.append(issue_id)
         sorted_issues = filtered_issues
         print(f"Filtered to only changed issues: {len(sorted_issues)} issues found\n")
+
+    # Apply status filter if specified
+    if args.open or args.closed:
+        filtered_issues = []
+        for issue_id in sorted_issues:
+            history = issue_history[issue_id]
+            # Check status in most recent commit (history[0] is newest)
+            if history:
+                most_recent_issue = history[0][2]  # (commit_hash, subject, issue_data, depth)
+                status = most_recent_issue.get("status", "unknown")
+
+                if args.open and status == "open":
+                    filtered_issues.append(issue_id)
+                elif args.closed and status == "closed":
+                    filtered_issues.append(issue_id)
+
+        sorted_issues = filtered_issues
+        status_filter = "open" if args.open else "closed"
+        print(f"Filtered to {status_filter} issues: {len(sorted_issues)} issues found\n")
 
     # Show diffs for each issue
     for issue_id in sorted_issues:
