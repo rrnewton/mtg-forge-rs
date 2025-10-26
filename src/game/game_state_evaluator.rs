@@ -201,7 +201,11 @@ impl GameStateEvaluator {
     fn get_opponent_hand_size(&self, _view: &GameStateView, ai_player: PlayerId) -> i32 {
         // TODO: Support multiplayer (iterate all opponents)
         // For now, assume 2-player game
-        let opponent_id = if ai_player.as_u32() == 0 { PlayerId::new(1) } else { PlayerId::new(0) };
+        let opponent_id = if ai_player.as_u32() == 0 {
+            PlayerId::new(1)
+        } else {
+            PlayerId::new(0)
+        };
         _view.player_hand(opponent_id).len() as i32
     }
 

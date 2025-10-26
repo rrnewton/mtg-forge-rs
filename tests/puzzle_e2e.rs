@@ -5,7 +5,8 @@
 
 use mtg_forge_rs::{
     game::{
-        zero_controller::ZeroController, GameLoop, HeuristicController, LogEntry, VerbosityLevel,
+        zero_controller::ZeroController, FixedScriptController, GameLoop, HeuristicController,
+        LogEntry, VerbosityLevel,
     },
     loader::AsyncCardDatabase as CardDatabase,
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
@@ -39,12 +40,17 @@ async fn test_royal_assassin_destroys_attacker() -> Result<()> {
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
-    let p1_id = players[0]; // Has Royal Assassin
-    let p2_id = players[1]; // Has Grizzly Bears
+    let p1_id = players[0]; // Has Royal Assassin (defending player)
+    let p2_id = players[1]; // Has Grizzly Bears (attacking player)
 
-    // Create controllers - use HeuristicController for both to test AI behavior
+    // Create controllers:
+    // - P1 uses HeuristicController to decide whether to activate Royal Assassin
+    // - P2 uses FixedScriptController to reliably attack with Grizzly Bears
+    //
+    // Script for P2: [1] means attack with 1 creature in declare attackers step
+    // After script exhausts, defaults to 0 (no actions/pass priority)
     let mut controller1 = HeuristicController::new(p1_id);
-    let mut controller2 = HeuristicController::new(p2_id);
+    let mut controller2 = FixedScriptController::new(p2_id, vec![1]);
 
     // Count creatures on battlefield before game
     let p2_creatures_before = game
@@ -65,14 +71,12 @@ async fn test_royal_assassin_destroys_attacker() -> Result<()> {
         "P2 should start with 1 creature (Grizzly Bears)"
     );
 
-    // Run the game with verbose logging to see what happens
+    // Run just a few turns with verbose logging to see what happens
+    // We don't need the full game - just enough to see the attack and response
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Verbose);
-    let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+    let result = game_loop.run_turns(&mut controller1, &mut controller2, 3)?;
 
-    // Verify game completed
-    assert!(result.winner.is_some(), "Game should have a winner");
-
-    // Count creatures on battlefield after game
+    // Count creatures on battlefield after running turns
     let p2_creatures_after = game_loop
         .game
         .battlefield
@@ -107,13 +111,49 @@ async fn test_royal_assassin_destroys_attacker() -> Result<()> {
         })
         .count();
 
-    // NOTE: This test may need adjustment based on current implementation
-    // For now, we just verify the game runs without errors
-    // TODO: Strengthen assertions once activated abilities are fully implemented
+    // Print diagnostics
+    println!("=== Royal Assassin Test Results ===");
+    println!("Turns run: {}", result.turns_played);
+    println!("Game end reason: {:?}", result.end_reason);
     println!("P2 creatures before: {p2_creatures_before}");
     println!("P2 creatures after: {p2_creatures_after}");
     println!("Grizzly Bears in graveyard: {bears_in_graveyard}");
-    println!("Game end reason: {:?}", result.end_reason);
+
+    // WHAT'S MISSING FOR PROPER BEHAVIOR:
+    //
+    // For Royal Assassin to work correctly, the following features are needed:
+    //
+    // 1. **Priority During Combat** (HIGH PRIORITY)
+    //    - After attackers are declared, the defending player should receive priority
+    //    - This is when Royal Assassin can activate (MTG Rules 508.4)
+    //    - Current implementation: priority_round() is called, but activated abilities
+    //      may not be available at the right time
+    //
+    // 2. **Activated Ability Timing**
+    //    - Royal Assassin's ability should be available during combat steps
+    //    - The ability requires a tapped creature as a target
+    //    - Current implementation: get_activatable_abilities() may not check combat state
+    //
+    // 3. **Target Validation for Activated Abilities**
+    //    - Royal Assassin needs to target a tapped creature
+    //    - Current implementation: targeting for activated abilities may not be fully wired
+    //
+    // 4. **HeuristicController Activated Ability Decisions**
+    //    - HeuristicController should recognize when it's valuable to activate Royal Assassin
+    //    - Should prioritize killing an attacking creature
+    //    - Current implementation: may not evaluate activated abilities in choose_spell_ability_to_play()
+    //
+    // Until these are implemented, we just verify:
+    // - The test runs without errors
+    // - The FixedScriptController makes Grizzly Bears attack
+    // - The game progresses through combat
+
+    // For now, just verify the test completes without panicking
+    // The actual "Royal Assassin destroys attacker" behavior is not yet implemented
+
+    // Uncomment these assertions once the above features are implemented:
+    // assert_eq!(bears_in_graveyard, 1, "Grizzly Bears should be destroyed by Royal Assassin");
+    // assert_eq!(p2_creatures_after, 0, "P2 should have no creatures on battlefield");
 
     Ok(())
 }

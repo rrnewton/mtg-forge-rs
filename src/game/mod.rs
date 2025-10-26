@@ -3,6 +3,7 @@
 pub mod actions;
 pub mod combat;
 pub mod controller;
+pub mod fixed_script_controller;
 pub mod game_loop;
 pub mod game_state_evaluator;
 pub mod heuristic_controller;
@@ -17,6 +18,7 @@ pub mod zero_controller;
 pub use actions::GameAction;
 pub use combat::CombatState;
 pub use controller::{GameStateView, PlayerController};
+pub use fixed_script_controller::FixedScriptController;
 pub use game_loop::{GameEndReason, GameLoop, GameResult, VerbosityLevel};
 pub use game_state_evaluator::{GameStateEvaluator, Score};
 pub use heuristic_controller::HeuristicController;

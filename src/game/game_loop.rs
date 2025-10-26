@@ -235,6 +235,35 @@ impl<'a> GameLoop<'a> {
         }
     }
 
+    /// Run a bounded number of turns
+    ///
+    /// This is a convenience method for testing that runs up to `turns_to_run` turns,
+    /// stopping early if the game ends.
+    ///
+    /// Returns:
+    /// - `Ok(GameResult)` with the game outcome if the game ended
+    /// - `Ok(GameResult)` with `GameEndReason::Manual` if all turns completed without ending
+    pub fn run_turns(
+        &mut self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+        turns_to_run: u32,
+    ) -> Result<GameResult> {
+        for _ in 0..turns_to_run {
+            if let Some(result) = self.run_turn_once(controller1, controller2)? {
+                // Game ended, return the result
+                return Ok(result);
+            }
+        }
+
+        // Completed all turns without game ending
+        Ok(GameResult {
+            winner: None,
+            turns_played: self.turns_elapsed,
+            end_reason: GameEndReason::Manual,
+        })
+    }
+
     /// Run a single turn and check for game-ending conditions
     ///
     /// This method runs exactly one turn of the game, including all phases and steps.
