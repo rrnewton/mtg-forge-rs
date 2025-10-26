@@ -206,11 +206,17 @@ fn process_name(name: Cow<str>) -> Cow<str> {
 ### Running Benchmarks
 
 ```bash
-# Run game benchmarks
-make bench
+# Run all benchmarks (slow)
+make full-benchmark
 
-# Or specifically for fresh mode:
+# Run specific benchmarks (fast)
+make bench-snapshot      # Snapshot benchmark only
+make bench-logging       # Stdout logging benchmark only
+
+# Or use cargo bench directly:
 cargo bench --bench game_benchmark -- fresh
+cargo bench --bench game_benchmark -- snapshot
+cargo bench --bench game_benchmark -- fresh_stdout_logging
 ```
 
 Key metrics to track:

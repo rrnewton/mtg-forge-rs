@@ -1,25 +1,27 @@
 # MTG Forge Rust - Development Makefile
 #
 # Quick reference for common development tasks
-.PHONY: help build test validate clean run check fmt clippy doc examples bench profile heapprofile count setup-claude claude-github claude-beads happy
+.PHONY: help build test validate clean run check fmt clippy doc examples full-benchmark bench-snapshot bench-logging profile heapprofile count setup-claude claude-github claude-beads happy
 
 # Default target - show available commands
 help:
 	@echo "MTG Forge Rust - Available Commands:"
 	@echo ""
-	@echo "  make build       - Build the project (cargo build)"
-	@echo "  make test        - Run unit tests (cargo test)"
-	@echo "  make validate    - Full pre-commit validation (tests + examples + lint)"
-	@echo "  make examples    - Run all examples"
-	@echo "  make bench       - Run performance benchmarks (cargo bench)"
-	@echo "  make profile     - Profile game execution with flamegraph (CPU time)"
-	@echo "  make heapprofile - Profile allocations with heaptrack"
-	@echo "  make clean       - Clean build artifacts (cargo clean)"
-	@echo "  make run         - Run the main binary (cargo run)"
-	@echo "  make check       - Fast compilation check (cargo check)"
-	@echo "  make fmt         - Format code (cargo fmt)"
-	@echo "  make clippy      - Run linter (cargo clippy)"
-	@echo "  make doc         - Generate documentation (cargo doc)"
+	@echo "  make build          - Build the project (cargo build)"
+	@echo "  make test           - Run unit tests (cargo test)"
+	@echo "  make validate       - Full pre-commit validation (tests + examples + lint)"
+	@echo "  make examples       - Run all examples"
+	@echo "  make full-benchmark - Run all performance benchmarks (slow)"
+	@echo "  make bench-snapshot - Run snapshot benchmark only"
+	@echo "  make bench-logging  - Run stdout logging benchmark only"
+	@echo "  make profile        - Profile game execution with flamegraph (CPU time)"
+	@echo "  make heapprofile    - Profile allocations with heaptrack"
+	@echo "  make clean          - Clean build artifacts (cargo clean)"
+	@echo "  make run            - Run the main binary (cargo run)"
+	@echo "  make check          - Fast compilation check (cargo check)"
+	@echo "  make fmt            - Format code (cargo fmt)"
+	@echo "  make clippy         - Run linter (cargo clippy)"
+	@echo "  make doc            - Generate documentation (cargo doc)"
 	@echo ""
 
 # Build the project
@@ -157,10 +159,20 @@ info:
 	@echo "Cargo version: $$(cargo --version)"
 	@cargo tree --depth 1
 
-# Run performance benchmarks
-bench:
-	@echo "=== Running benchmarks ==="
+# Run all performance benchmarks (takes a long time)
+full-benchmark:
+	@echo "=== Running all benchmarks ==="
 	cargo bench --bench game_benchmark
+
+# Run snapshot benchmark only (fast)
+bench-snapshot:
+	@echo "=== Running snapshot benchmark ==="
+	cargo bench --bench game_benchmark snapshot
+
+# Run stdout logging benchmark only (fast)
+bench-logging:
+	@echo "=== Running stdout logging benchmark ==="
+	cargo bench --bench game_benchmark stdout_logging
 
 # Profile game execution with flamegraph (CPU time profiling)
 # Requires cargo-flamegraph: cargo install flamegraph
