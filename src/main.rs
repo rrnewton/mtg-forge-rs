@@ -20,8 +20,8 @@ enum ControllerType {
     Zero,
     /// Makes random choices
     Random,
-    /// Interactive text UI controller for human play
-    Interactive,
+    /// Text UI controller for human play via stdin
+    Tui,
     /// Heuristic AI controller with strategic decision making
     Heuristic,
 }
@@ -231,7 +231,7 @@ async fn run_tui(
                 Box::new(RandomController::new(p1_id))
             }
         }
-        ControllerType::Interactive => Box::new(InteractiveController::new(p1_id)),
+        ControllerType::Tui => Box::new(InteractiveController::new(p1_id)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
     };
 
@@ -245,7 +245,7 @@ async fn run_tui(
                 Box::new(RandomController::new(p2_id))
             }
         }
-        ControllerType::Interactive => Box::new(InteractiveController::new(p2_id)),
+        ControllerType::Tui => Box::new(InteractiveController::new(p2_id)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
     };
 

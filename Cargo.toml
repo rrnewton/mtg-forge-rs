@@ -50,6 +50,10 @@ similar-asserts = "1.5"
 name = "game_benchmark"
 harness = false
 
+[[bench]]
+name = "puzzle_parse_benchmark"
+harness = false
+
 [features]
 # Enable verbose game event logging (format! allocations)
 # Disable this feature for maximum performance in benchmarks
