@@ -104,6 +104,17 @@ parse_metrics() {
     local bytes_per_turn=""
     local bytes_per_sec=""
 
+    # Define helper function to write CSV row
+    write_csv_row() {
+        # Normalize benchmark name to lowercase, remove "with" variations
+        local norm_name=$(echo "$benchmark_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /_/g')
+
+        echo "Found metrics: $benchmark_name (seed=$seed, games=$num_games)"
+
+        # Write CSV row
+        echo "${TIMESTAMP},${GIT_COMMIT_SHORT},${GIT_DEPTH},${GIT_BRANCH},${GIT_DIRTY},${norm_name},${seed},${num_games},${total_turns},${total_actions},${total_duration_ms},${avg_turns_per_game},${avg_actions_per_game},${avg_duration_ms},${games_per_sec},${actions_per_sec},${turns_per_sec},${actions_per_turn},${total_bytes_allocated},${total_bytes_deallocated},${net_bytes},${avg_bytes_per_game},${bytes_per_turn},${bytes_per_sec}" >> "$csv_file"
+    }
+
     while IFS= read -r line; do
         # Check for metrics block header
         if [[ "$line" =~ ^===\ Aggregated\ Metrics\ -\ (.+)\ Mode\ \(seed\ ([0-9]+),\ ([0-9]+)\ games\)\ === ]]; then
@@ -211,16 +222,6 @@ parse_metrics() {
     if [ $in_metrics_block -eq 1 ]; then
         write_csv_row
     fi
-
-    write_csv_row() {
-        # Normalize benchmark name to lowercase, remove "with" variations
-        local norm_name=$(echo "$benchmark_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /_/g')
-
-        echo "Found metrics: $benchmark_name (seed=$seed, games=$num_games)"
-
-        # Write CSV row
-        echo "${TIMESTAMP},${GIT_COMMIT_SHORT},${GIT_DEPTH},${GIT_BRANCH},${GIT_DIRTY},${norm_name},${seed},${num_games},${total_turns},${total_actions},${total_duration_ms},${avg_turns_per_game},${avg_actions_per_game},${avg_duration_ms},${games_per_sec},${actions_per_sec},${turns_per_sec},${actions_per_turn},${total_bytes_allocated},${total_bytes_deallocated},${net_bytes},${avg_bytes_per_game},${bytes_per_turn},${bytes_per_sec}" >> "$csv_file"
-    }
 }
 
 parse_metrics "$BENCH_OUTPUT" "$HISTORY_FILE"
