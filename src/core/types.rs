@@ -817,12 +817,12 @@ impl fmt::Display for CounterType {
 }
 
 /// Card name (distinct from other string types)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CardName(String);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CardName(std::sync::Arc<str>);
 
 impl CardName {
     pub fn new(s: impl Into<String>) -> Self {
-        CardName(s.into())
+        CardName(s.into().into())
     }
 
     pub fn as_str(&self) -> &str {
@@ -842,23 +842,42 @@ impl fmt::Display for CardName {
 
 impl From<String> for CardName {
     fn from(s: String) -> Self {
-        CardName(s)
+        CardName(s.into())
     }
 }
 
 impl From<&str> for CardName {
     fn from(s: &str) -> Self {
-        CardName(s.to_string())
+        CardName(s.into())
+    }
+}
+
+impl Serialize for CardName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for CardName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(CardName(s.into()))
     }
 }
 
 /// Player name (distinct from other string types)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct PlayerName(String);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PlayerName(std::sync::Arc<str>);
 
 impl PlayerName {
     pub fn new(s: impl Into<String>) -> Self {
-        PlayerName(s.into())
+        PlayerName(s.into().into())
     }
 
     pub fn as_str(&self) -> &str {
@@ -874,13 +893,32 @@ impl fmt::Display for PlayerName {
 
 impl From<String> for PlayerName {
     fn from(s: String) -> Self {
-        PlayerName(s)
+        PlayerName(s.into())
     }
 }
 
 impl From<&str> for PlayerName {
     fn from(s: &str) -> Self {
-        PlayerName(s.to_string())
+        PlayerName(s.into())
+    }
+}
+
+impl Serialize for PlayerName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for PlayerName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(PlayerName(s.into()))
     }
 }
 
