@@ -7,6 +7,7 @@ pub mod core;
 pub mod error;
 pub mod game;
 pub mod loader;
+pub mod puzzle;
 pub mod undo;
 pub mod zones;
 
