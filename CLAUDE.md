@@ -36,6 +36,8 @@ Read the PROJECT_VISION description of coding conventions we should follow for h
 
 Read OPTIMIZATION.md for more details.
 
+SAFETY! This is a safe-rust project. We will not introduce the `unsafe` keyword unless we have a VERY good reason and with significant advanced planning.
+
 Documentation and Analysis
 ========================================
 
