@@ -1,0 +1,16 @@
+[metadata]
+Name:Llanowar Elves Mana Acceleration Test
+Goal:Win
+Difficulty:Easy
+Description:Test that AI taps Llanowar Elves for mana to cast bigger creatures
+
+[state]
+turn=3
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=Craw Wurm
+p0battlefield=Forest;Forest;Llanowar Elves
+p1life=20
+p1hand=
+p1battlefield=
