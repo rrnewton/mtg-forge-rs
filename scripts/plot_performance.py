@@ -5,7 +5,7 @@ Plot performance metrics from benchmark history CSV.
 Generates time-series plots showing performance trends and regressions.
 Requires Python 3 with pandas and matplotlib installed.
 
-Usage: ./scripts/plot_performance [options]
+Usage: ./scripts/plot_performance.py [options]
 
 Options:
   --input FILE      Input CSV file (default: experiment_results/perf_history.csv)
@@ -16,9 +16,9 @@ Options:
   --show            Show plots interactively (default: save only)
 
 Examples:
-  ./scripts/plot_performance
-  ./scripts/plot_performance --benchmark fresh --metric games_per_sec
-  ./scripts/plot_performance --show
+  ./scripts/plot_performance.py
+  ./scripts/plot_performance.py --benchmark fresh --metric games_per_sec
+  ./scripts/plot_performance.py --show
 """
 
 import argparse

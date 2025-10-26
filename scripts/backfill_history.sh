@@ -1,7 +1,7 @@
 #!/bin/bash
 # Backfill performance history by running benchmarks on historical commits
 #
-# Usage: ./scripts/backfill_history [options]
+# Usage: ./scripts/backfill_history.sh [options]
 #
 # Options:
 #   --start COMMIT    Start from this commit (default: oldest commit)
@@ -11,9 +11,9 @@
 #   --skip-existing   Skip commits already in history CSV
 #
 # Examples:
-#   ./scripts/backfill_history --count 5
-#   ./scripts/backfill_history --start HEAD~20 --end HEAD --count 10
-#   ./scripts/backfill_history --benchmark fresh --count 5
+#   ./scripts/backfill_history.sh --count 5
+#   ./scripts/backfill_history.sh --start HEAD~20 --end HEAD --count 10
+#   ./scripts/backfill_history.sh --benchmark fresh --count 5
 
 set -euo pipefail
 
@@ -182,7 +182,7 @@ benchmark_commit() {
         echo "  Running with history tracking..."
         # Run the actual benchmark with our tracking script
         # But we need to use the current version of the script, not the historical one
-        git show "$ORIGINAL_COMMIT:scripts/run_benchmark" > /tmp/run_benchmark_temp
+        git show "$ORIGINAL_COMMIT:scripts/run_benchmark.sh" > /tmp/run_benchmark_temp
         chmod +x /tmp/run_benchmark_temp
         /tmp/run_benchmark_temp "$BENCHMARK_NAME" > /tmp/benchmark_output.log 2>&1 || {
             echo "  Warning: Benchmark tracking failed"

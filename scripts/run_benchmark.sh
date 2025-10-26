@@ -1,13 +1,13 @@
 #!/bin/bash
 # Run benchmarks and append results to performance history CSV
 #
-# Usage: ./scripts/run_benchmark [benchmark_name]
+# Usage: ./scripts/run_benchmark.sh [benchmark_name]
 #   benchmark_name: Optional specific benchmark to run (default: all)
 #
 # Examples:
-#   ./scripts/run_benchmark              # Run all benchmarks
-#   ./scripts/run_benchmark snapshot     # Run only snapshot benchmark
-#   ./scripts/run_benchmark fresh        # Run only fresh benchmark
+#   ./scripts/run_benchmark.sh              # Run all benchmarks
+#   ./scripts/run_benchmark.sh snapshot     # Run only snapshot benchmark
+#   ./scripts/run_benchmark.sh fresh        # Run only fresh benchmark
 
 set -euo pipefail
 
