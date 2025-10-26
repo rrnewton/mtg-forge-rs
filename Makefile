@@ -21,7 +21,6 @@ help:
 	@echo "  make check          - Fast compilation check (cargo check)"
 	@echo "  make fmt            - Format code (cargo fmt)"
 	@echo "  make clippy         - Run linter (cargo clippy)"
-	@echo "  make doc            - Generate documentation and open in browser"
 	@echo "  make docs           - Generate documentation (no browser)"
 	@echo ""
 
@@ -127,11 +126,6 @@ validate-test-step:
 validate-examples-step:
 	@$(MAKE) examples
 	@echo "✓ examples completed"
-
-# Generate documentation and open in browser
-doc:
-	@echo "=== Generating documentation ==="
-	cargo doc --no-deps --open
 
 # Generate documentation without opening browser
 docs:
