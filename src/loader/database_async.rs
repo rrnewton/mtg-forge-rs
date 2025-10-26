@@ -28,7 +28,8 @@ pub struct CardDatabase {
     /// Base directory containing card files
     cardsfolder: PathBuf,
     /// Cache of loaded cards (shared, thread-safe)
-    cards: Arc<RwLock<HashMap<String, CardDefinition>>>,
+    /// Using Arc<CardDefinition> to avoid cloning on every access
+    cards: Arc<RwLock<HashMap<String, Arc<CardDefinition>>>>,
 }
 
 impl CardDatabase {
@@ -42,14 +43,15 @@ impl CardDatabase {
 
     /// Load a single card by name (async, with caching)
     /// Returns None if card file doesn't exist
-    pub async fn get_card(&self, name: &str) -> Result<Option<CardDefinition>> {
+    /// Returns Arc<CardDefinition> to avoid cloning
+    pub async fn get_card(&self, name: &str) -> Result<Option<Arc<CardDefinition>>> {
         let name_lower = name.to_lowercase();
 
         // Check cache first
         {
             let cards = self.cards.read().await;
             if let Some(card) = cards.get(&name_lower) {
-                return Ok(Some(card.clone()));
+                return Ok(Some(Arc::clone(card)));
             }
         }
 
@@ -63,10 +65,11 @@ impl CardDatabase {
         // Load asynchronously
         match Self::load_card_async(path).await {
             Ok(card_def) => {
-                // Cache the loaded card
+                // Cache the loaded card in an Arc
+                let card_arc = Arc::new(card_def);
                 let mut cards = self.cards.write().await;
-                cards.insert(name_lower, card_def.clone());
-                Ok(Some(card_def))
+                cards.insert(name_lower, Arc::clone(&card_arc));
+                Ok(Some(card_arc))
             }
             Err(e) => {
                 // Card file exists but failed to parse - this is a fatal error
@@ -176,7 +179,7 @@ impl CardDatabase {
         while let Some(card_result) = result_rx.recv().await {
             let card_def = card_result?; // Fail fast: propagate card loading errors
             let name_lower = card_def.name.to_lowercase();
-            cards_map.insert(name_lower, card_def);
+            cards_map.insert(name_lower, Arc::new(card_def));
         }
 
         let loaded = cards_map.len();
