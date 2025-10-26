@@ -1,0 +1,21 @@
+[metadata]
+Name=Activated Ability Timing Test
+Goal=Win
+Turns=3
+Difficulty=Hard
+Description=P1 has Prodigal Sorcerer (tap to deal 1 damage). AI should recognize when to activate the ability for maximum value, such as killing opposing creatures or dealing damage to opponent.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Island;Island;Island;Island;Prodigal Sorcerer
+p0library=Island;Island;Island
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Llanowar Elves
+p1library=Plains;Plains;Plains
+p1graveyard=
