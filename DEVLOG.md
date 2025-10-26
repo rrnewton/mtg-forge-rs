@@ -1782,12 +1782,99 @@ If bd does NOT take --no-db, and bd reports `Error: no beads database found`, th
 the script can switch to `.beads/..` and run `bd init -p mtg` with the appropriate prefix for this project.
 
 
+done: Create controlled e2e tests with pzl starting points
+----------------------------------------
+
+Now that the develop branch is merged and we can load .pzl files, we can use that to create more targeted e2e tests.
+You will need to add a CLI flag to `mtg tui --start-state file.pzl` in order for the game to begin from a known position.
+You can then optionally feed in numeric choices on stdin (for both p1 & p2) to achieve a particular test outcome, or
+test that the AI has the desired behavior in a given scenario.
+
+With that capability you can write tests like:
+ - that the AI attacks with grizzly bears in the circumstances it should
+ - a creature taps to attack and royal assassin taps in response to destroy it
+
+-----
+
+When I actually run this, the game ends by decking immediately:
+```
+ cargo run --bin mtg -- tui --p1 heuristic --p2 heuristic -v3 --start-state test_puzzles/grizzly_bears_should_attack.pzl
+```
+
+That is not the intended effect. So having at least some test coverage of this would help.
+I see that the royal assassin example in code has detailed assertions, which is great. We'll get back to making more assertions on these "from the outside" e2e tests that drive it like a human would from
+the command linee
+
+----
+
+In order to make more and easier logging assertions during testing, let's overhaul our logging further.
+Since we've centralized logging let's add some more capabilities:
+ - option to log to memory and access the logs programattically (when calling from code tests)
+ - option to log to a machine readable json-object-per-log-line format
+
+The former will allow us to more directly confirm that an event happened (rather than just verifying the post-condition of the event, which is also good).
+The latter will make it easier to write a test that calls `mtg tui` on a puzzle, and reads back the logs to make an assertion about what happened.
+Let's try to write our royal assassin test in that way.
+
+
+
+: script to see issues diffs
+----------------------------------------
+
+Now for something completely different.
+I want a script, .beads/issue_history.py which will show me a log of git changes
+specialized to the issues.jsonl format.
+
+If I do something like this, I get a primitive view of the raw JSON that is confounded by timestamps and other issues:
+
+    git log -p .beads/issues.jsonl
+    git log -p --color --color-words .beads/issues.jsonl
+
+The way the new script should work is that it should go back a specified number
+of commits (CLI argument, default 10). Inside a temporary working directory, it
+should export a full copy of issues.jsonl from each of those commits. It can
+then use a python json library to read the issues, and expand them into the raw
+title+description strings, ignoring everything else. Essentially treating every
+issue as a small text file of this format:
+
+```text
+title
+----------------------------------------
+description
+```
+
+Under that interpretation of issues, THEN show a nice colorized view (as from `git diff --color --color-words -w`) of what changed.
+
+Show me the N commit history PER issue, sorted by issue nmumber:
+
+```
+Issue mtg-XYZ
+================================================================================
+
+Cahnged in commit HEAD (SHORTHASH):
+
+<colorfull diff>
+
+Cahnged in commit HEAD~3 (SHORTHASH):
+
+<colorfull diff>
+
+Chhnged in commit HEAD~5 (SHORTHASH):
+
+<colorfull diff>
+
+Issue mtg-XYQ
+================================================================================
+```
+
+
+
 TODO: Optimized mode to cut down on choices
 ------------------------------------------------------------
 
 Following the full magic rules, we will give players priority at every opportunity.
 If we are doing aggressive filtering of valid actions, then many of these priorities
-should be skipped (only one option).
+should be skipped (only one option). 
 
 - I.e. if they don't have an instant or don't have mana to play an instant.
 - We won't count mana-actions, i.e. we'll never interrupt the player to ask if they want to tap a land when they technically have priority but no other actions.
@@ -1811,6 +1898,8 @@ Anything else we want to do at other steps in our turn would be a reaction to ou
 The benefit is that in very simple games, with only a single simple action or two per turn (draw, play land, play creature), we can greatly reduce the depth of the choice tree.
 
 First let me know if you can find any exceptions to these assumptions based on your understanding of the rules. Then, let's come up with a plan for the simple priority mode.
+
+
 
 
 

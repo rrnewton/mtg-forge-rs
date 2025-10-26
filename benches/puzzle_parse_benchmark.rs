@@ -69,12 +69,16 @@ fn bench_parse_single(c: &mut Criterion) {
         let size = contents.len();
         group.throughput(Throughput::Bytes(size as u64));
 
-        group.bench_with_input(BenchmarkId::from_parameter(filename), &contents, |b, contents| {
-            b.iter(|| {
-                let result = PuzzleFile::parse(black_box(contents));
-                black_box(result)
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(filename),
+            &contents,
+            |b, contents| {
+                b.iter(|| {
+                    let result = PuzzleFile::parse(black_box(contents));
+                    black_box(result)
+                });
+            },
+        );
     }
 
     group.finish();

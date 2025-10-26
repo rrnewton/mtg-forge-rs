@@ -1,0 +1,25 @@
+[metadata]
+Name:Royal Assassin Destroys Attacking Creature
+URL:https://github.com/your-repo
+Goal:Win
+Turns:3
+Difficulty:Easy
+Description:Test that Royal Assassin can activate to destroy an attacking creature. Player 2 has Grizzly Bears that will attack. Player 1 has Royal Assassin that should tap to destroy the attacker during combat.
+
+[state]
+turn=3
+activeplayer=p1
+activephase=MAIN1
+p0life=20
+p0hand=
+p0library=Swamp; Swamp; Swamp; Swamp; Swamp; Swamp; Swamp; Swamp; Swamp; Swamp
+p0graveyard=
+p0battlefield=Royal Assassin; Swamp; Swamp; Swamp
+p0exile=
+
+p1life=18
+p1hand=
+p1library=Forest; Forest; Forest; Forest; Forest; Grizzly Bears; Forest; Forest; Forest; Forest
+p1graveyard=
+p1battlefield=Grizzly Bears; Forest; Forest; Forest
+p1exile=
