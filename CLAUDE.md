@@ -36,6 +36,11 @@ Read the PROJECT_VISION description of coding conventions we should follow for h
 
 Read OPTIMIZATION.md for more details.
 
+Documentation and Analysis
+========================================
+
+When creating analysis documents, specifications, or other AI-generated documentation, place them in the `ai_docs/` directory. This keeps the top-level clean and makes it clear which documents are AI-generated analysis (and may become outdated) versus core project documentation.
+
 Workflow: Tasks and Commits
 ========================================
 

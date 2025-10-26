@@ -1,0 +1,11 @@
+[metadata]
+Name=White Aggro (4ED Style)
+Description=Aggressive white creatures with vigilance and flying
+
+[Main]
+20 Plains
+10 Serra Angel
+10 Grizzly Bears
+20 Plains
+
+[Sideboard]

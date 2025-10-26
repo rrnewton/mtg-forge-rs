@@ -117,6 +117,13 @@ impl<'a> GameStateView<'a> {
         self.card_name(card_id)
     }
 
+    /// Get a reference to a card
+    ///
+    /// This allows controllers to inspect card properties for decision-making
+    pub fn get_card(&self, card_id: CardId) -> Option<&crate::core::Card> {
+        self.game.cards.get(card_id).ok()
+    }
+
     /// Check if a card is tapped
     pub fn is_tapped(&self, card_id: CardId) -> bool {
         self.game

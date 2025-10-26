@@ -6,9 +6,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{
         random_controller::RandomController, zero_controller::ZeroController, GameLoop,
-        InteractiveController, VerbosityLevel,
+        HeuristicController, InteractiveController, VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
+    puzzle::{loader::load_puzzle_into_game, PuzzleFile},
     Result,
 };
 use std::path::PathBuf;
@@ -22,9 +23,8 @@ enum ControllerType {
     Random,
     /// Text UI controller for human play via stdin
     Tui,
-    // TODO: Add this when implemented
-    // /// AI controller with strategic decision making
-    // Ai,
+    /// Heuristic AI controller with strategic decision making
+    Heuristic,
 }
 
 /// Verbosity level for game output (custom parser supporting both names and numbers)
@@ -65,13 +65,17 @@ struct Cli {
 enum Commands {
     /// Text UI Mode - Interactive Forge Gameplay
     Tui {
-        /// Deck file (.dck) for player 1
-        #[arg(value_name = "PLAYER1_DECK")]
-        deck1: PathBuf,
+        /// Deck file (.dck) for player 1 (required unless --start-state is provided)
+        #[arg(value_name = "PLAYER1_DECK", required_unless_present = "start_state")]
+        deck1: Option<PathBuf>,
 
-        /// Deck file (.dck) for player 2
-        #[arg(value_name = "PLAYER2_DECK")]
-        deck2: PathBuf,
+        /// Deck file (.dck) for player 2 (required unless --start-state is provided)
+        #[arg(value_name = "PLAYER2_DECK", required_unless_present = "start_state")]
+        deck2: Option<PathBuf>,
+
+        /// Load game state from puzzle file (.pzl)
+        #[arg(long, value_name = "PUZZLE_FILE")]
+        start_state: Option<PathBuf>,
 
         /// Player 1 controller type
         #[arg(long, value_enum, default_value = "random")]
@@ -92,6 +96,10 @@ enum Commands {
         /// Verbosity level for game output (0=silent, 1=minimal, 2=normal, 3=verbose)
         #[arg(long, default_value = "normal", short = 'v')]
         verbosity: VerbosityArg,
+
+        /// Use numeric-only choice format (for comparison with Java Forge)
+        #[arg(long)]
+        numeric_choices: bool,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -118,12 +126,27 @@ async fn main() -> Result<()> {
         Commands::Tui {
             deck1,
             deck2,
+            start_state,
             p1,
             p2,
             seed,
             load_all_cards,
             verbosity,
-        } => run_tui(deck1, deck2, p1, p2, seed, load_all_cards, verbosity).await?,
+            numeric_choices,
+        } => {
+            run_tui(
+                deck1,
+                deck2,
+                start_state,
+                p1,
+                p2,
+                seed,
+                load_all_cards,
+                verbosity,
+                numeric_choices,
+            )
+            .await?
+        }
         Commands::Profile { games, seed, deck } => run_profile(games, seed, deck).await?,
     }
 
@@ -131,60 +154,111 @@ async fn main() -> Result<()> {
 }
 
 /// Run TUI with async card loading
+#[allow(clippy::too_many_arguments)] // CLI parameters naturally map to function args
 async fn run_tui(
-    deck1_path: PathBuf,
-    deck2_path: PathBuf,
+    deck1_path: Option<PathBuf>,
+    deck2_path: Option<PathBuf>,
+    puzzle_path: Option<PathBuf>,
     p1_type: ControllerType,
     p2_type: ControllerType,
     seed: Option<u64>,
     load_all_cards: bool,
     verbosity: VerbosityArg,
+    numeric_choices: bool,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
-
-    // Load decks
-    println!("Loading deck files...");
-    let deck1 = DeckLoader::load_from_file(&deck1_path)?;
-    let deck2 = DeckLoader::load_from_file(&deck2_path)?;
-    println!("  Player 1: {} cards", deck1.total_cards());
-    println!("  Player 2: {} cards\n", deck2.total_cards());
 
     // Create async card database
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::new(cardsfolder);
 
-    // Load cards based on mode
-    println!("Loading card database...");
-    let (count, duration) = if load_all_cards {
-        // Load all cards from cardsfolder
-        card_db.eager_load().await?
-    } else {
-        // Load only cards needed for the two decks
-        let mut unique_names = deck1.unique_card_names();
-        unique_names.extend(deck2.unique_card_names());
-        card_db.load_cards(&unique_names).await?
-    };
-    println!("  Loaded {count} cards");
-    eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
+    let mut game = if let Some(puzzle_file) = puzzle_path {
+        // Load game from puzzle file
+        println!("Loading puzzle file: {}", puzzle_file.display());
+        let puzzle_contents = std::fs::read_to_string(&puzzle_file)?;
+        let puzzle = PuzzleFile::parse(&puzzle_contents)?;
+        println!("  Puzzle: {}", puzzle.metadata.name);
+        println!("  Goal: {:?}", puzzle.metadata.goal);
+        println!("  Difficulty: {:?}\n", puzzle.metadata.difficulty);
 
-    // Initialize game
-    println!("Initializing game...");
-    let game_init = GameInitializer::new(&card_db);
-    let mut game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &deck1,
-            "Player 2".to_string(),
-            &deck2,
-            20, // starting life
-        )
-        .await?;
+        // Load cards needed for puzzle
+        println!("Loading card database...");
+        let (count, duration) = if load_all_cards {
+            card_db.eager_load().await?
+        } else {
+            // Extract card names from puzzle state
+            let mut card_names = std::collections::HashSet::new();
+            for player in &puzzle.state.players {
+                for card_def in player
+                    .hand
+                    .iter()
+                    .chain(player.battlefield.iter())
+                    .chain(player.graveyard.iter())
+                    .chain(player.library.iter())
+                    .chain(player.exile.iter())
+                {
+                    card_names.insert(card_def.name.clone());
+                }
+            }
+            card_db
+                .load_cards(&card_names.into_iter().collect::<Vec<_>>())
+                .await?
+        };
+        println!("  Loaded {count} cards");
+        eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
+
+        println!("Initializing game from puzzle...");
+        load_puzzle_into_game(&puzzle, &card_db).await?
+    } else {
+        // Load game from deck files
+        let deck1_path = deck1_path.expect("deck1 required when not loading from puzzle");
+        let deck2_path = deck2_path.expect("deck2 required when not loading from puzzle");
+
+        println!("Loading deck files...");
+        let deck1 = DeckLoader::load_from_file(&deck1_path)?;
+        let deck2 = DeckLoader::load_from_file(&deck2_path)?;
+        println!("  Player 1: {} cards", deck1.total_cards());
+        println!("  Player 2: {} cards\n", deck2.total_cards());
+
+        // Load cards based on mode
+        println!("Loading card database...");
+        let (count, duration) = if load_all_cards {
+            // Load all cards from cardsfolder
+            card_db.eager_load().await?
+        } else {
+            // Load only cards needed for the two decks
+            let mut unique_names = deck1.unique_card_names();
+            unique_names.extend(deck2.unique_card_names());
+            card_db.load_cards(&unique_names).await?
+        };
+        println!("  Loaded {count} cards");
+        eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
+
+        // Initialize game
+        println!("Initializing game...");
+        let game_init = GameInitializer::new(&card_db);
+        game_init
+            .init_game(
+                "Player 1".to_string(),
+                &deck1,
+                "Player 2".to_string(),
+                &deck2,
+                20, // starting life
+            )
+            .await?
+    };
 
     // Set random seed if provided
     if let Some(seed_value) = seed {
         game.rng_seed = seed_value;
         println!("Using random seed: {seed_value}");
+    }
+
+    // Enable numeric choices mode if requested
+    if numeric_choices {
+        game.logger.set_numeric_choices(true);
+        println!("Numeric choices mode: enabled");
     }
 
     println!("Game initialized!");
@@ -208,6 +282,7 @@ async fn run_tui(
             }
         }
         ControllerType::Tui => Box::new(InteractiveController::new(p1_id)),
+        ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
     };
 
     let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
@@ -221,6 +296,7 @@ async fn run_tui(
             }
         }
         ControllerType::Tui => Box::new(InteractiveController::new(p2_id)),
+        ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
     };
 
     if verbosity >= VerbosityLevel::Minimal {

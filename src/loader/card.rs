@@ -776,6 +776,13 @@ impl CardDefinition {
                 });
             }
 
+            // AB$ Destroy - Activated destroy ability
+            if ability.contains("AB$ Destroy") {
+                effects.push(Effect::DestroyPermanent {
+                    target: crate::core::EntityId::new(0), // Placeholder
+                });
+            }
+
             // Extract description
             let description = if let Some(desc_str) = ability.split("SpellDescription$").nth(1) {
                 desc_str.trim().to_string()

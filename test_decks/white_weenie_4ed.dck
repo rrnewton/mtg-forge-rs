@@ -1,0 +1,10 @@
+[metadata]
+Name=White Weenie (4ED Mana Curve)
+Description=Realistic white aggro with proper mana curve
+
+[Main]
+20 Plains
+36 Grizzly Bears
+4 Serra Angel
+
+[Sideboard]

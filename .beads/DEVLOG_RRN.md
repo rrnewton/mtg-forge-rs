@@ -1489,7 +1489,7 @@ produce a line of output:
     >>> RANDOM chose 3 out of choices 0-9.
 
 
-Fix issues with undo e2e test
+done: Fix issues with undo e2e test
 ----------------------------------------
 
 Setting verbosity to normal and running this undo_e2e test shows that
@@ -1570,7 +1570,7 @@ And that the game ended from decking seems to indicate that rewinding is NOT rev
 moved: Elide random choices with one option only
 ----------------------------------------
 
-: Fix validate script
+done: Fix validate script
 ----------------------------------------
 
 The `make validate` implementation has a critical bug where validaiton
@@ -1589,7 +1589,7 @@ be more careful with it.
 - The last successful run will also by symlinked to `validate_latest.log`.
 
 
-: validate script upgrade
+done: validate script upgrade
 ----------------------------------------
 
 Let's make it more robust to trivial changes in TODO.md or other
@@ -1612,7 +1612,7 @@ We can symlink the `validate_OLDHASH[_dirty].log` to our
 coverage of the new commit.
 
 
-: Migrate to beads for issue tracking
+done: Migrate to beads for issue tracking
 ----------------------------------------
 
 Read `bd quickstart` and get ready to migrate our TODO.md tracking to beads.
@@ -1651,7 +1651,7 @@ Start adopting the convention of referencing issues from todo comments:
 ```
 
 
-make bench showing RANDOM choices it should not
+done: make bench showing RANDOM choices it should not
 ----------------------------------------
 
 These messages should go through the normal logging interface and be at verbosity=2
@@ -1670,7 +1670,7 @@ retain a handle on this logger.  Try to make the controllers follow
 that same pattern.  Maybe the gamestate reference could even provide access to the logger.
 
 
-: random choices of 1 option still present.
+done: random choices of 1 option still present.
 ----------------------------------------
 
 Look at an e2e game:
@@ -1707,21 +1707,13 @@ Our guiding principle here is to only invoke the PlayerController
 When `get_available_spell_abilities` returns only a single action
 (PassPriority), then we don't need to call the PlayerController.
 
-TODO[beads] bd show multiple issues
-----------------------------------------
-
-`bd show ID1 ID2` should just show both. Commit this change as one standalone commit.
-
-Also, add a flag `bd show --all-issues` to show all issues. You can warn in the help that this may be an expensive operation. Commit this as a second commit.
-
-Finally, add another flag `bd show --priority 0` to show all issues at a priority (-p for short), which shows all the issues at a given priority, and can be provided multiple times. Commit this as a third commit.
 
 ---
 
 Make an additional change. Whenever `bd show` is going to print multiple issues, present them in order of the IDs: issue-1, issue-2, etc.
 
 
-Task fixing and dedup
+done: Task fixing and dedup
 ----------------------------------------
 
 Note that we have multiple duplicate tasks.
@@ -1732,11 +1724,210 @@ Review CLAUDE.md and the conventions for beads issues. Merge the
 duplicate issues into one and put it at the appropriate priority.
 
 
-: aggressive random undo testing
+done: aggressive random undo testing
 ----------------------------------------
 
 
+done: Use --numeric-choices when comparing against Java
+----------------------------------------
 
+If you do this, you will see the choices to attack or block in a numeric-only choice format:
+
+```
+/headless.sh tui `pwd`/forge-headless/test_decks/grizzly_bears.dck `pwd`/forge-headless/test_decks/grizzly_bears.dck --p1=random --p2=ai --numeric-choices
+```
+
+For our own TUI, we can follow a simiar design. Declaring blockers for example can be done much more quickly with a rich interactive format ("0 blocks 1" "1 blocks 3" "done" is what Java uses). But if we pass `--numeric-choices` we want to only run the choice oracle in the simples mode that pics 0-N with a prompt.
+
+When this is working well, proceed to start adding more test_decks. You can either sample whole decks from the thousands in forge-java/, or you can make more custom decks that demonstrate more choices.
+For example, a deck with royal assasins vs the grizzly bear deck should have the option to tap to kill a tapped grizzly bear in response to its attack.
+
+
+
+moved: Begin or progress work on simple interactive TUI
+------------------------------------------------------------
+
+The basic `mtg tui --p1=tui` will be very similar to the Java version. Instead
+of making a random choice for every `Enter choice (0-N)` prompt, we will present
+the choice to the user and wait for input on stdin.
+
+Later we will add a fancy TUI with the ratatui library, so we should keep an eye
+on how to make our Controller interface generic. It will present the battlefield
+and the choices in a different way.
+
+
+Overhaul ingest_inbox script
+--------------------------------
+
+The script .beads/ingest_inbox.sh is not working to successfully import the entries
+in .beads/inbox/*.md into .beads/done/.
+
+It also doesn't present an error message when bd fails, and when it succeeds it doesn't print anything confirming the issue id of the task(s) created.
+
+```
+==================================
+Processing 1 file(s) from inbox
+===================================
+
+Processing: tasks.md
+  → Creating issue: Begin or progress work on simple interactive TUI
+```
+
+Port this script to python and improve it to fix these deficiencies.
+
+Check if `bd -h` reports that it takes the `--no-db` option, and if it does,
+prefer that.
+
+If bd does NOT take --no-db, and bd reports `Error: no beads database found`, then 
+the script can switch to `.beads/..` and run `bd init -p mtg` with the appropriate prefix for this project.
+
+
+done: Create controlled e2e tests with pzl starting points
+----------------------------------------
+
+Now that the develop branch is merged and we can load .pzl files, we can use that to create more targeted e2e tests.
+You will need to add a CLI flag to `mtg tui --start-state file.pzl` in order for the game to begin from a known position.
+You can then optionally feed in numeric choices on stdin (for both p1 & p2) to achieve a particular test outcome, or
+test that the AI has the desired behavior in a given scenario.
+
+With that capability you can write tests like:
+ - that the AI attacks with grizzly bears in the circumstances it should
+ - a creature taps to attack and royal assassin taps in response to destroy it
+
+-----
+
+When I actually run this, the game ends by decking immediately:
+```
+ cargo run --bin mtg -- tui --p1 heuristic --p2 heuristic -v3 --start-state test_puzzles/grizzly_bears_should_attack.pzl
+```
+
+That is not the intended effect. So having at least some test coverage of this would help.
+I see that the royal assassin example in code has detailed assertions, which is great. We'll get back to making more assertions on these "from the outside" e2e tests that drive it like a human would from
+the command linee
+
+----
+
+In order to make more and easier logging assertions during testing, let's overhaul our logging further.
+Since we've centralized logging let's add some more capabilities:
+ - option to log to memory and access the logs programattically (when calling from code tests)
+ - option to log to a machine readable json-object-per-log-line format
+
+The former will allow us to more directly confirm that an event happened (rather than just verifying the post-condition of the event, which is also good).
+The latter will make it easier to write a test that calls `mtg tui` on a puzzle, and reads back the logs to make an assertion about what happened.
+Let's try to write our royal assassin test in that way.
+
+
+
+: script to see issues diffs
+----------------------------------------
+
+Now for something completely different.
+I want a script, .beads/issue_history.py which will show me a log of git changes
+specialized to the issues.jsonl format.
+
+If I do something like this, I get a primitive view of the raw JSON that is confounded by timestamps and other issues:
+
+    git log -p .beads/issues.jsonl
+    git log -p --color --color-words .beads/issues.jsonl
+
+The way the new script should work is that it should go back a specified number
+of commits (CLI argument, default 10). Inside a temporary working directory, it
+should export a full copy of issues.jsonl from each of those commits. It can
+then use a python json library to read the issues, and expand them into the raw
+title+description strings, ignoring everything else. Essentially treating every
+issue as a small text file of this format:
+
+```text
+title
+----------------------------------------
+description
+```
+
+Under that interpretation of issues, THEN show a nice colorized view (as from `git diff --color --color-words -w`) of what changed.
+
+Show me the N commit history PER issue, sorted by issue nmumber:
+
+```
+Issue mtg-XYZ
+================================================================================
+
+Cahnged in commit HEAD (SHORTHASH):
+
+<colorfull diff>
+
+Cahnged in commit HEAD~3 (SHORTHASH):
+
+<colorfull diff>
+
+Chhnged in commit HEAD~5 (SHORTHASH):
+
+<colorfull diff>
+
+Issue mtg-XYQ
+================================================================================
+```
+
+
+
+TODO: Optimized mode to cut down on choices
+------------------------------------------------------------
+
+Following the full magic rules, we will give players priority at every opportunity.
+If we are doing aggressive filtering of valid actions, then many of these priorities
+should be skipped (only one option). 
+
+- I.e. if they don't have an instant or don't have mana to play an instant.
+- We won't count mana-actions, i.e. we'll never interrupt the player to ask if they want to tap a land when they technically have priority but no other actions.
+
+In addition to these "always safe" simplifications of priority passing, we will add a `--priority=simple` flag (in contrast with the default `--priority=full`). The simplifying assumption is this:
+
+- With reactive acions you only want to react TO something your opponent does (or triggered abilities).
+- With proactive actions (play a permanent, a sorcery/instant on your turn) there are certain canonical times to play them "play a creature during main1". "Play an instant at the end step of my opponents turn."
+
+So from the moment we draw on our turn, we can directly be presented with a set of "fast forward" options:
+
+- pass priority / fast forward to end of turn
+- play a creature in your main1
+- play a spell in your main1
+- attack with creature(s)
+
+If we pick one action, we can of course pick a second and third after.  But if we advance to attacking, then we will only be able to play spells in main2.
+
+Anything else we want to do at other steps in our turn would be a reaction to our opponent casting a spell, declaring a blocker, or a triggered action on our upkeep/beginning-of-combat/etc. So if we want to *react*, we can pass priority and wait to get it back when the relevant events happens, knowing that control will not actually reach the end of our turn.
+
+The benefit is that in very simple games, with only a single simple action or two per turn (draw, play land, play creature), we can greatly reduce the depth of the choice tree.
+
+First let me know if you can find any exceptions to these assumptions based on your understanding of the rules. Then, let's come up with a plan for the simple priority mode.
+
+
+
+
+
+
+
+TODO: Separate seed for initial shuffle vs subsequent game
+----------------------------------------
+
+We want to retain the ability to deterministically test by controlling RNG
+seeds. But sometimes we may want to sample many DIFFERENT games from the space
+of all possible games between two decks.
+
+To this end, in addition to `--seed` let's have a separate `--deck-seed`. If not
+provided, it is initalized from the main seed. If it is provided, then the deck
+seed is used only for the initial random decisions before the game starts
+(shuffling) and the --seed can be varied independently to sample different runs
+of the same game while keeping the inital hands the same.
+
+This will be useful for testing if one agent can be "smarter" and win under the
+same conditions that another loses.
+
+Also --seed currently takes numbers only. If it is passed "clock" then let's
+seed the RNG from the system clock using real entropy in the usual way.
+
+
+
+MCP server for the agent to play the game
+-----
 
 
 TODO: Abstract the logging framework to redirect logs

@@ -1,0 +1,25 @@
+[metadata]
+Name:Grizzly Bears Should Attack Empty Board
+URL:https://github.com/your-repo
+Goal:Win
+Turns:5
+Difficulty:Easy
+Description:Test that Grizzly Bears attacks when opponent has no blockers. This tests the HeuristicController attack logic - a 2/2 vanilla creature should attack when the opponent's board is empty.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0library=Forest; Forest; Forest; Forest; Forest; Grizzly Bears; Grizzly Bears; Forest; Forest; Forest
+p0graveyard=
+p0battlefield=Grizzly Bears; Forest; Forest; Forest
+p0exile=
+
+p1life=20
+p1hand=
+p1library=Mountain; Mountain; Mountain; Mountain; Mountain; Mountain; Mountain; Mountain; Mountain; Mountain
+p1graveyard=
+p1battlefield=Mountain; Mountain; Mountain
+p1exile=

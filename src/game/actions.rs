@@ -254,8 +254,41 @@ impl GameState {
             }
         }
 
-        for effect in effects {
-            self.execute_effect(&effect)?;
+        // Check if targets are still valid before executing effects
+        // MTG Rules 608.2b: If all targets are illegal, the spell doesn't resolve
+        //
+        // For damage spells targeting permanents, verify targets are still on battlefield
+        // (they might have been removed by another spell resolving first)
+        let mut all_targets_illegal = false;
+        if !chosen_targets.is_empty() {
+            // Check if this spell deals damage to permanents
+            let targets_permanents = effects.iter().any(|effect| {
+                matches!(
+                    effect,
+                    Effect::DealDamage {
+                        target: TargetRef::Permanent(_),
+                        ..
+                    }
+                )
+            });
+
+            if targets_permanents {
+                // Check if any permanent target is no longer on the battlefield
+                let any_target_gone = chosen_targets
+                    .iter()
+                    .any(|&target_id| !self.battlefield.contains(target_id));
+                if any_target_gone {
+                    // Spell fizzles - permanent targets are no longer valid
+                    all_targets_illegal = true;
+                }
+            }
+        }
+
+        // Execute effects only if targets are still valid
+        if !all_targets_illegal {
+            for effect in effects {
+                self.execute_effect(&effect)?;
+            }
         }
 
         // Determine destination based on card type
