@@ -168,6 +168,11 @@ def main():
         type=str,
         help="Filter to show only issues in numeric range (e.g., --range=1-10)",
     )
+    parser.add_argument(
+        "--only-changed",
+        action="store_true",
+        help="Only show issues that were updated (not just created) during the commit window",
+    )
 
     args = parser.parse_args()
 
@@ -205,6 +210,16 @@ def main():
                 filtered_issues.append(issue_id)
         sorted_issues = filtered_issues
         print(f"Filtered to issues {range_start}-{range_end}: {len(sorted_issues)} issues found\n")
+
+    # Apply only-changed filter if specified
+    if args.only_changed:
+        filtered_issues = []
+        for issue_id in sorted_issues:
+            # Only show issues that appear in more than one commit (created + updated)
+            if len(issue_history[issue_id]) > 1:
+                filtered_issues.append(issue_id)
+        sorted_issues = filtered_issues
+        print(f"Filtered to only changed issues: {len(sorted_issues)} issues found\n")
 
     # Show diffs for each issue
     for issue_id in sorted_issues:
