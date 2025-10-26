@@ -13,6 +13,24 @@ use crate::core::{Card, CardId, Keyword, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::{GameStateView, PlayerController};
 use smallvec::SmallVec;
 
+/// Combat factors for attack decisions
+///
+/// Reference: AiAttackController.SpellAbilityFactors (lines 1350-1455)
+///
+/// This struct captures the essential combat math and board state evaluation
+/// needed to make intelligent attack decisions.
+struct CombatFactors {
+    can_be_killed: bool,        // Can attacker be killed by any blocker combination?
+    can_be_killed_by_one: bool, // Can a single blocker kill the attacker?
+    can_kill_all: bool,         // Can attacker kill all possible blockers one-on-one?
+    can_kill_all_dangerous: bool, // Can kill all dangerous blockers (lifelink/wither)?
+    is_worth_less_than_all_killers: bool, // Is attacker worth less than all creatures that can kill it?
+    has_combat_effect: bool, // Does attacker gain value even if blocked? (lifelink, wither)
+    dangerous_blockers_present: bool, // Are there blockers with lifelink/wither?
+    can_be_blocked: bool,    // Can any blocker actually block this attacker?
+    number_of_blockers: usize, // Count of valid blockers
+}
+
 /// Heuristic AI controller that makes decisions using evaluation functions
 /// rather than simulation. Aims to faithfully reproduce Java Forge AI behavior.
 pub struct HeuristicController {
@@ -401,46 +419,220 @@ impl HeuristicController {
         None
     }
 
+    /// Calculate combat factors for an attacker against available blockers
+    ///
+    /// Reference: AiAttackController.SpellAbilityFactors.calculate() (lines 1374-1454)
+    fn calculate_combat_factors(&self, attacker: &Card, view: &GameStateView) -> CombatFactors {
+        let _attacker_power = attacker.power.unwrap_or(0) as i32;
+        let _attacker_toughness = attacker.toughness.unwrap_or(0) as i32;
+        let attacker_value = self.evaluate_creature(attacker);
+
+        // Combat effect keywords (gain value even if blocked)
+        let has_combat_effect = attacker.has_lifelink()
+            || attacker.keywords.iter().any(
+                |k| matches!(k, Keyword::Other(s) if s.contains("Wither") || s.contains("Afflict")),
+            );
+
+        // Collect all potential blockers from opponents
+        let potential_blockers: Vec<&Card> = view
+            .battlefield()
+            .iter()
+            .filter_map(|&id| view.get_card(id))
+            .filter(|c| {
+                c.owner != self.player_id
+                    && c.is_creature()
+                    && !c.tapped
+                    && self.can_block(attacker, c)
+            })
+            .collect();
+
+        let number_of_blockers = potential_blockers.len();
+        let can_be_blocked = number_of_blockers > 0;
+
+        // Track if there are dangerous blockers (with combat effects)
+        let dangerous_blockers_present = potential_blockers.iter().any(|b| {
+            b.has_lifelink()
+                || b.keywords
+                    .iter()
+                    .any(|k| matches!(k, Keyword::Other(s) if s.contains("Wither")))
+        });
+
+        // Initialize factors
+        let mut can_be_killed = false;
+        let mut can_be_killed_by_one = false;
+        let mut can_kill_all = true;
+        let mut can_kill_all_dangerous = true;
+        let mut is_worth_less_than_all_killers = true;
+
+        // Evaluate each potential blocker
+        for blocker in &potential_blockers {
+            let _blocker_power = blocker.power.unwrap_or(0) as i32;
+            let _blocker_toughness = blocker.toughness.unwrap_or(0) as i32;
+            let blocker_value = self.evaluate_creature(blocker);
+
+            // Can this blocker kill the attacker?
+            if self.can_destroy_attacker(attacker, blocker) {
+                can_be_killed = true;
+                can_be_killed_by_one = true;
+
+                // Check value comparison
+                if blocker_value <= attacker_value {
+                    is_worth_less_than_all_killers = false;
+                }
+            }
+
+            // Can attacker kill this blocker?
+            if !self.can_destroy_blocker(attacker, blocker) {
+                can_kill_all = false;
+
+                // Check if this blocker is dangerous
+                let is_dangerous_blocker = blocker.has_lifelink()
+                    || blocker
+                        .keywords
+                        .iter()
+                        .any(|k| matches!(k, Keyword::Other(s) if s.contains("Wither")));
+
+                if is_dangerous_blocker {
+                    can_kill_all_dangerous = false;
+                }
+            }
+        }
+
+        // If no blockers, attacker can kill "all" of them vacuously
+        if potential_blockers.is_empty() {
+            can_kill_all = true;
+            can_kill_all_dangerous = true;
+        }
+
+        CombatFactors {
+            can_be_killed,
+            can_be_killed_by_one,
+            can_kill_all,
+            can_kill_all_dangerous,
+            is_worth_less_than_all_killers,
+            has_combat_effect,
+            dangerous_blockers_present,
+            can_be_blocked,
+            number_of_blockers,
+        }
+    }
+
+    /// Check if a blocker can block an attacker
+    ///
+    /// Reference: CombatUtil.canBlock()
+    fn can_block(&self, attacker: &Card, blocker: &Card) -> bool {
+        // Defender can't block
+        if blocker.has_defender() {
+            return false;
+        }
+
+        // Flying can only be blocked by flying or reach
+        if attacker.has_flying() && !(blocker.has_flying() || blocker.has_reach()) {
+            return false;
+        }
+
+        // Menace requires at least 2 blockers (simplified check)
+        // In a full implementation, this would be context-dependent
+        if attacker.has_menace() {
+            // For single-blocker evaluation, menace makes it harder to block
+            // But we'll allow it for now in multi-blocker scenarios
+        }
+
+        // TODO: Add more blocking restrictions:
+        // - Protection from color/type
+        // - Unblockable keyword
+        // - Fear/Intimidate
+        // - Other evasion abilities
+
+        true
+    }
+
+    /// Check if attacker can destroy blocker in combat
+    ///
+    /// Reference: ComputerUtilCombat.canDestroyBlocker()
+    fn can_destroy_blocker(&self, attacker: &Card, blocker: &Card) -> bool {
+        let attacker_power = attacker.power.unwrap_or(0) as i32;
+        let blocker_toughness = blocker.toughness.unwrap_or(0) as i32;
+
+        // Deathtouch kills any creature with toughness > 0
+        if attacker.has_deathtouch() && blocker_toughness > 0 {
+            return true;
+        }
+
+        // Indestructible blockers can't be destroyed by damage
+        if blocker.has_indestructible() {
+            return false;
+        }
+
+        // First strike matters
+        let attacker_first_strike = attacker.has_first_strike() || attacker.has_double_strike();
+        let blocker_first_strike = blocker.has_first_strike() || blocker.has_double_strike();
+
+        if attacker_first_strike && !blocker_first_strike {
+            // Attacker strikes first - can it kill before taking damage?
+            return attacker_power >= blocker_toughness;
+        }
+
+        // Normal combat: does attacker deal lethal damage?
+        attacker_power >= blocker_toughness
+    }
+
+    /// Check if blocker can destroy attacker in combat
+    ///
+    /// Reference: ComputerUtilCombat.canDestroyAttacker()
+    fn can_destroy_attacker(&self, attacker: &Card, blocker: &Card) -> bool {
+        let blocker_power = blocker.power.unwrap_or(0) as i32;
+        let attacker_toughness = attacker.toughness.unwrap_or(0) as i32;
+
+        // Deathtouch kills any creature with toughness > 0
+        if blocker.has_deathtouch() && attacker_toughness > 0 {
+            return true;
+        }
+
+        // Indestructible attackers can't be destroyed by damage
+        if attacker.has_indestructible() {
+            return false;
+        }
+
+        // First strike matters
+        let attacker_first_strike = attacker.has_first_strike() || attacker.has_double_strike();
+        let blocker_first_strike = blocker.has_first_strike() || blocker.has_double_strike();
+
+        if blocker_first_strike && !attacker_first_strike {
+            // Blocker strikes first - can it kill before taking damage?
+            return blocker_power >= attacker_toughness;
+        }
+
+        // Normal combat: does blocker deal lethal damage?
+        blocker_power >= attacker_toughness
+    }
+
     /// Determine if a creature should attack based on evaluation and aggression level
     ///
     /// Reference: AiAttackController.java:1470 (shouldAttack method)
     ///
-    /// This is a simplified port of the Java logic that considers:
-    /// - Evasion abilities (can the creature be blocked?)
-    /// - Power vs available blockers
+    /// This uses combat factors to make intelligent attack decisions that consider:
+    /// - Board state evaluation (what blockers are available)
+    /// - Combat math (can kill/be killed calculations)
+    /// - Creature value comparisons
     /// - Aggression level settings
-    /// - Creature evaluation scores
     fn should_attack(&self, attacker: &Card, view: &GameStateView) -> bool {
         let power = attacker.power.unwrap_or(0) as i32;
-        let toughness = attacker.toughness.unwrap_or(0) as i32;
-
-        // Check for evasion
-        let has_evasion = attacker.has_flying()
-            || attacker.has_menace()
-            || attacker
-                .keywords
-                .iter()
-                .any(|k| matches!(k, Keyword::Other(s) if s.contains("can't be blocked") || s.contains("unblockable")));
-
-        // Unblockable creatures should always attack (Java logic: always attack if can't be blocked)
-        if has_evasion && power > 0 {
-            return true;
-        }
 
         // Creatures with 0 power generally don't attack unless they have special abilities
         if power <= 0 {
             return false;
         }
 
-        // Check if opponent has any blockers
-        // TODO(workspace-2): This is a simplified check - should evaluate actual blocking capability
-        let opponent_has_blockers = view
-            .battlefield()
-            .iter()
-            .filter_map(|&id| view.get_card(id))
-            .any(|c| c.owner != self.player_id && c.is_creature() && !c.tapped);
+        // Calculate combat factors using board state evaluation
+        let factors = self.calculate_combat_factors(attacker, view);
 
-        // Java aggression levels (from AiAttackController.java:1503-1560):
+        // Always attack if unblockable (Java logic line 1517, 1528, 1538, 1545, 1553)
+        if !factors.can_be_blocked && power > 0 {
+            return true;
+        }
+
+        // Java aggression levels (from AiAttackController.java:1515-1561):
         // 6 = Exalted/all-in: attack expecting to kill or be unblockable
         // 5 = All out attacking: always attack
         // 4 = Expecting to trade or attack for free
@@ -450,45 +642,55 @@ impl HeuristicController {
         // 0 = Never attack (not implemented)
 
         match self.aggression_level {
-            6 | 5 => {
-                // Aggressive/All-out: attack with anything that has power
+            6 => {
+                // Exalted (line 1516): attack expecting to at least kill a creature of equal value or not be blocked
+                (factors.can_kill_all && factors.is_worth_less_than_all_killers)
+                    || !factors.can_be_blocked
+            }
+            5 => {
+                // All out attacking (line 1523): always attack with power > 0
                 power > 0
             }
             4 => {
-                // Expecting to trade: attack with creatures that have power >= 2
-                // or have evasion, or have good combat keywords
-                power >= 2
-                    || has_evasion
-                    || attacker.has_first_strike()
-                    || attacker.has_double_strike()
-                    || attacker.has_deathtouch()
+                // Expecting to trade (line 1527): attack if can kill all, or can kill dangerous without dying, or unblockable, or no blockers
+                factors.can_kill_all
+                    || (factors.dangerous_blockers_present
+                        && factors.can_kill_all_dangerous
+                        && !factors.can_be_killed_by_one)
+                    || !factors.can_be_blocked
+                    || factors.number_of_blockers == 0
             }
             3 => {
-                // Balanced (default): attack with creatures that:
-                // - Have evasion OR
-                // - Have power >= 2 if no blockers OR
-                // - Have power >= 2 AND (first strike OR deathtouch OR trample) OR
-                // - Have power >= 3
-                has_evasion
-                    || (!opponent_has_blockers && power >= 2)
-                    || (power >= 2
-                        && (attacker.has_first_strike()
-                            || attacker.has_double_strike()
-                            || attacker.has_deathtouch()
-                            || attacker.has_trample()))
-                    || power >= 3
+                // Balanced (default) (line 1535): expecting to at least kill a creature of equal value or not be blocked
+                // Attack if:
+                // - Can kill all blockers AND worth favorable trade
+                // OR - Can kill dangerous blockers OR have combat effect AND won't die to one blocker
+                // OR - Unblockable
+                (factors.can_kill_all && factors.is_worth_less_than_all_killers)
+                    || (((factors.dangerous_blockers_present && factors.can_kill_all_dangerous)
+                        || factors.has_combat_effect)
+                        && !factors.can_be_killed_by_one)
+                    || !factors.can_be_blocked
             }
             2 => {
-                // Defensive: only attack with evasive creatures or very strong ones
-                has_evasion || (power >= 4 && toughness >= 4)
+                // Defensive (line 1544): attack expecting to attract a group block or destroying a single blocker and surviving
+                !factors.can_be_blocked
+                    || ((factors.can_kill_all || factors.has_combat_effect)
+                        && !factors.can_be_killed_by_one
+                        && ((factors.dangerous_blockers_present && factors.can_kill_all_dangerous)
+                            || !factors.can_be_killed))
             }
             1 => {
-                // Very defensive: only unblockable or overwhelming force
-                has_evasion || (power >= 5 && toughness >= 5)
+                // Very defensive (line 1552): unblockable creatures only, or can kill single blocker without dying
+                !factors.can_be_blocked
+                    || (factors.number_of_blockers == 1
+                        && factors.can_kill_all
+                        && !factors.can_be_killed_by_one)
             }
             _ => {
                 // Default to balanced if aggression is out of range
-                power >= 2
+                (factors.can_kill_all && factors.is_worth_less_than_all_killers)
+                    || !factors.can_be_blocked
             }
         }
     }

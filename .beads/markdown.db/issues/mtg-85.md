@@ -1,10 +1,10 @@
 ---
 title: HeuristicController attack logic missing board state evaluation
-status: open
+status: closed
 priority: 3
 issue_type: task
 created_at: "2025-10-26T21:06:34Z"
-updated_at: "2025-10-26T21:06:51Z"
+updated_at: "2025-10-26T21:28:16Z"
 ---
 
 # Description
@@ -65,4 +65,3 @@ Implement equivalent of Java's `SpellAbilityFactors` class:
 - Java: `forge-java/forge-ai/src/main/java/forge/ai/AiAttackController.java:1350-1562`
 - Rust: `src/game/heuristic_controller.rs:388-468`
 - Test log: `AI_VALIDATION_LOG.md`
-
