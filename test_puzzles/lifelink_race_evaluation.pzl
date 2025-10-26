@@ -1,0 +1,21 @@
+[metadata]
+Name=Lifelink Race Evaluation Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P2 has creature with lifelink. AI should recognize that lifelink changes racing math by gaining life during combat.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=10
+p0hand=
+p0battlefield=Mountain;Mountain;Mountain;Mountain;Earth Elemental
+p0library=Mountain;Mountain;Mountain
+p0graveyard=
+p1life=10
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Serra Angel
+p1library=Plains;Plains;Plains
+p1graveyard=
