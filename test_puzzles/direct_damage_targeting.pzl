@@ -1,0 +1,21 @@
+[metadata]
+Name=Direct Damage Targeting Decision Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has direct damage (Lightning Bolt) and must choose between targeting creature threats or going face for lethal. AI should evaluate targeting priority correctly.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=Lightning Bolt
+p0battlefield=Mountain;Mountain;Mountain;Grizzly Bears
+p0library=Mountain;Mountain;Mountain
+p0graveyard=
+p1life=3
+p1hand=
+p1battlefield=Plains;Plains;Plains;Serra Angel
+p1library=Plains;Plains;Plains
+p1graveyard=

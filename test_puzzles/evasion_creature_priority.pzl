@@ -1,0 +1,21 @@
+[metadata]
+Name=Evasion Creature Priority Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has both evasive creatures (flying) and ground creatures. AI should prioritize playing and attacking with evasive threats when opponent lacks answers.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=Serra Angel
+p0battlefield=Plains;Plains;Plains;Plains;Plains;Grizzly Bears
+p0library=Plains;Plains;Plains
+p0graveyard=
+p1life=18
+p1hand=
+p1battlefield=Mountain;Mountain;Mountain;Grizzly Bears;Grizzly Bears
+p1library=Mountain;Mountain;Mountain
+p1graveyard=

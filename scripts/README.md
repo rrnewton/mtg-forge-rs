@@ -10,42 +10,42 @@ The benchmark tracking system automatically records performance metrics over tim
 
 ```bash
 # Run benchmarks and append results to history
-./scripts/run_benchmark.sh
+./scripts/run_benchmark
 
 # Run specific benchmark only (faster)
-./scripts/run_benchmark.sh snapshot
+./scripts/run_benchmark snapshot
 
 # Backfill historical data (samples 10 recent commits)
-./scripts/backfill_history.sh --count 10 --benchmark snapshot
+./scripts/backfill_history --count 10 --benchmark snapshot
 
 # Generate performance plots
-./scripts/plot_performance.py
+./scripts/plot_performance
 
 # Show plots interactively (requires X11/display)
-./scripts/plot_performance.py --show
+./scripts/plot_performance --show
 ```
 
 ### Scripts
 
-#### `run_benchmark.sh`
+#### `run_benchmark`
 
 Runs benchmarks and appends results to `experiment_results/perf_history.csv`.
 
 **Usage:**
 ```bash
-./scripts/run_benchmark.sh [benchmark_name]
+./scripts/run_benchmark [benchmark_name]
 ```
 
 **Examples:**
 ```bash
 # Run all benchmarks (fresh, snapshot, rewind, logging variants)
-./scripts/run_benchmark.sh
+./scripts/run_benchmark
 
 # Run only snapshot benchmark (fastest, recommended for tracking)
-./scripts/run_benchmark.sh snapshot
+./scripts/run_benchmark snapshot
 
 # Run only fresh benchmark
-./scripts/run_benchmark.sh fresh
+./scripts/run_benchmark fresh
 ```
 
 **What it does:**
@@ -57,13 +57,13 @@ Runs benchmarks and appends results to `experiment_results/perf_history.csv`.
 
 **Output:** Updates `experiment_results/perf_history.csv`
 
-#### `backfill_history.sh`
+#### `backfill_history`
 
 Backfills performance history by checking out and benchmarking historical commits.
 
 **Usage:**
 ```bash
-./scripts/backfill_history.sh [options]
+./scripts/backfill_history [options]
 ```
 
 **Options:**
@@ -76,16 +76,16 @@ Backfills performance history by checking out and benchmarking historical commit
 **Examples:**
 ```bash
 # Sample 10 commits from entire history
-./scripts/backfill_history.sh --count 10
+./scripts/backfill_history --count 10
 
 # Sample last 20 commits
-./scripts/backfill_history.sh --start HEAD~20 --end HEAD --count 10
+./scripts/backfill_history --start HEAD~20 --end HEAD --count 10
 
 # Backfill with fresh benchmark instead of snapshot
-./scripts/backfill_history.sh --benchmark fresh --count 5
+./scripts/backfill_history --benchmark fresh --count 5
 
 # Skip commits already benchmarked
-./scripts/backfill_history.sh --skip-existing --count 20
+./scripts/backfill_history --skip-existing --count 20
 ```
 
 **What it does:**
@@ -107,7 +107,7 @@ Backfills performance history by checking out and benchmarking historical commit
 
 **Performance:** Benchmarking takes ~10-30 seconds per commit depending on benchmark type. Budget ~5 minutes for 10 commits with snapshot benchmark.
 
-#### `plot_performance.py`
+#### `plot_performance`
 
 Generates performance visualization plots from history CSV.
 
@@ -118,7 +118,7 @@ pip install pandas matplotlib
 
 **Usage:**
 ```bash
-./scripts/plot_performance.py [options]
+./scripts/plot_performance [options]
 ```
 
 **Options:**
@@ -132,16 +132,16 @@ pip install pandas matplotlib
 **Examples:**
 ```bash
 # Generate all plots as PNG
-./scripts/plot_performance.py
+./scripts/plot_performance
 
 # Generate SVG plots for fresh benchmark only
-./scripts/plot_performance.py --benchmark fresh --format svg
+./scripts/plot_performance --benchmark fresh --format svg
 
 # Plot only games_per_sec metric
-./scripts/plot_performance.py --metric games_per_sec
+./scripts/plot_performance --metric games_per_sec
 
 # Show plots in GUI (requires display)
-./scripts/plot_performance.py --show
+./scripts/plot_performance --show
 ```
 
 **What it does:**
@@ -208,13 +208,13 @@ After making changes, run benchmarks to track performance:
 
 ```bash
 # Run fast snapshot benchmark only
-./scripts/run_benchmark.sh snapshot
+./scripts/run_benchmark snapshot
 
 # Check latest results
 tail -n 2 experiment_results/perf_history.csv
 
 # Generate updated plots
-./scripts/plot_performance.py
+./scripts/plot_performance
 ```
 
 #### Before Release
@@ -223,13 +223,13 @@ Generate comprehensive performance analysis:
 
 ```bash
 # Run all benchmarks
-./scripts/run_benchmark.sh
+./scripts/run_benchmark
 
 # Backfill last 20 commits for historical context
-./scripts/backfill_history.sh --start HEAD~20 --count 20 --benchmark snapshot
+./scripts/backfill_history --start HEAD~20 --count 20 --benchmark snapshot
 
 # Generate plots with regression detection
-./scripts/plot_performance.py
+./scripts/plot_performance
 
 # Review plots in experiment_results/plots/
 ```

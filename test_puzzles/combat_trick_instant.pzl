@@ -1,0 +1,21 @@
+[metadata]
+Name=Combat Trick with Instant Test
+Goal=Win
+Turns=3
+Difficulty=Hard
+Description=P1 has Giant Growth in hand during combat. AI should recognize when to cast instant-speed pump spells to save creatures or win combat.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=Giant Growth
+p0battlefield=Forest;Forest;Forest;Grizzly Bears
+p0library=Forest;Forest;Forest
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Plains;Plains;Plains;Serra Angel
+p1library=Plains;Plains;Plains
+p1graveyard=

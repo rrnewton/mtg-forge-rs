@@ -1,0 +1,21 @@
+[metadata]
+Name=Regeneration Evaluation Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has Drudge Skeletons with regeneration ability. AI should recognize regeneration can save creatures from combat damage and use it effectively.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Swamp;Swamp;Swamp;Swamp;Swamp;Drudge Skeletons
+p0library=Swamp;Swamp;Swamp
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Grizzly Bears;Grizzly Bears
+p1library=Plains;Plains;Plains
+p1graveyard=

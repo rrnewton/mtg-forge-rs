@@ -1,0 +1,21 @@
+[metadata]
+Name=Vigilance Allows Attack and Block
+Goal=Win
+Turns=3
+Difficulty=Easy
+Description=P1 has Serra Angel (4/4 flying, vigilance) vs P2's two Grizzly Bears (2/2 each). AI should attack with Serra Angel (doesn't tap due to vigilance), and then still be able to block on defense.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=14
+p0hand=
+p0battlefield=Plains;Plains;Plains;Plains;Plains;Serra Angel
+p0library=Plains;Plains;Plains
+p0graveyard=
+p1life=12
+p1hand=
+p1battlefield=Forest;Forest;Forest;Grizzly Bears;Grizzly Bears
+p1library=Forest;Forest;Forest
+p1graveyard=

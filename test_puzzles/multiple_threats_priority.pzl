@@ -1,0 +1,21 @@
+[metadata]
+Name=Multiple Threats Priority Test
+Goal=Win
+Turns=3
+Difficulty=Hard
+Description=P1 has multiple attackers of different sizes. P2 must choose which threats to block. AI should prioritize blocking the most dangerous threats.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Craw Wurm;Grizzly Bears;Llanowar Elves
+p0library=Forest;Forest;Forest
+p0graveyard=
+p1life=14
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Grizzly Bears;Grizzly Bears
+p1library=Plains;Plains;Plains
+p1graveyard=

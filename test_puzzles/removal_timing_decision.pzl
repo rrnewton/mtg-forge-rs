@@ -1,0 +1,21 @@
+[metadata]
+Name=Removal Timing Decision Test
+Goal=Win
+Turns=4
+Difficulty=Hard
+Description=P1 has removal spells and must decide optimal timing to remove threats. Should hold removal for bigger threats or use it immediately.
+
+[state]
+turn=4
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=Terror;Dark Ritual
+p0battlefield=Swamp;Swamp;Swamp;Swamp;Swamp
+p0library=Swamp;Swamp;Terror
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Grizzly Bears
+p1library=Plains;Serra Angel;Plains
+p1graveyard=

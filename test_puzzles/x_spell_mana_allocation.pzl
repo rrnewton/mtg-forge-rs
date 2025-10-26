@@ -1,0 +1,21 @@
+[metadata]
+Name=X-Spell Mana Allocation Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has X spells (Fireball) and needs to decide how much mana to allocate for maximum impact. AI should evaluate when to cast for lethal vs board development.
+
+[state]
+turn=6
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=Fireball;Grizzly Bears
+p0battlefield=Mountain;Mountain;Mountain;Mountain;Mountain;Mountain
+p0library=Mountain;Mountain;Mountain
+p0graveyard=
+p1life=8
+p1hand=
+p1battlefield=Plains;Plains;Plains;Plains;Grizzly Bears
+p1library=Plains;Plains;Plains
+p1graveyard=

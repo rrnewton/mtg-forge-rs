@@ -150,6 +150,14 @@ impl GameLogger {
         }
     }
 
+    /// Get captured log entries (clones the buffer)
+    ///
+    /// Deprecated: Use `logs()` instead to avoid unnecessary copying.
+    /// This method is kept for backward compatibility.
+    pub fn get_logs(&self) -> Vec<LogEntry> {
+        self.log_buffer.borrow().clone()
+    }
+
     /// Clear the log buffer
     pub fn clear_logs(&mut self) {
         self.log_buffer.borrow_mut().clear();

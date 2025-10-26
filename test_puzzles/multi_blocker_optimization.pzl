@@ -1,0 +1,21 @@
+[metadata]
+Name=Multiple Blocker Optimization Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P1 has a Craw Wurm (6/4) attacking. P2 has multiple small creatures (3x Grizzly Bears 2/2). AI should choose optimal blockers to minimize losses - either gang-block or let damage through depending on evaluation.
+
+[state]
+turn=5
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Forest;Forest;Forest;Forest;Forest;Forest;Craw Wurm
+p0library=Forest;Forest;Forest
+p0graveyard=
+p1life=16
+p1hand=
+p1battlefield=Forest;Forest;Forest;Forest;Grizzly Bears;Grizzly Bears;Grizzly Bears
+p1library=Forest;Forest;Forest
+p1graveyard=

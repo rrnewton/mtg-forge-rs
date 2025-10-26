@@ -1,0 +1,21 @@
+[metadata]
+Name=Favorable Trade Blocking Test
+Goal=Win
+Turns=3
+Difficulty=Medium
+Description=P2 can trade a 2/2 to kill a 4/5, which is favorable. AI should recognize this value trade.
+
+[state]
+turn=3
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Mountain;Mountain;Mountain;Mountain;Mountain;Earth Elemental
+p0library=Mountain;Mountain;Mountain
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Plains;Plains;Plains;Grizzly Bears;Grizzly Bears
+p1library=Plains;Plains;Plains
+p1graveyard=
