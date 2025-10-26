@@ -28,6 +28,9 @@ use tokio::runtime::Runtime;
 #[global_allocator]
 static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
+/// Benchmark measurement time in seconds (used by all benchmarks)
+const BENCHMARK_TIME_SECS: u64 = 10;
+
 /// Metrics collected during game execution
 #[derive(Debug, Clone)]
 struct GameMetrics {
@@ -44,11 +47,6 @@ struct GameMetrics {
 }
 
 impl GameMetrics {
-    /// Calculate games per second
-    fn games_per_sec(&self) -> f64 {
-        1.0 / self.duration.as_secs_f64()
-    }
-
     /// Calculate actions per second
     fn actions_per_sec(&self) -> f64 {
         self.actions as f64 / self.duration.as_secs_f64()
@@ -377,7 +375,7 @@ fn bench_game_fresh(c: &mut Criterion) {
 
     // Configure for long-running benchmarks
     group.sample_size(10); // Reduce sample size since games can be long
-    group.measurement_time(Duration::from_secs(10)); // 30 seconds per benchmark
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
 
     let seed = 42u64;
 
@@ -438,7 +436,7 @@ fn bench_game_fresh_with_logging(c: &mut Criterion) {
 
     // Configure for long-running benchmarks
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(10));
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
 
     let seed = 42u64;
 
@@ -503,7 +501,7 @@ fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
 
     // Configure for long-running benchmarks
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(10));
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
 
     let seed = 42u64;
 
@@ -600,7 +598,7 @@ fn bench_game_snapshot(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("game_execution");
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(30));
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
 
     let seed = 42u64;
 
@@ -665,7 +663,7 @@ fn bench_game_rewind(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("game_execution");
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(30));
+    group.measurement_time(Duration::from_secs(BENCHMARK_TIME_SECS));
 
     let seed = 42u64;
 
