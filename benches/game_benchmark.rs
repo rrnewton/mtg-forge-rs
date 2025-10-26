@@ -246,6 +246,73 @@ where
     Ok(metrics)
 }
 
+/// Run a single game with stdout logging at Normal verbosity (not capturing)
+/// This tests the reusable buffer optimization
+fn run_game_with_stdout_logging<F>(seed: u64, game_init_fn: F) -> Result<GameMetrics>
+where
+    F: FnOnce() -> Result<mtg_forge_rs::game::GameState>,
+{
+    use std::fs::OpenOptions;
+    use std::os::fd::AsRawFd;
+
+    let reg = Region::new(GLOBAL);
+    let start = std::time::Instant::now();
+
+    // Initialize game using provided function
+    let mut game = game_init_fn()?;
+    game.rng_seed = seed;
+
+    // DO NOT enable log capture - we want stdout logging
+
+    // Redirect stdout to /dev/null to avoid benchmark noise
+    let devnull = OpenOptions::new()
+        .write(true)
+        .open("/dev/null")
+        .expect("Failed to open /dev/null");
+    let orig_stdout = unsafe { libc::dup(libc::STDOUT_FILENO) };
+    unsafe {
+        libc::dup2(devnull.as_raw_fd(), libc::STDOUT_FILENO);
+    }
+
+    // Create random controllers
+    let (p1_id, p2_id) = {
+        let mut players_iter = game.players.iter().map(|p| p.id);
+        (
+            players_iter.next().expect("Should have player 1"),
+            players_iter.next().expect("Should have player 2"),
+        )
+    };
+
+    let mut controller1 = RandomController::with_seed(p1_id, seed);
+    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+
+    // Run game with Normal verbosity (logs to stdout via reusable buffer)
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
+    let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+    // Restore stdout
+    unsafe {
+        libc::dup2(orig_stdout, libc::STDOUT_FILENO);
+        libc::close(orig_stdout);
+    }
+
+    let duration = start.elapsed();
+
+    // Collect metrics
+    let actions = game_loop.game.undo_log.len();
+    let stats = reg.change();
+
+    let metrics = GameMetrics {
+        turns: result.turns_played,
+        actions,
+        duration,
+        bytes_allocated: stats.bytes_allocated,
+        bytes_deallocated: stats.bytes_deallocated,
+    };
+
+    Ok(metrics)
+}
+
 /// Helper function to print aggregated metrics
 fn print_aggregated_metrics(
     mode: &str,
@@ -475,6 +542,135 @@ fn bench_game_fresh_with_logging(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark: Fresh mode with stdout logging at Normal verbosity (redirected to /dev/null)
+/// Measures allocation overhead with reusable buffer optimization
+fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
+    // Check if test resources exist and load once
+    let setup = match BenchmarkSetup::load() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Skipping benchmark - failed to load resources: {e}");
+            return;
+        }
+    };
+
+    let mut group = c.benchmark_group("game_execution");
+
+    // Configure for long-running benchmarks
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(10));
+
+    let seed = 42u64;
+
+    // Run a warmup game to print metrics (note: output will be suppressed)
+    eprintln!("\nWarmup game - Fresh mode with stdout logging (seed {seed}):");
+    let game_init_fn = || {
+        let game_init = GameInitializer::new(&setup.card_db);
+        setup.runtime.block_on(async {
+            game_init
+                .init_game(
+                    "Player 1".to_string(),
+                    &setup.deck,
+                    "Player 2".to_string(),
+                    &setup.deck,
+                    20,
+                )
+                .await
+        })
+    };
+
+    if let Ok(metrics) = run_game_with_stdout_logging(seed, game_init_fn) {
+        eprintln!("  Turns: {}", metrics.turns);
+        eprintln!("  Actions: {}", metrics.actions);
+        eprintln!("  Duration: {:?}", metrics.duration);
+        eprintln!("  Games/sec: {:.2}", metrics.games_per_sec());
+        eprintln!("  Actions/sec: {:.2}", metrics.actions_per_sec());
+        eprintln!("  Turns/sec: {:.2}", metrics.turns_per_sec());
+        eprintln!("  Actions/turn: {:.2}", metrics.actions_per_turn());
+        eprintln!("  Bytes allocated: {}", metrics.bytes_allocated);
+        eprintln!("  Bytes deallocated: {}", metrics.bytes_deallocated);
+        eprintln!("  Net bytes: {}", metrics.net_bytes_allocated());
+        eprintln!("  Bytes/turn: {:.2}", metrics.bytes_per_turn());
+        eprintln!("  Bytes/sec: {:.2}", metrics.bytes_per_sec());
+    }
+
+    // Accumulator for aggregating metrics across benchmark iterations
+    let mut aggregated = GameMetrics {
+        turns: 0,
+        actions: 0,
+        duration: Duration::ZERO,
+        bytes_allocated: 0,
+        bytes_deallocated: 0,
+    };
+    let mut iteration_count = 0;
+
+    group.bench_with_input(
+        BenchmarkId::new("fresh_stdout_logging", seed),
+        &seed,
+        |b, &seed| {
+            b.iter(|| {
+                let game_init_fn = || {
+                    let game_init = GameInitializer::new(&setup.card_db);
+                    setup.runtime.block_on(async {
+                        game_init
+                            .init_game(
+                                "Player 1".to_string(),
+                                &setup.deck,
+                                "Player 2".to_string(),
+                                &setup.deck,
+                                20,
+                            )
+                            .await
+                    })
+                };
+
+                let metrics = run_game_with_stdout_logging(black_box(seed), game_init_fn)
+                    .expect("Game should complete successfully");
+                aggregated += metrics.clone();
+                iteration_count += 1;
+            });
+        },
+    );
+
+    eprintln!("\n=== Aggregated Metrics - Fresh with Stdout Logging Mode (seed {seed}, {iteration_count} games) ===");
+    eprintln!("  Total turns: {}", aggregated.turns);
+    eprintln!("  Total actions: {}", aggregated.actions);
+    eprintln!("  Total duration: {:?}", aggregated.duration);
+    eprintln!(
+        "  Avg turns/game: {:.2}",
+        aggregated.turns as f64 / iteration_count as f64
+    );
+    eprintln!(
+        "  Avg actions/game: {:.2}",
+        aggregated.actions as f64 / iteration_count as f64
+    );
+    eprintln!(
+        "  Avg duration/game: {:.2?}",
+        aggregated.duration / iteration_count as u32
+    );
+    eprintln!(
+        "  Games/sec: {:.2}",
+        aggregated.avg_games_per_sec(iteration_count)
+    );
+    eprintln!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
+    eprintln!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
+    eprintln!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
+    eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
+    eprintln!(
+        "  Total bytes deallocated: {}",
+        aggregated.bytes_deallocated
+    );
+    eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
+    eprintln!(
+        "  Avg bytes/game: {:.2}",
+        aggregated.bytes_allocated as f64 / iteration_count as f64
+    );
+    eprintln!("  Bytes/turn: {:.2}", aggregated.bytes_per_turn());
+    eprintln!("  Bytes/sec: {:.2}", aggregated.bytes_per_sec());
+
+    group.finish();
+}
+
 /// Benchmark: Snapshot mode - save/restore game state each iteration
 /// Uses Clone to create a fresh copy of the initial game state
 fn bench_game_snapshot(c: &mut Criterion) {
@@ -670,6 +866,7 @@ criterion_group!(
     benches,
     bench_game_fresh,
     bench_game_fresh_with_logging,
+    bench_game_fresh_with_stdout_logging,
     bench_game_snapshot,
     bench_game_rewind
 );
