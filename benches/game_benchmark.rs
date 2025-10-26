@@ -10,7 +10,7 @@
 //! The benchmark is based on RandomController vs RandomController playing
 //! with simple_bolt.dck (Mountains + Lightning Bolts).
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use mtg_forge_rs::{
     game::{random_controller::RandomController, GameLoop, VerbosityLevel},
     loader::{
@@ -195,6 +195,9 @@ fn run_game_with_logging<F>(seed: u64, game_init_fn: F) -> Result<GameMetrics>
 where
     F: FnOnce() -> Result<mtg_forge_rs::game::GameState>,
 {
+    use std::fs::OpenOptions;
+    use std::os::fd::AsRawFd;
+
     let reg = Region::new(GLOBAL);
     let start = std::time::Instant::now();
 
@@ -204,6 +207,17 @@ where
 
     // Enable log capture
     game.logger.enable_capture();
+
+    // Redirect stdout to /dev/null to avoid benchmark noise
+    // (Logger may still write to stdout even with capture enabled)
+    let devnull = OpenOptions::new()
+        .write(true)
+        .open("/dev/null")
+        .expect("Failed to open /dev/null");
+    let orig_stdout = unsafe { libc::dup(libc::STDOUT_FILENO) };
+    unsafe {
+        libc::dup2(devnull.as_raw_fd(), libc::STDOUT_FILENO);
+    }
 
     // Create random controllers
     let (p1_id, p2_id) = {
@@ -220,6 +234,12 @@ where
     // Run game with Normal verbosity to capture logs
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+    // Restore stdout
+    unsafe {
+        libc::dup2(orig_stdout, libc::STDOUT_FILENO);
+        libc::close(orig_stdout);
+    }
 
     let duration = start.elapsed();
 
@@ -389,7 +409,7 @@ fn bench_game_fresh(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
-    group.bench_with_input(BenchmarkId::new("fresh", seed), &seed, |b, &seed| {
+    group.bench_function("fresh", |b| {
         b.iter(|| {
             let game_init_fn = || {
                 let game_init = GameInitializer::new(&setup.card_db);
@@ -450,33 +470,29 @@ fn bench_game_fresh_with_logging(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
-    group.bench_with_input(
-        BenchmarkId::new("fresh_logging", seed),
-        &seed,
-        |b, &seed| {
-            b.iter(|| {
-                let game_init_fn = || {
-                    let game_init = GameInitializer::new(&setup.card_db);
-                    setup.runtime.block_on(async {
-                        game_init
-                            .init_game(
-                                "Player 1".to_string(),
-                                &setup.deck,
-                                "Player 2".to_string(),
-                                &setup.deck,
-                                20,
-                            )
-                            .await
-                    })
-                };
+    group.bench_function("fresh_logging", |b| {
+        b.iter(|| {
+            let game_init_fn = || {
+                let game_init = GameInitializer::new(&setup.card_db);
+                setup.runtime.block_on(async {
+                    game_init
+                        .init_game(
+                            "Player 1".to_string(),
+                            &setup.deck,
+                            "Player 2".to_string(),
+                            &setup.deck,
+                            20,
+                        )
+                        .await
+                })
+            };
 
-                let metrics = run_game_with_logging(black_box(seed), game_init_fn)
-                    .expect("Game should complete successfully");
-                aggregated += metrics.clone();
-                iteration_count += 1;
-            });
-        },
-    );
+            let metrics = run_game_with_logging(black_box(seed), game_init_fn)
+                .expect("Game should complete successfully");
+            aggregated += metrics.clone();
+            iteration_count += 1;
+        });
+    });
 
     if iteration_count > 0 {
         print_aggregated_metrics("Fresh with Logging", seed, &aggregated, iteration_count);
@@ -515,33 +531,29 @@ fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
-    group.bench_with_input(
-        BenchmarkId::new("fresh_stdout_logging", seed),
-        &seed,
-        |b, &seed| {
-            b.iter(|| {
-                let game_init_fn = || {
-                    let game_init = GameInitializer::new(&setup.card_db);
-                    setup.runtime.block_on(async {
-                        game_init
-                            .init_game(
-                                "Player 1".to_string(),
-                                &setup.deck,
-                                "Player 2".to_string(),
-                                &setup.deck,
-                                20,
-                            )
-                            .await
-                    })
-                };
+    group.bench_function("fresh_stdout_logging", |b| {
+        b.iter(|| {
+            let game_init_fn = || {
+                let game_init = GameInitializer::new(&setup.card_db);
+                setup.runtime.block_on(async {
+                    game_init
+                        .init_game(
+                            "Player 1".to_string(),
+                            &setup.deck,
+                            "Player 2".to_string(),
+                            &setup.deck,
+                            20,
+                        )
+                        .await
+                })
+            };
 
-                let metrics = run_game_with_stdout_logging(black_box(seed), game_init_fn)
-                    .expect("Game should complete successfully");
-                aggregated += metrics.clone();
-                iteration_count += 1;
-            });
-        },
-    );
+            let metrics = run_game_with_stdout_logging(black_box(seed), game_init_fn)
+                .expect("Game should complete successfully");
+            aggregated += metrics.clone();
+            iteration_count += 1;
+        });
+    });
 
     if iteration_count > 0 {
         eprintln!("\n=== Aggregated Metrics - Fresh with Stdout Logging Mode (seed {seed}, {iteration_count} games) ===");
@@ -632,7 +644,7 @@ fn bench_game_snapshot(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
-    group.bench_function(BenchmarkId::new("snapshot", seed), |b| {
+    group.bench_function("snapshot", |b| {
         b.iter(|| {
             let game_init_fn = || Ok(initial_game.clone());
             let metrics = run_game_with_metrics(seed, game_init_fn)
@@ -723,7 +735,7 @@ fn bench_game_rewind(c: &mut Criterion) {
     };
     let mut iteration_count = 0;
 
-    group.bench_function(BenchmarkId::new("rewind", seed), |b| {
+    group.bench_function("rewind", |b| {
         b.iter(|| {
             let reg = Region::new(GLOBAL);
             let start = std::time::Instant::now();
