@@ -12,6 +12,7 @@
 use crate::game::VerbosityLevel;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use std::fmt::Write as _;
 
 /// Output format for log messages
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -59,6 +60,10 @@ pub struct GameLogger {
     log_buffer: RefCell<Vec<LogEntry>>,
     /// Whether to capture logs in memory
     capture_logs: bool,
+    /// Reusable string buffer for stdout logging (avoids allocations)
+    /// Using RefCell for interior mutability
+    #[serde(skip)]
+    temp_buffer: RefCell<String>,
 }
 
 impl GameLogger {
@@ -71,6 +76,7 @@ impl GameLogger {
             output_format: OutputFormat::default(),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: false,
+            temp_buffer: RefCell::new(String::with_capacity(256)),
         }
     }
 
@@ -83,6 +89,7 @@ impl GameLogger {
             output_format: OutputFormat::default(),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: false,
+            temp_buffer: RefCell::new(String::with_capacity(256)),
         }
     }
 
@@ -199,6 +206,13 @@ impl GameLogger {
             return;
         }
 
+        // Fast path: only stdout logging, use temp buffer
+        if !self.capture_logs && VerbosityLevel::Minimal <= self.verbosity {
+            self.log_to_stdout(VerbosityLevel::Minimal, message);
+            return;
+        }
+
+        // Slow path: need to capture or complex logic
         let entry = LogEntry {
             level: VerbosityLevel::Minimal,
             message: message.to_string(),
@@ -216,6 +230,13 @@ impl GameLogger {
             return;
         }
 
+        // Fast path: only stdout logging, use temp buffer
+        if !self.capture_logs && VerbosityLevel::Normal <= self.verbosity {
+            self.log_to_stdout(VerbosityLevel::Normal, message);
+            return;
+        }
+
+        // Slow path: need to capture or complex logic
         let entry = LogEntry {
             level: VerbosityLevel::Normal,
             message: message.to_string(),
@@ -233,6 +254,13 @@ impl GameLogger {
             return;
         }
 
+        // Fast path: only stdout logging, use temp buffer
+        if !self.capture_logs && VerbosityLevel::Verbose <= self.verbosity {
+            self.log_to_stdout(VerbosityLevel::Verbose, message);
+            return;
+        }
+
+        // Slow path: need to capture or complex logic
         let entry = LogEntry {
             level: VerbosityLevel::Verbose,
             message: message.to_string(),
@@ -240,6 +268,22 @@ impl GameLogger {
             metadata: None,
         };
         self.log_entry(entry);
+    }
+
+    /// Fast path for stdout logging using reusable buffer
+    #[inline]
+    fn log_to_stdout(&self, level: VerbosityLevel, message: &str) {
+        let indent = if level == VerbosityLevel::Minimal {
+            ""
+        } else {
+            "  "
+        };
+
+        // Use temp buffer to avoid allocation
+        let mut buf = self.temp_buffer.borrow_mut();
+        buf.clear();
+        let _ = write!(buf, "{}{}", indent, message);
+        println!("{}", buf);
     }
 
     /// Log a controller decision at Normal level
