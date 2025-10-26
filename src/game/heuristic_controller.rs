@@ -333,7 +333,17 @@ impl HeuristicController {
         // Java: CardLists.filter(player.getCardsIn(ZoneType.Hand),
         //                        CardPredicates.hasSVar("PlayBeforeLandDrop"))
 
-        // Phase 2: Land play logic
+        // Phase 2: Cast creatures (best evaluation first)
+        // IMPORTANT: Cast creatures BEFORE playing lands to ensure aggressive gameplay
+        // TODO(mtg-XX): Evaluate creature quality and choose best
+        // For now, just cast the first creature we find
+        for ability in available {
+            if matches!(ability, SpellAbility::CastSpell { .. }) {
+                return Some(ability.clone());
+            }
+        }
+
+        // Phase 3: Land play logic (only if we can't cast creatures)
         if self.should_play_land(view) {
             // Collect land play abilities
             let land_plays: Vec<&SpellAbility> = available
@@ -368,15 +378,6 @@ impl HeuristicController {
             }
         }
 
-        // Phase 3: Cast creatures (best evaluation first)
-        // TODO(mtg-XX): Evaluate creature quality and choose best
-        // For now, just cast the first creature we find
-        for ability in available {
-            if matches!(ability, SpellAbility::CastSpell { .. }) {
-                return Some(ability.clone());
-            }
-        }
-
         // Phase 4: Cast other spells
         // TODO(mtg-XX): Evaluate removal, pump spells, card draw, etc.
         // Java: Has separate logic for each spell type with evaluation functions
@@ -394,7 +395,7 @@ impl HeuristicController {
     /// - Power vs available blockers
     /// - Aggression level settings
     /// - Creature evaluation scores
-    fn should_attack(&self, attacker: &Card, _view: &GameStateView) -> bool {
+    fn should_attack(&self, attacker: &Card, view: &GameStateView) -> bool {
         let power = attacker.power.unwrap_or(0) as i32;
         let toughness = attacker.toughness.unwrap_or(0) as i32;
 
@@ -415,6 +416,14 @@ impl HeuristicController {
         if power <= 0 {
             return false;
         }
+
+        // Check if opponent has any blockers
+        // TODO(workspace-2): This is a simplified check - should evaluate actual blocking capability
+        let opponent_has_blockers = view
+            .battlefield()
+            .iter()
+            .filter_map(|&id| view.get_card(id))
+            .any(|c| c.owner != self.player_id && c.is_creature() && !c.tapped);
 
         // Java aggression levels (from AiAttackController.java:1503-1560):
         // 6 = Exalted/all-in: attack expecting to kill or be unblockable
@@ -442,9 +451,11 @@ impl HeuristicController {
             3 => {
                 // Balanced (default): attack with creatures that:
                 // - Have evasion OR
+                // - Have power >= 2 if no blockers OR
                 // - Have power >= 2 AND (first strike OR deathtouch OR trample) OR
                 // - Have power >= 3
                 has_evasion
+                    || (!opponent_has_blockers && power >= 2)
                     || (power >= 2
                         && (attacker.has_first_strike()
                             || attacker.has_double_strike()

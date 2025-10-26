@@ -1,0 +1,11 @@
+[metadata]
+Name=Combat Test Deck (4ED)
+Description=Various creatures to test combat mechanics
+
+[Main]
+22 Forest
+14 Grizzly Bears
+12 Serra Angel
+12 Plains
+
+[Sideboard]
