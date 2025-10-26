@@ -211,10 +211,56 @@ impl Card {
     }
 
     pub fn add_counter(&mut self, counter_type: CounterType, amount: u8) {
+        if amount == 0 {
+            return;
+        }
+
+        // Add the counter
         if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &counter_type) {
-            *count += amount;
+            *count = count.saturating_add(amount);
         } else {
             self.counters.push((counter_type, amount));
+        }
+
+        // Apply counter annihilation: +1/+1 and -1/-1 counters cancel
+        let p1p1_count = self.get_counter(CounterType::P1P1);
+        let m1m1_count = self.get_counter(CounterType::M1M1);
+
+        if p1p1_count > 0 && m1m1_count > 0 {
+            let to_remove = p1p1_count.min(m1m1_count);
+
+            // Remove from +1/+1 counters
+            if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &CounterType::P1P1) {
+                *count -= to_remove;
+                if *count == 0 {
+                    self.counters.retain(|(t, _)| t != &CounterType::P1P1);
+                }
+            }
+
+            // Remove from -1/-1 counters
+            if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &CounterType::M1M1) {
+                *count -= to_remove;
+                if *count == 0 {
+                    self.counters.retain(|(t, _)| t != &CounterType::M1M1);
+                }
+            }
+        }
+    }
+
+    pub fn remove_counter(&mut self, counter_type: CounterType, amount: u8) -> u8 {
+        if amount == 0 {
+            return 0;
+        }
+
+        if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &counter_type) {
+            let removed = (*count).min(amount);
+            *count -= removed;
+            if *count == 0 {
+                self.counters.retain(|(t, _)| t != &counter_type);
+            }
+            removed
+        } else {
+            0
         }
     }
 
@@ -291,5 +337,103 @@ mod tests {
         card.add_counter(CounterType::M1M1, 1);
         assert_eq!(card.current_power(), 3);
         assert_eq!(card.current_toughness(), 3);
+    }
+
+    #[test]
+    fn test_counter_annihilation() {
+        let id = CardId::new(1);
+        let owner = PlayerId::new(100);
+        let mut card = Card::new(id, "Test Creature", owner);
+
+        card.power = Some(2);
+        card.toughness = Some(2);
+
+        // Add 3 +1/+1 counters
+        card.add_counter(CounterType::P1P1, 3);
+        assert_eq!(card.get_counter(CounterType::P1P1), 3);
+        assert_eq!(card.get_counter(CounterType::M1M1), 0);
+        assert_eq!(card.current_power(), 5);
+        assert_eq!(card.current_toughness(), 5);
+
+        // Add 2 -1/-1 counters - should annihilate with +1/+1
+        card.add_counter(CounterType::M1M1, 2);
+        assert_eq!(card.get_counter(CounterType::P1P1), 1); // 3 - 2 = 1
+        assert_eq!(card.get_counter(CounterType::M1M1), 0); // 2 - 2 = 0
+        assert_eq!(card.current_power(), 3); // 2 base + 1 counter
+        assert_eq!(card.current_toughness(), 3);
+
+        // Add 5 -1/-1 counters
+        card.add_counter(CounterType::M1M1, 5);
+        assert_eq!(card.get_counter(CounterType::P1P1), 0); // 1 - 1 = 0
+        assert_eq!(card.get_counter(CounterType::M1M1), 4); // 5 - 1 = 4
+        assert_eq!(card.current_power(), -2); // 2 base - 4 counters
+        assert_eq!(card.current_toughness(), -2);
+    }
+
+    #[test]
+    fn test_remove_counter() {
+        let id = CardId::new(1);
+        let owner = PlayerId::new(100);
+        let mut card = Card::new(id, "Test Creature", owner);
+
+        // Add some counters
+        card.add_counter(CounterType::P1P1, 5);
+        assert_eq!(card.get_counter(CounterType::P1P1), 5);
+
+        // Remove 2 counters
+        let removed = card.remove_counter(CounterType::P1P1, 2);
+        assert_eq!(removed, 2);
+        assert_eq!(card.get_counter(CounterType::P1P1), 3);
+
+        // Try to remove more than exists
+        let removed = card.remove_counter(CounterType::P1P1, 10);
+        assert_eq!(removed, 3); // Only 3 were available
+        assert_eq!(card.get_counter(CounterType::P1P1), 0);
+
+        // Counter type should be cleaned up when it reaches 0
+        assert!(!card.counters.iter().any(|(t, _)| t == &CounterType::P1P1));
+
+        // Try to remove from non-existent counter type
+        let removed = card.remove_counter(CounterType::M1M1, 5);
+        assert_eq!(removed, 0);
+    }
+
+    #[test]
+    fn test_exact_annihilation() {
+        let id = CardId::new(1);
+        let owner = PlayerId::new(100);
+        let mut card = Card::new(id, "Test Creature", owner);
+
+        // Add 3 +1/+1 counters
+        card.add_counter(CounterType::P1P1, 3);
+        assert_eq!(card.get_counter(CounterType::P1P1), 3);
+
+        // Add exactly 3 -1/-1 counters - should cancel completely
+        card.add_counter(CounterType::M1M1, 3);
+        assert_eq!(card.get_counter(CounterType::P1P1), 0);
+        assert_eq!(card.get_counter(CounterType::M1M1), 0);
+
+        // Both counter types should be cleaned up
+        assert!(card.counters.is_empty());
+    }
+
+    #[test]
+    fn test_other_counters_not_affected() {
+        let id = CardId::new(1);
+        let owner = PlayerId::new(100);
+        let mut card = Card::new(id, "Test Permanent", owner);
+
+        // Add charge counters
+        card.add_counter(CounterType::Charge, 5);
+        assert_eq!(card.get_counter(CounterType::Charge), 5);
+
+        // Add +1/+1 and -1/-1 counters
+        card.add_counter(CounterType::P1P1, 2);
+        card.add_counter(CounterType::M1M1, 1);
+
+        // Charge counters should not be affected by annihilation
+        assert_eq!(card.get_counter(CounterType::Charge), 5);
+        assert_eq!(card.get_counter(CounterType::P1P1), 1); // 2 - 1 = 1
+        assert_eq!(card.get_counter(CounterType::M1M1), 0);
     }
 }

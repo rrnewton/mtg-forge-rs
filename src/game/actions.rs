@@ -790,6 +790,32 @@ impl GameState {
                     mana: *mana,
                 });
             }
+            Effect::PutCounter {
+                target,
+                counter_type,
+                amount,
+            } => {
+                // Skip if target is still placeholder (0) - no valid targets found
+                if target.as_u32() == 0 {
+                    // Spell fizzles - no valid targets
+                    return Ok(());
+                }
+                // Add counters using the GameState method (which logs for undo)
+                self.add_counters(*target, *counter_type, *amount)?;
+            }
+            Effect::RemoveCounter {
+                target,
+                counter_type,
+                amount,
+            } => {
+                // Skip if target is still placeholder (0) - no valid targets found
+                if target.as_u32() == 0 {
+                    // Spell fizzles - no valid targets
+                    return Ok(());
+                }
+                // Remove counters using the GameState method (which logs for undo)
+                self.remove_counters(*target, *counter_type, *amount)?;
+            }
         }
         Ok(())
     }

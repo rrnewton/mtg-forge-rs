@@ -342,6 +342,52 @@ impl GameState {
         Ok(())
     }
 
+    /// Add counters to a card and log for undo
+    pub fn add_counters(
+        &mut self,
+        card_id: CardId,
+        counter_type: crate::core::CounterType,
+        amount: u8,
+    ) -> Result<()> {
+        if let Ok(card) = self.cards.get_mut(card_id) {
+            card.add_counter(counter_type, amount);
+
+            // Log the action
+            self.undo_log.log(crate::undo::GameAction::AddCounter {
+                card_id,
+                counter_type,
+                amount,
+            });
+
+            Ok(())
+        } else {
+            Err(crate::MtgError::EntityNotFound(card_id.as_u32()))
+        }
+    }
+
+    /// Remove counters from a card and log for undo
+    pub fn remove_counters(
+        &mut self,
+        card_id: CardId,
+        counter_type: crate::core::CounterType,
+        amount: u8,
+    ) -> Result<u8> {
+        if let Ok(card) = self.cards.get_mut(card_id) {
+            let removed = card.remove_counter(counter_type, amount);
+
+            // Log the action
+            self.undo_log.log(crate::undo::GameAction::RemoveCounter {
+                card_id,
+                counter_type,
+                amount: removed,
+            });
+
+            Ok(removed)
+        } else {
+            Err(crate::MtgError::EntityNotFound(card_id.as_u32()))
+        }
+    }
+
     /// Clear temporary effects at end of turn (Cleanup step)
     /// This resets power/toughness bonuses from pump spells
     pub fn cleanup_temporary_effects(&mut self) {
@@ -550,11 +596,25 @@ impl GameState {
                         player.mana_pool.colorless = prev_colorless;
                     }
                 }
-                crate::undo::GameAction::AddCounter { .. } => {
-                    // TODO: Implement counter undo
+                crate::undo::GameAction::AddCounter {
+                    card_id,
+                    counter_type,
+                    amount,
+                } => {
+                    // Remove the counters that were added
+                    if let Ok(card) = self.cards.get_mut(card_id) {
+                        card.remove_counter(counter_type, amount);
+                    }
                 }
-                crate::undo::GameAction::RemoveCounter { .. } => {
-                    // TODO: Implement counter undo
+                crate::undo::GameAction::RemoveCounter {
+                    card_id,
+                    counter_type,
+                    amount,
+                } => {
+                    // Add back the counters that were removed
+                    if let Ok(card) = self.cards.get_mut(card_id) {
+                        card.add_counter(counter_type, amount);
+                    }
                 }
                 crate::undo::GameAction::AdvanceStep {
                     from_step,

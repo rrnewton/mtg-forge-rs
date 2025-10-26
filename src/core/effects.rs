@@ -106,6 +106,22 @@ pub enum Effect {
         player: PlayerId,
         mana: crate::core::ManaCost,
     },
+
+    /// Put counters on a permanent
+    /// Example: "Put a +1/+1 counter on target creature"
+    PutCounter {
+        target: CardId,
+        counter_type: crate::core::CounterType,
+        amount: u8,
+    },
+
+    /// Remove counters from a permanent
+    /// Example: "Remove a +1/+1 counter from target creature"
+    RemoveCounter {
+        target: CardId,
+        counter_type: crate::core::CounterType,
+        amount: u8,
+    },
 }
 
 /// Events that can trigger abilities

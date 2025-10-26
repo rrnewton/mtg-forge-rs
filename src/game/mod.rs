@@ -15,6 +15,11 @@ pub mod random_controller;
 pub mod state;
 pub mod zero_controller;
 
+#[cfg(test)]
+mod counter_tests;
+#[cfg(test)]
+mod controller_tests;
+
 pub use actions::GameAction;
 pub use combat::CombatState;
 pub use controller::{GameStateView, PlayerController};
