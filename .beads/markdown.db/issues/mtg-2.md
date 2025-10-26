@@ -42,11 +42,12 @@ excellent zero-copy characteristics for tree search.
 **Completed optimizations:**
 - ✅ mtg-6: Logging allocations (conditional compilation added, COMPLETED)
 - ✅ mtg-10: Vec reallocations in game loop (SmallVec + fixed arrays, COMPLETED)
+- ✅ mtg-7: CardDatabase.get_card() returns Arc<CardDefinition> (COMPLETED 2025-10-26)
+- ✅ mtg-8: GameStateView already uses borrowing, not cloning (COMPLETED 2025-10-26)
+- ✅ mtg-9: CardName and PlayerName use Arc<str> (COMPLETED 2025-10-26)
 
 **High priority open issues:**
-- mtg-7: CardDatabase.get_card() should return references
-- mtg-8: Eliminate GameStateView clones
-- mtg-9: String allocation optimization
+- (None currently)
 
 **Medium priority:**
 - mtg-11: Zone transfer operations optimization
