@@ -2097,6 +2097,15 @@ Of course we want to avoid unnecessary copies. It's always better to do multiple
 
 Report what difference this makes on the `game_execution/fresh_logging` benchmark.
 
+---
+
+I moved us over to a branch "bump-logger". Go ahead and commit this working prototype.
+As mentioned in CLAUDE.md we do NOT want to use unsafe. So continue to iterate on the
+design and figure out how to restructure things to meet lifetime constraints while not
+introducing any uses of the unsafe keyword. Unsafe should be banned everywhere but tests.
+
+We'll merge this feature branch IFF we get a version that meets all the requirements.
+
 
 ## TODO: I still see over eager logging from the benchmark binary
 
