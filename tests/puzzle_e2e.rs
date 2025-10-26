@@ -251,68 +251,27 @@ async fn test_royal_assassin_with_log_capture() -> Result<()> {
     println!("P2 creatures after: {p2_creatures_after}");
     println!("Grizzly Bears in graveyard: {bears_in_graveyard}");
 
-    // WHAT'S MISSING FOR PROPER BEHAVIOR:
-    //
-    // For Royal Assassin to work correctly, the following features are needed:
-    //
-    // 1. **Priority During Combat** (HIGH PRIORITY)
-    //    - After attackers are declared, the defending player should receive priority
-    //    - This is when Royal Assassin can activate (MTG Rules 508.4)
-    //    - Current implementation: priority_round() is called, but activated abilities
-    //      may not be available at the right time
-    //
-    // 2. **Activated Ability Timing**
-    //    - Royal Assassin's ability should be available during combat steps
-    //    - The ability requires a tapped creature as a target
-    //    - Current implementation: get_activatable_abilities() may not check combat state
-    //
-    // 3. **Target Validation for Activated Abilities**
-    //    - Royal Assassin needs to target a tapped creature
-    //    - Current implementation: targeting for activated abilities may not be fully wired
-    //
-    // 4. **HeuristicController Activated Ability Decisions**
-    //    - HeuristicController should recognize when it's valuable to activate Royal Assassin
-    //    - Should prioritize killing an attacking creature
-    //    - Current implementation: may not evaluate activated abilities in choose_spell_ability_to_play()
-    //
-    // Until these are implemented, we just verify:
-    // - The test runs without errors
-    // - The FixedScriptController makes Grizzly Bears attack
-    // - The game progresses through combat
-
     // Verify we captured some logs
     assert!(!logs.is_empty(), "Should have captured some log entries");
 
-    // Verify we captured attack decisions from the FixedScriptController
-    let has_attack_decisions = logs.iter().any(|e| {
-        e.message.contains("attacker") && e.category == Some("controller_choice".to_string())
-    });
+    // Verify Royal Assassin activated its ability
+    let has_royal_assassin_activation = logs
+        .iter()
+        .any(|e| e.message.contains("ActivateAbility") && e.message.contains("card_id: 3"));
+    assert!(
+        has_royal_assassin_activation,
+        "Royal Assassin should activate its ability"
+    );
 
-    if !has_attack_decisions {
-        println!("⚠ WARNING: No attack decisions found in logs");
-    }
-
-    // For now, just verify the test completes without panicking
-    // The actual "Royal Assassin destroys attacker" behavior is not yet implemented
-
-    // Uncomment these assertions once the above features are implemented:
-    //
-    // LOG ASSERTIONS:
-    // - Check for Royal Assassin activation in logs
-    // - Verify target selection (Grizzly Bears)
-    // - Confirm Royal Assassin tap in logs
-    // - Verify Grizzly Bears destruction event in logs
-    // - Confirm correct timing and ordering (after attackers declared, before blockers)
-    //
-    // Example log assertions to add:
-    // let has_royal_assassin_activation = logs.iter().any(|e| {
-    //     e.message.contains("Royal Assassin") && e.message.contains("activates ability")
-    // });
-    // assert!(has_royal_assassin_activation, "Royal Assassin should activate its ability");
-    //
-    // FINAL STATE ASSERTIONS:
-    // assert_eq!(bears_in_graveyard, 1, "Grizzly Bears should be destroyed by Royal Assassin");
-    // assert_eq!(p2_creatures_after, 0, "P2 should have no creatures on battlefield");
+    // Verify final state: Grizzly Bears was destroyed
+    assert_eq!(
+        bears_in_graveyard, 1,
+        "Grizzly Bears should be destroyed by Royal Assassin"
+    );
+    assert_eq!(
+        p2_creatures_after, 0,
+        "P2 should have no creatures on battlefield after Royal Assassin destroys Grizzly Bears"
+    );
 
     Ok(())
 }

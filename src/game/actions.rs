@@ -431,6 +431,148 @@ impl GameState {
         Ok(valid_targets)
     }
 
+    /// Get valid targets for an activated ability
+    ///
+    /// Similar to get_valid_targets_for_spell(), but for activated abilities.
+    /// This handles special restrictions like Royal Assassin's "target tapped creature".
+    ///
+    /// # Arguments
+    /// * `source_card_id` - The card with the activated ability
+    /// * `ability_index` - The index of the ability in the card's activated_abilities vec
+    ///
+    /// # Returns
+    /// A SmallVec of valid target CardIds
+    pub fn get_valid_targets_for_ability(
+        &self,
+        source_card_id: CardId,
+        ability_index: usize,
+    ) -> Result<SmallVec<[CardId; 8]>> {
+        let mut valid_targets = SmallVec::new();
+
+        // Get the source card and ability
+        let source_card = self.cards.get(source_card_id)?;
+        let ability_controller = source_card.controller;
+
+        let ability = source_card
+            .activated_abilities
+            .get(ability_index)
+            .ok_or_else(|| {
+                MtgError::InvalidAction(format!(
+                    "Ability index {} out of bounds for card {}",
+                    ability_index, source_card_id
+                ))
+            })?;
+
+        // Check for targeting restrictions in the ability description
+        // For Royal Assassin: "Destroy target tapped creature"
+        let requires_tapped = ability.description.to_lowercase().contains("tapped");
+        let requires_untapped = ability.description.to_lowercase().contains("untapped");
+        let targets_creature = ability.description.to_lowercase().contains("creature");
+
+        // Check each effect to determine valid targets
+        for effect in &ability.effects {
+            match effect {
+                Effect::DestroyPermanent { target } if target.as_u32() == 0 => {
+                    // Destroy effect needs targets
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            // Check targeting restrictions
+                            let mut is_valid = true;
+
+                            // Must be creature if ability says "creature"
+                            if targets_creature && !card.is_creature() {
+                                is_valid = false;
+                            }
+
+                            // Must be tapped if ability says "tapped"
+                            if requires_tapped && !card.tapped {
+                                is_valid = false;
+                            }
+
+                            // Must be untapped if ability says "untapped"
+                            if requires_untapped && card.tapped {
+                                is_valid = false;
+                            }
+
+                            // Check shroud/hexproof
+                            if card.has_shroud() {
+                                is_valid = false;
+                            }
+
+                            // Hexproof only protects from opponent's abilities
+                            if card.has_hexproof() && card.owner != ability_controller {
+                                is_valid = false;
+                            }
+
+                            if is_valid {
+                                valid_targets.push(card_id);
+                            }
+                        }
+                    }
+                }
+                Effect::TapPermanent { target } if target.as_u32() == 0 => {
+                    // Tap can target untapped permanents
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            let mut is_valid = !card.tapped && !card.has_shroud();
+
+                            // Check hexproof
+                            if card.has_hexproof() && card.owner != ability_controller {
+                                is_valid = false;
+                            }
+
+                            if is_valid {
+                                valid_targets.push(card_id);
+                            }
+                        }
+                    }
+                }
+                Effect::UntapPermanent { target } if target.as_u32() == 0 => {
+                    // Untap can target tapped permanents
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            let mut is_valid = card.tapped && !card.has_shroud();
+
+                            // Check hexproof
+                            if card.has_hexproof() && card.owner != ability_controller {
+                                is_valid = false;
+                            }
+
+                            if is_valid {
+                                valid_targets.push(card_id);
+                            }
+                        }
+                    }
+                }
+                Effect::DealDamage {
+                    target: TargetRef::None,
+                    ..
+                } => {
+                    // Damage can target creatures
+                    for &card_id in &self.battlefield.cards {
+                        if let Ok(card) = self.cards.get(card_id) {
+                            let mut is_valid = card.is_creature() && !card.has_shroud();
+
+                            // Check hexproof
+                            if card.has_hexproof() && card.owner != ability_controller {
+                                is_valid = false;
+                            }
+
+                            if is_valid {
+                                valid_targets.push(card_id);
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    // Other effects either don't need targets or already have them specified
+                }
+            }
+        }
+
+        Ok(valid_targets)
+    }
+
     /// Cast a spell following the full 8-step process (MTG Rules 601.2)
     ///
     /// This method implements the complete spell casting sequence:

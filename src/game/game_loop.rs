@@ -809,15 +809,15 @@ impl<'a> GameLoop<'a> {
             let attackers = controller.choose_attackers(&view, &available_creatures);
 
             // Declare each chosen attacker
-            let defending_player = self
-                .game
-                .get_other_player_id(active_player)
-                .expect("Should have defending player");
-
             for attacker_id in attackers.iter() {
-                self.game
-                    .combat
-                    .declare_attacker(*attacker_id, defending_player);
+                // Use GameState::declare_attacker() which taps the creature (MTG Rules 508.1f)
+                // NOT Combat::declare_attacker() which only adds to the attackers list
+                if let Err(e) = self.game.declare_attacker(active_player, *attacker_id) {
+                    if self.verbosity >= VerbosityLevel::Normal {
+                        eprintln!("  Error declaring attacker: {e}");
+                    }
+                    continue;
+                }
 
                 if self.verbosity >= VerbosityLevel::Normal {
                     let card_name = self
@@ -1427,6 +1427,8 @@ impl<'a> GameLoop<'a> {
                                 ability_index,
                             } => {
                                 // Activate ability from a permanent
+                                // TODO(mtg-70): This should go on the stack for non-mana abilities
+
                                 // Get the card and ability
                                 let card_name =
                                     self.game.cards.get(card_id).ok().map(|c| c.name.clone());
@@ -1440,11 +1442,33 @@ impl<'a> GameLoop<'a> {
                                             .as_ref()
                                             .map(|n| n.as_str())
                                             .unwrap_or("Unknown");
-                                        eprintln!(
+                                        println!(
                                             "  {} activates ability: {}",
                                             name, ability.description
                                         );
                                     }
+
+                                    // Get valid targets for the ability (before paying costs)
+                                    let valid_targets = self
+                                        .game
+                                        .get_valid_targets_for_ability(card_id, ability_index)
+                                        .unwrap_or_else(|_| SmallVec::new());
+
+                                    // Ask controller to choose targets (only if there are valid targets)
+                                    let chosen_targets_vec: Vec<CardId> = if !valid_targets
+                                        .is_empty()
+                                    {
+                                        let view = GameStateView::new(self.game, current_priority);
+                                        let chosen_targets = controller.choose_targets(
+                                            &view,
+                                            card_id,
+                                            &valid_targets,
+                                        );
+                                        chosen_targets.into_iter().collect()
+                                    } else {
+                                        // No targets needed
+                                        Vec::new()
+                                    };
 
                                     // Pay costs
                                     if let Err(e) = self.game.pay_ability_cost(
@@ -1458,9 +1482,8 @@ impl<'a> GameLoop<'a> {
                                         continue;
                                     }
 
-                                    // Execute effects
-                                    // For now, execute effects immediately (not on the stack)
-                                    // TODO: Put non-mana abilities on the stack
+                                    // Execute effects immediately (not on the stack)
+                                    // TODO(mtg-70): Put non-mana abilities on the stack
                                     for effect in &ability.effects {
                                         // Fix placeholder player IDs and targets for effects
                                         let fixed_effect = match effect {
@@ -1489,6 +1512,45 @@ impl<'a> GameLoop<'a> {
                                                 crate::core::Effect::DrawCards {
                                                     player: current_priority,
                                                     count: *count,
+                                                }
+                                            }
+                                            // Replace placeholder targets with chosen targets
+                                            crate::core::Effect::DestroyPermanent { target }
+                                                if target.as_u32() == 0
+                                                    && !chosen_targets_vec.is_empty() =>
+                                            {
+                                                // Use the first chosen target
+                                                crate::core::Effect::DestroyPermanent {
+                                                    target: chosen_targets_vec[0],
+                                                }
+                                            }
+                                            crate::core::Effect::TapPermanent { target }
+                                                if target.as_u32() == 0
+                                                    && !chosen_targets_vec.is_empty() =>
+                                            {
+                                                crate::core::Effect::TapPermanent {
+                                                    target: chosen_targets_vec[0],
+                                                }
+                                            }
+                                            crate::core::Effect::UntapPermanent { target }
+                                                if target.as_u32() == 0
+                                                    && !chosen_targets_vec.is_empty() =>
+                                            {
+                                                crate::core::Effect::UntapPermanent {
+                                                    target: chosen_targets_vec[0],
+                                                }
+                                            }
+                                            crate::core::Effect::PumpCreature {
+                                                target,
+                                                power_bonus,
+                                                toughness_bonus,
+                                            } if target.as_u32() == 0
+                                                && !chosen_targets_vec.is_empty() =>
+                                            {
+                                                crate::core::Effect::PumpCreature {
+                                                    target: chosen_targets_vec[0],
+                                                    power_bonus: *power_bonus,
+                                                    toughness_bonus: *toughness_bonus,
                                                 }
                                             }
                                             _ => effect.clone(),
@@ -1775,6 +1837,9 @@ impl<'a> GameLoop<'a> {
         let mut mana_engine = ManaEngine::new(player_id);
         mana_engine.update(self.game);
 
+        // DEBUG: Track what we find
+        let mut debug_found_royal_assassin = false;
+
         // Check all permanents controlled by this player
         for &card_id in &self.game.battlefield.cards {
             if let Ok(card) = self.game.cards.get(card_id) {
@@ -1783,10 +1848,38 @@ impl<'a> GameLoop<'a> {
                     continue;
                 }
 
+                // DEBUG: Check for Royal Assassin
+                if card.name.as_str() == "Royal Assassin" {
+                    debug_found_royal_assassin = true;
+                    eprintln!(
+                        "DEBUG get_activatable_abilities: Found Royal Assassin ({}) for player {}",
+                        card_id.as_u32(),
+                        player_id.as_u32()
+                    );
+                    eprintln!(
+                        "  tapped={}, activated_abilities.len()={}",
+                        card.tapped,
+                        card.activated_abilities.len()
+                    );
+                }
+
                 // Check each activated ability on this card
                 for (ability_index, ability) in card.activated_abilities.iter().enumerate() {
+                    // DEBUG: Log Royal Assassin ability details
+                    if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
+                        eprintln!(
+                            "  Ability {}: {} (is_mana_ability={})",
+                            ability_index, ability.description, ability.is_mana_ability
+                        );
+                        eprintln!("    cost: {:?}", ability.cost);
+                        eprintln!("    cost.includes_tap()={}", ability.cost.includes_tap());
+                    }
+
                     // Skip mana abilities for now (they'll be handled specially)
                     if ability.is_mana_ability {
+                        if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
+                            eprintln!("    SKIPPED: is mana ability");
+                        }
                         continue;
                     }
 
@@ -1796,12 +1889,19 @@ impl<'a> GameLoop<'a> {
                     // Check tap cost
                     if ability.cost.includes_tap() && card.tapped {
                         can_activate = false;
+                        if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
+                            eprintln!("    REJECTED: includes tap but card is tapped");
+                        }
                     }
 
                     // Check mana cost
                     if let Some(mana_cost) = ability.cost.get_mana_cost() {
                         if !mana_engine.can_pay(mana_cost) {
                             can_activate = false;
+                            if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin"
+                            {
+                                eprintln!("    REJECTED: can't pay mana cost");
+                            }
                         }
                     }
 
@@ -1809,8 +1909,42 @@ impl<'a> GameLoop<'a> {
                     // TODO: Check timing restrictions (sorcery speed abilities)
                     // TODO: Check activation limits
 
+                    // TODO(mtg-70): Check if ability has valid targets
+                    // For targeting abilities, check that there's at least one valid target
                     if can_activate {
+                        // Check if this ability requires targets
+                        let valid_targets = self
+                            .game
+                            .get_valid_targets_for_ability(card_id, ability_index)
+                            .unwrap_or_else(|_| SmallVec::new());
+
+                        // If get_valid_targets_for_ability returned an empty list,
+                        // it might mean either:
+                        // 1. The ability doesn't require targets (non-targeting ability)
+                        // 2. The ability requires targets but none are available
+                        //
+                        // We need to distinguish between these cases.
+                        // For now, check if the ability description contains "target"
+                        let requires_targets =
+                            ability.description.to_lowercase().contains("target");
+
+                        if requires_targets && valid_targets.is_empty() {
+                            // Ability requires targets but none are available
+                            can_activate = false;
+                            if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin"
+                            {
+                                eprintln!("    REJECTED: requires targets but none available");
+                            }
+                        }
+                    }
+
+                    if can_activate {
+                        if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
+                            eprintln!("    ACCEPTED: ability can be activated!");
+                        }
                         abilities.push((card_id, ability_index));
+                    } else if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
+                        eprintln!("    NOT ACCEPTED: can_activate={}", can_activate);
                     }
                 }
             }
