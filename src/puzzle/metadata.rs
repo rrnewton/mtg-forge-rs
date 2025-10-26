@@ -10,6 +10,12 @@ pub enum Difficulty {
     Easy,
     Medium,
     Hard,
+    VeryHard,
+    // MTG rarity-based difficulties (used in newer puzzle sets)
+    Uncommon,
+    Rare,
+    Mythic,
+    Special,
 }
 
 impl std::str::FromStr for Difficulty {
@@ -20,6 +26,11 @@ impl std::str::FromStr for Difficulty {
             "easy" => Ok(Difficulty::Easy),
             "medium" => Ok(Difficulty::Medium),
             "hard" => Ok(Difficulty::Hard),
+            "very hard" => Ok(Difficulty::VeryHard),
+            "uncommon" => Ok(Difficulty::Uncommon),
+            "rare" => Ok(Difficulty::Rare),
+            "mythic" => Ok(Difficulty::Mythic),
+            "special" => Ok(Difficulty::Special),
             _ => Err(MtgError::ParseError(format!("Invalid difficulty: {}", s))),
         }
     }
@@ -205,6 +216,11 @@ impl PuzzleMetadata {
             Difficulty::Easy => "Easy",
             Difficulty::Medium => "Medium",
             Difficulty::Hard => "Hard",
+            Difficulty::VeryHard => "Very Hard",
+            Difficulty::Uncommon => "Uncommon",
+            Difficulty::Rare => "Rare",
+            Difficulty::Mythic => "Mythic",
+            Difficulty::Special => "Special",
         });
 
         desc.push_str("\n\nGoal: ");

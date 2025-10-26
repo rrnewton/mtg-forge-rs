@@ -80,6 +80,73 @@ fn parse_sections(contents: &str) -> Result<std::collections::HashMap<String, Ve
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_parse_all_java_forge_puzzles() {
+        // Parse ALL puzzle files from Java Forge to ensure our parser handles them
+        let puzzle_dir = PathBuf::from("forge-java/forge-gui/res/puzzle");
+
+        if !puzzle_dir.exists() {
+            eprintln!("Skipping test_parse_all_java_forge_puzzles: directory not found");
+            return;
+        }
+
+        let mut parsed_count = 0;
+        let mut failed_count = 0;
+        let mut failures = Vec::new();
+
+        // Find all .pzl files
+        for entry in std::fs::read_dir(&puzzle_dir).expect("Failed to read puzzle directory") {
+            let entry = entry.expect("Failed to read directory entry");
+            let path = entry.path();
+
+            if path.extension().and_then(|s| s.to_str()) == Some("pzl") {
+                match PuzzleFile::load(&path) {
+                    Ok(_puzzle) => {
+                        parsed_count += 1;
+                    }
+                    Err(e) => {
+                        failed_count += 1;
+                        let filename = path.file_name().unwrap().to_string_lossy();
+                        failures.push(format!("{}: {}", filename, e));
+                    }
+                }
+            }
+        }
+
+        println!("\n=== Puzzle Parsing Results ===");
+        println!("Parsed: {} puzzles", parsed_count);
+        println!("Failed: {} puzzles", failed_count);
+
+        if !failures.is_empty() {
+            println!("\nFailures:");
+            for failure in &failures {
+                println!("  - {}", failure);
+            }
+        }
+
+        // Assert that we parsed at least some puzzles (should be 300+)
+        assert!(
+            parsed_count > 100,
+            "Should have parsed at least 100 puzzles, got {}",
+            parsed_count
+        );
+
+        // For now, allow some failures as we may not support all features yet
+        // But we should parse the vast majority
+        let success_rate =
+            (parsed_count as f64) / ((parsed_count + failed_count) as f64) * 100.0;
+        println!("\nSuccess rate: {:.1}%", success_rate);
+
+        // We should successfully parse at least 80% of puzzles
+        assert!(
+            success_rate >= 80.0,
+            "Success rate too low: {:.1}%. Failed puzzles:\n{}",
+            success_rate,
+            failures.join("\n")
+        );
+    }
 
     #[test]
     fn test_parse_sections_basic() {

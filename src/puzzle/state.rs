@@ -274,7 +274,7 @@ fn parse_phase(s: &str) -> Result<Step> {
         "COMBAT_DAMAGE" | "COMBATDAMAGE" => Ok(Step::CombatDamage),
         "COMBAT_END" | "ENDOFCOMBAT" => Ok(Step::EndCombat),
         "MAIN2" | "POSTCOMBAT" | "POSTCOMBATMAIN" => Ok(Step::Main2),
-        "END" | "ENDSTEP" => Ok(Step::End),
+        "END" | "ENDSTEP" | "END_OF_TURN" => Ok(Step::End),
         "CLEANUP" => Ok(Step::Cleanup),
         _ => Err(MtgError::ParseError(format!("Unknown phase: {}", s))),
     }
@@ -304,7 +304,7 @@ fn parse_player_counters(s: &str) -> Result<HashMap<CounterType, i32>> {
 
 /// Parse counter type from string
 fn parse_counter_type(s: &str) -> Result<CounterType> {
-    // For Phase 1, support the most common counters
+    // Parse common counter types found in puzzle files
     match s.trim().to_uppercase().as_str() {
         "P1P1" | "+1/+1" => Ok(CounterType::P1P1),
         "M1M1" | "-1/-1" => Ok(CounterType::M1M1),
@@ -314,8 +314,14 @@ fn parse_counter_type(s: &str) -> Result<CounterType> {
         "CHARGE" => Ok(CounterType::Charge),
         "AGE" => Ok(CounterType::Age),
         "STORAGE" => Ok(CounterType::Storage),
+        "REPR" | "REPRIEVE" => Ok(CounterType::Reprieve),
+        "LORE" => Ok(CounterType::Lore),
+        "OIL" => Ok(CounterType::Oil),
+        "STASH" => Ok(CounterType::Stash),
+        "DEF" | "DEFENSE" => Ok(CounterType::Defense),
+        "REV" => Ok(CounterType::Rev),
         _ => Err(MtgError::ParseError(format!(
-            "Unknown counter type: {}. Phase 1 supports: P1P1, M1M1, LOYALTY, POISON, ENERGY, CHARGE, AGE, STORAGE",
+            "Unknown counter type: {}. Supported types: P1P1, M1M1, LOYALTY, POISON, ENERGY, CHARGE, AGE, STORAGE, REPR, LORE, OIL, STASH",
             s
         ))),
     }
