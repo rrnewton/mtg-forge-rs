@@ -6,7 +6,7 @@
 use mtg_forge_rs::{
     game::{
         zero_controller::ZeroController, FixedScriptController, GameLoop, HeuristicController,
-        LogEntry, VerbosityLevel,
+        VerbosityLevel,
     },
     loader::AsyncCardDatabase as CardDatabase,
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
@@ -271,6 +271,120 @@ async fn test_royal_assassin_with_log_capture() -> Result<()> {
     assert_eq!(
         p2_creatures_after, 0,
         "P2 should have no creatures on battlefield after Royal Assassin destroys Grizzly Bears"
+    );
+
+    Ok(())
+}
+
+/// Test that Serra Angel attacks when opponent has no flyers
+///
+/// This test verifies that the HeuristicController recognizes that a flying creature
+/// can attack safely against an opponent with no flying blockers.
+#[tokio::test]
+async fn test_serra_angel_flying_attack() -> Result<()> {
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+
+    // Load puzzle file
+    let puzzle_path = PathBuf::from("test_puzzles/serra_angel_should_attack.pzl");
+    let puzzle_contents = std::fs::read_to_string(&puzzle_path)?;
+    let puzzle = PuzzleFile::parse(&puzzle_contents)?;
+
+    // Create card database and load puzzle
+    let card_db = CardDatabase::new(cardsfolder);
+    let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
+
+    // Set deterministic seed
+    game.rng_seed = 777;
+
+    // Get player IDs
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+    let p1_id = players[0]; // Has Serra Angel
+    let p2_id = players[1]; // Empty board
+
+    let p2_life_before = game.get_player(p2_id)?.life;
+
+    // Create heuristic controller for P1 to test attack decision
+    let mut controller1 = HeuristicController::new(p1_id);
+    let mut controller2 = HeuristicController::new(p2_id);
+
+    // Run 2 turns to allow attack
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
+    let _result = game_loop.run_turns(&mut controller1, &mut controller2, 2)?;
+
+    let p2_life_after = game_loop.game.get_player(p2_id)?.life;
+
+    println!("=== Serra Angel Flying Attack Test ===");
+    println!("P2 life before: {p2_life_before}");
+    println!("P2 life after: {p2_life_after}");
+    println!("Damage dealt: {}", p2_life_before - p2_life_after);
+
+    // Serra Angel is 4/4 with flying, so should deal 4 damage
+    assert!(
+        p2_life_after < p2_life_before,
+        "Serra Angel should attack when opponent has no flyers"
+    );
+    assert_eq!(
+        p2_life_after,
+        p2_life_before - 4,
+        "Serra Angel should deal 4 damage"
+    );
+
+    Ok(())
+}
+
+/// Test that flying creatures attack through ground blockers
+///
+/// This test verifies that the AI correctly recognizes that flying creatures
+/// can attack safely even when the opponent has ground blockers.
+#[tokio::test]
+async fn test_flying_vs_ground_blockers() -> Result<()> {
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+
+    // Load puzzle file
+    let puzzle_path = PathBuf::from("test_puzzles/flying_vs_ground.pzl");
+    let puzzle_contents = std::fs::read_to_string(&puzzle_path)?;
+    let puzzle = PuzzleFile::parse(&puzzle_contents)?;
+
+    // Create card database and load puzzle
+    let card_db = CardDatabase::new(cardsfolder);
+    let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
+
+    // Set deterministic seed
+    game.rng_seed = 888;
+
+    // Get player IDs
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+    let p1_id = players[0]; // Has Serra Angel (4/4 flying)
+    let p2_id = players[1]; // Has Grizzly Bears (2/2)
+
+    // P2 starts at 8 life, so 2 attacks from Serra Angel should win
+    let p2_life_before = game.get_player(p2_id)?.life;
+    assert_eq!(p2_life_before, 8, "P2 should start at 8 life");
+
+    // Create heuristic controllers
+    let mut controller1 = HeuristicController::new(p1_id);
+    let mut controller2 = HeuristicController::new(p2_id);
+
+    // Run game until completion
+    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
+    let result = game_loop.run_game(&mut controller1, &mut controller2)?;
+
+    println!("=== Flying vs Ground Blockers Test ===");
+    println!("Game ended after {} turns", result.turns_played);
+    println!("Winner: {:?}", result.winner);
+    println!("End reason: {:?}", result.end_reason);
+
+    // P1 should win (Serra Angel attacks unblocked twice)
+    assert_eq!(
+        result.winner,
+        Some(p1_id),
+        "P1 with flying creature should win against ground blockers"
     );
 
     Ok(())
