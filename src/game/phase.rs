@@ -13,7 +13,7 @@ pub enum Phase {
 }
 
 /// Specific steps within phases
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Step {
     // Beginning Phase
     Untap,

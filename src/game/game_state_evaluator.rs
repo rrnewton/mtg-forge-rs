@@ -124,14 +124,29 @@ impl GameStateEvaluator {
         // Evaluate battlefield permanents
         // Java: Loop through all battlefield cards, evaluate each (lines 148-170)
         let mut summon_sick_score = score;
+        let current_turn = view.turn_number();
+        let current_step = view.current_step();
 
         for &card_id in view.battlefield() {
             if let Some(card) = view.get_card(card_id) {
                 let value = self.evaluate_card(card);
 
-                // TODO(vc-3): Track summon sickness properly
-                // For now, treat all creatures the same
-                let summon_sick_value = value;
+                // Track summon sickness (vc-3)
+                // Reference: GameStateEvaluator.java:153-155
+                // If the creature is summon sick and it's before MAIN2, treat it as having 0 value
+                // for the summon_sick_score to encourage AI to hold creatures until Main2
+                let mut summon_sick_value = value;
+                if current_step < crate::game::Step::Main2
+                    && card.is_creature()
+                    && card.owner == ai_player
+                {
+                    // Check if card entered battlefield this turn (is "sick")
+                    if let Some(turn_entered) = card.turn_entered_battlefield {
+                        if turn_entered == current_turn {
+                            summon_sick_value = 0;
+                        }
+                    }
+                }
 
                 // Cards owned by AI add to score, opponent cards subtract
                 if card.owner == ai_player {

@@ -112,6 +112,11 @@ impl<'a> GameStateView<'a> {
         self.game.turn.current_step
     }
 
+    /// Get the current turn number
+    pub fn turn_number(&self) -> u32 {
+        self.game.turn.turn_number
+    }
+
     /// Get a card's name (convenience method)
     pub fn get_card_name(&self, card_id: CardId) -> Option<String> {
         self.card_name(card_id)
