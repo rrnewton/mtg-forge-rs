@@ -283,8 +283,7 @@ p1life=10
 
         // If cardsfolder exists and has the cards, this should succeed
         // Otherwise it should fail with card not found
-        if result.is_ok() {
-            let game = result.unwrap();
+        if let Ok(game) = result {
             // Verify basic game state
             assert_eq!(game.players[0].life, 20);
             assert_eq!(game.players[1].life, 10);
