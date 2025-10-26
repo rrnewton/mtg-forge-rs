@@ -12,7 +12,6 @@
 use crate::game::VerbosityLevel;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::fmt::Write as _;
 
 /// Output format for log messages
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -60,10 +59,6 @@ pub struct GameLogger {
     log_buffer: RefCell<Vec<LogEntry>>,
     /// Whether to capture logs in memory
     capture_logs: bool,
-    /// Reusable string buffer for stdout logging (avoids allocations)
-    /// Using RefCell for interior mutability
-    #[serde(skip)]
-    temp_buffer: RefCell<String>,
 }
 
 impl GameLogger {
@@ -76,7 +71,6 @@ impl GameLogger {
             output_format: OutputFormat::default(),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: false,
-            temp_buffer: RefCell::new(String::with_capacity(256)),
         }
     }
 
@@ -89,7 +83,6 @@ impl GameLogger {
             output_format: OutputFormat::default(),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: false,
-            temp_buffer: RefCell::new(String::with_capacity(256)),
         }
     }
 
@@ -270,20 +263,15 @@ impl GameLogger {
         self.log_entry(entry);
     }
 
-    /// Fast path for stdout logging using reusable buffer
+    /// Fast path for stdout logging without allocation
     #[inline]
     fn log_to_stdout(&self, level: VerbosityLevel, message: &str) {
-        let indent = if level == VerbosityLevel::Minimal {
-            ""
+        // Write indent and message directly to stdout, relying on stdout buffering
+        if level == VerbosityLevel::Minimal {
+            println!("{}", message);
         } else {
-            "  "
-        };
-
-        // Use temp buffer to avoid allocation
-        let mut buf = self.temp_buffer.borrow_mut();
-        buf.clear();
-        let _ = write!(buf, "{}{}", indent, message);
-        println!("{}", buf);
+            println!("  {}", message);
+        }
     }
 
     /// Log a controller decision at Normal level
