@@ -267,26 +267,123 @@ impl GameStateEvaluator {
     pub fn evaluate_land(card: &Card) -> i32 {
         let mut value = 3;
 
-        // TODO(vc-5): Detailed land evaluation
-        // - +100 per mana produced
-        // - +3 per color produced
-        // - +25-50 for utility abilities (manlands, etc.)
-        // - +6 per static ability
-        //
-        // For now, use a simple heuristic:
-        // Basic lands are worth ~100 (base 3 + mana production)
-        // Non-basics might be worth more for fixing
+        // Evaluate mana production
+        // Java: +100 per mana produced (net after costs), +3 per color
+        let mut max_produced = 0;
+        let mut colors_produced = std::collections::HashSet::new();
 
-        // Check for activated abilities (very rough approximation)
-        if !card.activated_abilities.is_empty() {
-            // Has abilities, likely produces mana
-            value += 100;
+        for ability in &card.activated_abilities {
+            if !ability.is_mana_ability {
+                continue;
+            }
 
-            // If it has multiple abilities, it might be a utility land
-            if card.activated_abilities.len() > 1 {
+            // Calculate net mana production (mana generated - mana cost to activate)
+            let mut mana_generated = 0;
+            let mut mana_cost = 0;
+
+            for effect in &ability.effects {
+                if let crate::core::Effect::AddMana { mana, .. } = effect {
+                    mana_generated += mana.cmc() as i32;
+
+                    // Track colors produced
+                    if mana.white > 0 {
+                        colors_produced.insert("W");
+                    }
+                    if mana.blue > 0 {
+                        colors_produced.insert("U");
+                    }
+                    if mana.black > 0 {
+                        colors_produced.insert("B");
+                    }
+                    if mana.red > 0 {
+                        colors_produced.insert("R");
+                    }
+                    if mana.green > 0 {
+                        colors_produced.insert("G");
+                    }
+                    if mana.colorless > 0 {
+                        colors_produced.insert("C");
+                    }
+                }
+            }
+
+            // Check for mana cost in activation
+            match &ability.cost {
+                crate::core::Cost::Mana(cost) => {
+                    mana_cost = cost.cmc() as i32;
+                }
+                crate::core::Cost::TapAndMana(cost) => {
+                    mana_cost = cost.cmc() as i32;
+                }
+                crate::core::Cost::Composite(costs) => {
+                    for c in costs {
+                        if let crate::core::Cost::Mana(cost) = c {
+                            mana_cost += cost.cmc() as i32;
+                        } else if let crate::core::Cost::TapAndMana(cost) = c {
+                            mana_cost += cost.cmc() as i32;
+                        }
+                    }
+                }
+                _ => {}
+            }
+
+            let net_produced = mana_generated.saturating_sub(mana_cost);
+            max_produced = max_produced.max(net_produced);
+        }
+
+        value += 100 * max_produced;
+        value += colors_produced.len() as i32 * 3;
+
+        // Evaluate non-mana abilities
+        // Java: manlands (+25), sac abilities (+10), repeatable utility (+50)
+        for ability in &card.activated_abilities {
+            if ability.is_mana_ability {
+                continue;
+            }
+
+            // Check if it has a tap cost
+            let has_tap_cost = match &ability.cost {
+                crate::core::Cost::Tap | crate::core::Cost::TapAndMana(_) => true,
+                crate::core::Cost::Composite(costs) => costs.iter().any(|c| {
+                    matches!(c, crate::core::Cost::Tap | crate::core::Cost::TapAndMana(_))
+                }),
+                _ => false,
+            };
+
+            // Check if it has a sacrifice cost
+            let has_sac_cost = match &ability.cost {
+                crate::core::Cost::Sacrifice { .. }
+                | crate::core::Cost::SacrificePattern { .. } => true,
+                crate::core::Cost::Composite(costs) => costs.iter().any(|c| {
+                    matches!(
+                        c,
+                        crate::core::Cost::Sacrifice { .. }
+                            | crate::core::Cost::SacrificePattern { .. }
+                    )
+                }),
+                _ => false,
+            };
+
+            if !has_tap_cost {
+                // Probably a manland (can activate without tapping)
+                // Rate it higher than a rainbow land
                 value += 25;
+            } else if has_sac_cost {
+                // Sacrifice ability, so not repeatable
+                // Less good than a utility land that gets you ahead
+                value += 10;
+            } else {
+                // Repeatable utility land with tap cost
+                // Probably gets you ahead on board over time
+                value += 50;
             }
         }
+
+        // Add value for static abilities
+        // Java: +6 per static ability
+        // Note: We don't have a static_abilities field on Card yet,
+        // but keywords might provide similar value
+        // For now, we'll skip this as it requires more infrastructure
 
         value
     }
@@ -345,5 +442,104 @@ mod tests {
 
         // Empty battlefield should have 0 mana base value
         assert_eq!(mana_value, 0);
+    }
+
+    #[test]
+    fn test_land_evaluation() {
+        use crate::core::{
+            ActivatedAbility, Card, CardId, CardType, Cost, Effect, ManaCost, PlayerId,
+        };
+
+        let player_id = PlayerId::new(0);
+
+        // Test basic land (Forest: T: Add G)
+        let mut forest = Card::new(CardId::new(1), "Forest", player_id);
+        forest.types.push(CardType::Land);
+
+        let mut green_mana = ManaCost::new();
+        green_mana.green = 1;
+        let mana_ability = ActivatedAbility::new(
+            Cost::Tap,
+            vec![Effect::AddMana {
+                player: player_id,
+                mana: green_mana,
+            }],
+            "T: Add G".to_string(),
+            true, // is_mana_ability
+        );
+        forest.activated_abilities.push(mana_ability);
+
+        let forest_value = GameStateEvaluator::evaluate_land(&forest);
+        // Base 3 + 100 for 1 mana + 3 for 1 color = 106
+        assert_eq!(forest_value, 106);
+
+        // Test dual land (Command Tower: T: Add W or U)
+        let mut dual_land = Card::new(CardId::new(2), "Command Tower", player_id);
+        dual_land.types.push(CardType::Land);
+
+        let mut white_mana = ManaCost::new();
+        white_mana.white = 1;
+        let white_ability = ActivatedAbility::new(
+            Cost::Tap,
+            vec![Effect::AddMana {
+                player: player_id,
+                mana: white_mana,
+            }],
+            "T: Add W".to_string(),
+            true,
+        );
+
+        let mut blue_mana = ManaCost::new();
+        blue_mana.blue = 1;
+        let blue_ability = ActivatedAbility::new(
+            Cost::Tap,
+            vec![Effect::AddMana {
+                player: player_id,
+                mana: blue_mana,
+            }],
+            "T: Add U".to_string(),
+            true,
+        );
+
+        dual_land.activated_abilities.push(white_ability);
+        dual_land.activated_abilities.push(blue_ability);
+
+        let dual_value = GameStateEvaluator::evaluate_land(&dual_land);
+        // Base 3 + 100 for 1 mana + 6 for 2 colors = 109
+        assert_eq!(dual_value, 109);
+
+        // Test utility land with tap ability
+        let mut utility_land = Card::new(CardId::new(3), "Utility Land", player_id);
+        utility_land.types.push(CardType::Land);
+
+        // Add mana ability
+        let mut colorless = ManaCost::new();
+        colorless.colorless = 1;
+        let mana_ab = ActivatedAbility::new(
+            Cost::Tap,
+            vec![Effect::AddMana {
+                player: player_id,
+                mana: colorless,
+            }],
+            "T: Add C".to_string(),
+            true,
+        );
+        utility_land.activated_abilities.push(mana_ab);
+
+        // Add utility ability (tap to draw a card)
+        let utility_ab = ActivatedAbility::new(
+            Cost::Tap,
+            vec![Effect::DrawCards {
+                player: player_id,
+                count: 1,
+            }],
+            "T: Draw a card".to_string(),
+            false, // not mana ability
+        );
+        utility_land.activated_abilities.push(utility_ab);
+
+        let utility_value = GameStateEvaluator::evaluate_land(&utility_land);
+        // Base 3 + 100 for 1 mana + 3 for 1 color + 50 for utility = 156
+        assert_eq!(utility_value, 156);
     }
 }
