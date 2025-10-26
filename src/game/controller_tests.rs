@@ -1,6 +1,6 @@
 /// Tests for GameStateView
 use super::*;
-use crate::core::Player;
+use crate::core::{Player, PlayerId};
 use crate::game::GameState;
 
 #[test]

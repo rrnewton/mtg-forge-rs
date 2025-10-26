@@ -630,6 +630,36 @@ impl<'a> GameLoop<'a> {
                 let player_name = self.get_player_name(*player);
                 println!("  {source_name} ({source_id}) adds {mana} to {player_name}'s mana pool");
             }
+            Effect::PutCounter {
+                target,
+                counter_type,
+                amount,
+            } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {source_name} ({source_id}) puts {amount} {counter_type:?} counter(s) on {target_name} ({target})"
+                );
+            }
+            Effect::RemoveCounter {
+                target,
+                counter_type,
+                amount,
+            } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!(
+                    "  {source_name} ({source_id}) removes {amount} {counter_type:?} counter(s) from {target_name} ({target})"
+                );
+            }
         }
     }
 
@@ -1551,6 +1581,32 @@ impl<'a> GameLoop<'a> {
                                                     target: chosen_targets_vec[0],
                                                     power_bonus: *power_bonus,
                                                     toughness_bonus: *toughness_bonus,
+                                                }
+                                            }
+                                            crate::core::Effect::PutCounter {
+                                                target,
+                                                counter_type,
+                                                amount,
+                                            } if target.as_u32() == 0
+                                                && !chosen_targets_vec.is_empty() =>
+                                            {
+                                                crate::core::Effect::PutCounter {
+                                                    target: chosen_targets_vec[0],
+                                                    counter_type: *counter_type,
+                                                    amount: *amount,
+                                                }
+                                            }
+                                            crate::core::Effect::RemoveCounter {
+                                                target,
+                                                counter_type,
+                                                amount,
+                                            } if target.as_u32() == 0
+                                                && !chosen_targets_vec.is_empty() =>
+                                            {
+                                                crate::core::Effect::RemoveCounter {
+                                                    target: chosen_targets_vec[0],
+                                                    counter_type: *counter_type,
+                                                    amount: *amount,
                                                 }
                                             }
                                             _ => effect.clone(),

@@ -16,9 +16,9 @@ pub mod state;
 pub mod zero_controller;
 
 #[cfg(test)]
-mod counter_tests;
-#[cfg(test)]
 mod controller_tests;
+#[cfg(test)]
+mod counter_tests;
 
 pub use actions::GameAction;
 pub use combat::CombatState;

@@ -1,6 +1,6 @@
 //! Integration tests for counter mechanics
 
-use crate::core::{Card, CardId, CardType, CounterType, Effect, PlayerId};
+use crate::core::{Card, CardType, CounterType, Effect};
 use crate::game::GameState;
 
 #[test]
@@ -152,7 +152,8 @@ fn test_multiple_counter_types() {
         .unwrap();
     game.add_counters(permanent_id, CounterType::P1P1, 2)
         .unwrap();
-    game.add_counters(permanent_id, CounterType::Age, 1).unwrap();
+    game.add_counters(permanent_id, CounterType::Age, 1)
+        .unwrap();
 
     // Verify all counters exist
     let card = game.cards.get(permanent_id).unwrap();
