@@ -343,6 +343,21 @@ impl HeuristicController {
             }
         }
 
+        // Phase 2b: Activated abilities (especially removal during combat)
+        // Check if any activated abilities are worth using
+        // For now, just activate any non-mana ability (like Royal Assassin)
+        // TODO(mtg-XX): Evaluate activated abilities intelligently
+        // - Prioritize removal abilities during opponent's combat
+        // - Check if there are valid targets
+        // - Evaluate value of using the ability now vs later
+        for ability in available {
+            if matches!(ability, SpellAbility::ActivateAbility { .. }) {
+                // For now, always activate available abilities
+                // This will make Royal Assassin use its ability when available
+                return Some(ability.clone());
+            }
+        }
+
         // Phase 3: Land play logic (only if we can't cast creatures)
         if self.should_play_land(view) {
             // Collect land play abilities
