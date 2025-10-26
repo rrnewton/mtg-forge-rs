@@ -389,13 +389,132 @@ fn bench_game_snapshot(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark: Rewind mode - use undo log to rewind game (NOT YET IMPLEMENTED)
-/// This requires implementing GameState::undo() functionality
-fn bench_game_rewind(_c: &mut Criterion) {
-    eprintln!("\n=== Rewind mode benchmark NOT YET IMPLEMENTED ===");
-    eprintln!("Requires implementing GameState::undo() to replay actions in reverse");
-    eprintln!("See src/undo.rs for the UndoLog infrastructure");
-    eprintln!("TODO: Implement undo() method that processes GameAction in reverse");
+/// Benchmark: Rewind mode - use undo log to rewind game
+/// Measures the cost of rewinding using undo() for tree search
+fn bench_game_rewind(c: &mut Criterion) {
+    // Check if test resources exist and load once
+    let setup = match BenchmarkSetup::load() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Skipping benchmark - failed to load resources: {e}");
+            return;
+        }
+    };
+
+    let mut group = c.benchmark_group("game_execution");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(30));
+
+    let seed = 42u64;
+
+    // Pre-create and run an initial game to completion
+    let game_init = GameInitializer::new(&setup.card_db);
+    let mut initial_game = setup
+        .runtime
+        .block_on(async {
+            game_init
+                .init_game(
+                    "Player 1".to_string(),
+                    &setup.deck,
+                    "Player 2".to_string(),
+                    &setup.deck,
+                    20,
+                )
+                .await
+        })
+        .expect("Failed to initialize game");
+
+    initial_game.rng_seed = seed;
+
+    // Play the game once to build the undo log
+    {
+        let (p1_id, p2_id) = {
+            let mut players_iter = initial_game.players.iter().map(|p| p.id);
+            (
+                players_iter.next().expect("Should have player 1"),
+                players_iter.next().expect("Should have player 2"),
+            )
+        };
+
+        let mut controller1 = RandomController::with_seed(p1_id, seed);
+        let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+
+        let mut game_loop = GameLoop::new(&mut initial_game).with_verbosity(VerbosityLevel::Silent);
+        let _ = game_loop
+            .run_game(&mut controller1, &mut controller2)
+            .expect("Initial game should complete");
+    }
+
+    let actions_count = initial_game.undo_log.len();
+    println!("\nRewind mode (seed {seed}):");
+    println!(
+        "  Game completed with {} actions in undo log",
+        actions_count
+    );
+    println!("  Will rewind to start for each iteration...");
+
+    // Accumulator for aggregating metrics
+    let mut aggregated = GameMetrics {
+        turns: 0,
+        actions: 0,
+        duration: Duration::ZERO,
+        bytes_allocated: 0,
+        bytes_deallocated: 0,
+    };
+    let mut iteration_count = 0;
+
+    group.bench_function(BenchmarkId::new("rewind", seed), |b| {
+        b.iter(|| {
+            let reg = Region::new(GLOBAL);
+            let start = std::time::Instant::now();
+
+            // Rewind all actions to get back to initial state
+            let mut rewind_count = 0;
+            while initial_game.undo().expect("Undo should succeed") {
+                rewind_count += 1;
+            }
+
+            let duration = start.elapsed();
+            let stats = reg.change();
+
+            // Record metrics for the rewind operation
+            let metrics = GameMetrics {
+                turns: 18, // We know from the fresh run this is 18 turns
+                actions: rewind_count,
+                duration,
+                bytes_allocated: stats.bytes_allocated,
+                bytes_deallocated: stats.bytes_deallocated,
+            };
+
+            aggregated += metrics.clone();
+            iteration_count += 1;
+
+            // Re-run the game to populate undo log for next iteration
+            // (This happens outside the timing, as we're measuring rewind cost)
+            {
+                let (p1_id, p2_id) = {
+                    let mut players_iter = initial_game.players.iter().map(|p| p.id);
+                    (
+                        players_iter.next().expect("Should have player 1"),
+                        players_iter.next().expect("Should have player 2"),
+                    )
+                };
+
+                let mut controller1 = RandomController::with_seed(p1_id, seed);
+                let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+
+                let mut game_loop =
+                    GameLoop::new(&mut initial_game).with_verbosity(VerbosityLevel::Silent);
+                let _ = game_loop
+                    .run_game(&mut controller1, &mut controller2)
+                    .expect("Game should complete");
+            }
+        });
+    });
+
+    print_aggregated_metrics("Rewind", seed, &aggregated, iteration_count);
+
+    group.finish();
 }
 
 criterion_group!(

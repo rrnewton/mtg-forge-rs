@@ -194,6 +194,11 @@ impl GameLogger {
     /// Log at Minimal level (game outcomes, major events)
     #[inline]
     pub fn minimal(&self, message: &str) {
+        // Early exit if message won't be used
+        if VerbosityLevel::Minimal > self.verbosity && !self.capture_logs {
+            return;
+        }
+
         let entry = LogEntry {
             level: VerbosityLevel::Minimal,
             message: message.to_string(),
@@ -206,6 +211,11 @@ impl GameLogger {
     /// Log at Normal level (turns, steps, key actions)
     #[inline]
     pub fn normal(&self, message: &str) {
+        // Early exit if message won't be used
+        if VerbosityLevel::Normal > self.verbosity && !self.capture_logs {
+            return;
+        }
+
         let entry = LogEntry {
             level: VerbosityLevel::Normal,
             message: message.to_string(),
@@ -218,6 +228,11 @@ impl GameLogger {
     /// Log at Verbose level (all actions and state changes)
     #[inline]
     pub fn verbose(&self, message: &str) {
+        // Early exit if message won't be used
+        if VerbosityLevel::Verbose > self.verbosity && !self.capture_logs {
+            return;
+        }
+
         let entry = LogEntry {
             level: VerbosityLevel::Verbose,
             message: message.to_string(),
