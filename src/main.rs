@@ -5,8 +5,9 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{
-        random_controller::RandomController, zero_controller::ZeroController, GameLoop,
-        HeuristicController, InteractiveController, VerbosityLevel,
+        random_controller::RandomController, zero_controller::ZeroController,
+        FixedScriptController, GameLoop, HeuristicController, InteractiveController,
+        VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
@@ -25,6 +26,8 @@ enum ControllerType {
     Tui,
     /// Heuristic AI controller with strategic decision making
     Heuristic,
+    /// Fixed script controller with predetermined choices (requires --fixed-inputs)
+    Fixed,
 }
 
 /// Verbosity level for game output (custom parser supporting both names and numbers)
@@ -85,6 +88,14 @@ enum Commands {
         #[arg(long, value_enum, default_value = "random")]
         p2: ControllerType,
 
+        /// Fixed script input for player 1 (space or comma separated indices, e.g., "1 1 2" or "1,1,2")
+        #[arg(long, value_name = "CHOICES")]
+        p1_fixed_inputs: Option<String>,
+
+        /// Fixed script input for player 2 (space or comma separated indices, e.g., "1 1 2" or "1,1,2")
+        #[arg(long, value_name = "CHOICES")]
+        p2_fixed_inputs: Option<String>,
+
         /// Set random seed for deterministic testing
         #[arg(long)]
         seed: Option<u64>,
@@ -129,6 +140,8 @@ async fn main() -> Result<()> {
             start_state,
             p1,
             p2,
+            p1_fixed_inputs,
+            p2_fixed_inputs,
             seed,
             load_all_cards,
             verbosity,
@@ -140,6 +153,8 @@ async fn main() -> Result<()> {
                 start_state,
                 p1,
                 p2,
+                p1_fixed_inputs,
+                p2_fixed_inputs,
                 seed,
                 load_all_cards,
                 verbosity,
@@ -153,6 +168,18 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Parse fixed input string into a vector of choice indices
+fn parse_fixed_inputs(input: &str) -> std::result::Result<Vec<usize>, String> {
+    input
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.parse::<usize>()
+                .map_err(|_| format!("invalid choice index: '{}'", s))
+        })
+        .collect()
+}
+
 /// Run TUI with async card loading
 #[allow(clippy::too_many_arguments)] // CLI parameters naturally map to function args
 async fn run_tui(
@@ -161,6 +188,8 @@ async fn run_tui(
     puzzle_path: Option<PathBuf>,
     p1_type: ControllerType,
     p2_type: ControllerType,
+    p1_fixed_inputs: Option<String>,
+    p2_fixed_inputs: Option<String>,
     seed: Option<u64>,
     load_all_cards: bool,
     verbosity: VerbosityArg,
@@ -283,6 +312,22 @@ async fn run_tui(
         }
         ControllerType::Tui => Box::new(InteractiveController::new(p1_id)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
+        ControllerType::Fixed => {
+            let script = match &p1_fixed_inputs {
+                Some(input) => parse_fixed_inputs(input).map_err(|e| {
+                    mtg_forge_rs::MtgError::InvalidAction(format!(
+                        "Error parsing --p1-fixed-inputs: {}",
+                        e
+                    ))
+                })?,
+                None => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "--p1-fixed-inputs is required when --p1=fixed".to_string(),
+                    ));
+                }
+            };
+            Box::new(FixedScriptController::new(p1_id, script))
+        }
     };
 
     let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
@@ -297,6 +342,22 @@ async fn run_tui(
         }
         ControllerType::Tui => Box::new(InteractiveController::new(p2_id)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
+        ControllerType::Fixed => {
+            let script = match &p2_fixed_inputs {
+                Some(input) => parse_fixed_inputs(input).map_err(|e| {
+                    mtg_forge_rs::MtgError::InvalidAction(format!(
+                        "Error parsing --p2-fixed-inputs: {}",
+                        e
+                    ))
+                })?,
+                None => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "--p2-fixed-inputs is required when --p2=fixed".to_string(),
+                    ));
+                }
+            };
+            Box::new(FixedScriptController::new(p2_id, script))
+        }
     };
 
     if verbosity >= VerbosityLevel::Minimal {

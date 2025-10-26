@@ -2155,6 +2155,29 @@ While MTG may allow scenarios where a spell fizzles, our philosophy in this impl
 That will force us to look at whether our existing tests are triggering this.
 
 
+## The TUI interface is significantly lagging behind
+
+When I run it with two of our test decks it has problems:
+
+```
+$ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck
+...
+DEBUG get_activatable_abilities: Found Royal Assassin (121) for player 1
+  tapped=true, activated_abilities.len()=1
+  Ability 0: Destroy target tapped creature. (is_mana_ability=false)
+    cost: Tap
+    cost.includes_tap()=true
+    REJECTED: includes tap but card is tapped
+    NOT ACCEPTED: can_activate=false
+```
+
+- it only asks me to play land, never to play a creature, much less attack or use tapped ability
+- it has the DEBUG message above left over from testing royal assassin
+
+I think it's important that you directly use the TUI more to see how it is doing. To make that easier for you, add a `--p1=fixed` option with a `--fixed-inputs="1 1 2"` argument so that you can directly pass in choices without piping to stdin.
+
+Please fix the above missing choices.
+
 
 
 TODO: Optimized mode to cut down on choices
