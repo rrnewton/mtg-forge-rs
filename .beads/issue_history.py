@@ -173,6 +173,11 @@ def main():
         action="store_true",
         help="Only show issues that were updated (not just created) during the commit window",
     )
+    parser.add_argument(
+        "--hide-creation",
+        action="store_true",
+        help="Hide the initial 'Created in' state, only show changes",
+    )
 
     args = parser.parse_args()
 
@@ -215,8 +220,16 @@ def main():
     if args.only_changed:
         filtered_issues = []
         for issue_id in sorted_issues:
-            # Only show issues that appear in more than one commit (created + updated)
-            if len(issue_history[issue_id]) > 1:
+            history = issue_history[issue_id]
+            # Check if any consecutive versions have different content
+            has_changes = False
+            for i in range(len(history) - 1):
+                current_text = issue_to_text(history[i][2])
+                next_text = issue_to_text(history[i + 1][2])
+                if current_text != next_text:
+                    has_changes = True
+                    break
+            if has_changes:
                 filtered_issues.append(issue_id)
         sorted_issues = filtered_issues
         print(f"Filtered to only changed issues: {len(sorted_issues)} issues found\n")
@@ -241,10 +254,11 @@ def main():
 
             # Last item in history is the creation
             if i == len(history) - 1:
-                print(f"Created in {short_hash}/{depth_str}: {subject}")
-                print("-" * 80)
-                print(current_text)
-                print()
+                if not args.hide_creation:
+                    print(f"Created in {short_hash}/{depth_str}: {subject}")
+                    print("-" * 80)
+                    print(current_text)
+                    print()
             else:
                 # Show diff from next (older) version to current version
                 next_text = issue_to_text(history[i + 1][2])  # history[i+1][2] is next issue_data
