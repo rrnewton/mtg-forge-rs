@@ -1,6 +1,6 @@
 //! PZL file format parser
 //!
-//! Parses .pzl files with [metadata] and [state] sections
+//! Parses .pzl files with \[metadata\] and \[state\] sections
 
 use crate::{
     puzzle::{metadata::PuzzleMetadata, state::GameStateDefinition},

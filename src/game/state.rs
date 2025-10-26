@@ -89,7 +89,7 @@ impl GameState {
     }
 
     /// Get next entity ID (unified across all entity types)
-    /// Generic version that can return any EntityId<T> type
+    /// Generic version that can return any `EntityId<T>` type
     pub fn next_id<T>(&mut self) -> EntityId<T> {
         let id = EntityId::new(self.next_entity_id);
         self.next_entity_id += 1;

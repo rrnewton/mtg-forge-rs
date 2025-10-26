@@ -1,6 +1,6 @@
 //! Game state parsing
 //!
-//! Handles the [state] section of .pzl files
+//! Handles the \[state\] section of .pzl files
 
 use crate::{
     core::CounterType,
@@ -143,7 +143,7 @@ impl Default for GameStateDefinition {
 }
 
 impl GameStateDefinition {
-    /// Parse game state from lines in [state] section
+    /// Parse game state from lines in \[state\] section
     pub fn parse(lines: &[String]) -> Result<Self> {
         let mut state = GameStateDefinition::default();
 

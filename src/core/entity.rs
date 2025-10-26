@@ -111,7 +111,7 @@ pub trait GameEntity<T> {
 ///
 /// Provides fast lookup by EntityId and manages entity lifecycle.
 /// Uses FxHashMap for fast hashing of integer keys.
-/// The type parameter T ensures type safety - EntityId<T> can only
+/// The type parameter T ensures type safety - `EntityId<T>` can only
 /// look up entities of type T.
 #[derive(Debug, Clone)]
 pub struct EntityStore<T>

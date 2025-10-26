@@ -1,6 +1,6 @@
 //! Puzzle metadata parsing
 //!
-//! Handles the [metadata] section of .pzl files
+//! Handles the \[metadata\] section of .pzl files
 
 use crate::{MtgError, Result};
 
@@ -107,7 +107,7 @@ impl GoalType {
     }
 }
 
-/// Puzzle metadata from [metadata] section
+/// Puzzle metadata from \[metadata\] section
 #[derive(Debug, Clone)]
 pub struct PuzzleMetadata {
     pub name: String,
@@ -138,7 +138,7 @@ impl Default for PuzzleMetadata {
 }
 
 impl PuzzleMetadata {
-    /// Parse metadata from lines in [metadata] section
+    /// Parse metadata from lines in \[metadata\] section
     pub fn parse(lines: &[String]) -> Result<Self> {
         let mut meta = PuzzleMetadata::default();
 
