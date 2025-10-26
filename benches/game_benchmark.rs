@@ -442,7 +442,9 @@ fn bench_game_fresh(c: &mut Criterion) {
         });
     });
 
-    print_aggregated_metrics("Fresh", seed, &aggregated, iteration_count);
+    if iteration_count > 0 {
+        print_aggregated_metrics("Fresh", seed, &aggregated, iteration_count);
+    }
 
     group.finish();
 }
@@ -537,7 +539,9 @@ fn bench_game_fresh_with_logging(c: &mut Criterion) {
         },
     );
 
-    print_aggregated_metrics("Fresh with Logging", seed, &aggregated, iteration_count);
+    if iteration_count > 0 {
+        print_aggregated_metrics("Fresh with Logging", seed, &aggregated, iteration_count);
+    }
 
     group.finish();
 }
@@ -729,7 +733,9 @@ fn bench_game_snapshot(c: &mut Criterion) {
         });
     });
 
-    print_aggregated_metrics("Snapshot", seed, &aggregated, iteration_count);
+    if iteration_count > 0 {
+        print_aggregated_metrics("Snapshot", seed, &aggregated, iteration_count);
+    }
 
     group.finish();
 }
@@ -857,7 +863,9 @@ fn bench_game_rewind(c: &mut Criterion) {
         });
     });
 
-    print_aggregated_metrics("Rewind", seed, &aggregated, iteration_count);
+    if iteration_count > 0 {
+        print_aggregated_metrics("Rewind", seed, &aggregated, iteration_count);
+    }
 
     group.finish();
 }
