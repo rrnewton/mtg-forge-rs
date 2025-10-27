@@ -308,11 +308,8 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
                 f"--p2={p2_stopgo_controller}",
                 "--verbosity=3"
             ]
-            # Only add fixed-inputs for players using fixed controller
-            if p1_stopgo_controller == "fixed":
-                cmd.append(f"--p1-fixed-inputs={p1_choices_str}")
-            if p2_stopgo_controller == "fixed":
-                cmd.append(f"--p2-fixed-inputs={p2_choices_str}")
+            # DON'T add fixed-inputs when resuming - let snapshot restore controller state
+            # The snapshot contains the controller state with current_index preserved
 
             if stop_after > 0:
                 cmd.extend([

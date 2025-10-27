@@ -14,12 +14,16 @@ use smallvec::SmallVec;
 /// The script is a sequence of indices that will be used to select from
 /// available options. When the script is exhausted, the controller defaults
 /// to always choosing index 0.
+///
+/// This controller is serializable, allowing its state (including current position)
+/// to be saved in snapshots and restored on resume.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FixedScriptController {
     player_id: PlayerId,
     /// The predetermined sequence of choice indices
     script: Vec<usize>,
     /// Current position in the script
-    current_index: usize,
+    pub current_index: usize,
 }
 
 impl FixedScriptController {
@@ -124,13 +128,17 @@ impl PlayerController for FixedScriptController {
         _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         if valid_targets.is_empty() {
+            // Still consume a choice to stay synchronized with ChoicePoint log
+            let _ = self.next_choice();
             view.logger()
                 .controller_choice("SCRIPT", "chose no targets (none available)");
             return SmallVec::new();
         }
 
         if valid_targets.len() == 1 {
-            // Only one target available - no choice to make, don't log
+            // Only one target available - but still consume choice for synchronization
+            let _ = self.next_choice();
+            // Don't log since there's no actual decision
             let mut targets = SmallVec::new();
             targets.push(valid_targets[0]);
             return targets;
@@ -173,6 +181,9 @@ impl PlayerController for FixedScriptController {
         available_sources: &[CardId],
         _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
+        // Consume a script entry to stay synchronized with ChoicePoint log
+        let _ = self.next_choice();
+
         // Simple greedy approach: take sources in order until we have enough
         // Script controller doesn't use randomness, just takes first N sources
         let mut sources = SmallVec::new();
@@ -274,6 +285,9 @@ impl PlayerController for FixedScriptController {
         blockers: &[CardId],
         _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
+        // Consume a script entry to stay synchronized with ChoicePoint log
+        let _ = self.next_choice();
+
         // Just return blockers in the order they were provided
         // Script controller doesn't reorder
         if blockers.len() >= 2 {
@@ -296,6 +310,9 @@ impl PlayerController for FixedScriptController {
         count: usize,
         _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
+        // Consume a script entry to stay synchronized with ChoicePoint log
+        let _ = self.next_choice();
+
         // Discard first N cards from hand
         let num_discarding = count.min(hand.len());
 
@@ -319,6 +336,11 @@ impl PlayerController for FixedScriptController {
 
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {
         // Script controller doesn't react to game end
+    }
+
+    fn get_snapshot_state(&self) -> Option<serde_json::Value> {
+        // Serialize the entire controller state (script + current_index)
+        serde_json::to_value(self).ok()
     }
 }
 

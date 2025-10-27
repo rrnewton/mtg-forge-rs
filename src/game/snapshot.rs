@@ -27,6 +27,20 @@ pub struct GameSnapshot {
     /// These will be replayed (with buffered logging) when resuming
     /// to restore the exact intra-turn state.
     pub intra_turn_choices: Vec<GameAction>,
+
+    /// Optional controller state for player 1
+    ///
+    /// Allows FixedScriptController to preserve its position across snapshot/resume.
+    /// If new --p1-fixed-inputs are provided on resume, this is ignored.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p1_controller_state: Option<crate::game::FixedScriptController>,
+
+    /// Optional controller state for player 2
+    ///
+    /// Allows FixedScriptController to preserve its position across snapshot/resume.
+    /// If new --p2-fixed-inputs are provided on resume, this is ignored.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p2_controller_state: Option<crate::game::FixedScriptController>,
 }
 
 impl GameSnapshot {
@@ -40,6 +54,25 @@ impl GameSnapshot {
             game_state,
             turn_number,
             intra_turn_choices,
+            p1_controller_state: None,
+            p2_controller_state: None,
+        }
+    }
+
+    /// Create a snapshot with controller state preserved
+    pub fn with_controller_state(
+        game_state: GameState,
+        turn_number: u32,
+        intra_turn_choices: Vec<GameAction>,
+        p1_controller_state: Option<crate::game::FixedScriptController>,
+        p2_controller_state: Option<crate::game::FixedScriptController>,
+    ) -> Self {
+        GameSnapshot {
+            game_state,
+            turn_number,
+            intra_turn_choices,
+            p1_controller_state,
+            p2_controller_state,
         }
     }
 

@@ -413,20 +413,38 @@ async fn run_tui(
         )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
         ControllerType::Fixed => {
-            let script = match &p1_fixed_inputs {
-                Some(input) => parse_fixed_inputs(input).map_err(|e| {
+            // Priority: CLI --p1-fixed-inputs > snapshot state > error
+            let controller = if let Some(input) = &p1_fixed_inputs {
+                // CLI override - use provided script
+                let script = parse_fixed_inputs(input).map_err(|e| {
                     mtg_forge_rs::MtgError::InvalidAction(format!(
                         "Error parsing --p1-fixed-inputs: {}",
                         e
                     ))
-                })?,
-                None => {
+                })?;
+                FixedScriptController::new(p1_id, script)
+            } else if let Some(ref snapshot) = loaded_snapshot {
+                // Restore from snapshot if available
+                if let Some(controller_state) = &snapshot.p1_controller_state {
+                    if verbosity >= VerbosityLevel::Verbose {
+                        println!(
+                            "Player 1 Fixed controller restored from snapshot (at index {})",
+                            controller_state.current_index
+                        );
+                    }
+                    controller_state.clone()
+                } else {
                     return Err(mtg_forge_rs::MtgError::InvalidAction(
-                        "--p1-fixed-inputs is required when --p1=fixed".to_string(),
+                        "--p1-fixed-inputs is required when --p1=fixed (no snapshot state available)".to_string(),
                     ));
                 }
+            } else {
+                return Err(mtg_forge_rs::MtgError::InvalidAction(
+                    "--p1-fixed-inputs is required when --p1=fixed".to_string(),
+                ));
             };
-            Box::new(FixedScriptController::new(p1_id, script))
+
+            Box::new(controller)
         }
     };
 
@@ -447,20 +465,38 @@ async fn run_tui(
         )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
         ControllerType::Fixed => {
-            let script = match &p2_fixed_inputs {
-                Some(input) => parse_fixed_inputs(input).map_err(|e| {
+            // Priority: CLI --p2-fixed-inputs > snapshot state > error
+            let controller = if let Some(input) = &p2_fixed_inputs {
+                // CLI override - use provided script
+                let script = parse_fixed_inputs(input).map_err(|e| {
                     mtg_forge_rs::MtgError::InvalidAction(format!(
                         "Error parsing --p2-fixed-inputs: {}",
                         e
                     ))
-                })?,
-                None => {
+                })?;
+                FixedScriptController::new(p2_id, script)
+            } else if let Some(ref snapshot) = loaded_snapshot {
+                // Restore from snapshot if available
+                if let Some(controller_state) = &snapshot.p2_controller_state {
+                    if verbosity >= VerbosityLevel::Verbose {
+                        println!(
+                            "Player 2 Fixed controller restored from snapshot (at index {})",
+                            controller_state.current_index
+                        );
+                    }
+                    controller_state.clone()
+                } else {
                     return Err(mtg_forge_rs::MtgError::InvalidAction(
-                        "--p2-fixed-inputs is required when --p2=fixed".to_string(),
+                        "--p2-fixed-inputs is required when --p2=fixed (no snapshot state available)".to_string(),
                     ));
                 }
+            } else {
+                return Err(mtg_forge_rs::MtgError::InvalidAction(
+                    "--p2-fixed-inputs is required when --p2=fixed".to_string(),
+                ));
             };
-            Box::new(FixedScriptController::new(p2_id, script))
+
+            Box::new(controller)
         }
     };
 
@@ -564,8 +600,32 @@ async fn run_tui(
         game_loop.run_game(&mut *controller1, &mut *controller2)?
     };
 
-    // Display results (suppress for snapshot exits)
+    // If game ended with a snapshot, reload and add controller state
     use mtg_forge_rs::game::GameEndReason;
+    if result.end_reason == GameEndReason::Snapshot && snapshot_output.exists() {
+        // Extract controller states by calling get_snapshot_state()
+        let p1_state_json = controller1.get_snapshot_state();
+        let p2_state_json = controller2.get_snapshot_state();
+
+        // If either controller has state to preserve, update the snapshot
+        if p1_state_json.is_some() || p2_state_json.is_some() {
+            if let Ok(mut snapshot) = GameSnapshot::load_from_file(&snapshot_output) {
+                // Deserialize JSON back to FixedScriptController if present
+                snapshot.p1_controller_state = p1_state_json
+                    .and_then(|json| serde_json::from_value(json).ok());
+                snapshot.p2_controller_state = p2_state_json
+                    .and_then(|json| serde_json::from_value(json).ok());
+
+                if let Err(e) = snapshot.save_to_file(&snapshot_output) {
+                    eprintln!("Warning: Failed to update snapshot with controller state: {}", e);
+                } else if verbosity >= VerbosityLevel::Verbose {
+                    println!("Snapshot updated with controller state");
+                }
+            }
+        }
+    }
+
+    // Display results (suppress for snapshot exits)
     if verbosity >= VerbosityLevel::Minimal && result.end_reason != GameEndReason::Snapshot {
         println!("\n=== Game Over ===");
         match result.winner {

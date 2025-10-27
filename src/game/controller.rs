@@ -401,6 +401,17 @@ pub trait PlayerController {
     /// Called when the game is over, with a boolean indicating whether
     /// this player won.
     fn on_game_end(&mut self, view: &GameStateView, won: bool);
+
+    /// Get serializable snapshot state for this controller
+    ///
+    /// Returns controller-specific state that should be preserved across snapshot/resume.
+    /// Most controllers (Random, Heuristic, etc.) return None since they don't have
+    /// state to preserve. FixedScriptController returns its current script position.
+    ///
+    /// This method is called by the snapshot system to capture controller state.
+    fn get_snapshot_state(&self) -> Option<serde_json::Value> {
+        None // Default implementation returns None
+    }
 }
 
 #[cfg(test)]
