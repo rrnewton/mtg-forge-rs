@@ -62,7 +62,8 @@ excellent zero-copy characteristics for tree search.
 See OPTIMIZATION.md for detailed analysis and profiling methodology.
 
 ---
-**Checked up-to-date as of 2025-10-26_#333(dc90c78b)**
+**Checked up-to-date as of 2025-10-27_#381(9fea5cda)**
 - Updated performance metrics from fresh cargo bench run
-- Verified completion status of mtg-6 and mtg-10
+- Verified completion status of mtg-6, mtg-10, mtg-11, mtg-12
 - All benchmark modes tested: fresh, snapshot, rewind
+- All medium-priority optimization items investigated and completed
