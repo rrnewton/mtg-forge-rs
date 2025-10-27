@@ -1893,9 +1893,6 @@ impl<'a> GameLoop<'a> {
         let mut mana_engine = ManaEngine::new(player_id);
         mana_engine.update(self.game);
 
-        // DEBUG: Track what we find
-        let mut debug_found_royal_assassin = false;
-
         // Check all permanents controlled by this player
         for &card_id in &self.game.battlefield.cards {
             if let Ok(card) = self.game.cards.get(card_id) {
@@ -1904,38 +1901,10 @@ impl<'a> GameLoop<'a> {
                     continue;
                 }
 
-                // DEBUG: Check for Royal Assassin
-                if card.name.as_str() == "Royal Assassin" {
-                    debug_found_royal_assassin = true;
-                    eprintln!(
-                        "DEBUG get_activatable_abilities: Found Royal Assassin ({}) for player {}",
-                        card_id.as_u32(),
-                        player_id.as_u32()
-                    );
-                    eprintln!(
-                        "  tapped={}, activated_abilities.len()={}",
-                        card.tapped,
-                        card.activated_abilities.len()
-                    );
-                }
-
                 // Check each activated ability on this card
                 for (ability_index, ability) in card.activated_abilities.iter().enumerate() {
-                    // DEBUG: Log Royal Assassin ability details
-                    if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
-                        eprintln!(
-                            "  Ability {}: {} (is_mana_ability={})",
-                            ability_index, ability.description, ability.is_mana_ability
-                        );
-                        eprintln!("    cost: {:?}", ability.cost);
-                        eprintln!("    cost.includes_tap()={}", ability.cost.includes_tap());
-                    }
-
                     // Skip mana abilities for now (they'll be handled specially)
                     if ability.is_mana_ability {
-                        if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
-                            eprintln!("    SKIPPED: is mana ability");
-                        }
                         continue;
                     }
 
@@ -1945,19 +1914,12 @@ impl<'a> GameLoop<'a> {
                     // Check tap cost
                     if ability.cost.includes_tap() && card.tapped {
                         can_activate = false;
-                        if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
-                            eprintln!("    REJECTED: includes tap but card is tapped");
-                        }
                     }
 
                     // Check mana cost
                     if let Some(mana_cost) = ability.cost.get_mana_cost() {
                         if !mana_engine.can_pay(mana_cost) {
                             can_activate = false;
-                            if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin"
-                            {
-                                eprintln!("    REJECTED: can't pay mana cost");
-                            }
                         }
                     }
 
@@ -1987,20 +1949,11 @@ impl<'a> GameLoop<'a> {
                         if requires_targets && valid_targets.is_empty() {
                             // Ability requires targets but none are available
                             can_activate = false;
-                            if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin"
-                            {
-                                eprintln!("    REJECTED: requires targets but none available");
-                            }
                         }
                     }
 
                     if can_activate {
-                        if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
-                            eprintln!("    ACCEPTED: ability can be activated!");
-                        }
                         abilities.push((card_id, ability_index));
-                    } else if debug_found_royal_assassin && card.name.as_str() == "Royal Assassin" {
-                        eprintln!("    NOT ACCEPTED: can_activate={}", can_activate);
                     }
                 }
             }
