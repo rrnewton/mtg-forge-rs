@@ -73,6 +73,23 @@ impl GameSnapshot {
     pub fn has_intra_turn_state(&self) -> bool {
         !self.intra_turn_choices.is_empty()
     }
+
+    /// Extract replay choices from the intra-turn choice log
+    ///
+    /// Converts GameAction::ChoicePoint entries into a Vec<ReplayChoice> that can be
+    /// fed to ReplayController for deterministic replay.
+    pub fn extract_replay_choices(&self) -> Vec<crate::game::ReplayChoice> {
+        self.intra_turn_choices
+            .iter()
+            .filter_map(|action| {
+                if let GameAction::ChoicePoint { choice, .. } = action {
+                    choice.clone()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 /// Errors that can occur during snapshot operations

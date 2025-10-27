@@ -2436,6 +2436,8 @@ Loading card database...
 Error: InvalidCardFormat("Card file not found")
 ```
 
+TODO: Find and fix our leaky tests
+--------------------
 
 TODO: minor if one deck is passed to `mtg tui` use that for both players
 -------------------

@@ -264,13 +264,14 @@ async fn run_tui(
     let card_db = CardDatabase::new(cardsfolder);
 
     // Track snapshot metadata if loading from snapshot
-    let snapshot_turn_number: Option<u32> = if let Some(ref snapshot_file) = start_from {
+    let (snapshot_turn_number, snapshot_replay_choices): (Option<u32>, Option<Vec<mtg_forge_rs::game::ReplayChoice>>) = if let Some(ref snapshot_file) = start_from {
         let snapshot = GameSnapshot::load_from_file(snapshot_file).map_err(|e| {
             mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
         })?;
-        Some(snapshot.turn_number)
+        let replay_choices = snapshot.extract_replay_choices();
+        (Some(snapshot.turn_number), Some(replay_choices))
     } else {
-        None
+        (None, None)
     };
 
     let mut game = if let Some(snapshot_file) = start_from {
