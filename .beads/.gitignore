@@ -12,4 +12,5 @@ bd.sock.startlock
 bd.sock.*
 
 # Keep markdown issues (source of truth for git)
-!markdown.db/issues/*.md
+# !markdown.db/issues/*.md
+!markdown.db/*
