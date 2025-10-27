@@ -5,6 +5,8 @@ use crate::game::{CombatState, GameLogger, TurnStructure};
 use crate::undo::UndoLog;
 use crate::zones::{CardZone, PlayerZones, Zone};
 use crate::Result;
+use rand::SeedableRng;
+use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
 
 /// Complete game state
@@ -34,8 +36,10 @@ pub struct GameState {
     /// Combat state (active during combat phase)
     pub combat: CombatState,
 
-    /// Random number generator state (for deterministic replay)
-    pub rng_seed: u64,
+    /// Random number generator for gameplay (serializable for deterministic replay)
+    /// This RNG is used by controllers and game logic for random decisions.
+    /// Unlike the initial seed, this captures the CURRENT RNG state.
+    pub rng: ChaCha12Rng,
 
     /// Unified entity ID generator (shared across all entity types)
     next_entity_id: u32,
@@ -81,10 +85,39 @@ impl GameState {
             stack: CardZone::new(Zone::Stack, shared_id),
             turn: TurnStructure::new_with_idx(p1_id, 0), // Player 1 starts at index 0
             combat: CombatState::new(),
-            rng_seed: 0,
+            rng: ChaCha12Rng::seed_from_u64(0), // Default seed, will be reseeded by game initialization
             next_entity_id: next_id,
             undo_log: UndoLog::new(),
             logger: GameLogger::new(),
+        }
+    }
+
+    /// Set the RNG seed for deterministic gameplay
+    ///
+    /// This should be called during game initialization to set a specific seed
+    /// for reproducible games. The seed affects all random decisions made by
+    /// controllers and game logic.
+    pub fn seed_rng(&mut self, seed: u64) {
+        self.rng = ChaCha12Rng::seed_from_u64(seed);
+    }
+
+    /// Get a mutable reference to the RNG for making random choices
+    ///
+    /// Controllers should use this to access the game's RNG rather than
+    /// maintaining their own separate RNG state.
+    pub fn rng_mut(&mut self) -> &mut ChaCha12Rng {
+        &mut self.rng
+    }
+
+    /// Shuffle a player's library using the game's RNG
+    ///
+    /// This is a convenience method to avoid borrow checker issues when
+    /// accessing both the RNG and player zones.
+    pub fn shuffle_library(&mut self, player_id: PlayerId) {
+        use rand::seq::SliceRandom;
+        // First, get a mutable reference to the library cards
+        if let Some(zones) = self.player_zones.iter_mut().find(|(id, _)| *id == player_id).map(|(_, z)| z) {
+            zones.library.cards.shuffle(&mut self.rng);
         }
     }
 

@@ -404,17 +404,16 @@ impl<'a> GameLoop<'a> {
 
         if !is_resuming_from_snapshot && !is_puzzle_game {
             // Shuffle each player's library at game start (MTG Rules 103.2a)
-            // This uses the game's RNG which can be seeded for deterministic testing
-            use rand::SeedableRng;
-            let seed = self.game.rng_seed;
-            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            // This uses the game's RNG which maintains state across snapshot/resume.
+            //
+            // NOTE: We shuffle both libraries before any other RNG usage to ensure
+            // deterministic behavior. The RNG state after shuffling becomes the
+            // starting point for all gameplay randomness.
 
             // Extract player IDs to avoid borrow checker issues
             let player_ids: [PlayerId; 2] = [player1_id, player2_id];
             for &player_id in &player_ids {
-                if let Some(zones) = self.game.get_player_zones_mut(player_id) {
-                    zones.library.shuffle(&mut rng);
-                }
+                self.game.shuffle_library(player_id);
             }
 
             // Draw opening hands (MTG Rules 103.4)

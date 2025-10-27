@@ -380,7 +380,7 @@ async fn run_tui(
 
     // Set random seed if provided
     if let Some(seed_value) = seed {
-        game.rng_seed = seed_value;
+        game.seed_rng(seed_value);
         println!("Using random seed: {seed_value}");
     }
 
@@ -620,7 +620,7 @@ async fn run_profile(iterations: usize, seed: u64, deck_path: PathBuf) -> Result
                 20,
             )
             .await?;
-        game.rng_seed = seed;
+        game.seed_rng(seed);
 
         // Create random controllers
         let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
