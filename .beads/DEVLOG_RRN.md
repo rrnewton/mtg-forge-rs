@@ -2419,7 +2419,7 @@ When you click into each archetype, pick the top deck in the table as long as Pl
 Then click "Arena Export" and copy the deck list to a simply-named lowercase+underscore file `test_decks/old_school/<ARCHETYPE_NAME>_<USERNAME>.txt`, e.g. "mono_black_deck_rogerbrand.txt". We will convert these to .dck in a later step.
 
 
-TODO: improve error on card-not-found
+done: improve error on card-not-found
 --------------------------------------
 Improve the below error and look into why that deck won't load.
 ```
@@ -2435,12 +2435,6 @@ Loading deck files...
 Loading card database...
 Error: InvalidCardFormat("Card file not found")
 ```
-
-TODO: Find and fix our leaky tests
---------------------
-
-TODO: minor if one deck is passed to `mtg tui` use that for both players
--------------------
 
 Still have some bugs to fix with stop resume
 -------
@@ -2474,7 +2468,7 @@ we need to restore the rng state of the GameState... Right now I see the rng_see
 Check over these issues and then get to work on implementing the snapshot replay logic.
 
 
-TODO: Randomized stress tests with invariants for snapshot resume
+wip: Randomized stress tests with invariants for snapshot resume
 --------------------------------------------------------------------------------
 
 Now you can see how to play some number of turns, and stop and resume randomly.
@@ -2498,30 +2492,9 @@ to a snapshot file. When both run modes produce a final file, we can do a
 deep comparison to make sure they match. Perhaps we can get the serialized text files to EXACTLY match, but there may be good reasons to ignore certain bits of state in the comparison instead.
 
 
-TODO: don't pretty print the json snapshots
---------------------------------------------
-
-TODO: switch to binary serialized snapshots
-----------------------------------------
 
 
-TODO: Guide on how to make progress on the TUI
---------------------------------------------------------------------------------
-
-Now you have the tools you need to:
- - play real games of magic with real decks
- - have the full experience that I will have while playing
- - identify gaps/bugs and make progress to fix them.
-
-
-TODO: add install root and resource files
-------------------------------------------
-
-
-
-
-
-TODO: ingest task importer does destroys input even when it fails
+Ingest task importer does destroys input even when it fails
 --------------------------------------------------------------------------------
 ```
 ===================================
@@ -2533,7 +2506,7 @@ Processing: tasks.md
     ✗ Failed to create issue
     Error: Error: --no-db and --no-json cannot both be enabled
 The data needs to be stored somewhere (either in the database or in JSONL)
-  → Creating issue: TODO: Randomized stress tests with invariants for snapshot resume
+  → Creating issue: TODO Randomized stress tests with invariants for snapshot resume
     ✗ Failed to create issue
     Error: Error: --no-db and --no-json cannot both be enabled
 The data needs to be stored somewhere (either in the database or in JSONL)
@@ -2577,37 +2550,10 @@ The benefit is that in very simple games, with only a single simple action or tw
 First let me know if you can find any exceptions to these assumptions based on your understanding of the rules. Then, let's come up with a plan for the simple priority mode.
 
 
-
-
-
-
-
-TODO: Separate seed for initial shuffle vs subsequent game
-----------------------------------------
-
-We want to retain the ability to deterministically test by controlling RNG
-seeds. But sometimes we may want to sample many DIFFERENT games from the space
-of all possible games between two decks.
-
-To this end, in addition to `--seed` let's have a separate `--deck-seed`. If not
-provided, it is initalized from the main seed. If it is provided, then the deck
-seed is used only for the initial random decisions before the game starts
-(shuffling) and the --seed can be varied independently to sample different runs
-of the same game while keeping the inital hands the same.
-
-This will be useful for testing if one agent can be "smarter" and win under the
-same conditions that another loses.
-
-Also --seed currently takes numbers only. If it is passed "clock" then let's
-seed the RNG from the system clock using real entropy in the usual way.
-
-
-
-MCP server for the agent to play the game
+abandoned: MCP server for the agent to play the game
 -----
 
-
-TODO: Abstract the logging framework to redirect logs
+done: Abstract the logging framework to redirect logs
 ----------------------------------------
 
 Sometimes it may help us to capture the logs in memory, for exmaple
@@ -2615,25 +2561,31 @@ during testing.
 
 
 
+
 TODO: fix Mana pools not being emptied
 ----------------------------------------
-
-
-TODO: fix BOGUS "Fill in missing targets for effects" in action.rs
-----------------------------------------
-
-These should be choices for the player not arbitrary heuristic hacks.
-
 
 TODO: Port the Java mana system
 ----------------------------------------
 
+When our gameplay is otherwise stabilized for decks with simple mana sources only (no dual lands), 
+then the time is ready to handle more complicated mana sources.
+
+TODO: Prioritize mana sources
+----------------------------------------
+AI should prioritize mana sources:
+
+  Colorless-only lands first (save flexible ones)
+  Single-color lands
+  Dual lands
+  Any-color sources (Command Tower, etc.)
+  Creatures (might need them for combat)
+  Sources with costs/drawbacks last
 
 
 
 TODO: switch to bump allocator for temporary storage
 --------------------------------------------
-
 This would be the per-step / per turn storage.
 
 
@@ -2673,18 +2625,6 @@ package the choice in the format expected by the `make_choice` method.
 For example, it will set the prompt as "Pick 1 card to discard." and
 the options will correspond to the names of cards.
 
-TODO: Prioritize mana sources
-----------------------------------------
-AI should prioritize mana sources:
-
-  Colorless-only lands first (save flexible ones)
-  Single-color lands
-  Dual lands
-  Any-color sources (Command Tower, etc.)
-  Creatures (might need them for combat)
-  Sources with costs/drawbacks last
-
-
 
 TODO: Bad choice tree - combinatorial explosion of blocker/attackers
 --------------------------------------------
@@ -2701,88 +2641,34 @@ Look at how the Java TUI structures combat as a tree of choices. For each declar
 
 
 
-
-
-TODO: Make a test deck with grizzly bears
+done?: Don't reveal hidden information
 ----------------------------------------
-
-
-
-TODO: Don't reveal hidden information
-----------------------------------------
-
 IF player one is a human (TUI), and player two is not, then don't reveal what card P2 draws.
 
 
 
 TODO: Eliminate invalid actions from choice list
 ----------------------------------------
-
 ```
   Error: InvalidAction("Cannot play more lands this turn")
 ```
 
 
-
-TODO: Arena-based allocation for intra-step temporaries
--------------------------------------------------
-
-The temporary allocations...
-
-
-TODO: Performance Anti-patterns to find and fix
-----------------------------------------
-
-
-
-
-TODO: use a popular and appropriate parser library
-----------------------------------------
-
-The
-
-
 TODO: get rid of any silent failure / ignoring in parser
 --------------------------------------------------------
-
 Therefore if it gets ANYTHING it doesn't recognize.
-
 Parallel card loader test.
 
-
-
-
-Skip-ahead choice to reduce depth of tree
-----------------------------------------
-
-
-TODO: Use real cards and make card loading fully async
-----------------------------------------------
-
-
-
-
-TODO: port heuristic AI from Java
-----------------------------------------
-
-
-
-TODO: agentic LLM for playing the TUI directly
-----------------------------------------
 
 TODO: begin researching OpenSpiel for understanding requirements
 ----------------------------------------------------------------
 
-
-
-
-
-
 Comparison to transcript of Java forge-headless games
 --------------------------------------------------------------------------------
 
-```
-sudo dnf install
-```
+
+TODO: towards playing against the Java Forge engine
+----------------------------------------
+
 
 
