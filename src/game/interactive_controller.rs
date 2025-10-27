@@ -130,7 +130,7 @@ impl PlayerController for InteractiveController {
             }
 
             let choice = self.get_user_choice(
-                &format!("\nEnter choice (0-{}):", available.len()),
+                &format!("Enter choice (0-{}):", available.len()),
                 available.len() + 1,
                 false,
             )?;
@@ -178,10 +178,7 @@ impl PlayerController for InteractiveController {
             }
 
             let choice = self.get_user_choice(
-                &format!(
-                    "\nChoose action (0-{} or 'p' to pass):",
-                    available.len() - 1
-                ),
+                &format!("Choose action (0-{} or 'p' to pass):", available.len() - 1),
                 available.len(),
                 true,
             )?;
