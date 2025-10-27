@@ -1058,7 +1058,8 @@ impl<'a> GameLoop<'a> {
             let attackers = controller.choose_attackers(&view, &available_creatures);
 
             // Log this choice point for snapshot/replay
-            self.log_choice_point(active_player, None);
+            let replay_choice = crate::game::ReplayChoice::Attackers(attackers.clone());
+            self.log_choice_point(active_player, Some(replay_choice));
 
             // Declare each chosen attacker
             for attacker_id in attackers.iter() {
@@ -1130,7 +1131,8 @@ impl<'a> GameLoop<'a> {
             let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
 
             // Log this choice point for snapshot/replay
-            self.log_choice_point(defending_player, None);
+            let replay_choice = crate::game::ReplayChoice::Blockers(blocks.clone());
+            self.log_choice_point(defending_player, Some(replay_choice));
 
             // Declare each blocking assignment
             for (blocker_id, attacker_id) in blocks.iter() {
@@ -1368,7 +1370,8 @@ impl<'a> GameLoop<'a> {
                     controller.choose_cards_to_discard(&view, hand, discard_count);
 
                 // Log this choice point for snapshot/replay
-                self.log_choice_point(player_id, None);
+                let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
+                self.log_choice_point(player_id, Some(replay_choice));
 
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
@@ -1543,7 +1546,8 @@ impl<'a> GameLoop<'a> {
                     let choice = controller.choose_spell_ability_to_play(&view, &available);
 
                     // Log this choice point for snapshot/replay
-                    self.log_choice_point(current_priority, None);
+                    let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
+                    self.log_choice_point(current_priority, Some(replay_choice));
 
                     choice
                 };
@@ -1622,7 +1626,9 @@ impl<'a> GameLoop<'a> {
                                         controller.choose_targets(&view, card_id, &valid_targets);
 
                                     // Log this choice point for snapshot/replay
-                                    self.log_choice_point(current_priority, None);
+                                    let replay_choice =
+                                        crate::game::ReplayChoice::Targets(chosen_targets.clone());
+                                    self.log_choice_point(current_priority, Some(replay_choice));
 
                                     chosen_targets.into_iter().collect()
                                 } else {
@@ -1733,7 +1739,13 @@ impl<'a> GameLoop<'a> {
                                         );
 
                                         // Log this choice point for snapshot/replay
-                                        self.log_choice_point(current_priority, None);
+                                        let replay_choice = crate::game::ReplayChoice::Targets(
+                                            chosen_targets.clone(),
+                                        );
+                                        self.log_choice_point(
+                                            current_priority,
+                                            Some(replay_choice),
+                                        );
 
                                         chosen_targets.into_iter().collect()
                                     } else {
