@@ -112,7 +112,7 @@ When creating or updating issues with `bd`, always put ALL content in the descri
 Clean Start: Before beginning work on a task
 --------------------------------------------
 
-Make sure we start in a clean state. Check that we have no uncommitted changes in our working copy. Perform `git pull origin main` to make sure we are starting with the latest version. Check that `make validate` passes in our starting state.
+Make sure we start in a clean state. Check that we have no uncommitted changes in our working copy. Perform `git pull origin <BRANCH>` to make sure we are starting with the latest version on our branch. Check that `make validate` passes in our starting state.
 
 If github MCP is configured and github actions workflows exist for this project, check the github actions CI status for the most recent commit and make sure it not red (if it's still pending, ignore and proceed). If
 there's a CI failure, then fixing THAT becomes our task. Finally, check that `make validate` passes locally in our starting state.
