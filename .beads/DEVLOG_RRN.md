@@ -2519,6 +2519,37 @@ Also, if the file you move already has a timestamp on the front, don't add a red
 
 
 
+
+
+TODO: Guide on how to make general progress on the TUI
+--------------------------------------------------------------------------------
+
+### General guide
+
+Now you have the tools you need to:
+ - play real games of magic with real decks
+ - have the full experience that I will have while playing (stop/resume games to explore particular choice points)
+ - identify gaps/bugs and make progress to fix them.
+
+Indeed, you should prefer using the `mtg tui` CLI directly for testing where
+possible, because that will ensure you're testing the same experience I'm
+viewing. Unit testing is fine for targeted checking of functionality, but we
+need heavy e2e testing.
+
+
+
+
+### Specific Instructions
+
+
+### What to do with this task
+
+
+### Tracking area
+
+
+
+
 TODO: Optimized mode to cut down on choices
 --------------------------------------------------------------------------------
 

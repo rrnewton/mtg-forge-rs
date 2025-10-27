@@ -16,29 +16,3 @@ You can use all the tools at your disposal to do this.
   for us to be mislead about what works when not using the full `tui`
 
 
-TODO: Guide on how to make general progress on the TUI
---------------------------------------------------------------------------------
-
-### General guide
-
-Now you have the tools you need to:
- - play real games of magic with real decks
- - have the full experience that I will have while playing (stop/resume games to explore particular choice points)
- - identify gaps/bugs and make progress to fix them.
-
-Indeed, you should prefer using the `mtg tui` CLI directly for testing where
-possible, because that will ensure you're testing the same experience I'm
-viewing. Unit testing is fine for targeted checking of functionality, but we
-need heavy e2e testing.
-
-
-
-
-### Specific Instructions
-
-
-### What to do with this task
-
-
-### Tracking area
-
