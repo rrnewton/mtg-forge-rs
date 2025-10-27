@@ -124,7 +124,8 @@ impl CardLoader {
 
         let name = name.ok_or_else(|| {
             MtgError::InvalidCardFormat(
-                "Missing required 'Name:' field (add 'Name: <card name>' to the card file)".to_string()
+                "Missing required 'Name:' field (add 'Name: <card name>' to the card file)"
+                    .to_string(),
             )
         })?;
 
