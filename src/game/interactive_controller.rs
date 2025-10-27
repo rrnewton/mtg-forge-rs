@@ -32,7 +32,23 @@ impl InteractiveController {
     }
 
     /// Helper: prompt user for a choice and validate input
+    ///
+    /// Optionally accepts a GameStateView to enable special informational commands:
+    /// - '?' shows help
+    /// - 'v' views battlefield
+    /// - 'g' views graveyard
     fn get_user_choice(&self, prompt: &str, num_options: usize, allow_pass: bool) -> Option<usize> {
+        self.get_user_choice_with_view(prompt, num_options, allow_pass, None)
+    }
+
+    /// Helper: prompt user for a choice with optional game state view for info commands
+    fn get_user_choice_with_view(
+        &self,
+        prompt: &str,
+        num_options: usize,
+        allow_pass: bool,
+        view: Option<&GameStateView>,
+    ) -> Option<usize> {
         loop {
             print!("{} ", prompt);
             io::stdout().flush().unwrap();
@@ -44,6 +60,25 @@ impl InteractiveController {
             }
 
             let trimmed = input.trim();
+
+            // Check for special informational commands (if view is provided)
+            if let Some(game_view) = view {
+                match trimmed {
+                    "?" => {
+                        self.display_help();
+                        continue; // Re-prompt
+                    }
+                    "v" => {
+                        self.display_battlefield_view(game_view);
+                        continue; // Re-prompt
+                    }
+                    "g" => {
+                        self.display_graveyard_view(game_view);
+                        continue; // Re-prompt
+                    }
+                    _ => {} // Not a special command, continue with normal parsing
+                }
+            }
 
             // Check for pass in non-numeric mode (allow_pass: true)
             if allow_pass && (trimmed == "p" || trimmed == "pass" || trimmed.is_empty()) {
@@ -67,6 +102,104 @@ impl InteractiveController {
                 }
             }
         }
+    }
+
+    /// Display help menu for interactive commands
+    fn display_help(&self) {
+        println!("\n=== Help ===");
+        println!("Available commands:");
+        println!("  ?  - Show this help menu");
+        println!("  v  - View battlefield");
+        println!("  g  - View graveyard");
+        println!("\nGame actions:");
+        if self.numeric_choices {
+            println!("  Enter a number to choose an action");
+            println!("  0  - Pass priority / Skip / Done");
+            println!("  Press Enter alone to select option 0");
+        } else {
+            println!("  Enter a number to choose an action");
+            println!("  p  - Pass priority");
+        }
+        println!();
+    }
+
+    /// Display battlefield view
+    fn display_battlefield_view(&self, view: &GameStateView) {
+        println!("\n=== Battlefield ===");
+        let battlefield = view.battlefield();
+        if battlefield.is_empty() {
+            println!("  (empty)");
+        } else {
+            for &card_id in battlefield {
+                let name = view
+                    .card_name(card_id)
+                    .unwrap_or_else(|| format!("Card {card_id:?}"));
+                let tapped = if view.is_tapped(card_id) {
+                    " (tapped)"
+                } else {
+                    ""
+                };
+
+                // Try to get more info about the card
+                if let Some(card) = view.get_card(card_id) {
+                    let controller = if card.controller == view.player_id() {
+                        "You"
+                    } else {
+                        "Opponent"
+                    };
+                    let pt = if card.is_creature() {
+                        format!(
+                            " {}/{}",
+                            card.power.unwrap_or(0),
+                            card.toughness.unwrap_or(0)
+                        )
+                    } else {
+                        String::new()
+                    };
+                    println!("  {} - {}{}{}", controller, name, pt, tapped);
+                } else {
+                    println!("  {}{}", name, tapped);
+                }
+            }
+        }
+        println!();
+    }
+
+    /// Display graveyard view
+    fn display_graveyard_view(&self, view: &GameStateView) {
+        println!("\n=== Graveyard ===");
+
+        // Show player's own graveyard
+        println!("Your graveyard:");
+        let graveyard = view.graveyard();
+        if graveyard.is_empty() {
+            println!("  (empty)");
+        } else {
+            for &card_id in graveyard {
+                let name = view
+                    .card_name(card_id)
+                    .unwrap_or_else(|| format!("Card {card_id:?}"));
+                println!("  {}", name);
+            }
+        }
+
+        // Show opponent graveyards
+        for opponent_id in view.opponents() {
+            println!("\nOpponent graveyard:");
+            let opp_graveyard = view.player_graveyard(opponent_id);
+            if opp_graveyard.is_empty() {
+                println!("  (empty)");
+            } else {
+                for &card_id in opp_graveyard {
+                    let name = view
+                        .card_name(card_id)
+                        .unwrap_or_else(|| format!("Card {card_id:?}"));
+                    println!("  {}", name);
+                }
+            }
+        }
+
+        println!();
     }
 
     /// Helper: display a list of cards with indices
@@ -129,10 +262,11 @@ impl PlayerController for InteractiveController {
                 }
             }
 
-            let choice = self.get_user_choice(
-                &format!("Enter choice (0-{}):", available.len()),
+            let choice = self.get_user_choice_with_view(
+                &format!("Enter choice (0-{}, or ? for help):", available.len()),
                 available.len() + 1,
                 false,
+                Some(view),
             )?;
 
             if choice == 0 {
@@ -177,10 +311,14 @@ impl PlayerController for InteractiveController {
                 }
             }
 
-            let choice = self.get_user_choice(
-                &format!("Choose action (0-{} or 'p' to pass):", available.len() - 1),
+            let choice = self.get_user_choice_with_view(
+                &format!(
+                    "Choose action (0-{}, 'p' to pass, or ? for help):",
+                    available.len() - 1
+                ),
                 available.len(),
                 true,
+                Some(view),
             )?;
 
             // Acknowledge the chosen action
@@ -234,10 +372,11 @@ impl PlayerController for InteractiveController {
                 println!("  [{}] {}{}", idx + 1, name, tapped);
             }
 
-            if let Some(choice) = self.get_user_choice(
-                &format!("Enter choice (0-{}):", valid_targets.len()),
+            if let Some(choice) = self.get_user_choice_with_view(
+                &format!("Enter choice (0-{}, or ? for help):", valid_targets.len()),
                 valid_targets.len() + 1,
                 false,
+                Some(view),
             ) {
                 if choice > 0 {
                     targets.push(valid_targets[choice - 1]);
@@ -248,13 +387,14 @@ impl PlayerController for InteractiveController {
             println!("Valid targets:");
             self.display_cards(view, valid_targets, "  ");
 
-            if let Some(choice) = self.get_user_choice(
+            if let Some(choice) = self.get_user_choice_with_view(
                 &format!(
-                    "Choose target (0-{} or 'p' for no targets):",
+                    "Choose target (0-{}, 'p' for no targets, or ? for help):",
                     valid_targets.len() - 1
                 ),
                 valid_targets.len(),
                 true,
+                Some(view),
             ) {
                 targets.push(valid_targets[choice]);
             }
