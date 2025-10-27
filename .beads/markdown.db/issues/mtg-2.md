@@ -46,12 +46,13 @@ excellent zero-copy characteristics for tree search.
 - ✅ mtg-8: GameStateView already uses borrowing, not cloning (COMPLETED 2025-10-26)
 - ✅ mtg-9: CardName and PlayerName use Arc<str> (COMPLETED 2025-10-26)
 - ✅ mtg-12: Mana pool calculation optimization (already resolved - no clones in ManaEngine, COMPLETED 2025-10-27)
+- ✅ mtg-11: Zone transfer operations (investigated, already optimal, determinism requirement prevents swap_remove, COMPLETED 2025-10-27)
 
 **High priority open issues:**
 - (None currently)
 
 **Medium priority:**
-- mtg-11: Zone transfer operations optimization
+- (None currently - all investigated issues found to be already optimal)
 
 **Future considerations:**
 - mtg-13: Arena allocation for per-turn temporaries
