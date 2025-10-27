@@ -115,6 +115,9 @@ pub struct GameLoop<'a> {
     /// Track targets for spells on the stack (spell_id -> chosen_targets)
     /// This is needed because targets are chosen at cast time but used at resolution time
     spell_targets: Vec<(CardId, Vec<CardId>)>,
+    /// Global choice counter for tracking all player choices
+    /// Increments each time a controller makes any decision
+    choice_counter: u32,
 }
 
 impl<'a> GameLoop<'a> {
@@ -128,6 +131,7 @@ impl<'a> GameLoop<'a> {
             verbosity,
             step_header_printed: false,
             spell_targets: Vec::new(),
+            choice_counter: 0,
         }
     }
 
@@ -168,7 +172,19 @@ impl<'a> GameLoop<'a> {
         self.turns_elapsed = 0;
         self.step_header_printed = false;
         self.spell_targets.clear();
+        self.choice_counter = 0;
         self.game.logger.reset_step_header();
+    }
+
+    /// Log a choice point to the undo log and increment choice counter
+    ///
+    /// Call this every time a controller makes a decision.
+    fn log_choice_point(&mut self, player_id: PlayerId) {
+        self.choice_counter += 1;
+        self.game.undo_log.log(crate::undo::GameAction::ChoicePoint {
+            player_id,
+            choice_id: self.choice_counter,
+        });
     }
 
     /// Run the game loop with the given player controllers
@@ -838,6 +854,9 @@ impl<'a> GameLoop<'a> {
             let view = GameStateView::new(self.game, active_player);
             let attackers = controller.choose_attackers(&view, &available_creatures);
 
+            // Log this choice point for snapshot/replay
+            self.log_choice_point(active_player);
+
             // Declare each chosen attacker
             for attacker_id in attackers.iter() {
                 // Use GameState::declare_attacker() which taps the creature (MTG Rules 508.1f)
@@ -906,6 +925,9 @@ impl<'a> GameLoop<'a> {
             // Ask controller to choose all blocker assignments at once (v2 interface)
             let view = GameStateView::new(self.game, defending_player);
             let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
+
+            // Log this choice point for snapshot/replay
+            self.log_choice_point(defending_player);
 
             // Declare each blocking assignment
             for (blocker_id, attacker_id) in blocks.iter() {
@@ -1142,6 +1164,9 @@ impl<'a> GameLoop<'a> {
                 let cards_to_discard =
                     controller.choose_cards_to_discard(&view, hand, discard_count);
 
+                // Log this choice point for snapshot/replay
+                self.log_choice_point(player_id);
+
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
                     return Err(crate::MtgError::InvalidAction(format!(
@@ -1312,7 +1337,12 @@ impl<'a> GameLoop<'a> {
                 } else {
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);
-                    controller.choose_spell_ability_to_play(&view, &available)
+                    let choice = controller.choose_spell_ability_to_play(&view, &available);
+
+                    // Log this choice point for snapshot/replay
+                    self.log_choice_point(current_priority);
+
+                    choice
                 };
 
                 match choice {
@@ -1387,6 +1417,10 @@ impl<'a> GameLoop<'a> {
                                     let view = GameStateView::new(self.game, current_priority);
                                     let chosen_targets =
                                         controller.choose_targets(&view, card_id, &valid_targets);
+
+                                    // Log this choice point for snapshot/replay
+                                    self.log_choice_point(current_priority);
+
                                     chosen_targets.into_iter().collect()
                                 } else {
                                     // No targets needed - spell has no targeting effects
@@ -1494,6 +1528,10 @@ impl<'a> GameLoop<'a> {
                                             card_id,
                                             &valid_targets,
                                         );
+
+                                        // Log this choice point for snapshot/replay
+                                        self.log_choice_point(current_priority);
+
                                         chosen_targets.into_iter().collect()
                                     } else {
                                         // No targets needed
