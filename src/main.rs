@@ -518,7 +518,11 @@ async fn run_tui(
     };
 
     if verbosity >= VerbosityLevel::Minimal {
-        println!("=== Starting Game ===\n");
+        if snapshot_turn_number.is_some() {
+            println!("=== Continuing Game ===\n");
+        } else {
+            println!("=== Starting Game ===\n");
+        }
     }
 
     // Run the game loop (with or without snapshots)

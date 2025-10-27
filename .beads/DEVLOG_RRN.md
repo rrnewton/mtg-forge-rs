@@ -2451,7 +2451,7 @@ cargo run --bin mtg -- tui --p1=$P1 --p2=heuristic --stop-every=p1:choice:1 --st
 If we use a random controller for P1 we expect `>>> RANDOM: chose` messages
 for each choice. Specifically, we expect a prompt for the choice BEFORE the snapshot-and-exit event. Then we expect the choice to be made right at the beginning of the restart with --start-from.
 
-Instead, we currently only see one choice 
+Instead, we currently only see one choice, 
 
 
 
