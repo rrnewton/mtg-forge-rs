@@ -2540,6 +2540,8 @@ The data needs to be stored somewhere (either in the database or in JSONL)
   → Added to git
   ```
 
+Also, if the file you move already has a timestamp on the front, don't add a redundant timestamp.
+
 
 
 TODO: Optimized mode to cut down on choices
