@@ -39,7 +39,7 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
         .await?;
 
     // Set deterministic seed for reproducible results
-    game.rng_seed = 42;
+    game.seed_rng(42);
 
     // Create zero controllers
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -116,7 +116,7 @@ async fn test_tui_deterministic_with_seed() -> Result<()> {
                 20,
             )
             .await?;
-        game.rng_seed = 12345;
+        game.seed_rng(12345);
 
         let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
@@ -166,7 +166,7 @@ async fn test_tui_runs_to_completion() -> Result<()> {
             20,
         )
         .await?;
-    game.rng_seed = 54321;
+    game.seed_rng(54321);
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
@@ -219,7 +219,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
             20,
         )
         .await?;
-    game.rng_seed = 42;
+    game.seed_rng(42);
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
@@ -394,7 +394,7 @@ async fn test_creature_combat_game() -> Result<()> {
             20,
         )
         .await?;
-    game.rng_seed = 77777;
+    game.seed_rng(77777);
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
@@ -506,7 +506,7 @@ async fn test_different_deck_matchup() -> Result<()> {
                 20,
             )
             .await?;
-        game.rng_seed = seed;
+        game.seed_rng(seed);
 
         let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];

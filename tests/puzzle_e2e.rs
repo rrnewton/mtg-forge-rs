@@ -35,7 +35,7 @@ async fn test_grizzly_bears_attacks_empty_board() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 12345;
+    game.seed_rng(12345);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -98,7 +98,7 @@ async fn test_puzzle_loading_with_zero_controller() -> Result<()> {
     assert_eq!(game.players[1].life, 20, "P2 should have 20 life");
 
     // Set deterministic seed
-    game.rng_seed = 999;
+    game.seed_rng(999);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -147,7 +147,7 @@ async fn test_royal_assassin_with_log_capture() -> Result<()> {
     game.logger.enable_capture();
 
     // Set deterministic seed
-    game.rng_seed = 42;
+    game.seed_rng(42);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -297,7 +297,7 @@ async fn test_serra_angel_flying_attack() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 777;
+    game.seed_rng(777);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -356,7 +356,7 @@ async fn test_flying_vs_ground_blockers() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 888;
+    game.seed_rng(888);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -412,7 +412,7 @@ async fn test_first_strike_combat() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 555;
+    game.seed_rng(555);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -467,7 +467,7 @@ async fn test_large_creature_attack() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 666;
+    game.seed_rng(666);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -522,7 +522,7 @@ async fn test_vigilance_blocks_back() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 444;
+    game.seed_rng(444);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -575,7 +575,7 @@ async fn test_multi_blocker_optimization() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 321;
+    game.seed_rng(321);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -635,7 +635,7 @@ async fn test_defender_shouldnt_attack() -> Result<()> {
     game.logger.enable_capture();
 
     // Set deterministic seed
-    game.rng_seed = 234;
+    game.seed_rng(234);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -704,7 +704,7 @@ async fn test_spell_targeting_removal() -> Result<()> {
     game.logger.enable_capture();
 
     // Set deterministic seed
-    game.rng_seed = 456;
+    game.seed_rng(456);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -808,7 +808,7 @@ async fn test_reach_blocks_flyer() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 789;
+    game.seed_rng(789);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -863,7 +863,7 @@ async fn test_pump_spell_combat_trick() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 654;
+    game.seed_rng(654);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -914,7 +914,7 @@ async fn test_protection_from_color() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 987;
+    game.seed_rng(987);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -972,7 +972,7 @@ async fn test_must_attack_creature() -> Result<()> {
     game.logger.enable_capture();
 
     // Set deterministic seed
-    game.rng_seed = 135;
+    game.seed_rng(135);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1037,7 +1037,7 @@ async fn test_trample_damage_assignment() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 246;
+    game.seed_rng(246);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1087,7 +1087,7 @@ async fn test_life_race_decision() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 357;
+    game.seed_rng(357);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1142,7 +1142,7 @@ async fn test_favorable_trade_blocking() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 468;
+    game.seed_rng(468);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1192,7 +1192,7 @@ async fn test_etb_trigger_evaluation() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 579;
+    game.seed_rng(579);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1253,7 +1253,7 @@ async fn test_lifelink_race_evaluation() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 680;
+    game.seed_rng(680);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1307,7 +1307,7 @@ async fn test_multiple_threats_priority() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 791;
+    game.seed_rng(791);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1363,7 +1363,7 @@ async fn test_regeneration_evaluation() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 892;
+    game.seed_rng(892);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1412,7 +1412,7 @@ async fn test_first_strike_advantage() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 993;
+    game.seed_rng(993);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1466,7 +1466,7 @@ async fn test_protection_mechanics() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1094;
+    game.seed_rng(1094);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1521,7 +1521,7 @@ async fn test_mana_efficiency() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1195;
+    game.seed_rng(1195);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1582,7 +1582,7 @@ async fn test_card_advantage_value() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1296;
+    game.seed_rng(1296);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1630,7 +1630,7 @@ async fn test_activated_ability_timing() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1397;
+    game.seed_rng(1397);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1710,7 +1710,7 @@ async fn test_combat_trick_instant() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1498;
+    game.seed_rng(1498);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1760,7 +1760,7 @@ async fn test_damage_ordering_decision() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1599;
+    game.seed_rng(1599);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1817,7 +1817,7 @@ async fn test_sacrifice_for_value() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1700;
+    game.seed_rng(1700);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1866,7 +1866,7 @@ async fn test_multi_color_mana_decision() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1801;
+    game.seed_rng(1801);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1915,7 +1915,7 @@ async fn test_removal_timing_decision() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 1902;
+    game.seed_rng(1902);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -1995,7 +1995,7 @@ async fn test_evasion_creature_priority() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 2003;
+    game.seed_rng(2003);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2051,7 +2051,7 @@ async fn test_board_wipe_vs_spot_removal() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 2104;
+    game.seed_rng(2104);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2131,7 +2131,7 @@ async fn test_x_spell_mana_allocation() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 2205;
+    game.seed_rng(2205);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2188,7 +2188,7 @@ async fn test_blocking_optimization_complex() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 2306;
+    game.seed_rng(2306);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2245,7 +2245,7 @@ async fn test_first_strike_combat_math() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 2407;
+    game.seed_rng(2407);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2301,7 +2301,7 @@ async fn test_direct_damage_targeting() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 2508;
+    game.seed_rng(2508);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2358,7 +2358,7 @@ async fn test_activated_ability_usage() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 2609;
+    game.seed_rng(2609);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2438,7 +2438,7 @@ async fn test_prodigal_sorcerer_pinging() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 42;
+    game.seed_rng(42);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2491,7 +2491,7 @@ async fn test_llanowar_elves_mana_ramp() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 42;
+    game.seed_rng(42);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2566,7 +2566,7 @@ async fn test_shivan_dragon_pump_ability() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 42;
+    game.seed_rng(42);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -2616,7 +2616,7 @@ async fn test_juggernaut_must_attack() -> Result<()> {
     let mut game = load_puzzle_into_game(&puzzle, &card_db).await?;
 
     // Set deterministic seed
-    game.rng_seed = 42;
+    game.seed_rng(42);
 
     // Get player IDs
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();

@@ -44,7 +44,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
             20,
         )
         .await?;
-    game.rng_seed = 42424;
+    game.seed_rng(42424);
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
@@ -605,7 +605,7 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
             20,
         )
         .await?;
-    game.rng_seed = 12345;
+    game.seed_rng(12345);
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
     let p1_id = players[0];
