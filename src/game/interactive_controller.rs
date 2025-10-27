@@ -11,12 +11,24 @@ use std::io::{self, Write};
 /// A controller that prompts a human player for decisions via stdin
 pub struct InteractiveController {
     player_id: PlayerId,
+    numeric_choices: bool,
 }
 
 impl InteractiveController {
     /// Create a new interactive controller for the given player
     pub fn new(player_id: PlayerId) -> Self {
-        InteractiveController { player_id }
+        InteractiveController {
+            player_id,
+            numeric_choices: false,
+        }
+    }
+
+    /// Create a new interactive controller with numeric choices mode
+    pub fn with_numeric_choices(player_id: PlayerId, numeric_choices: bool) -> Self {
+        InteractiveController {
+            player_id,
+            numeric_choices,
+        }
     }
 
     /// Helper: prompt user for a choice and validate input
@@ -201,18 +213,36 @@ impl PlayerController for InteractiveController {
 
         let mut attackers = SmallVec::new();
 
-        println!("\nSelect creatures to attack with (enter indices separated by space,");
-        println!("or press Enter to attack with none):");
+        if self.numeric_choices {
+            // Numeric mode: loop and ask one at a time
+            while let Some(choice) = self.get_user_choice(
+                &format!(
+                    "Choose attacker (0-{} or 'p' to finish):",
+                    available_creatures.len() - 1
+                ),
+                available_creatures.len(),
+                true,
+            ) {
+                let card_id = available_creatures[choice];
+                if !attackers.contains(&card_id) {
+                    attackers.push(card_id);
+                }
+            }
+        } else {
+            // Original mode: space-separated input
+            println!("\nSelect creatures to attack with (enter indices separated by space,");
+            println!("or press Enter to attack with none):");
 
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            return attackers;
-        }
+            let mut input = String::new();
+            if io::stdin().read_line(&mut input).is_err() {
+                return attackers;
+            }
 
-        for index_str in input.split_whitespace() {
-            if let Ok(idx) = index_str.parse::<usize>() {
-                if idx < available_creatures.len() {
-                    attackers.push(available_creatures[idx]);
+            for index_str in input.split_whitespace() {
+                if let Ok(idx) = index_str.parse::<usize>() {
+                    if idx < available_creatures.len() {
+                        attackers.push(available_creatures[idx]);
+                    }
                 }
             }
         }
@@ -282,19 +312,59 @@ impl PlayerController for InteractiveController {
         println!("\nBlockers (choose damage assignment order):");
         self.display_cards(view, blockers, "  ");
 
-        println!("\nEnter blocker indices in order of damage assignment");
-        println!("(separated by space):");
-
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            return blockers.iter().copied().collect();
-        }
-
         let mut ordered: SmallVec<[CardId; 4]> = SmallVec::new();
-        for index_str in input.split_whitespace() {
-            if let Ok(idx) = index_str.parse::<usize>() {
-                if idx < blockers.len() {
-                    ordered.push(blockers[idx]);
+
+        if self.numeric_choices {
+            // Numeric mode: loop and ask one at a time
+            for i in 0..blockers.len() {
+                // Show remaining blockers
+                let remaining: Vec<_> = blockers
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &b)| !ordered.contains(&b))
+                    .collect();
+
+                if remaining.is_empty() {
+                    break;
+                }
+
+                println!(
+                    "\nChoose blocker {} of {} (remaining: {}):",
+                    i + 1,
+                    blockers.len(),
+                    remaining.len()
+                );
+                for (idx, _) in &remaining {
+                    let name = view.card_name(blockers[*idx]).unwrap_or_default();
+                    println!("  [{}] {}", idx, name);
+                }
+
+                if let Some(choice) = self.get_user_choice(
+                    &format!("Choose blocker (0-{}):", blockers.len() - 1),
+                    blockers.len(),
+                    false,
+                ) {
+                    let card_id = blockers[choice];
+                    if !ordered.contains(&card_id) {
+                        ordered.push(card_id);
+                    }
+                }
+            }
+        } else {
+            // Original mode: space-separated input
+            println!("\nEnter blocker indices in order of damage assignment");
+            println!("(separated by space):");
+
+            let mut input = String::new();
+            if io::stdin().read_line(&mut input).is_err() {
+                return blockers.iter().copied().collect();
+            }
+
+            for index_str in input.split_whitespace() {
+                if let Ok(idx) = index_str.parse::<usize>() {
+                    if idx < blockers.len() {
+                        ordered.push(blockers[idx]);
+                    }
                 }
             }
         }
@@ -323,18 +393,43 @@ impl PlayerController for InteractiveController {
 
         let mut discards = SmallVec::new();
 
-        println!("\nSelect cards to discard (enter indices separated by space):");
+        if self.numeric_choices {
+            // Numeric mode: loop and ask one at a time
+            for i in 0..count {
+                if let Some(choice) = self.get_user_choice(
+                    &format!(
+                        "Choose card to discard ({}/{}, 0-{}):",
+                        i + 1,
+                        count,
+                        hand.len() - 1
+                    ),
+                    hand.len(),
+                    false,
+                ) {
+                    let card_id = hand[choice];
+                    if !discards.contains(&card_id) {
+                        discards.push(card_id);
+                    } else {
+                        eprintln!("Card already selected for discard, choose another.");
+                        // Don't increment i, retry this selection
+                    }
+                }
+            }
+        } else {
+            // Original mode: space-separated input
+            println!("\nSelect cards to discard (enter indices separated by space):");
 
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            // Auto-discard first N cards if input fails
-            return hand.iter().take(count).copied().collect();
-        }
+            let mut input = String::new();
+            if io::stdin().read_line(&mut input).is_err() {
+                // Auto-discard first N cards if input fails
+                return hand.iter().take(count).copied().collect();
+            }
 
-        for index_str in input.split_whitespace() {
-            if let Ok(idx) = index_str.parse::<usize>() {
-                if idx < hand.len() && discards.len() < count {
-                    discards.push(hand[idx]);
+            for index_str in input.split_whitespace() {
+                if let Ok(idx) = index_str.parse::<usize>() {
+                    if idx < hand.len() && discards.len() < count {
+                        discards.push(hand[idx]);
+                    }
                 }
             }
         }

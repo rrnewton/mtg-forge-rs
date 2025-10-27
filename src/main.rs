@@ -281,7 +281,10 @@ async fn run_tui(
                 Box::new(RandomController::new(p1_id))
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::new(p1_id)),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
+            p1_id,
+            numeric_choices,
+        )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
     };
 
@@ -295,7 +298,10 @@ async fn run_tui(
                 Box::new(RandomController::new(p2_id))
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::new(p2_id)),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
+            p2_id,
+            numeric_choices,
+        )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
     };
 
