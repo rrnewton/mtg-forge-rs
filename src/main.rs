@@ -69,12 +69,12 @@ struct Cli {
 enum Commands {
     /// Text UI Mode - Interactive Forge Gameplay
     Tui {
-        /// Deck file (.dck) for player 1 (required unless --start-state is provided)
-        #[arg(value_name = "PLAYER1_DECK", required_unless_present = "start_state")]
+        /// Deck file (.dck) for player 1 (required unless --start-state or --start-from is provided)
+        #[arg(value_name = "PLAYER1_DECK", required_unless_present_any = ["start_state", "start_from"])]
         deck1: Option<PathBuf>,
 
-        /// Deck file (.dck) for player 2 (required unless --start-state is provided)
-        #[arg(value_name = "PLAYER2_DECK", required_unless_present = "start_state")]
+        /// Deck file (.dck) for player 2 (required unless --start-state or --start-from is provided)
+        #[arg(value_name = "PLAYER2_DECK", required_unless_present_any = ["start_state", "start_from"])]
         deck2: Option<PathBuf>,
 
         /// Load game state from puzzle file (.pzl)
@@ -244,7 +244,12 @@ impl StopCondition {
             "p1" => StopPlayer::P1,
             "p2" => StopPlayer::P2,
             "both" => StopPlayer::Both,
-            _ => return Err(format!("invalid player '{}' (expected: p1, p2, or both)", parts[0])),
+            _ => {
+                return Err(format!(
+                    "invalid player '{}' (expected: p1, p2, or both)",
+                    parts[0]
+                ))
+            }
         };
 
         if parts[1] != "choice" {
@@ -265,7 +270,11 @@ impl StopCondition {
     }
 
     #[allow(dead_code)] // Will be used when implementing game loop integration
-    fn applies_to(&self, p1_id: mtg_forge_rs::core::PlayerId, player_id: mtg_forge_rs::core::PlayerId) -> bool {
+    fn applies_to(
+        &self,
+        p1_id: mtg_forge_rs::core::PlayerId,
+        player_id: mtg_forge_rs::core::PlayerId,
+    ) -> bool {
         match self.player {
             StopPlayer::P1 => player_id == p1_id,
             StopPlayer::P2 => player_id != p1_id,
@@ -310,7 +319,9 @@ async fn run_tui(
     };
 
     // Check for conflicting options
-    if start_from.is_some() && (deck1_path.is_some() || deck2_path.is_some() || puzzle_path.is_some()) {
+    if start_from.is_some()
+        && (deck1_path.is_some() || deck2_path.is_some() || puzzle_path.is_some())
+    {
         return Err(mtg_forge_rs::MtgError::InvalidAction(
             "Cannot specify both --start-from and deck/puzzle files".to_string(),
         ));
@@ -323,11 +334,15 @@ async fn run_tui(
     let mut game = if let Some(snapshot_file) = start_from {
         // Load game from snapshot file
         println!("Loading snapshot file: {}", snapshot_file.display());
-        let snapshot = GameSnapshot::load_from_file(&snapshot_file)
-            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e)))?;
+        let snapshot = GameSnapshot::load_from_file(&snapshot_file).map_err(|e| {
+            mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
+        })?;
 
         println!("  Turn number: {}", snapshot.turn_number);
-        println!("  Intra-turn choices to replay: {}", snapshot.choice_count());
+        println!(
+            "  Intra-turn choices to replay: {}",
+            snapshot.choice_count()
+        );
 
         // Note: We don't need to load cards for snapshots since the GameState
         // already contains all the card data
@@ -503,7 +518,7 @@ async fn run_tui(
         game_loop.run_game_with_snapshots(
             &mut *controller1,
             &mut *controller2,
-            p1_id,  // Player 1 ID (reserved for future per-player filtering)
+            p1_id, // Player 1 ID (reserved for future per-player filtering)
             stop_cond.choice_count,
             &snapshot_output,
         )?

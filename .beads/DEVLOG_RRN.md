@@ -2409,7 +2409,37 @@ More text output improvement
 
 
 
+TODO: try downloading old school decks
+---------------
+Let's download a representative top deck for each of the top Old-School MTG metagame deck archetypes ("Rogue" to "GR Aggro"). Browse for them here:
 
+  https://mtgdecks.net/Old-school
+
+When you click into each archetype, pick the top deck in the table as long as Players>10 for the event.
+
+Then click "Arena Export" and copy the deck list to a simply-named lowercase+underscore file `test_decks/old_school/<ARCHETYPE_NAME>_<USERNAME>.txt`, e.g. "mono_black_deck_rogerbrand.txt". We will convert these to .dck in a later step.
+
+
+TODO: improve error on card-not-found
+--------------------------------------
+Improve the below error and look into why that deck won't load.
+```
+$ cargo run --bin mtg -- tui test_decks/monored.dck test_decks/monored.dck
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running `target/debug/mtg tui test_decks/monored.dck test_decks/monored.dck`
+=== MTG Forge Rust - Text UI Mode ===
+
+Loading deck files...
+  Player 1: 60 cards
+  Player 2: 60 cards
+
+Loading card database...
+Error: InvalidCardFormat("Card file not found")
+```
+
+
+TODO: minor if one deck is passed to `mtg tui` use that for both players
+-------------------
 
 
 
@@ -2420,6 +2450,8 @@ Now you have the tools you need to:
  - play real games of magic with real decks
  - have the full experience that I will have while playing
  - identify gaps/bugs and make progress to fix them.
+
+
 
 
 TODO: gather decks from the internet

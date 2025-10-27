@@ -1,10 +1,10 @@
 ---
 title: Stop-and-go game snapshots for interactive exploration
-status: open
+status: closed
 priority: 3
 issue_type: feature
 created_at: "2025-10-27T00:03:50Z"
-updated_at: "2025-10-27T01:25:51Z"
+updated_at: "2025-10-27T08:17:02Z"
 ---
 
 # Description
@@ -37,9 +37,9 @@ Save GameState only at turn boundaries + log of intra-turn choices.
 
 # Notes
 
-## Progress Update (2025-10-27, commit dd4b0eb2)
+## Progress Update (2025-10-27, commit 6b78a4de)
 
-Completed core infrastructure for replay-based snapshots:
+Completed all save-side infrastructure for replay-based snapshots:
 
 ✅ **Completed:**
 1. Add ChoicePoint to undo log - Already existed in GameAction enum
@@ -47,14 +47,17 @@ Completed core infrastructure for replay-based snapshots:
 3. Implement rewind-to-turn-start with choice extraction - Done in src/undo.rs
 4. Add buffered logging mode to GameLogger - Done in src/game/logger.rs
 5. Update snapshot format - Done in src/game/snapshot.rs (GameSnapshot struct with save/load methods)
-
-🔨 **In Progress:**
-- CLI integration (--stop-every, --snapshot-output, --start-from flags)
-- Game loop integration to trigger rewind on choice limit
-- Replay logic with buffered logging
+6. CLI integration (--stop-every, --snapshot-output flags) - Done in src/main.rs
+7. Game loop integration to trigger rewind on choice limit - Done in src/game/game_loop.rs
+8. Test with royal_assassin decks - Verified working
+9. DRY refactoring of game loop - Extracted helper methods to eliminate duplication
 
 📋 **Remaining:**
-- Test with royal_assassin decks
+- Implement replay logic for intra-turn choices (--start-from flag)
+  * Load GameSnapshot from file
+  * Enable buffered logging on GameLogger
+  * Replay choices from snapshot
+  * Flush buffer at stop point
 - End-to-end integration testing
 
-**Next steps:** Integrate snapshot functionality into main.rs CLI and game loop.
+**Next steps:** Implement the replay/resume functionality to complete the stop-and-go snapshot feature.

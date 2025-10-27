@@ -181,10 +181,12 @@ impl<'a> GameLoop<'a> {
     /// Call this every time a controller makes a decision.
     fn log_choice_point(&mut self, player_id: PlayerId) {
         self.choice_counter += 1;
-        self.game.undo_log.log(crate::undo::GameAction::ChoicePoint {
-            player_id,
-            choice_id: self.choice_counter,
-        });
+        self.game
+            .undo_log
+            .log(crate::undo::GameAction::ChoicePoint {
+                player_id,
+                choice_id: self.choice_counter,
+            });
     }
 
     /// Run the game loop with the given player controllers
@@ -203,7 +205,13 @@ impl<'a> GameLoop<'a> {
             // Run one turn and check if game should end
             if let Some(result) = self.run_turn_once(controller1, controller2)? {
                 // Notify controllers of game end
-                self.notify_game_end(controller1, controller2, player1_id, player2_id, result.winner);
+                self.notify_game_end(
+                    controller1,
+                    controller2,
+                    player1_id,
+                    player2_id,
+                    result.winner,
+                );
                 return Ok(result);
             }
         }
@@ -258,7 +266,7 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-        _p1_id: PlayerId,  // Reserved for future per-player filtering
+        _p1_id: PlayerId, // Reserved for future per-player filtering
         choice_limit: usize,
         snapshot_path: P,
     ) -> Result<GameResult> {
@@ -276,7 +284,13 @@ impl<'a> GameLoop<'a> {
             // Run one turn and check if game should end
             if let Some(result) = self.run_turn_once(controller1, controller2)? {
                 // Game ended normally, notify controllers
-                self.notify_game_end(controller1, controller2, player1_id, player2_id, result.winner);
+                self.notify_game_end(
+                    controller1,
+                    controller2,
+                    player1_id,
+                    player2_id,
+                    result.winner,
+                );
                 return Ok(result);
             }
         }
@@ -359,7 +373,8 @@ impl<'a> GameLoop<'a> {
             );
 
             // Save to file
-            snapshot.save_to_file(&snapshot_path)
+            snapshot
+                .save_to_file(&snapshot_path)
                 .map_err(|e| MtgError::InvalidAction(format!("Failed to save snapshot: {}", e)))?;
 
             // Log snapshot info

@@ -1,0 +1,32 @@
+Deck
+4 Black Knight
+4 Hypnotic Specter
+1 Will-o'-the-Wisp
+3 Juzám Djinn
+2 Sengir Vampire
+2 Royal Assassin
+1 Sol Ring
+1 Mox Jet
+1 Black Lotus
+1 Chaos Orb
+2 Icy Manipulator
+4 Dark Ritual
+1 Mind Twist
+1 Drain Life
+1 Demonic Tutor
+4 Sinkhole
+2 Paralyze
+1 Greed
+4 Underworld Dreams
+15 Swamp
+1 Strip Mine
+1 Library of Alexandria
+3 Mishra's Factory
+
+Sideboard
+4 Su-Chi
+4 Gloom
+3 Terror
+1 Sengir Vampire
+2 Maze of Ith
+1 Paralyze
