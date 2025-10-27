@@ -96,6 +96,8 @@ pub enum GameEndReason {
     Draw,
     /// Game was manually ended
     Manual,
+    /// Game was stopped to save a snapshot
+    Snapshot,
 }
 
 /// Game loop manager
@@ -148,6 +150,15 @@ impl<'a> GameLoop<'a> {
     pub fn with_verbosity(mut self, verbosity: VerbosityLevel) -> Self {
         self.verbosity = verbosity;
         self.game.logger.set_verbosity(verbosity);
+        self
+    }
+
+    /// Set initial turn counter (for resuming from snapshots)
+    ///
+    /// This should be called when loading a game from a snapshot to ensure
+    /// turn numbering continues correctly.
+    pub fn with_turn_counter(mut self, turns_elapsed: u32) -> Self {
+        self.turns_elapsed = turns_elapsed;
         self
     }
 
@@ -386,11 +397,11 @@ impl<'a> GameLoop<'a> {
                 println!("  Intra-turn choices: {}", snapshot.choice_count());
             }
 
-            // Return early with Manual end reason
+            // Return early with Snapshot end reason
             Ok(GameResult {
                 winner: None,
                 turns_played: self.turns_elapsed,
-                end_reason: GameEndReason::Manual,
+                end_reason: GameEndReason::Snapshot,
             })
         } else {
             // Failed to rewind to turn start (shouldn't happen)

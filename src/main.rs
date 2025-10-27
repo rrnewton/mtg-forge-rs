@@ -331,6 +331,16 @@ async fn run_tui(
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::new(cardsfolder);
 
+    // Track snapshot metadata if loading from snapshot
+    let snapshot_turn_number: Option<u32> = if let Some(ref snapshot_file) = start_from {
+        let snapshot = GameSnapshot::load_from_file(snapshot_file).map_err(|e| {
+            mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
+        })?;
+        Some(snapshot.turn_number)
+    } else {
+        None
+    };
+
     let mut game = if let Some(snapshot_file) = start_from {
         // Load game from snapshot file
         println!("Loading snapshot file: {}", snapshot_file.display());
@@ -513,6 +523,12 @@ async fn run_tui(
 
     // Run the game loop (with or without snapshots)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(verbosity);
+
+    // If loading from snapshot, restore the turn counter
+    if let Some(turn_num) = snapshot_turn_number {
+        game_loop = game_loop.with_turn_counter(turn_num);
+    }
+
     let result = if let Some(stop_cond) = _stop_condition {
         // Run with snapshot functionality
         game_loop.run_game_with_snapshots(
@@ -527,8 +543,9 @@ async fn run_tui(
         game_loop.run_game(&mut *controller1, &mut *controller2)?
     };
 
-    // Display results
-    if verbosity >= VerbosityLevel::Minimal {
+    // Display results (suppress for snapshot exits)
+    use mtg_forge_rs::game::GameEndReason;
+    if verbosity >= VerbosityLevel::Minimal && result.end_reason != GameEndReason::Snapshot {
         println!("\n=== Game Over ===");
         match result.winner {
             Some(winner_id) => {

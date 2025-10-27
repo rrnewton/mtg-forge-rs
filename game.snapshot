@@ -1,0 +1,6310 @@
+{
+  "game_state": {
+    "cards": {
+      "entities": {
+        "122": {
+          "id": 122,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "55": {
+          "id": 55,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "110": {
+          "id": 110,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "43": {
+          "id": 43,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "98": {
+          "id": 98,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "31": {
+          "id": 31,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "86": {
+          "id": 86,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "19": {
+          "id": 19,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "74": {
+          "id": 74,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "7": {
+          "id": 7,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "62": {
+          "id": 62,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "117": {
+          "id": 117,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "50": {
+          "id": 50,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "105": {
+          "id": 105,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "38": {
+          "id": 38,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "93": {
+          "id": 93,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "26": {
+          "id": 26,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "81": {
+          "id": 81,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "14": {
+          "id": 14,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "69": {
+          "id": 69,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "57": {
+          "id": 57,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "112": {
+          "id": 112,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "45": {
+          "id": 45,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "100": {
+          "id": 100,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "33": {
+          "id": 33,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "88": {
+          "id": 88,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "21": {
+          "id": 21,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "76": {
+          "id": 76,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "9": {
+          "id": 9,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "64": {
+          "id": 64,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "119": {
+          "id": 119,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "52": {
+          "id": 52,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "107": {
+          "id": 107,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "40": {
+          "id": 40,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "95": {
+          "id": 95,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "28": {
+          "id": 28,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "83": {
+          "id": 83,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "16": {
+          "id": 16,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "71": {
+          "id": 71,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "4": {
+          "id": 4,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "59": {
+          "id": 59,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "114": {
+          "id": 114,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "47": {
+          "id": 47,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "102": {
+          "id": 102,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "35": {
+          "id": 35,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "90": {
+          "id": 90,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "23": {
+          "id": 23,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "78": {
+          "id": 78,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "11": {
+          "id": 11,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "66": {
+          "id": 66,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "121": {
+          "id": 121,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "54": {
+          "id": 54,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "109": {
+          "id": 109,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "42": {
+          "id": 42,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "97": {
+          "id": 97,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "30": {
+          "id": 30,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "85": {
+          "id": 85,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "18": {
+          "id": 18,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "73": {
+          "id": 73,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "6": {
+          "id": 6,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "61": {
+          "id": 61,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "116": {
+          "id": 116,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "49": {
+          "id": 49,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "104": {
+          "id": 104,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "37": {
+          "id": 37,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "92": {
+          "id": 92,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "25": {
+          "id": 25,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "80": {
+          "id": 80,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "13": {
+          "id": 13,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "68": {
+          "id": 68,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "56": {
+          "id": 56,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "111": {
+          "id": 111,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "44": {
+          "id": 44,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "99": {
+          "id": 99,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "32": {
+          "id": 32,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "87": {
+          "id": 87,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "20": {
+          "id": 20,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "75": {
+          "id": 75,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "8": {
+          "id": 8,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "63": {
+          "id": 63,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "118": {
+          "id": 118,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "51": {
+          "id": 51,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "106": {
+          "id": 106,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "39": {
+          "id": 39,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "94": {
+          "id": 94,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "27": {
+          "id": 27,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "82": {
+          "id": 82,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "15": {
+          "id": 15,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "70": {
+          "id": 70,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "3": {
+          "id": 3,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "58": {
+          "id": 58,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "113": {
+          "id": 113,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "46": {
+          "id": 46,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "101": {
+          "id": 101,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "34": {
+          "id": 34,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "89": {
+          "id": 89,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "22": {
+          "id": 22,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "77": {
+          "id": 77,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": 2,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "10": {
+          "id": 10,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "65": {
+          "id": 65,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "120": {
+          "id": 120,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "53": {
+          "id": 53,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "108": {
+          "id": 108,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "41": {
+          "id": 41,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "96": {
+          "id": 96,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "29": {
+          "id": 29,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "84": {
+          "id": 84,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "17": {
+          "id": 17,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "72": {
+          "id": 72,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "5": {
+          "id": 5,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "60": {
+          "id": 60,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "115": {
+          "id": 115,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "48": {
+          "id": 48,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "103": {
+          "id": 103,
+          "name": "Royal Assassin",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 2,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Human",
+            "Assassin"
+          ],
+          "colors": [
+            "Black"
+          ],
+          "power": 1,
+          "toughness": 1,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "{T}: Destroy target tapped creature.",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "DestroyPermanent": {
+                    "target": 0
+                  }
+                }
+              ],
+              "description": "Destroy target tapped creature.",
+              "is_mana_ability": false
+            }
+          ]
+        },
+        "36": {
+          "id": 36,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "91": {
+          "id": 91,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "24": {
+          "id": 24,
+          "name": "Grizzly Bears",
+          "mana_cost": {
+            "generic": 1,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 1,
+            "colorless": 0
+          },
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Bear"
+          ],
+          "colors": [
+            "Green"
+          ],
+          "power": 2,
+          "toughness": 2,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": []
+        },
+        "79": {
+          "id": 79,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "12": {
+          "id": 12,
+          "name": "Forest",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Forest"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {G}.)",
+          "owner": 0,
+          "controller": 0,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 0,
+                      "red": 0,
+                      "green": 1,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add G",
+              "is_mana_ability": true
+            }
+          ]
+        },
+        "67": {
+          "id": 67,
+          "name": "Swamp",
+          "mana_cost": {
+            "generic": 0,
+            "white": 0,
+            "blue": 0,
+            "black": 0,
+            "red": 0,
+            "green": 0,
+            "colorless": 0
+          },
+          "types": [
+            "Land"
+          ],
+          "subtypes": [
+            "Basic",
+            "Swamp"
+          ],
+          "colors": [
+            "Colorless"
+          ],
+          "power": null,
+          "toughness": null,
+          "power_bonus": 0,
+          "toughness_bonus": 0,
+          "text": "({T}: Add {B}.)",
+          "owner": 1,
+          "controller": 1,
+          "tapped": false,
+          "turn_entered_battlefield": null,
+          "counters": [],
+          "keywords": [],
+          "effects": [],
+          "triggers": [],
+          "activated_abilities": [
+            {
+              "cost": "Tap",
+              "effects": [
+                {
+                  "AddMana": {
+                    "player": 0,
+                    "mana": {
+                      "generic": 0,
+                      "white": 0,
+                      "blue": 0,
+                      "black": 1,
+                      "red": 0,
+                      "green": 0,
+                      "colorless": 0
+                    }
+                  }
+                }
+              ],
+              "description": "Add B",
+              "is_mana_ability": true
+            }
+          ]
+        }
+      },
+      "next_id": 0
+    },
+    "players": [
+      {
+        "id": 0,
+        "name": "Player 1",
+        "life": 20,
+        "mana_pool": {
+          "white": 0,
+          "blue": 0,
+          "black": 0,
+          "red": 0,
+          "green": 0,
+          "colorless": 0
+        },
+        "has_lost": false,
+        "lands_played_this_turn": 0,
+        "max_lands_per_turn": 1,
+        "max_hand_size": 7
+      },
+      {
+        "id": 1,
+        "name": "Player 2",
+        "life": 20,
+        "mana_pool": {
+          "white": 0,
+          "blue": 0,
+          "black": 0,
+          "red": 0,
+          "green": 0,
+          "colorless": 0
+        },
+        "has_lost": false,
+        "lands_played_this_turn": 1,
+        "max_lands_per_turn": 1,
+        "max_hand_size": 7
+      }
+    ],
+    "player_zones": [
+      [
+        0,
+        {
+          "library": {
+            "zone_type": "Library",
+            "owner": 0,
+            "cards": [
+              26,
+              34,
+              17,
+              32,
+              28,
+              31,
+              33,
+              22,
+              50,
+              37,
+              45,
+              58,
+              30,
+              52,
+              3,
+              53,
+              14,
+              38,
+              43,
+              7,
+              62,
+              23,
+              57,
+              59,
+              24,
+              25,
+              12,
+              54,
+              21,
+              29,
+              60,
+              5,
+              18,
+              8,
+              27,
+              36,
+              10,
+              20,
+              19,
+              11,
+              42,
+              44,
+              15,
+              55,
+              61,
+              56,
+              40,
+              13,
+              6,
+              41,
+              9,
+              16,
+              49,
+              39,
+              4,
+              48,
+              47,
+              35,
+              46,
+              51
+            ]
+          },
+          "hand": {
+            "zone_type": "Hand",
+            "owner": 0,
+            "cards": []
+          },
+          "graveyard": {
+            "zone_type": "Graveyard",
+            "owner": 0,
+            "cards": []
+          },
+          "exile": {
+            "zone_type": "Exile",
+            "owner": 0,
+            "cards": []
+          }
+        }
+      ],
+      [
+        1,
+        {
+          "library": {
+            "zone_type": "Library",
+            "owner": 1,
+            "cards": [
+              120,
+              105,
+              122,
+              98,
+              111,
+              90,
+              101,
+              95,
+              79,
+              94,
+              82,
+              118,
+              117,
+              87,
+              88,
+              85,
+              116,
+              100,
+              71,
+              81,
+              103,
+              107,
+              113,
+              102,
+              74,
+              68,
+              78,
+              80,
+              119,
+              108,
+              72,
+              110,
+              70,
+              104,
+              69,
+              65,
+              63,
+              66,
+              64,
+              99,
+              89,
+              106,
+              97,
+              92,
+              67,
+              93,
+              109,
+              86,
+              75,
+              121,
+              76,
+              84,
+              114,
+              96,
+              91,
+              112,
+              73,
+              115,
+              83
+            ]
+          },
+          "hand": {
+            "zone_type": "Hand",
+            "owner": 1,
+            "cards": []
+          },
+          "graveyard": {
+            "zone_type": "Graveyard",
+            "owner": 1,
+            "cards": []
+          },
+          "exile": {
+            "zone_type": "Exile",
+            "owner": 1,
+            "cards": []
+          }
+        }
+      ]
+    ],
+    "battlefield": {
+      "zone_type": "Battlefield",
+      "owner": 2,
+      "cards": [
+        77
+      ]
+    },
+    "stack": {
+      "zone_type": "Stack",
+      "owner": 2,
+      "cards": []
+    },
+    "turn": {
+      "turn_number": 3,
+      "current_step": "Untap",
+      "active_player": 0,
+      "active_player_idx": 0,
+      "priority_player": null
+    },
+    "combat": {
+      "attackers": {},
+      "blockers": {},
+      "attacker_blockers": {},
+      "combat_active": false
+    },
+    "rng_seed": 0,
+    "next_entity_id": 123,
+    "undo_log": {
+      "actions": [
+        {
+          "AdvanceStep": {
+            "from_step": "Untap",
+            "to_step": "Upkeep"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Upkeep",
+            "to_step": "Draw"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Draw",
+            "to_step": "Main1"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main1",
+            "to_step": "BeginCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "BeginCombat",
+            "to_step": "DeclareAttackers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareAttackers",
+            "to_step": "DeclareBlockers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareBlockers",
+            "to_step": "CombatDamage"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "CombatDamage",
+            "to_step": "EndCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "EndCombat",
+            "to_step": "Main2"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main2",
+            "to_step": "End"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "End",
+            "to_step": "Cleanup"
+          }
+        },
+        {
+          "ChangeTurn": {
+            "from_player": 0,
+            "to_player": 1,
+            "turn_number": 2
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Untap",
+            "to_step": "Upkeep"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Upkeep",
+            "to_step": "Draw"
+          }
+        },
+        {
+          "MoveCard": {
+            "card_id": 77,
+            "from_zone": "Library",
+            "to_zone": "Hand",
+            "owner": 1
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Draw",
+            "to_step": "Main1"
+          }
+        },
+        {
+          "ChoicePoint": {
+            "player_id": 1,
+            "choice_id": 1
+          }
+        },
+        {
+          "MoveCard": {
+            "card_id": 77,
+            "from_zone": "Hand",
+            "to_zone": "Battlefield",
+            "owner": 1
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main1",
+            "to_step": "BeginCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "BeginCombat",
+            "to_step": "DeclareAttackers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareAttackers",
+            "to_step": "DeclareBlockers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareBlockers",
+            "to_step": "CombatDamage"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "CombatDamage",
+            "to_step": "EndCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "EndCombat",
+            "to_step": "Main2"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main2",
+            "to_step": "End"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "End",
+            "to_step": "Cleanup"
+          }
+        }
+      ],
+      "enabled": true,
+      "choice_points": []
+    },
+    "logger": {
+      "verbosity": "Normal",
+      "numeric_choices": false,
+      "output_format": "Text",
+      "capture_logs": false
+    }
+  },
+  "turn_number": 3,
+  "intra_turn_choices": []
+}
