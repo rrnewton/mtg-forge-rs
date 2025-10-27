@@ -4,7 +4,7 @@ status: open
 priority: 0
 issue_type: epic
 created_at: "2025-10-26T21:06:34Z"
-updated_at: "2025-10-26T21:06:34Z"
+updated_at: "2025-10-27T11:15:00Z"
 ---
 
 # Description
@@ -18,12 +18,13 @@ This is the main tracking issue for MTG Forge Rust development.
 - mtg-5: Cross-cutting codebase issues (APIs, testing, architecture)
 - mtg-77: Heuristic AI completeness tracking
 
-**Current status as of 2025-10-26_#333(32cd76fe):**
-- Tests: 312 passing (nextest, all categories)
+**Current status as of 2025-10-27_#375(27ba507f):**
+- Tests: 360 passing (nextest, all categories)
 - Examples: 14/14 passing
 - Performance: ~3,842 games/sec (fresh mode), 16.56 actions/turn
 - Performance: ~9,177 games/sec (snapshot mode), ~332k rewinds/sec (rewind mode)
 - Cards: 31k+ supported from cardsfolder
+- Recent work: Improved card loader error messages (mtg-54)
 
 **Conventions:**
 - Tracking issues (priority 1) reference granular issues
@@ -33,8 +34,7 @@ This is the main tracking issue for MTG Forge Rust development.
 - Transient info includes timestamp: commit#N(hash)
 
 ---
-**Checked up-to-date as of 2025-10-26_#333(32cd76fe)**
-- Updated tracking issue references (corrected mtg-63→mtg-2, etc.)
-- Updated test count: 188 → 312 tests
-- Updated example count: 13 → 14 examples
-- Updated performance metrics with all three benchmark modes
+**Checked up-to-date as of 2025-10-27_#375(27ba507f)**
+- Updated test count: 312 → 360 tests
+- Updated commit reference and timestamp
+- All tests passing, system stable
