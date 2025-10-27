@@ -224,11 +224,24 @@ def process_file(file_path: Path, done_dir: Path, use_no_db: bool) -> Tuple[int,
 
     if issues_created > 0:
         print(f"  {Colors.GREEN}✓ Created {issues_created} issue(s) from {file_path.name}{Colors.NC}")
+    else:
+        print(f"  {Colors.RED}✗ No issues created from {file_path.name}{Colors.NC}")
+        print(f"  {Colors.YELLOW}⚠ File left in inbox for review{Colors.NC}")
+        print()
+        return 0, []
+
     print()
 
-    # Move processed file to done directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    done_file = done_dir / f"{timestamp}_{file_path.name}"
+    # Move processed file to done directory (only if issues were created)
+    # Check if filename already has a timestamp prefix to avoid redundancy
+    timestamp_pattern = re.compile(r'^\d{8}_\d{6}_')
+    if timestamp_pattern.match(file_path.name):
+        # Already has timestamp, don't add another
+        done_file = done_dir / file_path.name
+    else:
+        # Add timestamp prefix
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        done_file = done_dir / f"{timestamp}_{file_path.name}"
 
     try:
         file_path.rename(done_file)
