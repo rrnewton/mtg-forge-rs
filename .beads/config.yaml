@@ -1,11 +1,12 @@
-issue_prefix: mtg
+actor: ""
+auto-start-daemon: true
 backend: markdown
+db: ""
+flush-debounce: 5s
+issue_prefix: mtg
+json: false
+no-auto-flush: false
+no-auto-import: false
 no-daemon: true
 no-db: false
 no-json: true
-
-# auto-start-daemon: false
-# flush-debounce: 5s
-# json: false
-# no-auto-flush: false
-# no-auto-import: false
