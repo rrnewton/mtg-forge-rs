@@ -1,0 +1,33 @@
+Deck
+4 Badlands
+4 Chain Lightning
+2 City of Brass
+1 Black Lotus
+1 Demonic Tutor
+2 Fireball
+4 Hymn to Tourach
+1 Library of Alexandria
+4 Lightning Bolt
+1 Mind Twist
+4 Mishra's Factory
+4 Mountain
+1 Mox Jet
+1 Mox Ruby
+4 Nevinyrral's Disk
+4 Sedge Troll
+4 Sinkhole
+1 Sol Ring
+4 Strip Mine
+5 Swamp
+1 Terror
+2 Uthden Troll
+1 Wheel of Fortune
+
+Sideboard
+1 Disrupting Scepter
+2 Earthquake
+2 Ivory Tower
+4 Red Elemental Blast
+2 Shatterstorm
+1 Shivan Dragon
+3 Terror

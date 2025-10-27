@@ -1,0 +1,46 @@
+Deck
+2 Ironclaw Orcs
+4 Savannah Lions
+3 Serendib Efreet
+1 Mox Pearl
+1 Mox Jet
+1 Mox Sapphire
+1 Mox Ruby
+1 Sol Ring
+1 Black Lotus
+1 Chaos Orb
+1 Ancestral Recall
+1 Counterspell
+1 Mana Drain
+3 Disenchant
+4 Psionic Blast
+4 Lightning Bolt
+1 Wheel of Fortune
+1 Braingeyser
+1 Timetwister
+1 Time Walk
+1 Mind Twist
+1 Demonic Tutor
+4 Chain Lightning
+2 Plateau
+2 Badlands
+4 Tundra
+4 Mishra's Factory
+3 Volcanic Island
+3 City of Brass
+1 Library of Alexandria
+1 Strip Mine
+
+Sideboard
+1 Counterspell
+1 Balance
+1 Spirit Link
+1 Armageddon
+1 Divine Offering
+1 Red Elemental Blast
+1 Falling Star
+1 Fireball
+3 Copy Artifact
+1 Control Magic
+1 Blue Elemental Blast
+2 Su-Chi

@@ -1,0 +1,40 @@
+Deck
+1 Ancestral Recall (LEA) 47
+1 Balance (LEA) 3
+2 Basalt Monolith (LEA) 231
+1 Black Lotus (LEA) 232
+1 Braingeyser (LEA) 50
+1 Chaos Orb (LEA) 235
+4 City of Brass (ARN) 71
+4 Counterspell (LEA) 54
+1 Demonic Tutor (LEA) 104
+4 Disenchant (LEA) 18
+3 Fellwar Stone (DRK) 102
+1 Fireball (LEA) 149
+3 Jayemdae Tome (LEA) 254
+1 Library of Alexandria (ARN) 76
+1 Mana Drain (LEG) 65
+1 Mind Twist (LEA) 115
+2 Mishra's Factory (ATQ) 80a
+1 Mox Emerald (LEA) 261
+1 Mox Jet (LEA) 262
+1 Mox Pearl (LEA) 263
+1 Mox Ruby (LEA) 264
+1 Mox Sapphire (LEA) 265
+1 Plains (LEA) 286
+2 Power Artifact (ATQ) 11
+1 Recall (LEG) 70
+1 Regrowth (LEA) 214
+1 Sol Ring (LEA) 269
+1 Strip Mine (ATQ) 82
+4 Swords to Plowshares (LEA) 40
+2 The Abyss (LEG) 120
+1 Time Walk (LEA) 83
+4 Tundra (LEA) 284
+3 Underground Sea (LEA) 285
+3 Volcanic Island (LEB) 287
+
+Sideboard
+3 Blue Elemental Blast (LEA) 49
+1 Circle of Protection: Black (LEB) 10
+1 Circle of Protection: Red (LEA) 12
