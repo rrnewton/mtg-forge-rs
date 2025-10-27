@@ -75,6 +75,8 @@ pub struct GameLogger {
     numeric_choices: bool,
     output_format: OutputFormat,
     capture_logs: bool,
+    /// Buffer-only mode: capture logs without printing to stdout
+    buffer_only: bool,
 
     /// Bump allocator for temporary string formatting
     /// Reset after each format operation to avoid growth
@@ -95,6 +97,7 @@ impl GameLogger {
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: false,
+            buffer_only: false,
         }
     }
 
@@ -108,6 +111,7 @@ impl GameLogger {
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: false,
+            buffer_only: false,
         }
     }
 
@@ -124,6 +128,40 @@ impl GameLogger {
     /// Check if log capture is enabled
     pub fn is_capturing(&self) -> bool {
         self.capture_logs
+    }
+
+    /// Enable buffer-only mode: capture logs without printing to stdout
+    ///
+    /// This is useful for replay scenarios where we want to buffer logs during
+    /// replay and only print them once we reach a specific point.
+    pub fn enable_buffer_only(&mut self) {
+        self.capture_logs = true;
+        self.buffer_only = true;
+    }
+
+    /// Disable buffer-only mode, returning to normal logging
+    pub fn disable_buffer_only(&mut self) {
+        self.buffer_only = false;
+    }
+
+    /// Check if buffer-only mode is enabled
+    pub fn is_buffer_only(&self) -> bool {
+        self.buffer_only
+    }
+
+    /// Flush buffered logs to stdout, respecting verbosity and format settings
+    ///
+    /// This prints all buffered logs and then clears the buffer.
+    pub fn flush_buffer(&mut self) {
+        let buffer = self.log_buffer.borrow();
+        for entry in buffer.iter() {
+            // Only print if verbosity allows
+            if entry.level <= self.verbosity {
+                self.log_to_stdout(entry.level, &entry.message);
+            }
+        }
+        drop(buffer);
+        self.clear_logs();
     }
 
     /// Get access to captured log entries
@@ -241,8 +279,8 @@ impl GameLogger {
             });
         }
 
-        // Output if verbosity allows
-        if VerbosityLevel::Minimal <= self.verbosity {
+        // Output if verbosity allows and not in buffer-only mode
+        if VerbosityLevel::Minimal <= self.verbosity && !self.buffer_only {
             self.log_to_stdout(VerbosityLevel::Minimal, message);
         }
     }
@@ -263,8 +301,8 @@ impl GameLogger {
             });
         }
 
-        // Output if verbosity allows
-        if VerbosityLevel::Normal <= self.verbosity {
+        // Output if verbosity allows and not in buffer-only mode
+        if VerbosityLevel::Normal <= self.verbosity && !self.buffer_only {
             self.log_to_stdout(VerbosityLevel::Normal, message);
         }
     }
@@ -285,8 +323,8 @@ impl GameLogger {
             });
         }
 
-        // Output if verbosity allows
-        if VerbosityLevel::Verbose <= self.verbosity {
+        // Output if verbosity allows and not in buffer-only mode
+        if VerbosityLevel::Verbose <= self.verbosity && !self.buffer_only {
             self.log_to_stdout(VerbosityLevel::Verbose, message);
         }
     }
@@ -322,8 +360,8 @@ impl GameLogger {
             });
         }
 
-        // Output if should_log
-        if should_log {
+        // Output if should_log and not in buffer-only mode
+        if should_log && !self.buffer_only {
             println!("  {}", formatted);
         }
     }
@@ -355,6 +393,7 @@ impl Clone for GameLogger {
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: self.capture_logs,
+            buffer_only: self.buffer_only,
         }
     }
 }
@@ -365,11 +404,12 @@ impl Serialize for GameLogger {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("GameLogger", 4)?;
+        let mut state = serializer.serialize_struct("GameLogger", 5)?;
         state.serialize_field("verbosity", &self.verbosity)?;
         state.serialize_field("numeric_choices", &self.numeric_choices)?;
         state.serialize_field("output_format", &self.output_format)?;
         state.serialize_field("capture_logs", &self.capture_logs)?;
+        state.serialize_field("buffer_only", &self.buffer_only)?;
         state.end()
     }
 }
@@ -385,6 +425,8 @@ impl<'de> Deserialize<'de> for GameLogger {
             numeric_choices: bool,
             output_format: OutputFormat,
             capture_logs: bool,
+            #[serde(default)]
+            buffer_only: bool,
         }
 
         let data = GameLoggerData::deserialize(deserializer)?;
@@ -396,6 +438,7 @@ impl<'de> Deserialize<'de> for GameLogger {
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
             capture_logs: data.capture_logs,
+            buffer_only: data.buffer_only,
         })
     }
 }
@@ -448,5 +491,52 @@ mod tests {
 
         // Should match: 5, 15, 25, ..., 95, 50-59
         assert!(count > 10);
+    }
+
+    #[test]
+    fn test_buffer_only_mode() {
+        let mut logger = GameLogger::new();
+        logger.enable_buffer_only();
+
+        assert!(logger.is_buffer_only());
+        assert!(logger.is_capturing());
+
+        // Log some messages (they should be captured but not printed)
+        logger.normal("message 1");
+        logger.normal("message 2");
+        logger.minimal("minimal message");
+
+        // Verify messages were captured
+        let logs = logger.logs();
+        assert_eq!(logs.len(), 3);
+        assert_eq!(logs[0].message, "message 1");
+        assert_eq!(logs[1].message, "message 2");
+        assert_eq!(logs[2].message, "minimal message");
+    }
+
+    #[test]
+    fn test_flush_buffer() {
+        let mut logger = GameLogger::new();
+        logger.enable_buffer_only();
+
+        logger.normal("message 1");
+        logger.normal("message 2");
+
+        assert_eq!(logger.logs().len(), 2);
+
+        // Flush should clear the buffer
+        logger.flush_buffer();
+        assert_eq!(logger.logs().len(), 0);
+    }
+
+    #[test]
+    fn test_disable_buffer_only() {
+        let mut logger = GameLogger::new();
+        logger.enable_buffer_only();
+        assert!(logger.is_buffer_only());
+
+        logger.disable_buffer_only();
+        assert!(!logger.is_buffer_only());
+        assert!(logger.is_capturing()); // Capture should still be enabled
     }
 }

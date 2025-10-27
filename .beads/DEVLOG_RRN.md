@@ -1896,7 +1896,8 @@ Let's back up, stash these changes, and instead refactor so that we instead prov
 
 ----
 
-TODO:
+done: cargo doc warninsg
+------
 `cargo doc` reports some warnings. Fix those and add a `make docs` target to remind us to build the docs.
 
 done:
@@ -2208,7 +2209,7 @@ and `--p2-name` for setting the names to whatever we like. And if we pass
 "Alice" and "Bob", then we'd better not see any other names during the game.
 
 
-TODO: feature for stop and go games
+inprogress: feature for stop and go games
 ----------
 
 I want you to be able to have the same experience that I do playing through the
@@ -2223,6 +2224,96 @@ also stress test our serialization support.
    we stop at the next choice point. So if --p1=tui and --p2=heuristic and `--stop-every=p1:1:choice`,
    then the AI will play its turns but the game will stop on our (p1's) turns.
  - When we stop the game we write out to a file in the current directory ()
+
+------
+
+```
+Available actions:
+  [0] Play land: Swamp
+  [1] Play land: Swamp
+  [2] Play land: Swamp
+
+Choose action (0-2 or 'p' to pass):
+```
+
+Then we should resume in the same state and it should actually re-echo
+at least the line `Choose action (0-2 or 'p' to pass):` if possible.
+If we're using a fixed controller, the new  `--p1-fixed-inputs=1` would provide the
+input for the very next choice, and then we would stop again.
+
+In this way, you can explore the game tree interactively, playing to a specific
+position, pausing, reevaluating, and then calling the CLI again to continue.
+Build this feature and write an initial test with it on the royal assassin v assassin decks.
+
+----
+
+Let's introduce a feature branch at this point, and move this most recent initial commit to it. On the `stop-replay` branch let's explore option 3. We've
+  already greatly invested in our undo log.  We can add choices to the undo log as well.
+
+We will save and restore the GameState only at the beginning of a turn. At whatever point we are at when we hit the choice where we want to save, we then return to the top of the turn with an abort/save choice, and rewind the undo log until the start of turn. While we rewind it, we accumulate (in reverse) any intra-turn choices so far for both players. We then serialize the rewound GameState plus the partial log of forward choices that get us to the intra-turn point.
+
+This exercises our serialization plus our undo logging. When we partially replay the turn we switch logging to buffered (in memory), and then when we reach the choice point we want to restore to, we play only the last log line and reenable regular logging to stdout, clearing the in-memory log.
+
+
+
+-----
+
+Note that you can strategically combine these options to jump ahead a known
+number of steps in a game without doing multiple round trips:
+```
+# Stop every 3 choices, but provide 3 inputs so we stop just before when we run out:
+mtg tui --stop-every=p1:choice:3 --p1=fixed --p1-fixed-inputs="1 2 3" ...
+```
+
+
+Use ZERO for the pass/done action
+------ 
+
+Even with `--numeric-choices` I see this:
+
+```
+Available actions:
+  [0] Play land: Swamp
+  [1] Play land: Swamp
+  [2] Play land: Swamp
+
+Choose action (0-2 or 'p' to pass):
+```
+
+wip: Even with numeric choices, I'm asked to provide space-separated input
+------
+
+`mtg tui --numeric-choices --p1=tui` should ALWAYS ask the user ONLY to enter
+numbers 0-N, and the prompt should always take this form:
+
+```
+Enter choice (0-2): 2
+```
+
+Note that it should always echo the choice to the terminal for readability, even
+if it is a Fixed controller for example
+
+Instead, what I observe now is: 
+
+```
+$ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck --numeric-choices
+...
+Your hand:
+  [0] Royal Assassin
+  [1] Royal Assassin
+  [2] Royal Assassin
+  [3] Royal Assassin
+  [4] Royal Assassin
+  [5] Royal Assassin
+  [6] Royal Assassin
+  [7] Swamp
+
+Select cards to discard (enter indices separated by space):
+
+  Player 1 discards Royal Assassin (51)
+```
+
+I should not be asked for anything but numbers, not "indices separated by space".
 
 
 TODO: this turn makes no sense, investigate
