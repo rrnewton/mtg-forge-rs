@@ -94,35 +94,71 @@ impl PlayerController for InteractiveController {
             return None;
         }
 
-        println!("\n=== Your Turn (Player {:?}) ===", self.player_id);
+        // Get player name from view
+        let player_name = view.player_name().unwrap_or_else(|| "Player".to_string());
+        println!("\n=== Your Priority ({}) ===", player_name);
         println!("Life: {}", view.life());
         println!("Step: {:?}", view.current_step());
 
-        println!("\nAvailable actions:");
-        for (idx, ability) in available.iter().enumerate() {
-            match ability {
-                SpellAbility::PlayLand { card_id } => {
-                    let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  [{}] Play land: {}", idx, name);
-                }
-                SpellAbility::CastSpell { card_id } => {
-                    let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  [{}] Cast spell: {}", idx, name);
-                }
-                SpellAbility::ActivateAbility { card_id, .. } => {
-                    let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  [{}] Activate ability: {}", idx, name);
+        if self.numeric_choices {
+            // Numeric mode: 0 = Pass, 1-N = actions
+            println!("\nAvailable actions:");
+            println!("  [0] Pass");
+            for (idx, ability) in available.iter().enumerate() {
+                match ability {
+                    SpellAbility::PlayLand { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Play land: {}", idx + 1, name);
+                    }
+                    SpellAbility::CastSpell { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Cast spell: {}", idx + 1, name);
+                    }
+                    SpellAbility::ActivateAbility { card_id, .. } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Activate ability: {}", idx + 1, name);
+                    }
                 }
             }
+
+            let choice = self.get_user_choice(
+                &format!("Enter choice (0-{}):", available.len()),
+                available.len() + 1,
+                false,
+            )?;
+
+            if choice == 0 {
+                return None; // Pass
+            }
+            Some(available[choice - 1].clone())
+        } else {
+            // Original mode: indices match array, 'p' to pass
+            println!("\nAvailable actions:");
+            for (idx, ability) in available.iter().enumerate() {
+                match ability {
+                    SpellAbility::PlayLand { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Play land: {}", idx, name);
+                    }
+                    SpellAbility::CastSpell { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Cast spell: {}", idx, name);
+                    }
+                    SpellAbility::ActivateAbility { card_id, .. } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Activate ability: {}", idx, name);
+                    }
+                }
+            }
+
+            let choice = self.get_user_choice(
+                &format!("Choose action (0-{} or 'p' to pass):", available.len() - 1),
+                available.len(),
+                true,
+            )?;
+
+            Some(available[choice].clone())
         }
-
-        let choice = self.get_user_choice(
-            &format!("Choose action (0-{} or 'p' to pass):", available.len() - 1),
-            available.len(),
-            true,
-        )?;
-
-        Some(available[choice].clone())
     }
 
     fn choose_targets(
@@ -137,22 +173,49 @@ impl PlayerController for InteractiveController {
 
         let spell_name = view.card_name(spell).unwrap_or_default();
         println!("\n--- Targeting for: {} ---", spell_name);
-        println!("Valid targets:");
-        self.display_cards(view, valid_targets, "  ");
 
         let mut targets = SmallVec::new();
 
-        // For simplicity, ask for one target
-        // Could extend to ask for multiple if spell requires it
-        if let Some(choice) = self.get_user_choice(
-            &format!(
-                "Choose target (0-{} or 'p' for no targets):",
-                valid_targets.len() - 1
-            ),
-            valid_targets.len(),
-            true,
-        ) {
-            targets.push(valid_targets[choice]);
+        if self.numeric_choices {
+            // Numeric mode: 0 = No target, 1-N = targets
+            println!("Valid targets:");
+            println!("  [0] No target");
+            for (idx, &card_id) in valid_targets.iter().enumerate() {
+                let name = view
+                    .card_name(card_id)
+                    .unwrap_or_else(|| format!("Card {card_id:?}"));
+                let tapped = if view.is_tapped(card_id) {
+                    " (tapped)"
+                } else {
+                    ""
+                };
+                println!("  [{}] {}{}", idx + 1, name, tapped);
+            }
+
+            if let Some(choice) = self.get_user_choice(
+                &format!("Enter choice (0-{}):", valid_targets.len()),
+                valid_targets.len() + 1,
+                false,
+            ) {
+                if choice > 0 {
+                    targets.push(valid_targets[choice - 1]);
+                }
+            }
+        } else {
+            // Original mode: indices match array, 'p' for no targets
+            println!("Valid targets:");
+            self.display_cards(view, valid_targets, "  ");
+
+            if let Some(choice) = self.get_user_choice(
+                &format!(
+                    "Choose target (0-{} or 'p' for no targets):",
+                    valid_targets.len() - 1
+                ),
+                valid_targets.len(),
+                true,
+            ) {
+                targets.push(valid_targets[choice]);
+            }
         }
 
         targets
@@ -208,28 +271,51 @@ impl PlayerController for InteractiveController {
         }
 
         println!("\n--- Declare Attackers ---");
-        println!("Available creatures:");
-        self.display_cards(view, available_creatures, "  ");
 
         let mut attackers = SmallVec::new();
 
         if self.numeric_choices {
-            // Numeric mode: loop and ask one at a time
-            while let Some(choice) = self.get_user_choice(
-                &format!(
-                    "Choose attacker (0-{} or 'p' to finish):",
-                    available_creatures.len() - 1
-                ),
-                available_creatures.len(),
-                true,
-            ) {
-                let card_id = available_creatures[choice];
-                if !attackers.contains(&card_id) {
-                    attackers.push(card_id);
+            // Numeric mode: 0 = Done, 1-N = creatures
+            loop {
+                println!("Available creatures:");
+                println!("  [0] Done selecting attackers");
+                for (idx, &card_id) in available_creatures.iter().enumerate() {
+                    let name = view
+                        .card_name(card_id)
+                        .unwrap_or_else(|| format!("Card {card_id:?}"));
+                    let tapped = if view.is_tapped(card_id) {
+                        " (tapped)"
+                    } else {
+                        ""
+                    };
+                    let selected = if attackers.contains(&card_id) {
+                        " [SELECTED]"
+                    } else {
+                        ""
+                    };
+                    println!("  [{}] {}{}{}", idx + 1, name, tapped, selected);
+                }
+
+                if let Some(choice) = self.get_user_choice(
+                    &format!("Enter choice (0-{}):", available_creatures.len()),
+                    available_creatures.len() + 1,
+                    false,
+                ) {
+                    if choice == 0 {
+                        break; // Done
+                    }
+                    let card_id = available_creatures[choice - 1];
+                    if !attackers.contains(&card_id) {
+                        attackers.push(card_id);
+                    }
+                } else {
+                    break;
                 }
             }
         } else {
             // Original mode: space-separated input
+            println!("Available creatures:");
+            self.display_cards(view, available_creatures, "  ");
             println!("\nSelect creatures to attack with (enter indices separated by space,");
             println!("or press Enter to attack with none):");
 
@@ -270,24 +356,56 @@ impl PlayerController for InteractiveController {
 
         let mut blocks = SmallVec::new();
 
-        println!("\nFor each blocker, choose which attacker it blocks");
-        println!("(or enter 'p' to stop assigning blockers):");
+        if self.numeric_choices {
+            // Numeric mode: 0 = Skip/Done, 1-N = attackers
+            println!("\nFor each blocker, choose which attacker it blocks");
+            for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
+                let blocker_name = view.card_name(blocker_id).unwrap_or_default();
 
-        for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
-            let blocker_name = view.card_name(blocker_id).unwrap_or_default();
-            if let Some(attacker_idx) = self.get_user_choice(
-                &format!(
-                    "Blocker {} ({}) blocks attacker (0-{}):",
-                    blocker_idx,
-                    blocker_name,
-                    attackers.len() - 1
-                ),
-                attackers.len(),
-                true,
-            ) {
-                blocks.push((blocker_id, attackers[attacker_idx]));
-            } else {
-                break; // Stop assigning blockers
+                println!("\nBlocker: [{}] {}", blocker_idx, blocker_name);
+                println!("Block which attacker?");
+                println!("  [0] Skip this blocker / Done");
+                for (idx, &attacker_id) in attackers.iter().enumerate() {
+                    let name = view
+                        .card_name(attacker_id)
+                        .unwrap_or_else(|| format!("Card {attacker_id:?}"));
+                    println!("  [{}] {}", idx + 1, name);
+                }
+
+                if let Some(choice) = self.get_user_choice(
+                    &format!("Enter choice (0-{}):", attackers.len()),
+                    attackers.len() + 1,
+                    false,
+                ) {
+                    if choice == 0 {
+                        break; // Done assigning blockers
+                    }
+                    blocks.push((blocker_id, attackers[choice - 1]));
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // Original mode: 'p' to skip
+            println!("\nFor each blocker, choose which attacker it blocks");
+            println!("(or enter 'p' to stop assigning blockers):");
+
+            for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
+                let blocker_name = view.card_name(blocker_id).unwrap_or_default();
+                if let Some(attacker_idx) = self.get_user_choice(
+                    &format!(
+                        "Blocker {} ({}) blocks attacker (0-{}):",
+                        blocker_idx,
+                        blocker_name,
+                        attackers.len() - 1
+                    ),
+                    attackers.len(),
+                    true,
+                ) {
+                    blocks.push((blocker_id, attackers[attacker_idx]));
+                } else {
+                    break; // Stop assigning blockers
+                }
             }
         }
 

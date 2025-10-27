@@ -39,6 +39,14 @@ impl<'a> GameStateView<'a> {
         self.player_id
     }
 
+    /// Get the player's name
+    pub fn player_name(&self) -> Option<String> {
+        self.game
+            .get_player(self.player_id)
+            .ok()
+            .map(|p| p.name.to_string())
+    }
+
     /// Get cards in this player's hand
     pub fn hand(&self) -> &[CardId] {
         self.game
