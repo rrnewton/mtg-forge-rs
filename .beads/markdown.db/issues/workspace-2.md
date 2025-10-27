@@ -1,10 +1,10 @@
 ---
 title: Fix player name consistency throughout TUI
-status: open
+status: closed
 priority: 2
 issue_type: bug
 created_at: "2025-10-26T23:49:49Z"
-updated_at: "2025-10-26T23:49:49Z"
+updated_at: "2025-10-26T23:56:11Z"
 ---
 
 # Description

@@ -2216,14 +2216,90 @@ I want you to be able to have the same experience that I do playing through the
 just for playing magic games. But I think there is a simpler solution that will
 also stress test our serialization support.
 
- - Add an mtg tui flag `--stop-every=p1:1:choice`, where we provide a stop
-   condition for the game.  Right now it only accepts "[p1|p2|both]:<NUM>:choice" but we
+ - Add an mtg tui flag `--stop-every=p1:choice:1`, where we provide a stop
+   condition for the game.  Right now it only accepts "[p1|p2|both]:choice:<NUM>" but we
    could expand it in the future.
  - When this is passed, then IRRESPECTIVE of the controller used player(s) in question
    we stop at the next choice point. So if --p1=tui and --p2=heuristic and `--stop-every=p1:1:choice`,
    then the AI will play its turns but the game will stop on our (p1's) turns.
- - When we stop the game we write out to a file in the current directory ()
+ - When we stop the game we write out to a file in the current directory (`game.snapshot` by default, clobbering it if it exists, unless a new flag `--snapshot-output` is set to a filepath). We can use serde json serialization to write out the GameState in a readable way.
+ - A new parameter `mtg tui --start-from` enables us to restart the game from a saved game snapshot.
+ - If --start-from is passed, we load the game state and continue. If we exited right after being asked a question:
 
+```
+Available actions:
+  [0] Play land: Swamp
+  [1] Play land: Swamp
+  [2] Play land: Swamp
+
+Choose action (0-2 or 'p' to pass):
+```
+
+Then we should resume in the same state and it should actually re-echo
+at least the line `Choose action (0-2 or 'p' to pass):` if possible.
+If we're using a fixed controller, the new  `--p1-fixed-inputs=1` would provide the
+input for the very next choice, and then we would stop again.
+
+In this way, you can explore the game tree interactively, playing to a specific
+position, pausing, reevaluating, and then calling the CLI again to continue.
+Build this feature and write an initial test with it on the royal assassin v assassin decks.
+
+----
+
+Note that you can strategically combine these options to jump ahead a known
+number of steps in a game without doing multiple round trips:
+```
+# Stop every 3 choices, but provide 3 inputs so we stop just before when we run out:
+mtg tui --stop-every=p1:choice:3 --p1=fixed --p1-fixed-inputs="1 2 3" ...
+```
+
+
+Use ZERO for the pass/done action
+------ 
+
+Even with `--numeric-choices` I see this:
+
+```
+Available actions:
+  [0] Play land: Swamp
+  [1] Play land: Swamp
+  [2] Play land: Swamp
+
+Choose action (0-2 or 'p' to pass):
+```
+
+Even with numeric choices, asked to provide space-separated input
+------
+
+`mtg tui --numeric-choices --p1=tui` should ALWAYS ask the user ONLY to enter
+numbers 0-N, and the prompt should always take this form:
+
+```
+Enter choice (0-2): 2
+```
+
+Note that it should always echo the choice to the terminal for readability, even
+if it is a Fixed controller for example
+
+Instead, what I observe now is: 
+
+```
+$ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck --numeric-choices
+...
+Your hand:
+  [0] Royal Assassin
+  [1] Royal Assassin
+  [2] Royal Assassin
+  [3] Royal Assassin
+  [4] Royal Assassin
+  [5] Royal Assassin
+  [6] Royal Assassin
+  [7] Swamp
+
+Select cards to discard (enter indices separated by space):
+
+  Player 1 discards Royal Assassin (51)
+```
 
 TODO: this turn makes no sense, investigate
 ------

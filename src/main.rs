@@ -119,6 +119,20 @@ enum Commands {
         /// Use numeric-only choice format (for comparison with Java Forge)
         #[arg(long)]
         numeric_choices: bool,
+
+        /// Stop every N choices for specified player(s) and save snapshot
+        /// Format: [p1|p2|both]:choice:<NUM>
+        /// Example: --stop-every=p1:choice:1 stops after player 1 makes 1 choice
+        #[arg(long, value_name = "CONDITION")]
+        stop_every: Option<String>,
+
+        /// Output file for game snapshot (default: game.snapshot)
+        #[arg(long, default_value = "game.snapshot")]
+        snapshot_output: PathBuf,
+
+        /// Load and resume game from snapshot file
+        #[arg(long, value_name = "SNAPSHOT_FILE")]
+        start_from: Option<PathBuf>,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -156,6 +170,9 @@ async fn main() -> Result<()> {
             load_all_cards,
             verbosity,
             numeric_choices,
+            stop_every,
+            snapshot_output,
+            start_from,
         } => {
             run_tui(
                 deck1,
@@ -171,6 +188,9 @@ async fn main() -> Result<()> {
                 load_all_cards,
                 verbosity,
                 numeric_choices,
+                stop_every,
+                snapshot_output,
+                start_from,
             )
             .await?
         }
@@ -178,6 +198,204 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Stop condition for game snapshots
+#[derive(Debug, Clone)]
+struct StopCondition {
+    /// Which player(s) to track
+    player: StopPlayer,
+    /// Number of choices to allow before stopping
+    choice_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StopPlayer {
+    P1,
+    P2,
+    Both,
+}
+
+impl StopCondition {
+    /// Parse stop condition from string like "p1:choice:1" or "both:choice:5"
+    fn parse(s: &str) -> std::result::Result<Self, String> {
+        let parts: Vec<&str> = s.split(':').collect();
+        if parts.len() != 3 {
+            return Err(format!(
+                "invalid stop condition format '{}' (expected: [p1|p2|both]:choice:<NUM>)",
+                s
+            ));
+        }
+
+        let player = match parts[0].to_lowercase().as_str() {
+            "p1" => StopPlayer::P1,
+            "p2" => StopPlayer::P2,
+            "both" => StopPlayer::Both,
+            _ => {
+                return Err(format!(
+                    "invalid player '{}' (expected: p1, p2, or both)",
+                    parts[0]
+                ))
+            }
+        };
+
+        if parts[1] != "choice" {
+            return Err(format!(
+                "invalid condition type '{}' (expected: choice)",
+                parts[1]
+            ));
+        }
+
+        let choice_count = parts[2].parse::<usize>().map_err(|_| {
+            format!(
+                "invalid choice count '{}' (expected positive integer)",
+                parts[2]
+            )
+        })?;
+
+        if choice_count == 0 {
+            return Err("choice count must be greater than 0".to_string());
+        }
+
+        Ok(StopCondition {
+            player,
+            choice_count,
+        })
+    }
+
+    /// Check if this condition applies to a specific player
+    fn applies_to(&self, p1_id: mtg_forge_rs::core::PlayerId, player_id: mtg_forge_rs::core::PlayerId) -> bool {
+        match self.player {
+            StopPlayer::P1 => player_id == p1_id,
+            StopPlayer::P2 => player_id != p1_id,
+            StopPlayer::Both => true,
+        }
+    }
+}
+
+/// Choice tracking wrapper for controllers
+struct ChoiceTrackingWrapper {
+    inner: Box<dyn mtg_forge_rs::game::controller::PlayerController>,
+    choice_count: std::sync::Arc<std::sync::Mutex<usize>>,
+    player_id: mtg_forge_rs::core::PlayerId,
+}
+
+impl ChoiceTrackingWrapper {
+    fn new(
+        inner: Box<dyn mtg_forge_rs::game::controller::PlayerController>,
+        choice_count: std::sync::Arc<std::sync::Mutex<usize>>,
+    ) -> Self {
+        let player_id = inner.player_id();
+        ChoiceTrackingWrapper {
+            inner,
+            choice_count,
+            player_id,
+        }
+    }
+
+    fn increment_choice(&self) {
+        let mut count = self.choice_count.lock().unwrap();
+        *count += 1;
+    }
+}
+
+impl mtg_forge_rs::game::controller::PlayerController for ChoiceTrackingWrapper {
+    fn player_id(&self) -> mtg_forge_rs::core::PlayerId {
+        self.player_id
+    }
+
+    fn choose_spell_ability_to_play(
+        &mut self,
+        view: &mtg_forge_rs::game::controller::GameStateView,
+        available: &[mtg_forge_rs::core::SpellAbility],
+    ) -> Option<mtg_forge_rs::core::SpellAbility> {
+        if !available.is_empty() {
+            self.increment_choice();
+        }
+        self.inner.choose_spell_ability_to_play(view, available)
+    }
+
+    fn choose_targets(
+        &mut self,
+        view: &mtg_forge_rs::game::controller::GameStateView,
+        spell: mtg_forge_rs::core::CardId,
+        valid_targets: &[mtg_forge_rs::core::CardId],
+    ) -> smallvec::SmallVec<[mtg_forge_rs::core::CardId; 4]> {
+        if !valid_targets.is_empty() {
+            self.increment_choice();
+        }
+        self.inner.choose_targets(view, spell, valid_targets)
+    }
+
+    fn choose_mana_sources_to_pay(
+        &mut self,
+        view: &mtg_forge_rs::game::controller::GameStateView,
+        cost: &mtg_forge_rs::core::ManaCost,
+        available_sources: &[mtg_forge_rs::core::CardId],
+    ) -> smallvec::SmallVec<[mtg_forge_rs::core::CardId; 8]> {
+        if !available_sources.is_empty() && cost.cmc() > 0 {
+            self.increment_choice();
+        }
+        self.inner
+            .choose_mana_sources_to_pay(view, cost, available_sources)
+    }
+
+    fn choose_attackers(
+        &mut self,
+        view: &mtg_forge_rs::game::controller::GameStateView,
+        available_creatures: &[mtg_forge_rs::core::CardId],
+    ) -> smallvec::SmallVec<[mtg_forge_rs::core::CardId; 8]> {
+        if !available_creatures.is_empty() {
+            self.increment_choice();
+        }
+        self.inner.choose_attackers(view, available_creatures)
+    }
+
+    fn choose_blockers(
+        &mut self,
+        view: &mtg_forge_rs::game::controller::GameStateView,
+        available_blockers: &[mtg_forge_rs::core::CardId],
+        attackers: &[mtg_forge_rs::core::CardId],
+    ) -> smallvec::SmallVec<[(mtg_forge_rs::core::CardId, mtg_forge_rs::core::CardId); 8]> {
+        if !available_blockers.is_empty() && !attackers.is_empty() {
+            self.increment_choice();
+        }
+        self.inner
+            .choose_blockers(view, available_blockers, attackers)
+    }
+
+    fn choose_damage_assignment_order(
+        &mut self,
+        view: &mtg_forge_rs::game::controller::GameStateView,
+        attacker: mtg_forge_rs::core::CardId,
+        blockers: &[mtg_forge_rs::core::CardId],
+    ) -> smallvec::SmallVec<[mtg_forge_rs::core::CardId; 4]> {
+        if blockers.len() > 1 {
+            self.increment_choice();
+        }
+        self.inner
+            .choose_damage_assignment_order(view, attacker, blockers)
+    }
+
+    fn choose_cards_to_discard(
+        &mut self,
+        view: &mtg_forge_rs::game::controller::GameStateView,
+        hand: &[mtg_forge_rs::core::CardId],
+        count: usize,
+    ) -> smallvec::SmallVec<[mtg_forge_rs::core::CardId; 7]> {
+        if count > 0 && !hand.is_empty() {
+            self.increment_choice();
+        }
+        self.inner.choose_cards_to_discard(view, hand, count)
+    }
+
+    fn on_priority_passed(&mut self, view: &mtg_forge_rs::game::controller::GameStateView) {
+        self.inner.on_priority_passed(view)
+    }
+
+    fn on_game_end(&mut self, view: &mtg_forge_rs::game::controller::GameStateView, won: bool) {
+        self.inner.on_game_end(view, won)
+    }
 }
 
 /// Parse fixed input string into a vector of choice indices
@@ -208,15 +426,40 @@ async fn run_tui(
     load_all_cards: bool,
     verbosity: VerbosityArg,
     numeric_choices: bool,
+    stop_every: Option<String>,
+    snapshot_output: PathBuf,
+    start_from: Option<PathBuf>,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
+
+    // Parse stop condition if provided
+    let stop_condition = if let Some(ref condition_str) = stop_every {
+        Some(StopCondition::parse(condition_str).map_err(|e| {
+            mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e))
+        })?)
+    } else {
+        None
+    };
 
     // Create async card database
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::new(cardsfolder);
 
-    let mut game = if let Some(puzzle_file) = puzzle_path {
+    let mut game = if let Some(snapshot_file) = start_from {
+        // Load game from snapshot file
+        println!("Loading game from snapshot: {}", snapshot_file.display());
+        let snapshot_contents = std::fs::read_to_string(&snapshot_file)?;
+        let game: mtg_forge_rs::game::GameState = serde_json::from_str(&snapshot_contents)
+            .map_err(|e| {
+                mtg_forge_rs::MtgError::InvalidAction(format!(
+                    "Error parsing snapshot file: {}",
+                    e
+                ))
+            })?;
+        println!("  Snapshot loaded successfully!\n");
+        game
+    } else if let Some(puzzle_file) = puzzle_path {
         // Load game from puzzle file
         println!("Loading puzzle file: {}", puzzle_file.display());
         let puzzle_contents = std::fs::read_to_string(&puzzle_file)?;
@@ -374,6 +617,19 @@ async fn run_tui(
         }
     };
 
+    // Wrap controllers with choice tracking if stop condition is provided
+    let (p1_choice_count, p2_choice_count) = if stop_condition.is_some() {
+        let p1_count = std::sync::Arc::new(std::sync::Mutex::new(0));
+        let p2_count = std::sync::Arc::new(std::sync::Mutex::new(0));
+
+        controller1 = Box::new(ChoiceTrackingWrapper::new(controller1, p1_count.clone()));
+        controller2 = Box::new(ChoiceTrackingWrapper::new(controller2, p2_count.clone()));
+
+        (Some(p1_count), Some(p2_count))
+    } else {
+        (None, None)
+    };
+
     if verbosity >= VerbosityLevel::Minimal {
         println!("=== Starting Game ===\n");
     }
@@ -381,6 +637,31 @@ async fn run_tui(
     // Run the game loop
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(verbosity);
     let result = game_loop.run_game(&mut *controller1, &mut *controller2)?;
+
+    // Check if we should save a snapshot
+    if let Some(ref condition) = stop_condition {
+        let p1_choices = p1_choice_count.as_ref().map(|c| *c.lock().unwrap()).unwrap_or(0);
+        let p2_choices = p2_choice_count.as_ref().map(|c| *c.lock().unwrap()).unwrap_or(0);
+
+        let should_save = match condition.player {
+            StopPlayer::P1 => p1_choices >= condition.choice_count,
+            StopPlayer::P2 => p2_choices >= condition.choice_count,
+            StopPlayer::Both => p1_choices >= condition.choice_count || p2_choices >= condition.choice_count,
+        };
+
+        if should_save {
+            println!("\n=== Saving Game Snapshot ===");
+            println!("  Player 1 choices: {}", p1_choices);
+            println!("  Player 2 choices: {}", p2_choices);
+            println!("  Snapshot file: {}", snapshot_output.display());
+
+            let snapshot_json = serde_json::to_string_pretty(&game)
+                .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Error serializing game state: {}", e)))?;
+
+            std::fs::write(&snapshot_output, snapshot_json)?;
+            println!("  Snapshot saved successfully!\n");
+        }
+    }
 
     // Display results
     if verbosity >= VerbosityLevel::Minimal {
