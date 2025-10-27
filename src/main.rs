@@ -264,7 +264,10 @@ async fn run_tui(
     let card_db = CardDatabase::new(cardsfolder);
 
     // Track snapshot metadata if loading from snapshot
-    let (snapshot_turn_number, snapshot_replay_choices): (Option<u32>, Option<Vec<mtg_forge_rs::game::ReplayChoice>>) = if let Some(ref snapshot_file) = start_from {
+    let (snapshot_turn_number, snapshot_replay_choices): (
+        Option<u32>,
+        Option<Vec<mtg_forge_rs::game::ReplayChoice>>,
+    ) = if let Some(ref snapshot_file) = start_from {
         let snapshot = GameSnapshot::load_from_file(snapshot_file).map_err(|e| {
             mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
         })?;
@@ -391,7 +394,9 @@ async fn run_tui(
         (p1.id, p2.id)
     };
 
-    let mut controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type {
+    // Create base controllers
+    let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type
+    {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
         ControllerType::Random => {
             if let Some(seed_value) = seed {
@@ -420,7 +425,8 @@ async fn run_tui(
         }
     };
 
-    let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
+    let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type
+    {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
         ControllerType::Random => {
             if let Some(seed_value) = seed {
@@ -449,6 +455,29 @@ async fn run_tui(
             Box::new(FixedScriptController::new(p2_id, script))
         }
     };
+
+    // Wrap with ReplayController if resuming from snapshot
+    let mut controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> =
+        if let Some(ref replay_choices) = snapshot_replay_choices {
+            Box::new(mtg_forge_rs::game::ReplayController::new(
+                p1_id,
+                base_controller1,
+                replay_choices.clone(),
+            ))
+        } else {
+            base_controller1
+        };
+
+    let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> =
+        if let Some(ref replay_choices) = snapshot_replay_choices {
+            Box::new(mtg_forge_rs::game::ReplayController::new(
+                p2_id,
+                base_controller2,
+                replay_choices.clone(),
+            ))
+        } else {
+            base_controller2
+        };
 
     if verbosity >= VerbosityLevel::Minimal {
         if snapshot_turn_number.is_some() {

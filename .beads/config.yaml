@@ -1,4 +1,6 @@
-prefix: mtg-
+#prefix: mtg-
+issue-prefix: mtg-
+#issue_prefix: mtg-
 backend: markdown
 no-json: true
 # no-db: false
