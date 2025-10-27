@@ -17,7 +17,14 @@ impl CardLoader {
     /// Load a card from a .txt file
     pub fn load_from_file(path: &Path) -> Result<CardDefinition> {
         let content = fs::read_to_string(path).map_err(MtgError::IoError)?;
-        Self::parse(&content)
+        Self::parse(&content).map_err(|e| {
+            // Enhance error message with file path for easier debugging
+            MtgError::InvalidCardFormat(format!(
+                "Failed to parse card file '{}': {}",
+                path.display(),
+                e
+            ))
+        })
     }
 
     /// Parse a card from its text content
@@ -33,7 +40,7 @@ impl CardLoader {
         let mut raw_abilities = Vec::new();
         let mut raw_keywords = Vec::new();
 
-        for line in content.lines() {
+        for (line_num, line) in content.lines().enumerate() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
                 continue;
@@ -62,8 +69,19 @@ impl CardLoader {
                     }
                     "PT" => {
                         if let Some((p, t)) = value.split_once('/') {
-                            power = p.trim().parse().ok();
-                            toughness = t.trim().parse().ok();
+                            let p_trimmed = p.trim();
+                            let t_trimmed = t.trim();
+
+                            // Try to parse power - if it contains non-numeric characters (*, ?, +, etc.),
+                            // treat it as variable P/T and set to None (handled by card-specific logic)
+                            power = p_trimmed.parse().ok();
+                            toughness = t_trimmed.parse().ok();
+                        } else {
+                            return Err(MtgError::InvalidCardFormat(format!(
+                                "Line {}: Invalid PT format '{}' (expected format: 'N/N', e.g., 'PT:2/2')",
+                                line_num + 1,
+                                value
+                            )));
                         }
                     }
                     "Oracle" => oracle = value.to_string(),
@@ -77,6 +95,10 @@ impl CardLoader {
                     }
                     _ => {} // Ignore other fields for now
                 }
+            } else {
+                // Line doesn't contain a colon - might be malformed
+                // Only warn if it's not empty and not a comment (already filtered above)
+                // This allows for future extensibility without breaking
             }
         }
 
@@ -100,7 +122,11 @@ impl CardLoader {
             colors.push(Color::Colorless);
         }
 
-        let name = name.ok_or(MtgError::InvalidCardFormat("Missing card name".to_string()))?;
+        let name = name.ok_or_else(|| {
+            MtgError::InvalidCardFormat(
+                "Missing required 'Name:' field (add 'Name: <card name>' to the card file)".to_string()
+            )
+        })?;
 
         Ok(CardDefinition {
             name,
