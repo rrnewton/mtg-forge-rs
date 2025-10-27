@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{
         random_controller::RandomController, zero_controller::ZeroController,
-        FixedScriptController, GameLoop, HeuristicController, InteractiveController,
+        FixedScriptController, GameLoop, GameSnapshot, HeuristicController, InteractiveController,
         VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
@@ -65,6 +65,7 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 enum Commands {
     /// Text UI Mode - Interactive Forge Gameplay
     Tui {
@@ -119,6 +120,20 @@ enum Commands {
         /// Use numeric-only choice format (for comparison with Java Forge)
         #[arg(long)]
         numeric_choices: bool,
+
+        /// Stop after N choices by specified player(s) and save snapshot
+        /// Format: [p1|p2|both]:choice:<NUM>
+        /// Examples: p1:choice:5, both:choice:10
+        #[arg(long, value_name = "CONDITION")]
+        stop_every: Option<String>,
+
+        /// Output file for game snapshot (default: game.snapshot)
+        #[arg(long, value_name = "FILE", default_value = "game.snapshot")]
+        snapshot_output: PathBuf,
+
+        /// Load and resume game from snapshot file
+        #[arg(long, value_name = "FILE")]
+        start_from: Option<PathBuf>,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -156,6 +171,9 @@ async fn main() -> Result<()> {
             load_all_cards,
             verbosity,
             numeric_choices,
+            stop_every,
+            snapshot_output,
+            start_from,
         } => {
             run_tui(
                 deck1,
@@ -171,6 +189,9 @@ async fn main() -> Result<()> {
                 load_all_cards,
                 verbosity,
                 numeric_choices,
+                stop_every,
+                snapshot_output,
+                start_from,
             )
             .await?
         }
@@ -192,6 +213,67 @@ fn parse_fixed_inputs(input: &str) -> std::result::Result<Vec<usize>, String> {
         .collect()
 }
 
+/// Stop condition specifying which player's choices to track
+#[derive(Debug, Clone, Copy)]
+enum StopPlayer {
+    P1,
+    P2,
+    Both,
+}
+
+/// Stop condition for game snapshots
+#[derive(Debug, Clone)]
+struct StopCondition {
+    #[allow(dead_code)] // Will be used when implementing game loop integration
+    player: StopPlayer,
+    #[allow(dead_code)] // Will be used when implementing game loop integration
+    choice_count: usize,
+}
+
+impl StopCondition {
+    fn parse(s: &str) -> std::result::Result<Self, String> {
+        let parts: Vec<&str> = s.split(':').collect();
+        if parts.len() != 3 {
+            return Err(format!(
+                "invalid format '{}' (expected: [p1|p2|both]:choice:<NUM>)",
+                s
+            ));
+        }
+
+        let player = match parts[0] {
+            "p1" => StopPlayer::P1,
+            "p2" => StopPlayer::P2,
+            "both" => StopPlayer::Both,
+            _ => return Err(format!("invalid player '{}' (expected: p1, p2, or both)", parts[0])),
+        };
+
+        if parts[1] != "choice" {
+            return Err(format!(
+                "invalid condition type '{}' (expected: 'choice')",
+                parts[1]
+            ));
+        }
+
+        let choice_count = parts[2]
+            .parse::<usize>()
+            .map_err(|_| format!("invalid choice count '{}'", parts[2]))?;
+
+        Ok(StopCondition {
+            player,
+            choice_count,
+        })
+    }
+
+    #[allow(dead_code)] // Will be used when implementing game loop integration
+    fn applies_to(&self, p1_id: mtg_forge_rs::core::PlayerId, player_id: mtg_forge_rs::core::PlayerId) -> bool {
+        match self.player {
+            StopPlayer::P1 => player_id == p1_id,
+            StopPlayer::P2 => player_id != p1_id,
+            StopPlayer::Both => true,
+        }
+    }
+}
+
 /// Run TUI with async card loading
 #[allow(clippy::too_many_arguments)] // CLI parameters naturally map to function args
 async fn run_tui(
@@ -208,15 +290,51 @@ async fn run_tui(
     load_all_cards: bool,
     verbosity: VerbosityArg,
     numeric_choices: bool,
+    stop_every: Option<String>,
+    snapshot_output: PathBuf,
+    start_from: Option<PathBuf>,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
+
+    // Parse stop condition if provided
+    let _stop_condition = if let Some(ref stop_str) = stop_every {
+        let condition = StopCondition::parse(stop_str).map_err(|e| {
+            mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e))
+        })?;
+        println!("Stop condition: {:?}", condition);
+        println!("Snapshot output: {}\n", snapshot_output.display());
+        Some(condition)
+    } else {
+        None
+    };
+
+    // Check for conflicting options
+    if start_from.is_some() && (deck1_path.is_some() || deck2_path.is_some() || puzzle_path.is_some()) {
+        return Err(mtg_forge_rs::MtgError::InvalidAction(
+            "Cannot specify both --start-from and deck/puzzle files".to_string(),
+        ));
+    }
 
     // Create async card database
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::new(cardsfolder);
 
-    let mut game = if let Some(puzzle_file) = puzzle_path {
+    let mut game = if let Some(snapshot_file) = start_from {
+        // Load game from snapshot file
+        println!("Loading snapshot file: {}", snapshot_file.display());
+        let snapshot = GameSnapshot::load_from_file(&snapshot_file)
+            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e)))?;
+
+        println!("  Turn number: {}", snapshot.turn_number);
+        println!("  Intra-turn choices to replay: {}", snapshot.choice_count());
+
+        // Note: We don't need to load cards for snapshots since the GameState
+        // already contains all the card data
+        println!("Game loaded from snapshot!\n");
+
+        snapshot.game_state
+    } else if let Some(puzzle_file) = puzzle_path {
         // Load game from puzzle file
         println!("Loading puzzle file: {}", puzzle_file.display());
         let puzzle_contents = std::fs::read_to_string(&puzzle_file)?;
