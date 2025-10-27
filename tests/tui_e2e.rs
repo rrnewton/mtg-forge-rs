@@ -60,12 +60,9 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
         "Game should have played some turns"
     );
 
-    // With seed 42, Player 2 should win (behavior changed with unified spell ability interface)
-    assert_eq!(
-        result.winner.unwrap(),
-        p2_id,
-        "With seed 42, Player 2 should win"
-    );
+    // Note: Winner with seed 42 is not checked here because it changes whenever
+    // game initialization logic changes (e.g., drawing opening hands).
+    // Determinism is tested separately in test_tui_deterministic_with_seed().
 
     // Verify the game ended due to player death (Lightning Bolts dealing damage)
     // With the correct spell casting implementation, players cast bolts and deal damage

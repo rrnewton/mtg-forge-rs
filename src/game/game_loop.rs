@@ -384,11 +384,25 @@ impl<'a> GameLoop<'a> {
             ));
         }
 
-        // Only shuffle libraries if this is a fresh game (not resuming from snapshot)
-        // We detect snapshot resume by checking if undo log has actions
+        // Only shuffle libraries and draw opening hands for fresh games
+        // Skip for:
+        // - Snapshot resume (has actions in undo log)
+        // - Puzzle-loaded games (hands/battlefield already set up)
         let is_resuming_from_snapshot = !self.game.undo_log.actions().is_empty();
 
-        if !is_resuming_from_snapshot {
+        // Detect puzzle-loaded games: they have turn > 1 or cards already in zones other than library
+        let player_ids_for_check = [player1_id, player2_id];
+        let has_cards_in_play = !self.game.battlefield.cards.is_empty()
+            || player_ids_for_check.iter().any(|&pid| {
+                if let Some(zones) = self.game.get_player_zones(pid) {
+                    !zones.hand.cards.is_empty() || !zones.graveyard.cards.is_empty()
+                } else {
+                    false
+                }
+            });
+        let is_puzzle_game = self.game.turn.turn_number > 1 || has_cards_in_play;
+
+        if !is_resuming_from_snapshot && !is_puzzle_game {
             // Shuffle each player's library at game start (MTG Rules 103.2a)
             // This uses the game's RNG which can be seeded for deterministic testing
             use rand::SeedableRng;
@@ -400,6 +414,15 @@ impl<'a> GameLoop<'a> {
             for &player_id in &player_ids {
                 if let Some(zones) = self.game.get_player_zones_mut(player_id) {
                     zones.library.shuffle(&mut rng);
+                }
+            }
+
+            // Draw opening hands (MTG Rules 103.4)
+            // Each player draws 7 cards to start the game
+            // TODO(mtg-102): Implement mulligan system (MTG Rules 103.5)
+            for &player_id in &player_ids {
+                for _ in 0..7 {
+                    self.game.draw_card(player_id)?;
                 }
             }
         }
