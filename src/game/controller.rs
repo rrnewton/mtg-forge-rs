@@ -60,6 +60,22 @@ impl<'a> GameStateView<'a> {
         &self.game.battlefield.cards
     }
 
+    /// Get cards in this player's graveyard
+    pub fn graveyard(&self) -> &[CardId] {
+        self.game
+            .get_player_zones(self.player_id)
+            .map(|zones| zones.graveyard.cards.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// Get cards in a specific player's graveyard
+    pub fn player_graveyard(&self, player_id: PlayerId) -> &[CardId] {
+        self.game
+            .get_player_zones(player_id)
+            .map(|zones| zones.graveyard.cards.as_slice())
+            .unwrap_or(&[])
+    }
+
     /// Check if a card is in a specific zone
     pub fn is_card_in_zone(&self, card_id: CardId, zone: Zone) -> bool {
         match zone {

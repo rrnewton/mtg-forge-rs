@@ -6,7 +6,10 @@
 # Daemon runtime files
 daemon.log
 daemon.pid
+daemon.*
 bd.sock
+bd.sock.startlock
+bd.sock.*
 
 # Keep markdown issues (source of truth for git)
 !markdown.db/issues/*.md

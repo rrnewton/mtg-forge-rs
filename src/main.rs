@@ -89,12 +89,12 @@ enum Commands {
         #[arg(long, value_enum, default_value = "random")]
         p2: ControllerType,
 
-        /// Player 1 name
-        #[arg(long, default_value = "Player 1")]
+        /// Player 1 name (default: Alice)
+        #[arg(long, default_value = "Alice")]
         p1_name: String,
 
-        /// Player 2 name
-        #[arg(long, default_value = "Player 2")]
+        /// Player 2 name (default: Bob)
+        #[arg(long, default_value = "Bob")]
         p2_name: String,
 
         /// Fixed script input for player 1 (space or comma separated indices, e.g., "1 1 2" or "1,1,2")
@@ -384,8 +384,8 @@ async fn run_tui(
     }
 
     println!("Game initialized!");
-    println!("  {}: ({p1_type:?})", p1_name);
-    println!("  {}: ({p2_type:?})\n", p2_name);
+    println!("  Player 1: {} ({p1_type:?})", p1_name);
+    println!("  Player 2: {} ({p2_type:?})\n", p2_name);
 
     // Create controllers based on agent types
     let (p1_id, p2_id) = {
@@ -405,7 +405,10 @@ async fn run_tui(
                 Box::new(RandomController::new(p1_id))
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::new(p1_id)),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
+            p1_id,
+            numeric_choices,
+        )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
         ControllerType::Fixed => {
             let script = match &p1_fixed_inputs {
@@ -436,7 +439,10 @@ async fn run_tui(
                 Box::new(RandomController::new(p2_id))
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::new(p2_id)),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
+            p2_id,
+            numeric_choices,
+        )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
         ControllerType::Fixed => {
             let script = match &p2_fixed_inputs {

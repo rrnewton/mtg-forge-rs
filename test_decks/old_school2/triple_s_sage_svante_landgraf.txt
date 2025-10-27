@@ -1,0 +1,36 @@
+Deck
+1 Black Lotus (LEB) 233
+3 City of Brass (ARN) 71
+1 Library of Alexandria (ARN) 76
+4 Mishra's Factory (ATQ) 80a
+1 Mox Emerald (LEB) 262
+1 Mox Jet (LEB) 263
+1 Mox Pearl (LEB) 264
+1 Mox Ruby (LEB) 265
+1 Mox Sapphire (LEB) 266
+1 Plains (LEB) 288
+1 Scrubland (LEB) 282
+1 Strip Mine (ATQ) 82
+4 Tundra (LEB) 285
+1 Underground Sea (LEB) 286
+2 Volcanic Island (LEB) 287
+1 Ancestral Recall (LEB) 48
+1 Fireball (LEB) 150
+1 Mind Twist (LEB) 116
+1 Sol Ring (LEB) 270
+4 Swords to Plowshares (LEB) 41
+1 Balance (LEB) 3
+1 Braingeyser (LEB) 51
+1 Chaos Orb (LEB) 236
+3 Copy Artifact (LEB) 54
+2 Counterspell (LEB) 55
+1 Demonic Tutor (LEB) 105
+3 Disenchant (LEB) 19
+1 Divine Offering (LEG) 9
+2 Fellwar Stone (DRK) 102
+1 Mana Drain (LEG) 65
+3 Sage of Lat-Nam (ATQ) 13
+1 Time Walk (LEB) 84
+1 Armageddon (LEB) 2
+4 Su-Chi (ATQ) 66
+3 Serra Angel (LEB) 40

@@ -11,18 +11,46 @@ use std::io::{self, Write};
 /// A controller that prompts a human player for decisions via stdin
 pub struct InteractiveController {
     player_id: PlayerId,
+    numeric_choices: bool,
 }
 
 impl InteractiveController {
     /// Create a new interactive controller for the given player
     pub fn new(player_id: PlayerId) -> Self {
-        InteractiveController { player_id }
+        InteractiveController {
+            player_id,
+            numeric_choices: false,
+        }
+    }
+
+    /// Create a new interactive controller with numeric choices mode
+    pub fn with_numeric_choices(player_id: PlayerId, numeric_choices: bool) -> Self {
+        InteractiveController {
+            player_id,
+            numeric_choices,
+        }
     }
 
     /// Helper: prompt user for a choice and validate input
+    ///
+    /// Optionally accepts a GameStateView to enable special informational commands:
+    /// - '?' shows help
+    /// - 'v' views battlefield
+    /// - 'g' views graveyard
     fn get_user_choice(&self, prompt: &str, num_options: usize, allow_pass: bool) -> Option<usize> {
+        self.get_user_choice_with_view(prompt, num_options, allow_pass, None)
+    }
+
+    /// Helper: prompt user for a choice with optional game state view for info commands
+    fn get_user_choice_with_view(
+        &self,
+        prompt: &str,
+        num_options: usize,
+        allow_pass: bool,
+        view: Option<&GameStateView>,
+    ) -> Option<usize> {
         loop {
-            print!("\n{} ", prompt);
+            print!("{} ", prompt);
             io::stdout().flush().unwrap();
 
             let mut input = String::new();
@@ -33,9 +61,33 @@ impl InteractiveController {
 
             let trimmed = input.trim();
 
-            // Check for pass
+            // Check for special informational commands (if view is provided)
+            if let Some(game_view) = view {
+                match trimmed {
+                    "?" => {
+                        self.display_help();
+                        continue; // Re-prompt
+                    }
+                    "v" => {
+                        self.display_battlefield_view(game_view);
+                        continue; // Re-prompt
+                    }
+                    "g" => {
+                        self.display_graveyard_view(game_view);
+                        continue; // Re-prompt
+                    }
+                    _ => {} // Not a special command, continue with normal parsing
+                }
+            }
+
+            // Check for pass in non-numeric mode (allow_pass: true)
             if allow_pass && (trimmed == "p" || trimmed == "pass" || trimmed.is_empty()) {
                 return None;
+            }
+
+            // In numeric mode (allow_pass: false), treat empty input as option 0
+            if !allow_pass && trimmed.is_empty() {
+                return Some(0);
             }
 
             // Try to parse as number
@@ -50,6 +102,104 @@ impl InteractiveController {
                 }
             }
         }
+    }
+
+    /// Display help menu for interactive commands
+    fn display_help(&self) {
+        println!("\n=== Help ===");
+        println!("Available commands:");
+        println!("  ?  - Show this help menu");
+        println!("  v  - View battlefield");
+        println!("  g  - View graveyard");
+        println!("\nGame actions:");
+        if self.numeric_choices {
+            println!("  Enter a number to choose an action");
+            println!("  0  - Pass priority / Skip / Done");
+            println!("  Press Enter alone to select option 0");
+        } else {
+            println!("  Enter a number to choose an action");
+            println!("  p  - Pass priority");
+        }
+        println!();
+    }
+
+    /// Display battlefield view
+    fn display_battlefield_view(&self, view: &GameStateView) {
+        println!("\n=== Battlefield ===");
+        let battlefield = view.battlefield();
+        if battlefield.is_empty() {
+            println!("  (empty)");
+        } else {
+            for &card_id in battlefield {
+                let name = view
+                    .card_name(card_id)
+                    .unwrap_or_else(|| format!("Card {card_id:?}"));
+                let tapped = if view.is_tapped(card_id) {
+                    " (tapped)"
+                } else {
+                    ""
+                };
+
+                // Try to get more info about the card
+                if let Some(card) = view.get_card(card_id) {
+                    let controller = if card.controller == view.player_id() {
+                        "You"
+                    } else {
+                        "Opponent"
+                    };
+                    let pt = if card.is_creature() {
+                        format!(
+                            " {}/{}",
+                            card.power.unwrap_or(0),
+                            card.toughness.unwrap_or(0)
+                        )
+                    } else {
+                        String::new()
+                    };
+                    println!("  {} - {}{}{}", controller, name, pt, tapped);
+                } else {
+                    println!("  {}{}", name, tapped);
+                }
+            }
+        }
+        println!();
+    }
+
+    /// Display graveyard view
+    fn display_graveyard_view(&self, view: &GameStateView) {
+        println!("\n=== Graveyard ===");
+
+        // Show player's own graveyard
+        println!("Your graveyard:");
+        let graveyard = view.graveyard();
+        if graveyard.is_empty() {
+            println!("  (empty)");
+        } else {
+            for &card_id in graveyard {
+                let name = view
+                    .card_name(card_id)
+                    .unwrap_or_else(|| format!("Card {card_id:?}"));
+                println!("  {}", name);
+            }
+        }
+
+        // Show opponent graveyards
+        for opponent_id in view.opponents() {
+            println!("\nOpponent graveyard:");
+            let opp_graveyard = view.player_graveyard(opponent_id);
+            if opp_graveyard.is_empty() {
+                println!("  (empty)");
+            } else {
+                for &card_id in opp_graveyard {
+                    let name = view
+                        .card_name(card_id)
+                        .unwrap_or_else(|| format!("Card {card_id:?}"));
+                    println!("  {}", name);
+                }
+            }
+        }
+
+        println!();
     }
 
     /// Helper: display a list of cards with indices
@@ -82,35 +232,113 @@ impl PlayerController for InteractiveController {
             return None;
         }
 
-        println!("\n=== Your Turn ({}) ===", view.player_name());
-        println!("Life: {}", view.life());
-        println!("Step: {:?}", view.current_step());
+        // Get player name from view
+        let player_name = view.player_name();
+        println!(
+            "\n  ==> Priority {}: life {}, {:?}",
+            player_name,
+            view.life(),
+            view.current_step()
+        );
 
-        println!("\nAvailable actions:");
-        for (idx, ability) in available.iter().enumerate() {
-            match ability {
+        if self.numeric_choices {
+            // Numeric mode: 0 = Pass, 1-N = actions
+            println!("\nAvailable actions:");
+            println!("  [0] Pass");
+            for (idx, ability) in available.iter().enumerate() {
+                match ability {
+                    SpellAbility::PlayLand { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Play land: {}", idx + 1, name);
+                    }
+                    SpellAbility::CastSpell { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Cast spell: {}", idx + 1, name);
+                    }
+                    SpellAbility::ActivateAbility { card_id, .. } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Activate ability: {}", idx + 1, name);
+                    }
+                }
+            }
+
+            let choice = self.get_user_choice_with_view(
+                &format!("Enter choice (0-{}, or ? for help):", available.len()),
+                available.len() + 1,
+                false,
+                Some(view),
+            )?;
+
+            if choice == 0 {
+                println!("Passed priority.");
+                return None; // Pass
+            }
+
+            // Acknowledge the chosen action
+            match &available[choice - 1] {
                 SpellAbility::PlayLand { card_id } => {
                     let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  [{}] Play land: {}", idx, name);
+                    println!("Playing land: {}", name);
                 }
                 SpellAbility::CastSpell { card_id } => {
                     let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  [{}] Cast spell: {}", idx, name);
+                    println!("Casting spell: {}", name);
                 }
                 SpellAbility::ActivateAbility { card_id, .. } => {
                     let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  [{}] Activate ability: {}", idx, name);
+                    println!("Activating ability: {}", name);
                 }
             }
+
+            Some(available[choice - 1].clone())
+        } else {
+            // Original mode: indices match array, 'p' to pass
+            println!("\nAvailable actions:");
+            for (idx, ability) in available.iter().enumerate() {
+                match ability {
+                    SpellAbility::PlayLand { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Play land: {}", idx, name);
+                    }
+                    SpellAbility::CastSpell { card_id } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Cast spell: {}", idx, name);
+                    }
+                    SpellAbility::ActivateAbility { card_id, .. } => {
+                        let name = view.card_name(*card_id).unwrap_or_default();
+                        println!("  [{}] Activate ability: {}", idx, name);
+                    }
+                }
+            }
+
+            let choice = self.get_user_choice_with_view(
+                &format!(
+                    "Choose action (0-{}, 'p' to pass, or ? for help):",
+                    available.len() - 1
+                ),
+                available.len(),
+                true,
+                Some(view),
+            )?;
+
+            // Acknowledge the chosen action
+            match &available[choice] {
+                SpellAbility::PlayLand { card_id } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Playing land: {}", name);
+                }
+                SpellAbility::CastSpell { card_id } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Casting spell: {}", name);
+                }
+                SpellAbility::ActivateAbility { card_id, .. } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Activating ability: {}", name);
+                }
+            }
+
+            Some(available[choice].clone())
         }
-
-        let choice = self.get_user_choice(
-            &format!("Choose action (0-{} or 'p' to pass):", available.len() - 1),
-            available.len(),
-            true,
-        )?;
-
-        Some(available[choice].clone())
     }
 
     fn choose_targets(
@@ -125,22 +353,51 @@ impl PlayerController for InteractiveController {
 
         let spell_name = view.card_name(spell).unwrap_or_default();
         println!("\n--- Targeting for: {} ---", spell_name);
-        println!("Valid targets:");
-        self.display_cards(view, valid_targets, "  ");
 
         let mut targets = SmallVec::new();
 
-        // For simplicity, ask for one target
-        // Could extend to ask for multiple if spell requires it
-        if let Some(choice) = self.get_user_choice(
-            &format!(
-                "Choose target (0-{} or 'p' for no targets):",
-                valid_targets.len() - 1
-            ),
-            valid_targets.len(),
-            true,
-        ) {
-            targets.push(valid_targets[choice]);
+        if self.numeric_choices {
+            // Numeric mode: 0 = No target, 1-N = targets
+            println!("Valid targets:");
+            println!("  [0] No target");
+            for (idx, &card_id) in valid_targets.iter().enumerate() {
+                let name = view
+                    .card_name(card_id)
+                    .unwrap_or_else(|| format!("Card {card_id:?}"));
+                let tapped = if view.is_tapped(card_id) {
+                    " (tapped)"
+                } else {
+                    ""
+                };
+                println!("  [{}] {}{}", idx + 1, name, tapped);
+            }
+
+            if let Some(choice) = self.get_user_choice_with_view(
+                &format!("Enter choice (0-{}, or ? for help):", valid_targets.len()),
+                valid_targets.len() + 1,
+                false,
+                Some(view),
+            ) {
+                if choice > 0 {
+                    targets.push(valid_targets[choice - 1]);
+                }
+            }
+        } else {
+            // Original mode: indices match array, 'p' for no targets
+            println!("Valid targets:");
+            self.display_cards(view, valid_targets, "  ");
+
+            if let Some(choice) = self.get_user_choice_with_view(
+                &format!(
+                    "Choose target (0-{}, 'p' for no targets, or ? for help):",
+                    valid_targets.len() - 1
+                ),
+                valid_targets.len(),
+                true,
+                Some(view),
+            ) {
+                targets.push(valid_targets[choice]);
+            }
         }
 
         targets
@@ -196,23 +453,64 @@ impl PlayerController for InteractiveController {
         }
 
         println!("\n--- Declare Attackers ---");
-        println!("Available creatures:");
-        self.display_cards(view, available_creatures, "  ");
 
         let mut attackers = SmallVec::new();
 
-        println!("\nSelect creatures to attack with (enter indices separated by space,");
-        println!("or press Enter to attack with none):");
+        if self.numeric_choices {
+            // Numeric mode: 0 = Done, 1-N = creatures
+            loop {
+                println!("Available creatures:");
+                println!("  [0] Done selecting attackers");
+                for (idx, &card_id) in available_creatures.iter().enumerate() {
+                    let name = view
+                        .card_name(card_id)
+                        .unwrap_or_else(|| format!("Card {card_id:?}"));
+                    let tapped = if view.is_tapped(card_id) {
+                        " (tapped)"
+                    } else {
+                        ""
+                    };
+                    let selected = if attackers.contains(&card_id) {
+                        " [SELECTED]"
+                    } else {
+                        ""
+                    };
+                    println!("  [{}] {}{}{}", idx + 1, name, tapped, selected);
+                }
 
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            return attackers;
-        }
+                if let Some(choice) = self.get_user_choice(
+                    &format!("Enter choice (0-{}):", available_creatures.len()),
+                    available_creatures.len() + 1,
+                    false,
+                ) {
+                    if choice == 0 {
+                        break; // Done
+                    }
+                    let card_id = available_creatures[choice - 1];
+                    if !attackers.contains(&card_id) {
+                        attackers.push(card_id);
+                    }
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // Original mode: space-separated input
+            println!("Available creatures:");
+            self.display_cards(view, available_creatures, "  ");
+            println!("\nSelect creatures to attack with (enter indices separated by space,");
+            println!("or press Enter to attack with none):");
 
-        for index_str in input.split_whitespace() {
-            if let Ok(idx) = index_str.parse::<usize>() {
-                if idx < available_creatures.len() {
-                    attackers.push(available_creatures[idx]);
+            let mut input = String::new();
+            if io::stdin().read_line(&mut input).is_err() {
+                return attackers;
+            }
+
+            for index_str in input.split_whitespace() {
+                if let Ok(idx) = index_str.parse::<usize>() {
+                    if idx < available_creatures.len() {
+                        attackers.push(available_creatures[idx]);
+                    }
                 }
             }
         }
@@ -240,24 +538,56 @@ impl PlayerController for InteractiveController {
 
         let mut blocks = SmallVec::new();
 
-        println!("\nFor each blocker, choose which attacker it blocks");
-        println!("(or enter 'p' to stop assigning blockers):");
+        if self.numeric_choices {
+            // Numeric mode: 0 = Skip/Done, 1-N = attackers
+            println!("\nFor each blocker, choose which attacker it blocks");
+            for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
+                let blocker_name = view.card_name(blocker_id).unwrap_or_default();
 
-        for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
-            let blocker_name = view.card_name(blocker_id).unwrap_or_default();
-            if let Some(attacker_idx) = self.get_user_choice(
-                &format!(
-                    "Blocker {} ({}) blocks attacker (0-{}):",
-                    blocker_idx,
-                    blocker_name,
-                    attackers.len() - 1
-                ),
-                attackers.len(),
-                true,
-            ) {
-                blocks.push((blocker_id, attackers[attacker_idx]));
-            } else {
-                break; // Stop assigning blockers
+                println!("\nBlocker: [{}] {}", blocker_idx, blocker_name);
+                println!("Block which attacker?");
+                println!("  [0] Skip this blocker / Done");
+                for (idx, &attacker_id) in attackers.iter().enumerate() {
+                    let name = view
+                        .card_name(attacker_id)
+                        .unwrap_or_else(|| format!("Card {attacker_id:?}"));
+                    println!("  [{}] {}", idx + 1, name);
+                }
+
+                if let Some(choice) = self.get_user_choice(
+                    &format!("Enter choice (0-{}):", attackers.len()),
+                    attackers.len() + 1,
+                    false,
+                ) {
+                    if choice == 0 {
+                        break; // Done assigning blockers
+                    }
+                    blocks.push((blocker_id, attackers[choice - 1]));
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // Original mode: 'p' to skip
+            println!("\nFor each blocker, choose which attacker it blocks");
+            println!("(or enter 'p' to stop assigning blockers):");
+
+            for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
+                let blocker_name = view.card_name(blocker_id).unwrap_or_default();
+                if let Some(attacker_idx) = self.get_user_choice(
+                    &format!(
+                        "Blocker {} ({}) blocks attacker (0-{}):",
+                        blocker_idx,
+                        blocker_name,
+                        attackers.len() - 1
+                    ),
+                    attackers.len(),
+                    true,
+                ) {
+                    blocks.push((blocker_id, attackers[attacker_idx]));
+                } else {
+                    break; // Stop assigning blockers
+                }
             }
         }
 
@@ -282,19 +612,59 @@ impl PlayerController for InteractiveController {
         println!("\nBlockers (choose damage assignment order):");
         self.display_cards(view, blockers, "  ");
 
-        println!("\nEnter blocker indices in order of damage assignment");
-        println!("(separated by space):");
-
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            return blockers.iter().copied().collect();
-        }
-
         let mut ordered: SmallVec<[CardId; 4]> = SmallVec::new();
-        for index_str in input.split_whitespace() {
-            if let Ok(idx) = index_str.parse::<usize>() {
-                if idx < blockers.len() {
-                    ordered.push(blockers[idx]);
+
+        if self.numeric_choices {
+            // Numeric mode: loop and ask one at a time
+            for i in 0..blockers.len() {
+                // Show remaining blockers
+                let remaining: Vec<_> = blockers
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &b)| !ordered.contains(&b))
+                    .collect();
+
+                if remaining.is_empty() {
+                    break;
+                }
+
+                println!(
+                    "\nChoose blocker {} of {} (remaining: {}):",
+                    i + 1,
+                    blockers.len(),
+                    remaining.len()
+                );
+                for (idx, _) in &remaining {
+                    let name = view.card_name(blockers[*idx]).unwrap_or_default();
+                    println!("  [{}] {}", idx, name);
+                }
+
+                if let Some(choice) = self.get_user_choice(
+                    &format!("Choose blocker (0-{}):", blockers.len() - 1),
+                    blockers.len(),
+                    false,
+                ) {
+                    let card_id = blockers[choice];
+                    if !ordered.contains(&card_id) {
+                        ordered.push(card_id);
+                    }
+                }
+            }
+        } else {
+            // Original mode: space-separated input
+            println!("\nEnter blocker indices in order of damage assignment");
+            println!("(separated by space):");
+
+            let mut input = String::new();
+            if io::stdin().read_line(&mut input).is_err() {
+                return blockers.iter().copied().collect();
+            }
+
+            for index_str in input.split_whitespace() {
+                if let Ok(idx) = index_str.parse::<usize>() {
+                    if idx < blockers.len() {
+                        ordered.push(blockers[idx]);
+                    }
                 }
             }
         }
@@ -323,18 +693,43 @@ impl PlayerController for InteractiveController {
 
         let mut discards = SmallVec::new();
 
-        println!("\nSelect cards to discard (enter indices separated by space):");
+        if self.numeric_choices {
+            // Numeric mode: loop and ask one at a time
+            for i in 0..count {
+                if let Some(choice) = self.get_user_choice(
+                    &format!(
+                        "Choose card to discard ({}/{}, 0-{}):",
+                        i + 1,
+                        count,
+                        hand.len() - 1
+                    ),
+                    hand.len(),
+                    false,
+                ) {
+                    let card_id = hand[choice];
+                    if !discards.contains(&card_id) {
+                        discards.push(card_id);
+                    } else {
+                        eprintln!("Card already selected for discard, choose another.");
+                        // Don't increment i, retry this selection
+                    }
+                }
+            }
+        } else {
+            // Original mode: space-separated input
+            println!("\nSelect cards to discard (enter indices separated by space):");
 
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            // Auto-discard first N cards if input fails
-            return hand.iter().take(count).copied().collect();
-        }
+            let mut input = String::new();
+            if io::stdin().read_line(&mut input).is_err() {
+                // Auto-discard first N cards if input fails
+                return hand.iter().take(count).copied().collect();
+            }
 
-        for index_str in input.split_whitespace() {
-            if let Ok(idx) = index_str.parse::<usize>() {
-                if idx < hand.len() && discards.len() < count {
-                    discards.push(hand[idx]);
+            for index_str in input.split_whitespace() {
+                if let Ok(idx) = index_str.parse::<usize>() {
+                    if idx < hand.len() && discards.len() < count {
+                        discards.push(hand[idx]);
+                    }
                 }
             }
         }

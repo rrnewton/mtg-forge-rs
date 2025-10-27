@@ -1,0 +1,35 @@
+[metadata]
+Name=Mono Black Control
+Description=Old School 93/94 deck
+
+[Main]
+1 Chaos Orb
+4 Dark Ritual
+1 Demonic Tutor
+2 Drain Life
+4 Hymn to Tourach
+4 Hypnotic Specter
+2 Icy Manipulator
+1 Maze of Ith
+1 Mind Twist
+1 Mox Jet
+2 Nevinyrral's Disk
+4 Order of the Ebon Hand
+2 Royal Assassin
+2 Sengir Vampire
+4 Sinkhole
+1 Sol Ring
+4 Strip Mine
+15 Swamp
+2 Terror
+1 Urborg
+2 Will-o'-the-Wisp
+
+[Sideboard]
+1 Ashes to Ashes
+2 Deathgrip
+3 Gloom
+2 Greed
+2 Nevinyrral's Disk
+3 Paralyze
+2 Terror

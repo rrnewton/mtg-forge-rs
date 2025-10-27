@@ -1,0 +1,34 @@
+Deck
+1 Ancestral Recall
+1 Black Lotus
+4 Black Vise
+4 Boomerang
+1 Chaos Orb
+2 Copy Artifact
+4 Howling Mine
+1 Icy Manipulator
+16 Island
+1 Mana Drain
+1 Mox Emerald
+1 Mox Jet
+1 Mox Pearl
+1 Mox Ruby
+1 Mox Sapphire
+3 Power Sink
+2 Relic Barrier
+2 Reset
+1 Sol Ring
+4 Stasis
+1 Time Vault
+1 Timetwister
+2 Twiddle
+4 Winter Orb
+
+Sideboard
+3 Blue Elemental Blast
+1 Icy Manipulator
+3 Meekstone
+1 Power Sink
+1 Time Walk
+2 Twiddle
+4 Unsummon

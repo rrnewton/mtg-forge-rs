@@ -602,7 +602,11 @@ impl<'a> GameLoop<'a> {
             let is_active = player.id == self.game.turn.active_player;
             let marker = if is_active { " (active)" } else { "" };
 
-            println!("\n{}{}: ", player.name, marker);
+            // Add spacing before player (but not before the first one)
+            if idx > 0 {
+                println!();
+            }
+            println!("{}{}: ", player.name, marker);
             println!("  Life: {}", player.life);
 
             // Zone sizes
@@ -2108,6 +2112,10 @@ impl<'a> GameLoop<'a> {
         // Check if it's sorcery speed (Main1 or Main2)
         let is_sorcery_speed = self.game.turn.current_step.is_sorcery_speed();
 
+        // Check if stack is empty (required for sorcery-speed spells)
+        // MTG Rules 307.5: Sorceries and creatures can only be cast when stack is empty
+        let stack_is_empty = self.game.stack.is_empty();
+
         if let Some(zones) = self.game.get_player_zones(player_id) {
             for &card_id in &zones.hand.cards {
                 if let Ok(card) = self.game.cards.get(card_id) {
@@ -2118,8 +2126,11 @@ impl<'a> GameLoop<'a> {
                             // Instants can be cast anytime with priority
                             true
                         } else {
-                            // Creatures and sorceries require sorcery speed AND active player
-                            is_sorcery_speed && is_active_player
+                            // Creatures and sorceries require:
+                            // - Sorcery speed (Main1 or Main2)
+                            // - Active player
+                            // - Stack is empty
+                            is_sorcery_speed && is_active_player && stack_is_empty
                         };
 
                         if can_cast_now {
@@ -2229,8 +2240,15 @@ impl<'a> GameLoop<'a> {
         use crate::core::SpellAbility;
         let mut abilities = Vec::new();
 
-        // Add playable lands (only in main phases when player can play lands)
-        if matches!(self.game.turn.current_step, Step::Main1 | Step::Main2) {
+        // Check if stack is empty (required for sorcery-speed actions)
+        let stack_is_empty = self.game.stack.is_empty();
+
+        // Add playable lands (only in main phases when player can play lands AND stack is empty)
+        // MTG Rules 307.4: Can only play land when stack is empty and you have priority during your main phase
+        if stack_is_empty
+            && matches!(self.game.turn.current_step, Step::Main1 | Step::Main2)
+            && self.game.turn.active_player == player_id
+        {
             if let Ok(player) = self.game.get_player(player_id) {
                 if player.can_play_land() {
                     let lands = self.get_lands_in_hand(player_id);
