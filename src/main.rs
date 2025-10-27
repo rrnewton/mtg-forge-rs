@@ -7,7 +7,7 @@ use mtg_forge_rs::{
     game::{
         random_controller::RandomController, zero_controller::ZeroController,
         FixedScriptController, GameLoop, GameSnapshot, HeuristicController, InteractiveController,
-        VerbosityLevel,
+        StopCondition, VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
@@ -213,75 +213,7 @@ fn parse_fixed_inputs(input: &str) -> std::result::Result<Vec<usize>, String> {
         .collect()
 }
 
-/// Stop condition specifying which player's choices to track
-#[derive(Debug, Clone, Copy)]
-enum StopPlayer {
-    P1,
-    P2,
-    Both,
-}
-
-/// Stop condition for game snapshots
-#[derive(Debug, Clone)]
-struct StopCondition {
-    #[allow(dead_code)] // Will be used when implementing game loop integration
-    player: StopPlayer,
-    #[allow(dead_code)] // Will be used when implementing game loop integration
-    choice_count: usize,
-}
-
-impl StopCondition {
-    fn parse(s: &str) -> std::result::Result<Self, String> {
-        let parts: Vec<&str> = s.split(':').collect();
-        if parts.len() != 3 {
-            return Err(format!(
-                "invalid format '{}' (expected: [p1|p2|both]:choice:<NUM>)",
-                s
-            ));
-        }
-
-        let player = match parts[0] {
-            "p1" => StopPlayer::P1,
-            "p2" => StopPlayer::P2,
-            "both" => StopPlayer::Both,
-            _ => {
-                return Err(format!(
-                    "invalid player '{}' (expected: p1, p2, or both)",
-                    parts[0]
-                ))
-            }
-        };
-
-        if parts[1] != "choice" {
-            return Err(format!(
-                "invalid condition type '{}' (expected: 'choice')",
-                parts[1]
-            ));
-        }
-
-        let choice_count = parts[2]
-            .parse::<usize>()
-            .map_err(|_| format!("invalid choice count '{}'", parts[2]))?;
-
-        Ok(StopCondition {
-            player,
-            choice_count,
-        })
-    }
-
-    #[allow(dead_code)] // Will be used when implementing game loop integration
-    fn applies_to(
-        &self,
-        p1_id: mtg_forge_rs::core::PlayerId,
-        player_id: mtg_forge_rs::core::PlayerId,
-    ) -> bool {
-        match self.player {
-            StopPlayer::P1 => player_id == p1_id,
-            StopPlayer::P2 => player_id != p1_id,
-            StopPlayer::Both => true,
-        }
-    }
-}
+// StopCondition is now imported from mtg_forge_rs::game module
 
 /// Run TUI with async card loading
 #[allow(clippy::too_many_arguments)] // CLI parameters naturally map to function args
@@ -307,7 +239,7 @@ async fn run_tui(
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
 
     // Parse stop condition if provided
-    let _stop_condition = if let Some(ref stop_str) = stop_every {
+    let stop_condition = if let Some(ref stop_str) = stop_every {
         let condition = StopCondition::parse(stop_str).map_err(|e| {
             mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e))
         })?;
@@ -533,13 +465,13 @@ async fn run_tui(
         game_loop = game_loop.with_turn_counter(turn_num);
     }
 
-    let result = if let Some(stop_cond) = _stop_condition {
+    let result = if let Some(ref stop_cond) = stop_condition {
         // Run with snapshot functionality
         game_loop.run_game_with_snapshots(
             &mut *controller1,
             &mut *controller2,
-            p1_id, // Player 1 ID (reserved for future per-player filtering)
-            stop_cond.choice_count,
+            p1_id, // Player 1 ID for filtering player choices
+            stop_cond,
             &snapshot_output,
         )?
     } else {

@@ -260,36 +260,39 @@ impl<'a> GameLoop<'a> {
     /// Run the game with stop-and-save snapshot functionality
     ///
     /// This method runs the game but stops after a certain number of player choices
-    /// and saves a snapshot to disk. The snapshot includes:
+    /// (filtered by the stop condition) and saves a snapshot to disk. The snapshot includes:
     /// - GameState at the most recent turn boundary
     /// - All intra-turn choices made since that boundary
     ///
     /// ## Parameters
     /// - `controller1`, `controller2`: Player controllers
-    /// - `_p1_id`: Player 1's ID (reserved for future per-player filtering)
-    /// - `choice_limit`: Stop after this many total choices
+    /// - `p1_id`: Player 1's ID (used for filtering player choices)
+    /// - `stop_condition`: Specifies which player's choices to count and how many
     /// - `snapshot_path`: Where to save the snapshot file
     ///
     /// ## Returns
-    /// - `Ok(GameResult)` with `GameEndReason::Manual` if snapshot was saved
+    /// - `Ok(GameResult)` with `GameEndReason::Snapshot` if snapshot was saved
     /// - `Ok(GameResult)` with normal end reason if game finished before limit
     pub fn run_game_with_snapshots<P: AsRef<std::path::Path>>(
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-        _p1_id: PlayerId, // Reserved for future per-player filtering
-        choice_limit: usize,
+        p1_id: PlayerId,
+        stop_condition: &crate::game::StopCondition,
         snapshot_path: P,
     ) -> Result<GameResult> {
         // Setup: verify controllers and shuffle libraries
         let (player1_id, player2_id) = self.setup_game(controller1, controller2)?;
 
+        // Track per-player choices that match the stop condition
+        let mut filtered_choice_count: usize = 0;
+
         // Main game loop - run turns until game ends or choice limit reached
         loop {
-            // Check if we've reached the choice limit
-            if self.choice_counter as usize >= choice_limit {
+            // Check if we've reached the filtered choice limit
+            if filtered_choice_count >= stop_condition.choice_count {
                 // Save snapshot and return early
-                return self.save_snapshot_and_exit(choice_limit, snapshot_path);
+                return self.save_snapshot_and_exit(stop_condition.choice_count, snapshot_path);
             }
 
             // Run one turn and check if game should end
@@ -304,7 +307,40 @@ impl<'a> GameLoop<'a> {
                 );
                 return Ok(result);
             }
+
+            // Update filtered choice count
+            filtered_choice_count = self.count_filtered_choices(p1_id, stop_condition);
+
+            // Check again after the turn completes (in case we hit the limit mid-turn)
+            if filtered_choice_count >= stop_condition.choice_count {
+                // Save snapshot and return early
+                return self.save_snapshot_and_exit(stop_condition.choice_count, snapshot_path);
+            }
         }
+    }
+
+    /// Count how many choices in the undo log match the stop condition filter
+    fn count_filtered_choices(
+        &self,
+        p1_id: PlayerId,
+        stop_condition: &crate::game::StopCondition,
+    ) -> usize {
+        self.game
+            .undo_log
+            .actions()
+            .iter()
+            .filter_map(|action| {
+                if let crate::undo::GameAction::ChoicePoint { player_id, .. } = action {
+                    if stop_condition.applies_to(p1_id, *player_id) {
+                        Some(())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .count()
     }
 
     /// Set up a game for two-player gameplay

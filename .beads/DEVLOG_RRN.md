@@ -2458,6 +2458,26 @@ We are not seeing the prompt BEFORE we exit, and when we restart, we see a card 
   >>> RANDOM: chose spell/ability 0 out of choices 0-0
 ```
 
+TODO: Randomized stress tests with invariants for snapshot resume
+--------------------------------------------------------------------------------
+
+Now you can see how to play some number of turns, and stop and resume randomly.
+Build an e2e test script (under tests/) which stresses the system. This script can be in python and we can extend the e2e test script runner to run both .py and .sh files in that directory.
+
+For a list of test decks:
+For both random/random and heuristic/heuristic modes:
+ - Play a game with the deterministic seed and count the turns,
+   choices, and log of choices made by P1/P2.
+ - Play the same game stop-and-go, with players switched to fixed controllers
+    - advance a random count of choices, 1-5, passing in fixed inputs
+    - snapshot, resume, repeat until game end
+
+ - Examine the collected logs of both the original and stop-and-go runs.
+   - make sure the final 
+
+If this works, you can make the test go even deeper by adding a `--save-final-gamestate=file` flag which will save the end-of-game state of play
+to a snapshot file. When both run modes produce 
+
 
 TODO: Guide on how to make progress on the TUI
 --------------------------------------------------------------------------------

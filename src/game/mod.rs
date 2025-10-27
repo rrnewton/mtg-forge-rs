@@ -14,6 +14,7 @@ pub mod phase;
 pub mod random_controller;
 pub mod snapshot;
 pub mod state;
+pub mod stop_condition;
 pub mod zero_controller;
 
 #[cfg(test)]
@@ -35,4 +36,5 @@ pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;
 pub use snapshot::{GameSnapshot, SnapshotError};
 pub use state::GameState;
+pub use stop_condition::{StopCondition, StopPlayer};
 pub use zero_controller::ZeroController;
