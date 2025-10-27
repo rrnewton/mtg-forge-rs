@@ -2451,8 +2451,12 @@ cargo run --bin mtg -- tui --p1=$P1 --p2=heuristic --stop-every=p1:choice:1 --st
 If we use a random controller for P1 we expect `>>> RANDOM: chose` messages
 for each choice. Specifically, we expect a prompt for the choice BEFORE the snapshot-and-exit event. Then we expect the choice to be made right at the beginning of the restart with --start-from.
 
-Instead, we currently only see one choice, 
+We are not seeing the prompt BEFORE we exit, and when we restart, we see a card draw (re?)occur BEFORE we get to our choice, when logging should be suppressed until we get to the resumed choice:
 
+```
+  Player 1 draws Forest (6)
+  >>> RANDOM: chose spell/ability 0 out of choices 0-0
+```
 
 
 TODO: Guide on how to make progress on the TUI
