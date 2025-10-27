@@ -383,7 +383,11 @@ impl<'a> GameLoop<'a> {
             let is_active = player.id == self.game.turn.active_player;
             let marker = if is_active { " (active)" } else { "" };
 
-            println!("\n{}{}: ", player.name, marker);
+            // Add spacing before player (but not before the first one)
+            if idx > 0 {
+                println!();
+            }
+            println!("{}{}: ", player.name, marker);
             println!("  Life: {}", player.life);
 
             // Zone sizes
