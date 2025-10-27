@@ -4,7 +4,7 @@ status: open
 priority: 0
 issue_type: task
 created_at: "2025-10-27T09:12:20Z"
-updated_at: "2025-10-27T15:10:24Z"
+updated_at: "2025-10-27T17:01:44Z"
 closed_at: "2025-10-27T14:01:45Z"
 ---
 
@@ -178,3 +178,67 @@ The stress test was extracting "chose to pass priority" as choice index 0, but p
   * All choices sorted deterministically
   * Pass-priority handled correctly
   * Better foundation for future determinism work
+
+### Phase 5: RNG State Architecture (2025-10-27_#166)
+
+**CRITICAL ARCHITECTURAL CHANGE - Controllers now use GameState RNG:**
+
+Implemented complete refactoring to ensure all controllers share GameState's RNG for
+perfect deterministic replay across snapshot/resume:
+
+1. ✅ **PlayerController trait updated** (src/game/controller.rs)
+   - All choice methods now accept `rng: &mut dyn rand::RngCore` parameter
+   - Eliminates separate RNG instances in controllers
+
+2. ✅ **RandomController refactored** (src/game/random_controller.rs)
+   - Removed `rng: Box<dyn rand::RngCore>` field
+   - Now uses RNG passed from GameState
+   - Deprecated `with_seed()` method
+
+3. ✅ **HeuristicController refactored** (src/game/heuristic_controller.rs)
+   - Removed RNG field
+   - Uses GameState RNG for random choices
+
+4. ✅ **All controllers updated**
+   - FixedScriptController, ReplayController, InteractiveController, ZeroController
+   - All implement new trait signature with RNG parameter
+
+5. ✅ **RNG State Serialization** (src/game/state.rs)
+   - Changed `rng_seed: u64` → `rng: RefCell<ChaCha12Rng>`
+   - Stores CURRENT RNG state, not just initial seed
+   - Used RefCell for interior mutability (allows mutable access while GameStateView exists)
+   - Added serde "rc" feature to Cargo.toml for RefCell serialization
+
+**Test Results - Still FAILING:**
+- ✗ Royal Assassin: GameStates differ (6 line differences)
+- ✗ White Aggro 4ED: GameStates differ (33 line differences)
+- ✗ Grizzly Bears: GameStates differ (24 line differences)
+
+**ROOT CAUSE IDENTIFIED - Snapshot Rewind Bug:**
+
+The `rewind_to_turn_start()` method in UndoLog **does not actually rewind game state**:
+- It pops actions from the undo log (src/undo.rs:183-200)
+- But it does NOT undo those actions in GameState
+- Line 197: "Other actions are just discarded during rewind"
+- This means RNG state is NOT restored when creating snapshot!
+
+**Impact:**
+1. When creating snapshot at turn boundary:
+   - Actions removed from log
+   - But GameState (including RNG) NOT rewound to turn boundary
+   - Snapshot saves RNG in WRONG state (too far advanced)
+
+2. When resuming from snapshot:
+   - Replaying intra-turn choices advances RNG further
+   - Creates divergence from normal gameplay
+
+**Possible Solutions:**
+1. Track RNG state in GameAction enum (add SaveRngState/RestoreRngState actions)
+2. Store RNG state snapshot at each turn boundary
+3. Redesign to NOT rewind - save current state without intra-turn choices
+4. Make rewind_to_turn_start actually undo game state (not just pop log)
+
+**Next Steps:**
+- This is a fundamental architectural issue requiring design decision
+- Cannot achieve determinism without proper state restoration
+- Recommend solution #1 or #2 (track RNG in undo log)

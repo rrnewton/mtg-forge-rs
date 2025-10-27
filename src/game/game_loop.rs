@@ -1085,7 +1085,8 @@ impl<'a> GameLoop<'a> {
         if !available_creatures.is_empty() {
             // Ask controller to choose all attackers at once (v2 interface)
             let view = GameStateView::new(self.game, active_player);
-            let attackers = controller.choose_attackers(&view, &available_creatures);
+            
+            let attackers = controller.choose_attackers(&view, &available_creatures, &mut *self.game.rng.borrow_mut());
 
             // Log this choice point for snapshot/replay
             let replay_choice = crate::game::ReplayChoice::Attackers(attackers.clone());
@@ -1158,7 +1159,8 @@ impl<'a> GameLoop<'a> {
         if !available_blockers.is_empty() && !attackers.is_empty() {
             // Ask controller to choose all blocker assignments at once (v2 interface)
             let view = GameStateView::new(self.game, defending_player);
-            let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
+            
+            let blocks = controller.choose_blockers(&view, &available_blockers, &attackers, &mut *self.game.rng.borrow_mut());
 
             // Log this choice point for snapshot/replay
             let replay_choice = crate::game::ReplayChoice::Blockers(blocks.clone());
@@ -1396,8 +1398,9 @@ impl<'a> GameLoop<'a> {
                 // Ask controller which cards to discard
                 let view = GameStateView::new(self.game, player_id);
                 let hand = view.hand();
+                
                 let cards_to_discard =
-                    controller.choose_cards_to_discard(&view, hand, discard_count);
+                    controller.choose_cards_to_discard(&view, hand, discard_count, &mut *self.game.rng.borrow_mut());
 
                 // Log this choice point for snapshot/replay
                 let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
@@ -1573,7 +1576,8 @@ impl<'a> GameLoop<'a> {
                 } else {
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);
-                    let choice = controller.choose_spell_ability_to_play(&view, &available);
+                    
+                    let choice = controller.choose_spell_ability_to_play(&view, &available, &mut *self.game.rng.borrow_mut());
 
                     // Log this choice point for snapshot/replay
                     let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
@@ -1652,8 +1656,9 @@ impl<'a> GameLoop<'a> {
                                 // Ask controller to choose targets (only if there are valid targets)
                                 let chosen_targets_vec: Vec<CardId> = if !valid_targets.is_empty() {
                                     let view = GameStateView::new(self.game, current_priority);
+                                    
                                     let chosen_targets =
-                                        controller.choose_targets(&view, card_id, &valid_targets);
+                                        controller.choose_targets(&view, card_id, &valid_targets, &mut *self.game.rng.borrow_mut());
 
                                     // Log this choice point for snapshot/replay
                                     let replay_choice =
@@ -1765,10 +1770,12 @@ impl<'a> GameLoop<'a> {
                                         .is_empty()
                                     {
                                         let view = GameStateView::new(self.game, current_priority);
+                                        
                                         let chosen_targets = controller.choose_targets(
                                             &view,
                                             card_id,
                                             &valid_targets,
+                                            &mut *self.game.rng.borrow_mut(),
                                         );
 
                                         // Log this choice point for snapshot/replay

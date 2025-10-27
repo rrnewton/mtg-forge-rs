@@ -1281,18 +1281,21 @@ impl GameState {
                     let attacker = self.cards.get(attacker_id)?;
                     let attacker_owner = attacker.owner;
                     let view = GameStateView::new(self, attacker_owner);
+                    
 
                     let ordered_blockers = if attacker_owner == attacker_controller.player_id() {
                         attacker_controller.choose_damage_assignment_order(
                             &view,
                             attacker_id,
                             &blockers,
+                            &mut *self.rng.borrow_mut(),
                         )
                     } else {
                         blocker_controller.choose_damage_assignment_order(
                             &view,
                             attacker_id,
                             &blockers,
+                            &mut *self.rng.borrow_mut(),
                         )
                     };
 

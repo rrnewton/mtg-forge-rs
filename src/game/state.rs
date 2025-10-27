@@ -8,6 +8,7 @@ use crate::Result;
 use rand::SeedableRng;
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 
 /// Complete game state
 ///
@@ -39,7 +40,10 @@ pub struct GameState {
     /// Random number generator for gameplay (serializable for deterministic replay)
     /// This RNG is used by controllers and game logic for random decisions.
     /// Unlike the initial seed, this captures the CURRENT RNG state.
-    pub rng: ChaCha12Rng,
+    ///
+    /// Wrapped in RefCell to allow interior mutability - this lets us get mutable
+    /// access to the RNG even when GameState is borrowed immutably (e.g., for GameStateView).
+    pub rng: RefCell<ChaCha12Rng>,
 
     /// Unified entity ID generator (shared across all entity types)
     next_entity_id: u32,
@@ -85,7 +89,7 @@ impl GameState {
             stack: CardZone::new(Zone::Stack, shared_id),
             turn: TurnStructure::new_with_idx(p1_id, 0), // Player 1 starts at index 0
             combat: CombatState::new(),
-            rng: ChaCha12Rng::seed_from_u64(0), // Default seed, will be reseeded by game initialization
+            rng: RefCell::new(ChaCha12Rng::seed_from_u64(0)), // Default seed, will be reseeded by game initialization
             next_entity_id: next_id,
             undo_log: UndoLog::new(),
             logger: GameLogger::new(),
@@ -98,15 +102,7 @@ impl GameState {
     /// for reproducible games. The seed affects all random decisions made by
     /// controllers and game logic.
     pub fn seed_rng(&mut self, seed: u64) {
-        self.rng = ChaCha12Rng::seed_from_u64(seed);
-    }
-
-    /// Get a mutable reference to the RNG for making random choices
-    ///
-    /// Controllers should use this to access the game's RNG rather than
-    /// maintaining their own separate RNG state.
-    pub fn rng_mut(&mut self) -> &mut ChaCha12Rng {
-        &mut self.rng
+        *self.rng.borrow_mut() = ChaCha12Rng::seed_from_u64(seed);
     }
 
     /// Shuffle a player's library using the game's RNG
@@ -117,7 +113,7 @@ impl GameState {
         use rand::seq::SliceRandom;
         // First, get a mutable reference to the library cards
         if let Some(zones) = self.player_zones.iter_mut().find(|(id, _)| *id == player_id).map(|(_, z)| z) {
-            zones.library.cards.shuffle(&mut self.rng);
+            zones.library.cards.shuffle(&mut *self.rng.borrow_mut());
         }
     }
 

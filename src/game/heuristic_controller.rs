@@ -33,10 +33,11 @@ struct CombatFactors {
 
 /// Heuristic AI controller that makes decisions using evaluation functions
 /// rather than simulation. Aims to faithfully reproduce Java Forge AI behavior.
+///
+/// This controller no longer owns an RNG - instead it uses the RNG passed
+/// from GameState to ensure deterministic replay across snapshot/resume.
 pub struct HeuristicController {
     player_id: PlayerId,
-    #[allow(dead_code)] // Will be used for randomized decisions (bluffing, etc.)
-    rng: Box<dyn rand::RngCore>,
     /// Aggression level for combat decisions (0 = defensive, 6 = all-in)
     /// Default is 3 (balanced). Matches Java's AiAttackController aggression.
     aggression_level: i32,
@@ -44,20 +45,24 @@ pub struct HeuristicController {
 
 impl HeuristicController {
     /// Create a new heuristic controller with default settings
+    ///
+    /// The RNG is now provided by GameState and passed to each decision method,
+    /// ensuring deterministic gameplay across snapshot/resume cycles.
     pub fn new(player_id: PlayerId) -> Self {
         HeuristicController {
             player_id,
-            rng: Box::new(rand::thread_rng()),
             aggression_level: 3, // Balanced aggression
         }
     }
 
-    /// Create a heuristic controller with a seeded RNG (for deterministic testing)
-    pub fn with_seed(player_id: PlayerId, seed: u64) -> Self {
-        use rand::SeedableRng;
+    /// Create a heuristic controller (seed is no longer needed here)
+    ///
+    /// This method is kept for API compatibility but the seed parameter is ignored.
+    /// The RNG seed should be set on GameState instead using `game.seed_rng(seed)`.
+    #[deprecated(note = "Use HeuristicController::new() and seed the GameState RNG instead")]
+    pub fn with_seed(player_id: PlayerId, _seed: u64) -> Self {
         HeuristicController {
             player_id,
-            rng: Box::new(rand::rngs::StdRng::seed_from_u64(seed)),
             aggression_level: 3,
         }
     }
@@ -772,6 +777,7 @@ impl PlayerController for HeuristicController {
         &mut self,
         view: &GameStateView,
         available: &[SpellAbility],
+        _rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         if available.is_empty() {
             view.logger()
@@ -804,6 +810,7 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         spell: CardId,
         valid_targets: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         if valid_targets.is_empty() {
             return SmallVec::new();
@@ -862,6 +869,7 @@ impl PlayerController for HeuristicController {
         _view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Simple greedy approach for now
         // TODO: Implement intelligent mana tapping order from ComputerUtilMana
@@ -879,6 +887,7 @@ impl PlayerController for HeuristicController {
         &mut self,
         view: &GameStateView,
         available_creatures: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Port of Java's AiAttackController.declareAttackers()
         // Reference: AiAttackController.java:818
@@ -927,6 +936,7 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         // Port of Java's AiBlockController.assignBlockersForCombat()
         // Reference: AiBlockController.java:998
@@ -1031,6 +1041,7 @@ impl PlayerController for HeuristicController {
         _view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // For now, just return the blockers in order
         // TODO: Implement intelligent ordering to kill blockers efficiently
@@ -1042,6 +1053,7 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         hand: &[CardId],
         count: usize,
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         // Simple heuristic: Discard lands first, then worst creatures
         let mut hand_cards: Vec<&Card> = hand.iter().filter_map(|&id| view.get_card(id)).collect();

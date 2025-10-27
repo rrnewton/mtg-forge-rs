@@ -271,6 +271,9 @@ pub trait PlayerController {
     ///
     /// Returns the chosen ability, or None to pass priority.
     ///
+    /// The RNG parameter provides access to the game's random number generator
+    /// for deterministic gameplay across snapshot/resume.
+    ///
     /// ## Java Forge Equivalent
     /// This matches `PlayerController.chooseSpellAbilityToPlay()` which returns
     /// a list of SpellAbilities to play (usually just one, but can be multiple
@@ -279,6 +282,7 @@ pub trait PlayerController {
         &mut self,
         view: &GameStateView,
         available: &[SpellAbility],
+        rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility>;
 
     /// Choose targets for a spell or ability
@@ -289,6 +293,9 @@ pub trait PlayerController {
     /// For spells with no targets, this may not be called, or valid_targets
     /// will be empty.
     ///
+    /// The RNG parameter provides access to the game's random number generator
+    /// for deterministic gameplay across snapshot/resume.
+    ///
     /// ## Java Forge Equivalent
     /// Matches `PlayerController.chooseTargetsFor(SpellAbility)`
     fn choose_targets(
@@ -296,6 +303,7 @@ pub trait PlayerController {
         view: &GameStateView,
         spell: CardId,
         valid_targets: &[CardId],
+        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]>;
 
     /// Choose which mana sources to tap to pay a cost
@@ -306,6 +314,9 @@ pub trait PlayerController {
     /// The controller must choose which permanents to tap for mana to pay
     /// the given cost. Returns the card IDs to tap in order.
     ///
+    /// The RNG parameter provides access to the game's random number generator
+    /// for deterministic gameplay across snapshot/resume.
+    ///
     /// ## Java Forge Equivalent
     /// This is part of `PlayerController.payManaCost(...)` which the AI
     /// implements with `ComputerUtilMana.payManaCost()`.
@@ -314,16 +325,21 @@ pub trait PlayerController {
         view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
+        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]>;
 
     /// Choose which creatures to declare as attackers
     ///
     /// Called during the declare attackers step.
     /// Returns a list of creature card IDs that should attack.
+    ///
+    /// The RNG parameter provides access to the game's random number generator
+    /// for deterministic gameplay across snapshot/resume.
     fn choose_attackers(
         &mut self,
         view: &GameStateView,
         available_creatures: &[CardId],
+        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]>;
 
     /// Choose how to block attacking creatures
@@ -331,11 +347,15 @@ pub trait PlayerController {
     /// Called during the declare blockers step.
     /// Returns pairs of (blocker, attacker) indicating which creature
     /// blocks which attacker.
+    ///
+    /// The RNG parameter provides access to the game's random number generator
+    /// for deterministic gameplay across snapshot/resume.
     fn choose_blockers(
         &mut self,
         view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
+        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]>;
 
     /// Choose the damage assignment order for blockers
@@ -345,21 +365,29 @@ pub trait PlayerController {
     /// MTG Rules 509.2: The attacking player announces the damage assignment order.
     ///
     /// Returns the blockers in the order damage should be assigned. All blockers must be included.
+    ///
+    /// The RNG parameter provides access to the game's random number generator
+    /// for deterministic gameplay across snapshot/resume.
     fn choose_damage_assignment_order(
         &mut self,
         view: &GameStateView,
         attacker: CardId,
         blockers: &[CardId],
+        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]>;
 
     /// Choose cards to discard to maximum hand size
     ///
     /// Called during cleanup step if hand size exceeds maximum.
+    ///
+    /// The RNG parameter provides access to the game's random number generator
+    /// for deterministic gameplay across snapshot/resume.
     fn choose_cards_to_discard(
         &mut self,
         view: &GameStateView,
         hand: &[CardId],
         count: usize,
+        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]>;
 
     /// Notification that priority was passed

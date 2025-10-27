@@ -41,6 +41,7 @@ impl PlayerController for ZeroController {
         &mut self,
         _view: &GameStateView,
         available: &[SpellAbility],
+        _rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         // Play the first available ability
         available.first().cloned()
@@ -51,6 +52,7 @@ impl PlayerController for ZeroController {
         _view: &GameStateView,
         _spell: CardId,
         valid_targets: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // Choose the first valid target if any
         if let Some(&first_target) = valid_targets.first() {
@@ -67,6 +69,7 @@ impl PlayerController for ZeroController {
         _view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Tap the first N sources needed to pay the cost
         let needed = cost.cmc() as usize;
@@ -77,6 +80,7 @@ impl PlayerController for ZeroController {
         &mut self,
         _view: &GameStateView,
         available_creatures: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Attack with all available creatures
         available_creatures.iter().copied().collect()
@@ -87,6 +91,7 @@ impl PlayerController for ZeroController {
         _view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         // Block each attacker with one blocker (if available)
         let mut blocks = SmallVec::new();
@@ -108,6 +113,7 @@ impl PlayerController for ZeroController {
         _view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // Keep blockers in the order they were provided
         blockers.iter().copied().collect()
@@ -118,6 +124,7 @@ impl PlayerController for ZeroController {
         _view: &GameStateView,
         hand: &[CardId],
         count: usize,
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         // Discard the first N cards from hand
         hand.iter().take(count.min(hand.len())).copied().collect()
@@ -151,9 +158,10 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         // With no available abilities, should return None
-        let choice = controller.choose_spell_ability_to_play(&view, &[]);
+        let choice = controller.choose_spell_ability_to_play(&view, &[], &mut *rng);
         assert_eq!(choice, None);
     }
 
@@ -163,6 +171,7 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {
@@ -173,7 +182,7 @@ mod tests {
             },
         ];
 
-        let chosen = controller.choose_spell_ability_to_play(&view, &abilities);
+        let chosen = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
 
         // Should choose the first ability (PlayLand)
         assert_eq!(
@@ -190,10 +199,11 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let spell_id = EntityId::new(100);
         let valid_targets = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
-        let targets = controller.choose_targets(&view, spell_id, &valid_targets);
+        let targets = controller.choose_targets(&view, spell_id, &valid_targets, &mut *rng);
 
         // Should choose the first target
         assert_eq!(targets.len(), 1);
@@ -206,9 +216,10 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let spell_id = EntityId::new(100);
-        let targets = controller.choose_targets(&view, spell_id, &[]);
+        let targets = controller.choose_targets(&view, spell_id, &[], &mut *rng);
 
         // No targets available
         assert_eq!(targets.len(), 0);
@@ -220,6 +231,7 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let cost = ManaCost::from_string("2RR"); // CMC = 4
         let available = vec![
@@ -230,7 +242,7 @@ mod tests {
             EntityId::new(14),
         ];
 
-        let sources = controller.choose_mana_sources_to_pay(&view, &cost, &available);
+        let sources = controller.choose_mana_sources_to_pay(&view, &cost, &available, &mut *rng);
 
         // Should choose first 4 sources (equal to CMC)
         assert_eq!(sources.len(), 4);
@@ -246,9 +258,10 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let creatures = vec![EntityId::new(30), EntityId::new(31), EntityId::new(32)];
-        let attackers = controller.choose_attackers(&view, &creatures);
+        let attackers = controller.choose_attackers(&view, &creatures, &mut *rng);
 
         // Should attack with all creatures
         assert_eq!(attackers.len(), 3);
@@ -263,10 +276,11 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let blockers = vec![EntityId::new(40), EntityId::new(41)];
         let attackers = vec![EntityId::new(50), EntityId::new(51), EntityId::new(52)];
-        let blocks = controller.choose_blockers(&view, &blockers, &attackers);
+        let blocks = controller.choose_blockers(&view, &blockers, &attackers, &mut *rng);
 
         // Should block first 2 attackers (limited by blocker count)
         assert_eq!(blocks.len(), 2);
@@ -280,6 +294,7 @@ mod tests {
         let mut controller = ZeroController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let hand = vec![
             EntityId::new(60),
@@ -288,7 +303,7 @@ mod tests {
             EntityId::new(63),
         ];
 
-        let discards = controller.choose_cards_to_discard(&view, &hand, 2);
+        let discards = controller.choose_cards_to_discard(&view, &hand, 2, &mut *rng);
 
         // Should discard first 2 cards
         assert_eq!(discards.len(), 2);

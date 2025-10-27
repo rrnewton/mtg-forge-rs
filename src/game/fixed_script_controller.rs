@@ -72,6 +72,7 @@ impl PlayerController for FixedScriptController {
         &mut self,
         view: &GameStateView,
         available: &[SpellAbility],
+        _rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         let choice_index = self.next_choice();
 
@@ -120,6 +121,7 @@ impl PlayerController for FixedScriptController {
         view: &GameStateView,
         _spell: CardId,
         valid_targets: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         if valid_targets.is_empty() {
             view.logger()
@@ -169,6 +171,7 @@ impl PlayerController for FixedScriptController {
         view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Simple greedy approach: take sources in order until we have enough
         // Script controller doesn't use randomness, just takes first N sources
@@ -197,6 +200,7 @@ impl PlayerController for FixedScriptController {
         &mut self,
         view: &GameStateView,
         available_creatures: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         if available_creatures.is_empty() {
             view.logger()
@@ -231,6 +235,7 @@ impl PlayerController for FixedScriptController {
         view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         if attackers.is_empty() || available_blockers.is_empty() {
             view.logger().controller_choice(
@@ -267,6 +272,7 @@ impl PlayerController for FixedScriptController {
         view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // Just return blockers in the order they were provided
         // Script controller doesn't reorder
@@ -288,6 +294,7 @@ impl PlayerController for FixedScriptController {
         view: &GameStateView,
         hand: &[CardId],
         count: usize,
+        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         // Discard first N cards from hand
         let num_discarding = count.min(hand.len());
@@ -349,6 +356,7 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![1, 0]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {
@@ -361,11 +369,11 @@ mod tests {
 
         // INVARIANT: Choice 0 = pass priority, Choice N = available[N-1]
         // First choice: index 1 → abilities[0] (first ability)
-        let choice1 = controller.choose_spell_ability_to_play(&view, &abilities);
+        let choice1 = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
         assert_eq!(choice1, Some(abilities[0].clone()));
 
         // Second choice: index 0 → None (pass priority)
-        let choice2 = controller.choose_spell_ability_to_play(&view, &abilities);
+        let choice2 = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
         assert_eq!(choice2, None);
     }
 
@@ -376,6 +384,7 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![5]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {
@@ -387,7 +396,7 @@ mod tests {
         ];
 
         // Out of bounds choice should result in passing priority
-        let choice = controller.choose_spell_ability_to_play(&view, &abilities);
+        let choice = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
         assert_eq!(choice, None);
     }
 
@@ -397,17 +406,18 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![2, 0]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let spell_id = EntityId::new(100);
         let valid_targets = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
 
         // First choice: index 2 (third target)
-        let targets1 = controller.choose_targets(&view, spell_id, &valid_targets);
+        let targets1 = controller.choose_targets(&view, spell_id, &valid_targets, &mut *rng);
         assert_eq!(targets1.len(), 1);
         assert_eq!(targets1[0], valid_targets[2]);
 
         // Second choice: index 0 (first target)
-        let targets2 = controller.choose_targets(&view, spell_id, &valid_targets);
+        let targets2 = controller.choose_targets(&view, spell_id, &valid_targets, &mut *rng);
         assert_eq!(targets2.len(), 1);
         assert_eq!(targets2[0], valid_targets[0]);
     }
@@ -419,17 +429,18 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![2, 0]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let creatures = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
 
         // First choice: 2 attackers
-        let attackers1 = controller.choose_attackers(&view, &creatures);
+        let attackers1 = controller.choose_attackers(&view, &creatures, &mut *rng);
         assert_eq!(attackers1.len(), 2);
         assert_eq!(attackers1[0], creatures[0]);
         assert_eq!(attackers1[1], creatures[1]);
 
         // Second choice: 0 attackers
-        let attackers2 = controller.choose_attackers(&view, &creatures);
+        let attackers2 = controller.choose_attackers(&view, &creatures, &mut *rng);
         assert_eq!(attackers2.len(), 0);
     }
 
@@ -439,6 +450,7 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![1]); // Only one choice
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
+        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {
@@ -451,15 +463,15 @@ mod tests {
 
         // INVARIANT: Choice 0 = pass priority, Choice N = available[N-1]
         // First choice: index 1 → abilities[0] (first ability)
-        let choice1 = controller.choose_spell_ability_to_play(&view, &abilities);
+        let choice1 = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
         assert_eq!(choice1, Some(abilities[0].clone()));
 
         // Script exhausted, should default to index 0 → pass priority
-        let choice2 = controller.choose_spell_ability_to_play(&view, &abilities);
+        let choice2 = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
         assert_eq!(choice2, None);
 
         // Should keep returning None (pass priority)
-        let choice3 = controller.choose_spell_ability_to_play(&view, &abilities);
+        let choice3 = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
         assert_eq!(choice3, None);
     }
 }
