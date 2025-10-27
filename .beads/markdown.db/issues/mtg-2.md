@@ -45,13 +45,13 @@ excellent zero-copy characteristics for tree search.
 - ✅ mtg-7: CardDatabase.get_card() returns Arc<CardDefinition> (COMPLETED 2025-10-26)
 - ✅ mtg-8: GameStateView already uses borrowing, not cloning (COMPLETED 2025-10-26)
 - ✅ mtg-9: CardName and PlayerName use Arc<str> (COMPLETED 2025-10-26)
+- ✅ mtg-12: Mana pool calculation optimization (already resolved - no clones in ManaEngine, COMPLETED 2025-10-27)
 
 **High priority open issues:**
 - (None currently)
 
 **Medium priority:**
 - mtg-11: Zone transfer operations optimization
-- mtg-12: Mana pool calculation optimization
 
 **Future considerations:**
 - mtg-13: Arena allocation for per-turn temporaries
