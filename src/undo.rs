@@ -75,8 +75,16 @@ pub enum GameAction {
         toughness_delta: i32,
     },
 
-    /// Mark a choice point (for tree search)
-    ChoicePoint { player_id: PlayerId, choice_id: u32 },
+    /// Mark a choice point (for tree search and replay)
+    ///
+    /// Stores both the fact that a choice occurred and what that choice was,
+    /// enabling deterministic replay from snapshots.
+    ChoicePoint {
+        player_id: PlayerId,
+        choice_id: u32,
+        /// The actual choice made (for replay). None if choice hasn't been recorded yet.
+        choice: Option<crate::game::replay_controller::ReplayChoice>,
+    },
 }
 
 /// Undo log for tracking and rewinding game actions
@@ -311,6 +319,7 @@ mod tests {
         log.log(GameAction::ChoicePoint {
             player_id: PlayerId::new(1),
             choice_id: 1,
+            choice: None,
         });
 
         log.log(GameAction::TapCard {
@@ -321,6 +330,7 @@ mod tests {
         log.log(GameAction::ChoicePoint {
             player_id: PlayerId::new(1),
             choice_id: 2,
+            choice: None,
         });
 
         assert_eq!(log.len(), 5);
@@ -339,14 +349,16 @@ mod tests {
             choices[0],
             GameAction::ChoicePoint {
                 player_id: _,
-                choice_id: 1
+                choice_id: 1,
+                choice: None
             }
         ));
         assert!(matches!(
             choices[1],
             GameAction::ChoicePoint {
                 player_id: _,
-                choice_id: 2
+                choice_id: 2,
+                choice: None
             }
         ));
 
@@ -367,6 +379,7 @@ mod tests {
         log.log(GameAction::ChoicePoint {
             player_id: PlayerId::new(1),
             choice_id: 1,
+            choice: None,
         });
 
         let result = log.rewind_to_turn_start();

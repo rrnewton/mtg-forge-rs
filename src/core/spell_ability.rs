@@ -14,7 +14,7 @@ use crate::core::CardId;
 /// Matches the Java Forge SpellAbility concept where lands, spells, and
 /// activated abilities are all represented as spell abilities that can be
 /// chosen from a unified list.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SpellAbility {
     /// Play a land card from hand
     ///

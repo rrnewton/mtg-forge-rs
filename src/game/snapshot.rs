@@ -103,10 +103,12 @@ mod tests {
             GameAction::ChoicePoint {
                 player_id: PlayerId::new(0),
                 choice_id: 1,
+                choice: None,
             },
             GameAction::ChoicePoint {
                 player_id: PlayerId::new(0),
                 choice_id: 2,
+                choice: None,
             },
         ];
 
@@ -120,6 +122,7 @@ mod tests {
         let choice = GameAction::ChoicePoint {
             player_id: PlayerId::new(1),
             choice_id: 42,
+            choice: None,
         };
 
         let json = serde_json::to_string(&choice).unwrap();
@@ -128,10 +131,12 @@ mod tests {
         if let GameAction::ChoicePoint {
             player_id,
             choice_id,
+            choice,
         } = deserialized
         {
             assert_eq!(player_id, PlayerId::new(1));
             assert_eq!(choice_id, 42);
+            assert!(choice.is_none());
         } else {
             panic!("Failed to deserialize ChoicePoint");
         }

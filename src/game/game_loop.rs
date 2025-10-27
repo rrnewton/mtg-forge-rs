@@ -190,13 +190,18 @@ impl<'a> GameLoop<'a> {
     /// Log a choice point to the undo log and increment choice counter
     ///
     /// Call this every time a controller makes a decision.
-    fn log_choice_point(&mut self, player_id: PlayerId) {
+    ///
+    /// # Arguments
+    /// * `player_id` - The player who made the choice
+    /// * `choice` - The actual choice made (for replay), or None if not available
+    fn log_choice_point(&mut self, player_id: PlayerId, choice: Option<crate::game::ReplayChoice>) {
         self.choice_counter += 1;
         self.game
             .undo_log
             .log(crate::undo::GameAction::ChoicePoint {
                 player_id,
                 choice_id: self.choice_counter,
+                choice,
             });
     }
 
@@ -1053,7 +1058,7 @@ impl<'a> GameLoop<'a> {
             let attackers = controller.choose_attackers(&view, &available_creatures);
 
             // Log this choice point for snapshot/replay
-            self.log_choice_point(active_player);
+            self.log_choice_point(active_player, None);
 
             // Declare each chosen attacker
             for attacker_id in attackers.iter() {
@@ -1125,7 +1130,7 @@ impl<'a> GameLoop<'a> {
             let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
 
             // Log this choice point for snapshot/replay
-            self.log_choice_point(defending_player);
+            self.log_choice_point(defending_player, None);
 
             // Declare each blocking assignment
             for (blocker_id, attacker_id) in blocks.iter() {
@@ -1363,7 +1368,7 @@ impl<'a> GameLoop<'a> {
                     controller.choose_cards_to_discard(&view, hand, discard_count);
 
                 // Log this choice point for snapshot/replay
-                self.log_choice_point(player_id);
+                self.log_choice_point(player_id, None);
 
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
@@ -1538,7 +1543,7 @@ impl<'a> GameLoop<'a> {
                     let choice = controller.choose_spell_ability_to_play(&view, &available);
 
                     // Log this choice point for snapshot/replay
-                    self.log_choice_point(current_priority);
+                    self.log_choice_point(current_priority, None);
 
                     choice
                 };
@@ -1617,7 +1622,7 @@ impl<'a> GameLoop<'a> {
                                         controller.choose_targets(&view, card_id, &valid_targets);
 
                                     // Log this choice point for snapshot/replay
-                                    self.log_choice_point(current_priority);
+                                    self.log_choice_point(current_priority, None);
 
                                     chosen_targets.into_iter().collect()
                                 } else {
@@ -1728,7 +1733,7 @@ impl<'a> GameLoop<'a> {
                                         );
 
                                         // Log this choice point for snapshot/replay
-                                        self.log_choice_point(current_priority);
+                                        self.log_choice_point(current_priority, None);
 
                                         chosen_targets.into_iter().collect()
                                     } else {

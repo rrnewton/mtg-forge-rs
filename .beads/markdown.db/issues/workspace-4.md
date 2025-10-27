@@ -1,10 +1,10 @@
 ---
 title: Randomized stress tests with invariants for snapshot resume
 status: open
-priority: 2
+priority: 0
 issue_type: task
 created_at: "2025-10-27T09:12:20Z"
-updated_at: "2025-10-27T09:13:08Z"
+updated_at: "2025-10-27T09:22:14Z"
 ---
 
 # Description
@@ -28,4 +28,3 @@ For a list of test decks (initially just grizzly bears and royal assassin):
 If this works, you can make the test go even deeper by adding a `--save-final-gamestate=file` flag which will save the end-of-game state of play
 to a snapshot file. When both run modes produce a final file, we can do a
 deep comparison to make sure they match. Perhaps we can get the serialized text files to EXACTLY match, but there may be good reasons to ignore certain bits of state in the comparison instead.
-
