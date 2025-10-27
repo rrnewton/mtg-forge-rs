@@ -496,9 +496,21 @@ async fn run_tui(
         println!("=== Starting Game ===\n");
     }
 
-    // Run the game loop
+    // Run the game loop (with or without snapshots)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(verbosity);
-    let result = game_loop.run_game(&mut *controller1, &mut *controller2)?;
+    let result = if let Some(stop_cond) = _stop_condition {
+        // Run with snapshot functionality
+        game_loop.run_game_with_snapshots(
+            &mut *controller1,
+            &mut *controller2,
+            p1_id,  // Player 1 ID (reserved for future per-player filtering)
+            stop_cond.choice_count,
+            &snapshot_output,
+        )?
+    } else {
+        // Normal game loop
+        game_loop.run_game(&mut *controller1, &mut *controller2)?
+    };
 
     // Display results
     if verbosity >= VerbosityLevel::Minimal {

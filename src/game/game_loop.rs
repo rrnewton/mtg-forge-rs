@@ -280,6 +280,125 @@ impl<'a> GameLoop<'a> {
         })
     }
 
+    /// Run the game with stop-and-save snapshot functionality
+    ///
+    /// This method runs the game but stops after a certain number of player choices
+    /// and saves a snapshot to disk. The snapshot includes:
+    /// - GameState at the most recent turn boundary
+    /// - All intra-turn choices made since that boundary
+    ///
+    /// ## Parameters
+    /// - `controller1`, `controller2`: Player controllers
+    /// - `_p1_id`: Player 1's ID (reserved for future per-player filtering)
+    /// - `choice_limit`: Stop after this many total choices
+    /// - `snapshot_path`: Where to save the snapshot file
+    ///
+    /// ## Returns
+    /// - `Ok(GameResult)` with `GameEndReason::Manual` if snapshot was saved
+    /// - `Ok(GameResult)` with normal end reason if game finished before limit
+    pub fn run_game_with_snapshots<P: AsRef<std::path::Path>>(
+        &mut self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+        _p1_id: PlayerId,  // Reserved for future per-player filtering
+        choice_limit: usize,
+        snapshot_path: P,
+    ) -> Result<GameResult> {
+        // Verify controllers match players (extract exactly 2 player IDs without allocating)
+        let (player1_id, player2_id) = {
+            let mut players_iter = self.game.players.iter().map(|p| p.id);
+            let player1_id = players_iter.next().ok_or_else(|| {
+                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
+            })?;
+            let player2_id = players_iter.next().ok_or_else(|| {
+                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
+            })?;
+            if players_iter.next().is_some() {
+                return Err(MtgError::InvalidAction(
+                    "Game loop requires exactly 2 players".to_string(),
+                ));
+            }
+            (player1_id, player2_id)
+        };
+
+        if controller1.player_id() != player1_id || controller2.player_id() != player2_id {
+            return Err(MtgError::InvalidAction(
+                "Controller player IDs don't match game players".to_string(),
+            ));
+        }
+
+        // Shuffle each player's library at game start (MTG Rules 103.2a)
+        use rand::SeedableRng;
+        let seed = self.game.rng_seed;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
+        let player_ids: [PlayerId; 2] = [player1_id, player2_id];
+        for &player_id in &player_ids {
+            if let Some(zones) = self.game.get_player_zones_mut(player_id) {
+                zones.library.shuffle(&mut rng);
+            }
+        }
+
+        // Main game loop - run turns until game ends or choice limit reached
+        loop {
+            // Check if we've reached the choice limit
+            if self.choice_counter as usize >= choice_limit {
+                // Rewind to the most recent turn boundary and extract choices
+                if let Some((turn_number, intra_turn_choices)) = self.game.undo_log.rewind_to_turn_start() {
+                    // Clone the current game state
+                    let game_state_snapshot = self.game.clone();
+
+                    // Create snapshot
+                    let snapshot = crate::game::GameSnapshot::new(
+                        game_state_snapshot,
+                        turn_number,
+                        intra_turn_choices,
+                    );
+
+                    // Save to file
+                    snapshot.save_to_file(&snapshot_path)
+                        .map_err(|e| MtgError::InvalidAction(format!("Failed to save snapshot: {}", e)))?;
+
+                    if self.verbosity >= VerbosityLevel::Minimal {
+                        println!("\n=== Snapshot Saved ===");
+                        println!("  Choice limit reached: {} choices", choice_limit);
+                        println!("  Snapshot saved to: {}", snapshot_path.as_ref().display());
+                        println!("  Turn number: {}", turn_number);
+                        println!("  Intra-turn choices: {}", snapshot.choice_count());
+                    }
+
+                    // Return early with Manual end reason (snapshot saved)
+                    return Ok(GameResult {
+                        winner: None,
+                        turns_played: self.turns_elapsed,
+                        end_reason: GameEndReason::Manual,
+                    });
+                } else {
+                    // No turn boundary found in undo log - this shouldn't happen in normal gameplay
+                    // but might occur if we stop before the first turn completes
+                    return Err(MtgError::InvalidAction(
+                        "Cannot create snapshot: no turn boundary found in undo log".to_string(),
+                    ));
+                }
+            }
+
+            // Run one turn and check if game should end
+            if let Some(result) = self.run_turn_once(controller1, controller2)? {
+                // Game ended normally, notify controllers
+                let winner_id = result.winner;
+                controller1.on_game_end(
+                    &GameStateView::new(self.game, player1_id),
+                    winner_id == Some(player1_id),
+                );
+                controller2.on_game_end(
+                    &GameStateView::new(self.game, player2_id),
+                    winner_id == Some(player2_id),
+                );
+                return Ok(result);
+            }
+        }
+    }
+
     /// Run a single turn and check for game-ending conditions
     ///
     /// This method runs exactly one turn of the game, including all phases and steps.
