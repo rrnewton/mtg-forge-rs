@@ -2458,14 +2458,28 @@ We are not seeing the prompt BEFORE we exit, and when we restart, we see a card 
   >>> RANDOM: chose spell/ability 0 out of choices 0-0
 ```
 
+------
+
+One clarification. You correctly say that you replay choices not actions. 
+You don't need to REPLAY intra-turn actions. The idea is that
+we make the simulation determinstic EXCEPT for the choice points. Only the choices 
+need to be read from the log.
+
+There is something to watch out for here. If there are other uses of RNG in the simulator, this RNG will need to be kept SEPARATE from the random controller RNG.
+That already seems to be the case but we should verify. For deterministic simulation
+we need to restore the rng state of the GameState... Right now I see the rng_seed stored there, but when we snapshot/restore we must restore the CURRENT rng state, not just what it was seeded with on turn 0.
+
+Check over these issues and then get to work on implementing the snapshot replay logic.
+
+
 TODO: Randomized stress tests with invariants for snapshot resume
 --------------------------------------------------------------------------------
 
 Now you can see how to play some number of turns, and stop and resume randomly.
 Build an e2e test script (under tests/) which stresses the system. This script can be in python and we can extend the e2e test script runner to run both .py and .sh files in that directory.
 
-For a list of test decks:
-For both random/random and heuristic/heuristic modes:
+For a list of test decks (initially just grizzly bears and royal assassin):
+ For both random/random and heuristic/heuristic modes:
  - Play a game with the deterministic seed and count the turns,
    choices, and log of choices made by P1/P2.
  - Play the same game stop-and-go, with players switched to fixed controllers
@@ -2473,10 +2487,20 @@ For both random/random and heuristic/heuristic modes:
     - snapshot, resume, repeat until game end
 
  - Examine the collected logs of both the original and stop-and-go runs.
-   - make sure the final 
+   - Filtering for relevant game actions (draw card, spell resolves, etc),
+     the logs should match EXACTLY. The differences are only extra messages around stopping/resuming.
+   - Make sure the final game 
 
 If this works, you can make the test go even deeper by adding a `--save-final-gamestate=file` flag which will save the end-of-game state of play
-to a snapshot file. When both run modes produce 
+to a snapshot file. When both run modes produce a final file, we can do a
+deep comparison to make sure they match. Perhaps we can get the serialized text files to EXACTLY match, but there may be good reasons to ignore certain bits of state in the comparison instead.
+
+
+TODO: don't pretty print the json snapshots
+--------------------------------------------
+
+TODO: switch to binary serialized snapshots
+----------------------------------------
 
 
 TODO: Guide on how to make progress on the TUI
@@ -2492,6 +2516,29 @@ TODO: add install root and resource files
 ------------------------------------------
 
 
+
+
+
+TODO: ingest task importer does destroys input even when it fails
+--------------------------------------------------------------------------------
+```
+===================================
+Processing 1 file(s) from inbox
+===================================
+
+Processing: tasks.md
+  → Creating issue: Begin or progress work on simple interactive TUI
+    ✗ Failed to create issue
+    Error: Error: --no-db and --no-json cannot both be enabled
+The data needs to be stored somewhere (either in the database or in JSONL)
+  → Creating issue: TODO: Randomized stress tests with invariants for snapshot resume
+    ✗ Failed to create issue
+    Error: Error: --no-db and --no-json cannot both be enabled
+The data needs to be stored somewhere (either in the database or in JSONL)
+
+  → Moved to: .beads/done/20251027_090755_tasks.md
+  → Added to git
+  ```
 
 
 

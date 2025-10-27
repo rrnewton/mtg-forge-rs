@@ -348,7 +348,7 @@ impl<'a> GameLoop<'a> {
     /// This verifies that:
     /// - Exactly 2 players exist in the game
     /// - Controllers match the player IDs
-    /// - Libraries are shuffled using the game's RNG seed
+    /// - Libraries are shuffled using the game's RNG seed (unless resuming from snapshot)
     ///
     /// Returns the player IDs for both players.
     fn setup_game(
@@ -379,17 +379,23 @@ impl<'a> GameLoop<'a> {
             ));
         }
 
-        // Shuffle each player's library at game start (MTG Rules 103.2a)
-        // This uses the game's RNG which can be seeded for deterministic testing
-        use rand::SeedableRng;
-        let seed = self.game.rng_seed;
-        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        // Only shuffle libraries if this is a fresh game (not resuming from snapshot)
+        // We detect snapshot resume by checking if undo log has actions
+        let is_resuming_from_snapshot = !self.game.undo_log.actions().is_empty();
 
-        // Extract player IDs to avoid borrow checker issues
-        let player_ids: [PlayerId; 2] = [player1_id, player2_id];
-        for &player_id in &player_ids {
-            if let Some(zones) = self.game.get_player_zones_mut(player_id) {
-                zones.library.shuffle(&mut rng);
+        if !is_resuming_from_snapshot {
+            // Shuffle each player's library at game start (MTG Rules 103.2a)
+            // This uses the game's RNG which can be seeded for deterministic testing
+            use rand::SeedableRng;
+            let seed = self.game.rng_seed;
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
+            // Extract player IDs to avoid borrow checker issues
+            let player_ids: [PlayerId; 2] = [player1_id, player2_id];
+            for &player_id in &player_ids {
+                if let Some(zones) = self.game.get_player_zones_mut(player_id) {
+                    zones.library.shuffle(&mut rng);
+                }
             }
         }
 

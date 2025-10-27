@@ -1,5 +1,4 @@
 prefix: mtg-
 backend: markdown
-no-db: false
 no-json: true
-
+# no-db: false
