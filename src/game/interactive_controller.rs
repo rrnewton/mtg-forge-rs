@@ -34,7 +34,7 @@ impl InteractiveController {
     /// Helper: prompt user for a choice and validate input
     fn get_user_choice(&self, prompt: &str, num_options: usize, allow_pass: bool) -> Option<usize> {
         loop {
-            print!("\n{} ", prompt);
+            print!("{} ", prompt);
             io::stdout().flush().unwrap();
 
             let mut input = String::new();
@@ -45,9 +45,14 @@ impl InteractiveController {
 
             let trimmed = input.trim();
 
-            // Check for pass
+            // Check for pass in non-numeric mode (allow_pass: true)
             if allow_pass && (trimmed == "p" || trimmed == "pass" || trimmed.is_empty()) {
                 return None;
+            }
+
+            // In numeric mode (allow_pass: false), treat empty input as option 0
+            if !allow_pass && trimmed.is_empty() {
+                return Some(0);
             }
 
             // Try to parse as number
@@ -96,9 +101,12 @@ impl PlayerController for InteractiveController {
 
         // Get player name from view
         let player_name = view.player_name().unwrap_or_else(|| "Player".to_string());
-        println!("\n=== Your Priority ({}) ===", player_name);
-        println!("Life: {}", view.life());
-        println!("Step: {:?}", view.current_step());
+        println!(
+            "\n  ==> Priority {}: life {}, {:?}",
+            player_name,
+            view.life(),
+            view.current_step()
+        );
 
         if self.numeric_choices {
             // Numeric mode: 0 = Pass, 1-N = actions
@@ -122,14 +130,32 @@ impl PlayerController for InteractiveController {
             }
 
             let choice = self.get_user_choice(
-                &format!("Enter choice (0-{}):", available.len()),
+                &format!("\nEnter choice (0-{}):", available.len()),
                 available.len() + 1,
                 false,
             )?;
 
             if choice == 0 {
+                println!("Passed priority.");
                 return None; // Pass
             }
+
+            // Acknowledge the chosen action
+            match &available[choice - 1] {
+                SpellAbility::PlayLand { card_id } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Playing land: {}", name);
+                }
+                SpellAbility::CastSpell { card_id } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Casting spell: {}", name);
+                }
+                SpellAbility::ActivateAbility { card_id, .. } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Activating ability: {}", name);
+                }
+            }
+
             Some(available[choice - 1].clone())
         } else {
             // Original mode: indices match array, 'p' to pass
@@ -152,10 +178,29 @@ impl PlayerController for InteractiveController {
             }
 
             let choice = self.get_user_choice(
-                &format!("Choose action (0-{} or 'p' to pass):", available.len() - 1),
+                &format!(
+                    "\nChoose action (0-{} or 'p' to pass):",
+                    available.len() - 1
+                ),
                 available.len(),
                 true,
             )?;
+
+            // Acknowledge the chosen action
+            match &available[choice] {
+                SpellAbility::PlayLand { card_id } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Playing land: {}", name);
+                }
+                SpellAbility::CastSpell { card_id } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Casting spell: {}", name);
+                }
+                SpellAbility::ActivateAbility { card_id, .. } => {
+                    let name = view.card_name(*card_id).unwrap_or_default();
+                    println!("Activating ability: {}", name);
+                }
+            }
 
             Some(available[choice].clone())
         }

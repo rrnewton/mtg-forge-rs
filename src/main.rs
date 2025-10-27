@@ -100,6 +100,14 @@ enum Commands {
         /// Use numeric-only choice format (for comparison with Java Forge)
         #[arg(long)]
         numeric_choices: bool,
+
+        /// Player 1 name (default: Alice)
+        #[arg(long, default_value = "Alice")]
+        p1_name: String,
+
+        /// Player 2 name (default: Bob)
+        #[arg(long, default_value = "Bob")]
+        p2_name: String,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -133,6 +141,8 @@ async fn main() -> Result<()> {
             load_all_cards,
             verbosity,
             numeric_choices,
+            p1_name,
+            p2_name,
         } => {
             run_tui(
                 deck1,
@@ -144,6 +154,8 @@ async fn main() -> Result<()> {
                 load_all_cards,
                 verbosity,
                 numeric_choices,
+                p1_name,
+                p2_name,
             )
             .await?
         }
@@ -165,6 +177,8 @@ async fn run_tui(
     load_all_cards: bool,
     verbosity: VerbosityArg,
     numeric_choices: bool,
+    p1_name: String,
+    p2_name: String,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
@@ -240,9 +254,9 @@ async fn run_tui(
         let game_init = GameInitializer::new(&card_db);
         game_init
             .init_game(
-                "Player 1".to_string(),
+                p1_name.clone(),
                 &deck1,
-                "Player 2".to_string(),
+                p2_name.clone(),
                 &deck2,
                 20, // starting life
             )
@@ -262,8 +276,8 @@ async fn run_tui(
     }
 
     println!("Game initialized!");
-    println!("  Player 1: Player 1 ({p1_type:?})");
-    println!("  Player 2: Player 2 ({p2_type:?})\n");
+    println!("  Player 1: {} ({p1_type:?})", p1_name);
+    println!("  Player 2: {} ({p2_type:?})\n", p2_name);
 
     // Create controllers based on agent types
     let (p1_id, p2_id) = {
