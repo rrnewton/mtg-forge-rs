@@ -1,10 +1,10 @@
 ---
 title: Randomized stress tests with invariants for snapshot resume
-status: closed
+status: open
 priority: 0
 issue_type: task
 created_at: "2025-10-27T09:12:20Z"
-updated_at: "2025-10-27T14:01:45Z"
+updated_at: "2025-10-27T08:00:45-07:00"
 closed_at: "2025-10-27T14:01:45Z"
 ---
 
@@ -48,13 +48,15 @@ You can choose whatever mechanism you like to collect the choices from the first
 enough that it can be extracted from the logs OR you can have a flag that
 activates logging of just the [p1/p2] choices.
 
-## Criteria for closing this task
+## CRITICAL: Criteria for closing this task
 
 Only close this task when we at least three decks can fully pass the test with
 exact matching game game actions between the normal and stop-and-go run.
 - royal_assassin.dck
 - white_aggro_4ed.dck
 - moonred.dck
+
+This INCLUDES the deep comparison of final gamestate. Until we have total fidelity between original runs (random and heuristic) and replays, we are not done with this task.
 
 ## Tracking - Implementation Progress (2025-10-27)
 
@@ -79,3 +81,4 @@ grizzly_bears.dck as substitute, which still meets the "at least three decks" cr
 - Successfully validates that snapshot/resume preserves complete game state
 
 The test is integrated into the existing test suite and runs via cargo nextest run.
+

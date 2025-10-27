@@ -134,6 +134,10 @@ enum Commands {
         /// Load and resume game from snapshot file
         #[arg(long, value_name = "FILE")]
         start_from: Option<PathBuf>,
+
+        /// Save final game state when game ends (for determinism testing)
+        #[arg(long, value_name = "FILE")]
+        save_final_gamestate: Option<PathBuf>,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -174,6 +178,7 @@ async fn main() -> Result<()> {
             stop_every,
             snapshot_output,
             start_from,
+            save_final_gamestate,
         } => {
             run_tui(
                 deck1,
@@ -192,6 +197,7 @@ async fn main() -> Result<()> {
                 stop_every,
                 snapshot_output,
                 start_from,
+                save_final_gamestate,
             )
             .await?
         }
@@ -234,6 +240,7 @@ async fn run_tui(
     stop_every: Option<String>,
     snapshot_output: PathBuf,
     start_from: Option<PathBuf>,
+    save_final_gamestate: Option<PathBuf>,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
@@ -497,8 +504,11 @@ async fn run_tui(
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(verbosity);
 
     // If loading from snapshot, restore the turn counter
+    // Note: snapshot.turn_number represents the turn we're STARTING,
+    // but turns_elapsed tracks COMPLETED turns, so we need turn_number - 1
     if let Some(turn_num) = snapshot_turn_number {
-        game_loop = game_loop.with_turn_counter(turn_num);
+        let turns_elapsed = if turn_num > 0 { turn_num - 1 } else { 0 };
+        game_loop = game_loop.with_turn_counter(turns_elapsed);
     }
 
     let result = if let Some(ref stop_cond) = stop_condition {
@@ -535,6 +545,28 @@ async fn run_tui(
         println!("\n=== Final State ===");
         for player in game.players.iter() {
             println!("  {}: {} life", player.name, player.life);
+        }
+    }
+
+    // Save final gamestate if requested (for determinism testing)
+    if let Some(final_state_path) = save_final_gamestate {
+        if result.end_reason != GameEndReason::Snapshot {
+            // Create a snapshot with the final game state
+            let final_snapshot = GameSnapshot::new(
+                game.clone(),
+                result.turns_played,
+                Vec::new(), // No intra-turn choices for final state
+            );
+
+            final_snapshot.save_to_file(&final_state_path).map_err(|e| {
+                mtg_forge_rs::MtgError::InvalidAction(format!(
+                    "Failed to save final gamestate: {}", e
+                ))
+            })?;
+
+            if verbosity >= VerbosityLevel::Verbose {
+                println!("\nFinal game state saved to: {}", final_state_path.display());
+            }
         }
     }
 

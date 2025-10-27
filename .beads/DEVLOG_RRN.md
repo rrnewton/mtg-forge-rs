@@ -2521,9 +2521,12 @@ Also, if the file you move already has a timestamp on the front, don't add a red
 
 
 
-TODO: Guide on how to make general progress on the TUI
+TODO: Keep going until we can load all decks with full legal games
 --------------------------------------------------------------------------------
 
+Issue mtg-3 should be a checklist of what MTG features we support.
+
+### Guide on how to make general progress on the TUI
 ### General guide
 
 Now you have the tools you need to:
