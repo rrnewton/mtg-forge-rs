@@ -156,21 +156,24 @@ impl UndoLog {
     /// Rewind to the most recent ChangeTurn action, extracting all ChoicePoint actions
     /// encountered along the way (in forward chronological order).
     ///
-    /// Returns (turn_number, intra_turn_choices) where:
+    /// Returns (turn_number, intra_turn_choices, actions_rewound) where:
     /// - turn_number: The turn number from the most recent ChangeTurn action
     /// - intra_turn_choices: All ChoicePoint actions that occurred after that turn change
+    /// - actions_rewound: Total number of actions popped from the log
     ///
     /// Returns None if no ChangeTurn action is found in the log.
-    pub fn rewind_to_turn_start(&mut self) -> Option<(u32, Vec<GameAction>)> {
+    pub fn rewind_to_turn_start(&mut self) -> Option<(u32, Vec<GameAction>, usize)> {
         if !self.enabled {
             return None;
         }
 
         let mut choices_reversed = Vec::new();
         let mut turn_number = None;
+        let mut actions_rewound = 0;
 
         // Pop actions in reverse until we find ChangeTurn
         while let Some(action) = self.pop() {
+            actions_rewound += 1;
             match action {
                 GameAction::ChangeTurn {
                     turn_number: tn, ..
@@ -191,7 +194,7 @@ impl UndoLog {
         turn_number.map(|tn| {
             // Reverse the choices to get forward chronological order
             choices_reversed.reverse();
-            (tn, choices_reversed)
+            (tn, choices_reversed, actions_rewound)
         })
     }
 
@@ -326,9 +329,10 @@ mod tests {
         let result = log.rewind_to_turn_start();
         assert!(result.is_some());
 
-        let (turn_number, choices) = result.unwrap();
+        let (turn_number, choices, actions_rewound) = result.unwrap();
         assert_eq!(turn_number, 1);
         assert_eq!(choices.len(), 2);
+        assert_eq!(actions_rewound, 5); // All 4 actions after ChangeTurn, plus the ChangeTurn itself
 
         // Verify choices are in forward chronological order
         assert!(matches!(

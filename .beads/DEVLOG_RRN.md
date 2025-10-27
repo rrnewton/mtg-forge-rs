@@ -2408,8 +2408,7 @@ More text output improvement
   Let's print "Passed priority..." after we choose that action. The line after the "Enter Choice" prompt should generally acknowledge the action taken.
 
 
-
-TODO: try downloading old school decks
+done: try downloading old school decks
 ---------------
 Let's download a representative top deck for each of the top Old-School MTG metagame deck archetypes ("Rogue" to "GR Aggro"). Browse for them here:
 
@@ -2441,10 +2440,23 @@ Error: InvalidCardFormat("Card file not found")
 TODO: minor if one deck is passed to `mtg tui` use that for both players
 -------------------
 
+Still have some bugs to fix with stop resume
+-------
+Run the following and consider the output:
+```
+P1=random
+cargo run --bin mtg -- tui test_decks/grizzly_bears.dck test_decks/royal_assassin.dck --p1=$P1 --p2=heuristic --stop-every=p1:choice:1
+cargo run --bin mtg -- tui --p1=$P1 --p2=heuristic --stop-every=p1:choice:1 --start-from=game.snapshot
+```
+If we use a random controller for P1 we expect `>>> RANDOM: chose` messages
+for each choice. Specifically, we expect a prompt for the choice BEFORE the snapshot-and-exit event. Then we expect the choice to be made right at the beginning of the restart with --start-from.
+
+Instead, we currently only see one choice 
+
 
 
 TODO: Guide on how to make progress on the TUI
------------------------------------------------
+--------------------------------------------------------------------------------
 
 Now you have the tools you need to:
  - play real games of magic with real decks
@@ -2452,14 +2464,15 @@ Now you have the tools you need to:
  - identify gaps/bugs and make progress to fix them.
 
 
+TODO: add install root and resource files
+------------------------------------------
 
 
-TODO: gather decks from the internet
 
 
 
 TODO: Optimized mode to cut down on choices
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 Following the full magic rules, we will give players priority at every opportunity.
 If we are doing aggressive filtering of valid actions, then many of these priorities

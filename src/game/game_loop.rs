@@ -365,14 +365,16 @@ impl<'a> GameLoop<'a> {
     /// This rewinds the undo log to the most recent turn boundary, extracts
     /// intra-turn choices, and saves a GameSnapshot to disk.
     ///
-    /// Returns a GameResult with `GameEndReason::Manual`.
+    /// Returns a GameResult with `GameEndReason::Snapshot`.
     fn save_snapshot_and_exit<P: AsRef<std::path::Path>>(
         &mut self,
         choice_limit: usize,
         snapshot_path: P,
     ) -> Result<GameResult> {
         // Rewind to the most recent turn boundary and extract intra-turn choices
-        if let Some((turn_number, intra_turn_choices)) = self.game.undo_log.rewind_to_turn_start() {
+        if let Some((turn_number, intra_turn_choices, actions_rewound)) =
+            self.game.undo_log.rewind_to_turn_start()
+        {
             // Clone the game state at the turn boundary
             let game_state_snapshot = self.game.clone();
 
@@ -395,6 +397,7 @@ impl<'a> GameLoop<'a> {
                 println!("  Snapshot saved to: {}", snapshot_path.as_ref().display());
                 println!("  Turn number: {}", turn_number);
                 println!("  Intra-turn choices: {}", snapshot.choice_count());
+                println!("  Actions rewound: {}", actions_rewound);
             }
 
             // Return early with Snapshot end reason

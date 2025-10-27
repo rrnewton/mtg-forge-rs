@@ -2909,7 +2909,7 @@
           "owner": 0,
           "controller": 0,
           "tapped": false,
-          "turn_entered_battlefield": null,
+          "turn_entered_battlefield": 3,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -5909,7 +5909,7 @@
           "colorless": 0
         },
         "has_lost": false,
-        "lands_played_this_turn": 0,
+        "lands_played_this_turn": 1,
         "max_lands_per_turn": 1,
         "max_hand_size": 7
       },
@@ -5926,7 +5926,7 @@
           "colorless": 0
         },
         "has_lost": false,
-        "lands_played_this_turn": 1,
+        "lands_played_this_turn": 0,
         "max_lands_per_turn": 1,
         "max_hand_size": 7
       }
@@ -5939,66 +5939,65 @@
             "zone_type": "Library",
             "owner": 0,
             "cards": [
-              26,
-              34,
-              17,
-              32,
-              28,
-              31,
-              33,
-              22,
-              50,
-              37,
-              45,
-              58,
-              30,
-              52,
+              59,
+              5,
               3,
-              53,
-              14,
-              38,
-              43,
+              29,
+              25,
+              21,
+              60,
               7,
+              13,
+              27,
+              15,
+              48,
+              54,
+              41,
+              26,
+              9,
+              58,
+              36,
+              42,
+              28,
+              51,
               62,
+              4,
+              47,
               23,
               57,
-              59,
-              24,
-              25,
-              12,
-              54,
-              21,
-              29,
-              60,
-              5,
-              18,
-              8,
-              27,
-              36,
-              10,
-              20,
-              19,
-              11,
-              42,
-              44,
-              15,
-              55,
-              61,
-              56,
-              40,
-              13,
-              6,
-              41,
-              9,
+              37,
               16,
-              49,
-              39,
-              4,
-              48,
-              47,
+              43,
+              12,
               35,
+              17,
+              53,
+              31,
+              24,
+              8,
+              22,
+              38,
+              14,
+              50,
+              11,
+              44,
+              30,
+              49,
               46,
-              51
+              39,
+              20,
+              45,
+              32,
+              19,
+              33,
+              52,
+              40,
+              10,
+              34,
+              56,
+              61,
+              18,
+              55
             ]
           },
           "hand": {
@@ -6025,65 +6024,65 @@
             "zone_type": "Library",
             "owner": 1,
             "cards": [
-              120,
-              105,
-              122,
-              98,
-              111,
-              90,
-              101,
-              95,
-              79,
-              94,
-              82,
-              118,
-              117,
-              87,
-              88,
-              85,
-              116,
-              100,
-              71,
-              81,
-              103,
               107,
-              113,
-              102,
+              97,
+              88,
+              65,
+              91,
+              80,
+              64,
+              70,
+              116,
+              110,
+              81,
+              121,
+              96,
               74,
               68,
-              78,
-              80,
-              119,
-              108,
-              72,
-              110,
-              70,
-              104,
-              69,
-              65,
-              63,
-              66,
-              64,
-              99,
-              89,
-              106,
-              97,
-              92,
-              67,
-              93,
-              109,
-              86,
-              75,
-              121,
-              76,
-              84,
+              113,
               114,
-              96,
-              91,
-              112,
+              66,
+              79,
+              71,
+              89,
+              67,
               73,
+              99,
+              118,
+              90,
+              85,
+              100,
+              112,
+              93,
+              94,
+              86,
+              95,
+              106,
+              101,
+              122,
+              120,
+              98,
+              105,
+              63,
+              78,
+              92,
+              69,
+              108,
+              111,
+              72,
+              109,
+              102,
+              117,
               115,
-              83
+              83,
+              76,
+              104,
+              119,
+              75,
+              82,
+              84,
+              103,
+              87
             ]
           },
           "hand": {
@@ -6108,7 +6107,8 @@
       "zone_type": "Battlefield",
       "owner": 2,
       "cards": [
-        77
+        77,
+        6
       ]
     },
     "stack": {
@@ -6117,9 +6117,9 @@
       "cards": []
     },
     "turn": {
-      "turn_number": 3,
+      "turn_number": 4,
       "current_step": "Untap",
-      "active_player": 0,
+      "active_player": 1,
       "active_player_idx": 0,
       "priority_player": null
     },
@@ -6293,6 +6293,94 @@
             "from_step": "End",
             "to_step": "Cleanup"
           }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Untap",
+            "to_step": "Upkeep"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Upkeep",
+            "to_step": "Draw"
+          }
+        },
+        {
+          "MoveCard": {
+            "card_id": 6,
+            "from_zone": "Library",
+            "to_zone": "Hand",
+            "owner": 0
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Draw",
+            "to_step": "Main1"
+          }
+        },
+        {
+          "ChoicePoint": {
+            "player_id": 0,
+            "choice_id": 1
+          }
+        },
+        {
+          "MoveCard": {
+            "card_id": 6,
+            "from_zone": "Hand",
+            "to_zone": "Battlefield",
+            "owner": 0
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main1",
+            "to_step": "BeginCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "BeginCombat",
+            "to_step": "DeclareAttackers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareAttackers",
+            "to_step": "DeclareBlockers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareBlockers",
+            "to_step": "CombatDamage"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "CombatDamage",
+            "to_step": "EndCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "EndCombat",
+            "to_step": "Main2"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main2",
+            "to_step": "End"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "End",
+            "to_step": "Cleanup"
+          }
         }
       ],
       "enabled": true,
@@ -6305,6 +6393,6 @@
       "capture_logs": false
     }
   },
-  "turn_number": 3,
+  "turn_number": 4,
   "intra_turn_choices": []
 }

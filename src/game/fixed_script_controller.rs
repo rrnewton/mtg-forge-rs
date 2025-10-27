@@ -31,8 +31,8 @@ impl FixedScriptController {
     ///
     /// # Example
     /// ```
-    /// use mtg_forge::game::FixedScriptController;
-    /// use mtg_forge::core::PlayerId;
+    /// use mtg_forge_rs::game::FixedScriptController;
+    /// use mtg_forge_rs::core::PlayerId;
     ///
     /// let controller = FixedScriptController::new(
     ///     PlayerId::new(0),
