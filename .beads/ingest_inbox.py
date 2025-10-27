@@ -6,6 +6,7 @@ Parses markdown files with setext-style headers (underlined with = or -)
 and creates beads issues for each section with priority 0 and label "human".
 """
 
+import argparse
 import json
 import os
 import re
@@ -137,17 +138,26 @@ def parse_setext_markdown(content: str) -> List[Tuple[str, str]]:
     return sections
 
 
-def create_bd_issue(title: str, body: str, use_no_db: bool) -> Tuple[bool, Optional[str], str]:
+def create_bd_issue(title: str, body: str, use_no_db: bool, priority: int = 0) -> Tuple[bool, Optional[str], str]:
     """
     Create a bd issue with the given title and body.
+
+    Args:
+        title: Issue title
+        body: Issue description
+        use_no_db: Whether to use --no-db flag
+        priority: Issue priority (default: 0)
 
     Returns: (success, issue_id, message)
     """
     try:
-        cmd = ['bd', 'create', title, '-p', '0', '-l', 'human', '-d', body, '--json']
+        # Build command based on whether we're using --no-db
         if use_no_db:
-            # Insert --no-db before 'create' subcommand
-            cmd = ['bd', '--no-db'] + cmd[1:]
+            # Don't use --json with --no-db as they conflict
+            cmd = ['bd', '--no-db', 'create', title, '-p', str(priority), '-l', 'human', '-d', body]
+        else:
+            # Use --json for better output parsing
+            cmd = ['bd', 'create', title, '-p', str(priority), '-l', 'human', '-d', body, '--json']
 
         result = subprocess.run(
             cmd,
@@ -160,19 +170,28 @@ def create_bd_issue(title: str, body: str, use_no_db: bool) -> Tuple[bool, Optio
             error_msg = result.stderr.strip() or result.stdout.strip() or "Unknown error"
             return False, None, error_msg
 
-        # Parse JSON response to get issue ID
-        try:
-            response = json.loads(result.stdout)
-            issue_id = response.get('id', 'unknown')
-            return True, issue_id, ""
-        except json.JSONDecodeError:
-            # If --json isn't supported or fails, try to extract ID from output
+        # Parse output to get issue ID
+        if use_no_db:
+            # For --no-db mode, parse text output
             output = result.stdout.strip()
             # Look for patterns like "mtg-123" or "Created: mtg-123"
             match = re.search(r'\b(mtg-\d+)\b', output)
             if match:
                 return True, match.group(1), ""
             return True, None, "Issue created but ID not found in output"
+        else:
+            # For normal mode, parse JSON response
+            try:
+                response = json.loads(result.stdout)
+                issue_id = response.get('id', 'unknown')
+                return True, issue_id, ""
+            except json.JSONDecodeError:
+                # Fallback to text parsing if JSON fails
+                output = result.stdout.strip()
+                match = re.search(r'\b(mtg-\d+)\b', output)
+                if match:
+                    return True, match.group(1), ""
+                return True, None, "Issue created but ID not found in output"
 
     except subprocess.TimeoutExpired:
         return False, None, "Command timed out"
@@ -180,9 +199,15 @@ def create_bd_issue(title: str, body: str, use_no_db: bool) -> Tuple[bool, Optio
         return False, None, f"Exception: {str(e)}"
 
 
-def process_file(file_path: Path, done_dir: Path, use_no_db: bool) -> Tuple[int, List[str]]:
+def process_file(file_path: Path, done_dir: Path, use_no_db: bool, priority: int = 0) -> Tuple[int, List[str]]:
     """
     Process a single markdown file from inbox.
+
+    Args:
+        file_path: Path to the markdown file to process
+        done_dir: Directory to move processed files to
+        use_no_db: Whether to use --no-db flag
+        priority: Priority for created issues (default: 0)
 
     Returns: (number_of_issues_created, list_of_issue_ids)
     """
@@ -209,7 +234,7 @@ def process_file(file_path: Path, done_dir: Path, use_no_db: bool) -> Tuple[int,
     for title, body in sections:
         print(f"  {Colors.GREEN}→{Colors.NC} Creating issue: {title}")
 
-        success, issue_id, error_msg = create_bd_issue(title, body, use_no_db)
+        success, issue_id, error_msg = create_bd_issue(title, body, use_no_db, priority)
 
         if success:
             if issue_id:
@@ -262,8 +287,62 @@ def process_file(file_path: Path, done_dir: Path, use_no_db: bool) -> Tuple[int,
     return issues_created, issue_ids
 
 
+def parse_args():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Ingest human-written issues from markdown files into beads.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Process all files in .beads/inbox/
+  %(prog)s
+
+  # Process a specific file
+  %(prog)s .beads/inbox/tasks.md
+
+  # Process with custom priority
+  %(prog)s --priority 1
+  %(prog)s -p 2 .beads/inbox/urgent.md
+
+Markdown Format:
+  Files should use setext-style headers (underlined with = or -):
+
+    First Issue Title
+    =================
+
+    Description of the first issue here.
+
+    Second Issue Title
+    ------------------
+
+    Description of the second issue.
+
+  Each section creates one beads issue with label "human".
+        """
+    )
+
+    parser.add_argument(
+        'file',
+        nargs='?',
+        type=str,
+        help='Specific markdown file to ingest (default: process all files in .beads/inbox/)'
+    )
+
+    parser.add_argument(
+        '-p', '--priority',
+        type=int,
+        default=0,
+        metavar='N',
+        help='Priority for created issues (default: 0)'
+    )
+
+    return parser.parse_args()
+
+
 def main():
     """Main entry point."""
+    args = parse_args()
+
     script_dir = Path(__file__).parent
     inbox_dir = script_dir / 'inbox'
     done_dir = script_dir / 'done'
@@ -273,39 +352,61 @@ def main():
     inbox_dir.mkdir(exist_ok=True)
     done_dir.mkdir(exist_ok=True)
 
-    # Find markdown files in inbox
-    md_files = list(inbox_dir.glob('*.md'))
-
-    if not md_files:
-        print()
-        print(f"{Colors.YELLOW}No files found in .beads/inbox/{Colors.NC}")
-        print("Place markdown files with section headers in .beads/inbox/ to ingest them.")
-        print()
-        print("Example format:")
-        print("  First Issue Title")
-        print("  =================")
-        print("  ")
-        print("  Description of the first issue here.")
-        print("  ")
-        print("  Second Issue Title")
-        print("  ------------------")
-        print("  ")
-        print("  Description of the second issue.")
-        print()
-        return 0
-
-    # Check for --no-db support
-    use_no_db = check_bd_supports_no_db()
-
-    # Check if database exists (if not using --no-db)
-    if not use_no_db and not check_bd_database_exists():
-        if not init_beads_database(project_root):
-            print(f"{Colors.RED}Failed to initialize beads database. Exiting.{Colors.NC}")
+    # Determine which files to process
+    if args.file:
+        # Process specific file
+        file_path = Path(args.file)
+        if not file_path.exists():
+            print(f"{Colors.RED}Error: File not found: {args.file}{Colors.NC}")
             return 1
+        if not file_path.is_file():
+            print(f"{Colors.RED}Error: Not a file: {args.file}{Colors.NC}")
+            return 1
+        if file_path.suffix != '.md':
+            print(f"{Colors.YELLOW}Warning: File does not have .md extension: {args.file}{Colors.NC}")
+
+        md_files = [file_path]
+    else:
+        # Process all files in inbox
+        md_files = list(inbox_dir.glob('*.md'))
+
+        if not md_files:
+            print()
+            print(f"{Colors.YELLOW}No files found in .beads/inbox/{Colors.NC}")
+            print("Place markdown files with section headers in .beads/inbox/ to ingest them.")
+            print()
+            print("Example format:")
+            print("  First Issue Title")
+            print("  =================")
+            print("  ")
+            print("  Description of the first issue here.")
+            print("  ")
+            print("  Second Issue Title")
+            print("  ------------------")
+            print("  ")
+            print("  Description of the second issue.")
+            print()
+            print("Run with --help for more information.")
+            return 0
+
+    # Check if database exists first
+    db_exists = check_bd_database_exists()
+    use_no_db = False
+
+    # If database doesn't exist, try to initialize it
+    if not db_exists:
+        if not init_beads_database(project_root):
+            # If initialization failed, try --no-db as fallback
+            if check_bd_supports_no_db():
+                print(f"{Colors.YELLOW}Using --no-db mode as fallback{Colors.NC}")
+                use_no_db = True
+            else:
+                print(f"{Colors.RED}Failed to initialize beads database and --no-db not supported. Exiting.{Colors.NC}")
+                return 1
 
     print()
     print("===================================")
-    print(f"{Colors.CYAN}Processing {len(md_files)} file(s) from inbox{Colors.NC}")
+    print(f"{Colors.CYAN}Processing {len(md_files)} file(s) with priority {args.priority}{Colors.NC}")
     print("===================================")
     print()
 
@@ -314,7 +415,7 @@ def main():
 
     # Process each file
     for md_file in sorted(md_files):
-        count, ids = process_file(md_file, done_dir, use_no_db)
+        count, ids = process_file(md_file, done_dir, use_no_db, args.priority)
         total_issues_created += count
         all_issue_ids.extend(ids)
 
