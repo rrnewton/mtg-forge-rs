@@ -87,18 +87,18 @@ Life: 16
 Life: 20
 Alice draws Serra Angel (25)
 Alice casts Serra Angel (25) (putting on stack)
+>>> HEURISTIC: chose not to block (no favorable blocks among 3 blockers vs 1 attackers)
+Serra Angel (24) deals 4 damage to Bob
 Turn 18 - Bob's turn
 Life: 16
-Life: 20
+Life: 16
 Bob draws Plains (73)
 Bob plays Plains (74)
 Turn 19 - Alice's turn
 Life: 16
-Life: 20
+Life: 16
 Alice draws Plains (3)
 Alice plays Plains (3)
->>> HEURISTIC: chose not to block (no favorable blocks among 3 blockers vs 1 attackers)
-Serra Angel (24) deals 4 damage to Bob
 Turn 20 - Bob's turn
 Life: 16
 Life: 16
@@ -120,18 +120,18 @@ Life: 16
 Life: 16
 Alice draws Plains (43)
 Alice plays Plains (43)
+>>> HEURISTIC: chose not to block (no favorable blocks among 4 blockers vs 1 attackers)
+Serra Angel (24) deals 4 damage to Bob
 Turn 24 - Bob's turn
 Life: 16
-Life: 16
+Life: 12
 Bob draws Plains (103)
 Bob plays Plains (118)
 Turn 25 - Alice's turn
 Life: 16
-Life: 16
+Life: 12
 Alice draws Serra Angel (28)
 Alice casts Serra Angel (28) (putting on stack)
->>> HEURISTIC: chose not to block (no favorable blocks among 4 blockers vs 1 attackers)
-Serra Angel (24) deals 4 damage to Bob
 Turn 26 - Bob's turn
 Life: 16
 Life: 12
@@ -142,29 +142,29 @@ Life: 16
 Life: 12
 Alice draws Plains (58)
 Alice plays Plains (58)
+>>> HEURISTIC: chose not to block (no favorable blocks among 4 blockers vs 1 attackers)
+Serra Angel (24) deals 4 damage to Bob
 Turn 28 - Bob's turn
 Life: 16
-Life: 12
+Life: 8
 Bob draws Plains (109)
 Bob plays Plains (76)
 Turn 29 - Alice's turn
 Life: 16
-Life: 12
+Life: 8
 Alice draws Serra Angel (31)
 Alice casts Serra Angel (31) (putting on stack)
 Turn 30 - Bob's turn
 Life: 16
-Life: 12
+Life: 8
 Bob draws Serra Angel (87)
 Bob casts Serra Angel (87) (putting on stack)
 Bob plays Plains (103)
 Turn 31 - Alice's turn
 Life: 16
-Life: 12
+Life: 8
 Alice draws Plains (8)
 Alice plays Plains (8)
->>> HEURISTIC: chose not to block (no favorable blocks among 5 blockers vs 1 attackers)
-Serra Angel (24) deals 4 damage to Bob
 Turn 32 - Bob's turn
 Life: 16
 Life: 8

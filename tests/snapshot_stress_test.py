@@ -51,10 +51,7 @@ def extract_choice_from_line(line: str) -> Optional[int]:
     # Pattern: "chose creature N to attack"
     # Pattern: "chose blocker N"
     # Pattern: "chose no attackers" -> 0
-    # Pattern: "chose to pass priority" -> special handling (treat as choice 0)
-
-    if "chose to pass priority" in line:
-        return 0  # Pass is typically choice 0
+    # Note: Pass priority is now logged as "chose spell/ability N" where N >= len(available)
 
     if "chose no attackers" in line:
         return 0  # No attackers is choice 0

@@ -121,3 +121,60 @@ Enhanced test to use random vs heuristic matchups, revealing critical issues:
 **Documentation:**
 - Created ai_docs/snapshot_determinism_issues.md with full analysis
 - Created beads issues mtg-103, mtg-104, mtg-105 for follow-up work
+
+### Phase 3: Deterministic Choice Ordering (commit TBD)
+
+**Implemented sorting in all choice generation methods:**
+
+1. ✅ **get_available_spell_abilities()** (src/game/game_loop.rs:2308-2316)
+   - Added sort_by_key to sort all spell abilities by card_id
+   - Ensures PlayLand, CastSpell, and ActivateAbility appear in deterministic order
+
+2. ✅ **get_available_attacker_creatures()** (src/game/game_loop.rs:2085)
+   - Added creatures.sort() before returning
+
+3. ✅ **get_available_blocker_creatures()** (src/game/game_loop.rs:2108)
+   - Added creatures.sort() before returning
+
+4. ✅ **get_valid_targets_for_spell()** (src/game/actions.rs:432)
+   - Added valid_targets.sort() before returning
+
+5. ✅ **get_valid_targets_for_ability()** (src/game/actions.rs:576)
+   - Added valid_targets.sort() before returning
+
+6. ✅ **Mana source selection** (src/game/game_loop.rs:1702)
+   - Added tappable.sort() to ensure mana sources in deterministic order
+
+**Verification:**
+- EntityId properly implements Ord (src/core/entity.rs:46-50, sorts by u32 id)
+- CombatState already uses BTreeMap (deterministic iteration order)
+- CardZone uses Vec (preserves insertion order, but we now sort explicitly)
+
+**Current Status - Tests still failing:**
+- Turn 5: Normal plays GB(52), Stop-go plays GB(34) then Forest(4)
+- Same pattern persists despite sorting
+- Need to investigate if the problem is deeper (possibly in how choices are captured/replayed)
+
+### Phase 4: Pass-Priority Replay Fix (commit TBD)
+
+**Root Cause Found:**
+The stress test was extracting "chose to pass priority" as choice index 0, but passing priority should NOT select index 0 - it should pass! This caused FixedScriptController to select `available[0]` instead of returning None.
+
+**Fix Implemented:**
+1. ✅ **RandomController** (src/game/random_controller.rs:60-70)
+   - Log pass-priority as index `available.len()` instead of generic message
+   - This ensures FixedScriptController sees `index >= available.len()` and passes
+
+2. ✅ **Stress Test Script** (tests/snapshot_stress_test.py:48-69)
+   - Removed special handling of "chose to pass priority" as index 0
+   - Now extracts numeric index from all log lines consistently
+
+**Current Status - Partial Progress:**
+- Divergence moved from Turn 5 to Turn 3 (earlier detection of issue)
+- Now different lands being played, not just different spells
+- Suggests RNG state or choice extraction still has subtle issues
+- But significant architectural improvements made:
+  * Turn counter correct
+  * All choices sorted deterministically
+  * Pass-priority handled correctly
+  * Better foundation for future determinism work

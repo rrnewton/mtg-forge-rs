@@ -47,18 +47,24 @@ impl PlayerController for RandomController {
     ) -> Option<SpellAbility> {
         if available.is_empty() {
             // No available actions - pass priority
-            view.logger()
-                .controller_choice("RANDOM", "chose to pass priority (no available actions)");
+            // Log as index 0 (which will be >= len when replaying with empty array)
+            view.logger().controller_choice(
+                "RANDOM",
+                "chose spell/ability 0 out of choices (pass priority - no available actions)",
+            );
             None
         } else {
             // Random controller passes priority with 30% probability
             // This allows actions to be taken most of the time while still preventing infinite loops
             if self.rng.gen_bool(0.3) {
+                // Log pass-priority as index = available.len()
+                // This ensures FixedScriptController recognizes it as "pass" since index >= len
                 view.logger().controller_choice(
                     "RANDOM",
                     &format!(
-                        "chose to pass priority (30% probability triggered) out of {} available actions",
-                        available.len()
+                        "chose spell/ability {} out of choices 0-{} (pass priority)",
+                        available.len(),
+                        available.len() - 1
                     ),
                 );
                 return None;
