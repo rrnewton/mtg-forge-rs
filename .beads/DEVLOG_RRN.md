@@ -2255,7 +2255,6 @@ We will save and restore the GameState only at the beginning of a turn. At whate
 This exercises our serialization plus our undo logging. When we partially replay the turn we switch logging to buffered (in memory), and then when we reach the choice point we want to restore to, we play only the last log line and reenable regular logging to stdout, clearing the in-memory log.
 
 
-
 -----
 
 Note that you can strategically combine these options to jump ahead a known
@@ -2265,12 +2264,31 @@ number of steps in a game without doing multiple round trips:
 mtg tui --stop-every=p1:choice:3 --p1=fixed --p1-fixed-inputs="1 2 3" ...
 ```
 
+done: don't need buffer_only flag in game logger
+------------------------------------------------
+
+Why do we have this distinction between logging to memory with or without also printing to stdout? The intent of the in-memory logger was to capture output without echoing to stdout. Indeed that's what the point of the benchmark that runs with_logging vs with_stdout logging is.
+
+
+(Response to work on stop-resume)
+----------------------------------------
+
+One request before proceeding.
+
+This looks good, but run_game_with_snapshot is a bit long and, I see several examples of code duplication between run_game and run_game_with_snapshot. Let's err on the side of DRY.
+
+- Factoring: the "Rewind to the most recent" exit path can be factored out into its own method.
+- Refactoring: The "Run one turn and check" section and shuffling code look the same between the normal and snapshot-based game loop. These can be factored out so that as much as possible the `run_game_with_snapshot` contains only the unique elements differing from the normal game loop.
+
+
+
+
+
+
 
 Use ZERO for the pass/done action
 ------ 
-
-Even with `--numeric-choices` I see this:
-
+Even with `--numeric-choices` I see this, which asks for 'p'
 ```
 Available actions:
   [0] Play land: Swamp
@@ -2279,13 +2297,17 @@ Available actions:
 
 Choose action (0-2 or 'p' to pass):
 ```
+Again, `mtg tui --numeric-choices --p1=tui` should ALWAYS ask the user ONLY to enter
+numbers 0-N, and the prompt should always take this form:
+```
+Enter choice (0-2): 2
+```
 
 wip: Even with numeric choices, I'm asked to provide space-separated input
 ------
 
 `mtg tui --numeric-choices --p1=tui` should ALWAYS ask the user ONLY to enter
 numbers 0-N, and the prompt should always take this form:
-
 ```
 Enter choice (0-2): 2
 ```
@@ -2315,52 +2337,92 @@ Select cards to discard (enter indices separated by space):
 
 I should not be asked for anything but numbers, not "indices separated by space".
 
+-----
 
-TODO: this turn makes no sense, investigate
+wip: this turn makes no sense, investigate
 ------
+
+Just now I got the below output.
+ - it shows Player 0, as well as 1 and 2
+ - let's customizable names and default them to Alice(p1) Bob(p2) for now
+   and make sure we don't see "Player N" anywhere in the output
+ - the "=== Your Turn (Player 0) ===" makes no sense, because it's in the 
+   middle of the turn.. I think it means "Your priority, make a choice".
+ - It presents options of "0: swamp" but then it seems to play a royal
+   assassin as a result. That's a definite bug.
+
 
       $ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck
       ========================================
-      Turn 22 - Player 2's turn
+      Turn 16 - Player 2's turn
       ========================================
 
       Player 1:
-        Life: 17
-        Hand: 7 | Library: 50 | Graveyard: 3 | Exile: 0
+        Life: 19
+        Hand: 7 | Library: 53 | Graveyard: 0 | Exile: 0
         Battlefield: (empty)
 
 
       Player 2 (active):
         Life: 20
-        Hand: 0 | Library: 50 | Graveyard: 3 | Exile: 0
+        Hand: 0 | Library: 53 | Graveyard: 2 | Exile: 0
         Battlefield:
-          Swamp (77)
-          Swamp (83)
-          Swamp (73)
+          Swamp (77) (tapped)
+          Swamp (83) (tapped)
+          Swamp (73) (tapped)
           Swamp (91)
-          Swamp (84)
-          Swamp (76)
-          Royal Assassin (114) - 1/1 (tapped)
+          Royal Assassin (96) - 1/1 (tapped)
 
       --- Draw Step ---
-        Player 2 draws Royal Assassin (121)
-        >>> HEURISTIC: chose to play spell/ability: CastSpell { card_id: 121 }
-        Player 2 casts Royal Assassin (121) (putting on stack)
+        Player 2 draws Royal Assassin (114)
+        >>> HEURISTIC: chose to play spell/ability: CastSpell { card_id: 114 }
+        Player 2 casts Royal Assassin (114) (putting on stack)
 
       === Your Turn (Player 0) ===
-      Life: 17
+      Life: 19
       Step: Main1
 
       Available actions:
         [0] Play land: Swamp
-        [1] Play land: Swamp
-        [2] Play land: Swamp
 
-      Choose action (0-2 or 'p' to pass):
-        Royal Assassin (121) resolves
-        Royal Assassin (121) enters the battlefield as a 1/1 creature
+      Choose action (0-0 or 'p' to pass):
+        Royal Assassin (114) resolves
+        Royal Assassin (114) enters the battlefield as a 1/1 creature
+
+---
+
+Enter choice (0-2, or ? for help):
+
+More text output improvement
+---------------------------------------------
+
+  Let's make some updates to textual output.
+  - Remove the extra newline before "Enter choice (0-1): 0"
+  - Let's compress the urrent priority notification line and indent it:
+
+  ```
+    ==> Priority Player 1: life 17, Main2
+  ```
+
+  - Let's interpret a raw enter key as option 0.
+  Let's print "Passed priority..." after we choose that action. The line after the "Enter Choice" prompt should generally acknowledge the action taken.
 
 
+
+
+
+
+
+TODO: Guide on how to make progress on the TUI
+-----------------------------------------------
+
+Now you have the tools you need to:
+ - play real games of magic with real decks
+ - have the full experience that I will have while playing
+ - identify gaps/bugs and make progress to fix them.
+
+
+TODO: gather decks from the internet
 
 
 
