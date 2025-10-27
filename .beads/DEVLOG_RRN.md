@@ -2157,12 +2157,6 @@ That will force us to look at whether our existing tests are triggering this.
 
 ----
 
-I'm still seeing messages like this from the heuristic AI:
-
-  Player 2 declares Royal Assassin (114) (1/1) as attacker
-  Error declaring attacker: Invalid game action: Creature has summoning sickness and can't attack this turn
-
-
 
 
 ## The TUI interface is significantly lagging behind

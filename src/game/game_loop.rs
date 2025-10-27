@@ -1682,7 +1682,7 @@ impl<'a> GameLoop<'a> {
                                         // For now, automatically choose mana sources
                                         // TODO: Call controller.choose_mana_sources_to_pay()
                                         let mut sources = Vec::new();
-                                        let tappable = game
+                                        let mut tappable = game
                                             .battlefield
                                             .cards
                                             .iter()
@@ -1697,6 +1697,9 @@ impl<'a> GameLoop<'a> {
                                             })
                                             .copied()
                                             .collect::<Vec<_>>();
+
+                                        // Sort for deterministic ordering (critical for snapshot/resume)
+                                        tappable.sort();
 
                                         // Simple greedy algorithm: tap lands until we have enough
                                         for &land_id in &tappable {
@@ -2063,6 +2066,8 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Get creatures that can attack for a player (v2 interface)
+    ///
+    /// Results are sorted by card ID to ensure deterministic ordering for snapshot/resume.
     fn get_available_attacker_creatures(&self, player_id: PlayerId) -> Vec<CardId> {
         let mut creatures = Vec::new();
 
@@ -2079,10 +2084,14 @@ impl<'a> GameLoop<'a> {
             }
         }
 
+        // Sort for deterministic ordering
+        creatures.sort();
         creatures
     }
 
     /// Get creatures that can block for a player (v2 interface)
+    ///
+    /// Results are sorted by card ID to ensure deterministic ordering for snapshot/resume.
     fn get_available_blocker_creatures(&self, player_id: PlayerId) -> Vec<CardId> {
         let mut creatures = Vec::new();
 
@@ -2098,6 +2107,8 @@ impl<'a> GameLoop<'a> {
             }
         }
 
+        // Sort for deterministic ordering
+        creatures.sort();
         creatures
     }
 
@@ -2263,6 +2274,10 @@ impl<'a> GameLoop<'a> {
     /// - Land plays (if player can play lands and it's a main phase)
     /// - Castable spells (if player has mana and targeting is valid)
     /// - Activated abilities (TODO: not yet implemented)
+    ///
+    /// IMPORTANT: Results are sorted by card ID to ensure deterministic ordering.
+    /// This is critical for snapshot/resume determinism where choice indices
+    /// must map to the same logical cards across runs.
     fn get_available_spell_abilities(&self, player_id: PlayerId) -> Vec<crate::core::SpellAbility> {
         use crate::core::SpellAbility;
         let mut abilities = Vec::new();
@@ -2300,6 +2315,16 @@ impl<'a> GameLoop<'a> {
                 ability_index,
             });
         }
+
+        // Sort by card ID to ensure deterministic ordering
+        // This is critical for snapshot/resume: if two runs have the same cards available
+        // but in different hand order, we need to present them in the same order so that
+        // index-based choice replay (FixedScriptController) selects the same logical card
+        abilities.sort_by_key(|ability| match ability {
+            SpellAbility::PlayLand { card_id } => *card_id,
+            SpellAbility::CastSpell { card_id } => *card_id,
+            SpellAbility::ActivateAbility { card_id, .. } => *card_id,
+        });
 
         abilities
     }

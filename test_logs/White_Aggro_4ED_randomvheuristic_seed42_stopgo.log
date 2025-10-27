@@ -11,7 +11,7 @@ Turn 3 - Alice's turn
 Life: 20
 Life: 20
 Alice draws Plains (4)
-Alice plays Plains (55)
+Alice plays Plains (11)
 Turn 4 - Bob's turn
 Life: 20
 Life: 20
@@ -31,7 +31,7 @@ Turn 7 - Alice's turn
 Life: 20
 Life: 20
 Alice draws Serra Angel (24)
-Alice plays Plains (11)
+Alice plays Plains (17)
 Turn 8 - Bob's turn
 Life: 20
 Life: 20
@@ -41,7 +41,7 @@ Turn 9 - Alice's turn
 Life: 20
 Life: 20
 Alice draws Plains (20)
-Alice plays Plains (17)
+Alice plays Plains (52)
 Turn 10 - Bob's turn
 Life: 20
 Life: 20
@@ -52,483 +52,484 @@ Turn 11 - Alice's turn
 Life: 20
 Life: 20
 Alice draws Grizzly Bears (39)
-Alice plays Plains (52)
-Alice casts Serra Angel (24) (putting on stack)
+Alice plays Plains (55)
 Turn 12 - Bob's turn
 Life: 20
 Life: 20
 Bob draws Plains (110)
 Bob casts Serra Angel (91) (putting on stack)
 Bob plays Plains (113)
+Serra Angel (85) deals 4 damage to Alice
 Turn 13 - Alice's turn
-Life: 20
+Life: 16
 Life: 20
 Alice draws Grizzly Bears (33)
 Alice plays Plains (20)
+Alice casts Serra Angel (24) (putting on stack)
 Turn 14 - Bob's turn
-Life: 20
+Life: 16
 Life: 20
 Bob draws Plains (81)
 Bob casts Serra Angel (92) (putting on stack)
 Bob plays Plains (105)
 Turn 15 - Alice's turn
-Life: 20
+Life: 16
 Life: 20
 Alice draws Plains (9)
 Alice plays Plains (9)
 Turn 16 - Bob's turn
-Life: 20
+Life: 16
 Life: 20
 Bob draws Plains (118)
 Bob plays Plains (117)
 Turn 17 - Alice's turn
-Life: 20
+Life: 16
 Life: 20
 Alice draws Serra Angel (25)
 Alice casts Serra Angel (25) (putting on stack)
->>> HEURISTIC: chose not to block (no favorable blocks among 3 blockers vs 1 attackers)
-Serra Angel (24) deals 4 damage to Bob
 Turn 18 - Bob's turn
-Life: 20
 Life: 16
+Life: 20
 Bob draws Plains (73)
 Bob plays Plains (74)
 Turn 19 - Alice's turn
-Life: 20
 Life: 16
+Life: 20
 Alice draws Plains (3)
 Alice plays Plains (3)
+>>> HEURISTIC: chose not to block (no favorable blocks among 3 blockers vs 1 attackers)
+Serra Angel (24) deals 4 damage to Bob
 Turn 20 - Bob's turn
-Life: 20
+Life: 16
 Life: 16
 Bob draws Plains (76)
 Bob plays Plains (110)
 Turn 21 - Alice's turn
-Life: 20
+Life: 16
 Life: 16
 Alice draws Plains (51)
 Alice plays Plains (51)
 Turn 22 - Bob's turn
-Life: 20
+Life: 16
 Life: 16
 Bob draws Serra Angel (83)
 Bob casts Serra Angel (83) (putting on stack)
 Bob plays Plains (81)
 Turn 23 - Alice's turn
-Life: 20
+Life: 16
 Life: 16
 Alice draws Plains (43)
 Alice plays Plains (43)
->>> HEURISTIC: chose not to block (no favorable blocks among 4 blockers vs 1 attackers)
-Serra Angel (24) deals 4 damage to Bob
 Turn 24 - Bob's turn
-Life: 20
-Life: 12
+Life: 16
+Life: 16
 Bob draws Plains (103)
 Bob plays Plains (118)
 Turn 25 - Alice's turn
-Life: 20
-Life: 12
+Life: 16
+Life: 16
 Alice draws Serra Angel (28)
 Alice casts Serra Angel (28) (putting on stack)
+>>> HEURISTIC: chose not to block (no favorable blocks among 4 blockers vs 1 attackers)
+Serra Angel (24) deals 4 damage to Bob
 Turn 26 - Bob's turn
-Life: 20
+Life: 16
 Life: 12
 Bob draws Grizzly Bears (102)
 Bob plays Plains (73)
 Turn 27 - Alice's turn
-Life: 20
+Life: 16
 Life: 12
 Alice draws Plains (58)
 Alice plays Plains (58)
 Turn 28 - Bob's turn
-Life: 20
+Life: 16
 Life: 12
 Bob draws Plains (109)
 Bob plays Plains (76)
 Turn 29 - Alice's turn
-Life: 20
+Life: 16
 Life: 12
 Alice draws Serra Angel (31)
 Alice casts Serra Angel (31) (putting on stack)
->>> HEURISTIC: chose not to block (no favorable blocks among 4 blockers vs 1 attackers)
-Serra Angel (24) deals 4 damage to Bob
 Turn 30 - Bob's turn
-Life: 20
-Life: 8
+Life: 16
+Life: 12
 Bob draws Serra Angel (87)
 Bob casts Serra Angel (87) (putting on stack)
 Bob plays Plains (103)
 Turn 31 - Alice's turn
-Life: 20
-Life: 8
+Life: 16
+Life: 12
 Alice draws Plains (8)
 Alice plays Plains (8)
+>>> HEURISTIC: chose not to block (no favorable blocks among 5 blockers vs 1 attackers)
+Serra Angel (24) deals 4 damage to Bob
 Turn 32 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (67)
 Bob plays Plains (109)
 Turn 33 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (50)
 Alice plays Plains (50)
 Turn 34 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (112)
 Bob plays Plains (67)
 Turn 35 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (22)
 Alice plays Plains (22)
 Turn 36 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Serra Angel (90)
 Bob casts Serra Angel (90) (putting on stack)
 Bob plays Plains (112)
 Turn 37 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Serra Angel (32)
 Alice casts Serra Angel (32) (putting on stack)
 Turn 38 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (107)
 Bob plays Plains (107)
 Turn 39 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (48)
 Alice plays Plains (48)
 Turn 40 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (82)
 Bob plays Plains (82)
 Turn 41 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (47)
 Alice plays Plains (47)
 Turn 42 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (119)
 Bob plays Plains (119)
 Turn 43 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Grizzly Bears (41)
 Turn 44 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (72)
 Bob plays Plains (72)
 Turn 45 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (53)
 Alice plays Plains (53)
 Turn 46 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (64)
 Bob plays Plains (64)
 Turn 47 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Serra Angel (23)
 Alice casts Serra Angel (23) (putting on stack)
 Turn 48 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Serra Angel (84)
 Bob casts Serra Angel (84) (putting on stack)
 Turn 49 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (10)
 Alice plays Plains (10)
 Turn 50 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (106)
 Bob plays Plains (106)
 Turn 51 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Serra Angel (27)
 Alice casts Serra Angel (27) (putting on stack)
 Turn 52 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Serra Angel (89)
 Bob casts Serra Angel (89) (putting on stack)
 Turn 53 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Serra Angel (30)
 Alice casts Serra Angel (30) (putting on stack)
 Turn 54 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (79)
 Bob plays Plains (79)
 Turn 55 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (16)
 Alice plays Plains (16)
 Turn 56 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (99)
 Turn 57 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (13)
 Alice plays Plains (13)
 Turn 58 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (115)
 Bob plays Plains (115)
 Turn 59 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (56)
 Alice plays Plains (56)
 Turn 60 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (69)
 Bob plays Plains (69)
 Turn 61 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (5)
 Alice plays Plains (5)
 Turn 62 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (95)
 Turn 63 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (62)
 Alice plays Plains (62)
 Turn 64 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (100)
 Turn 65 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (49)
 Alice plays Plains (49)
 Turn 66 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (97)
 Turn 67 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (12)
 Alice plays Plains (12)
 Turn 68 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (77)
 Bob plays Plains (77)
 Turn 69 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (7)
 Alice plays Plains (7)
 Turn 70 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (71)
 Bob plays Plains (71)
 Turn 71 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (6)
 Alice plays Plains (6)
 Turn 72 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (65)
 Bob plays Plains (65)
 Turn 73 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (21)
 Alice plays Plains (21)
 Turn 74 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (101)
 Turn 75 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (18)
 Alice plays Plains (18)
 Turn 76 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (121)
 Bob plays Plains (121)
 Turn 77 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (44)
 Alice plays Plains (44)
 Turn 78 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (111)
 Bob plays Plains (111)
 Turn 79 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Grizzly Bears (40)
 Turn 80 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (70)
 Bob plays Plains (70)
 Turn 81 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (14)
 Alice plays Plains (14)
 Turn 82 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (98)
 Turn 83 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (46)
 Alice plays Plains (46)
 Turn 84 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (68)
 Bob plays Plains (68)
 Turn 85 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (15)
 Alice plays Plains (15)
 Turn 86 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (66)
 Bob plays Plains (66)
 Turn 87 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Serra Angel (29)
 Alice casts Serra Angel (29) (putting on stack)
 Turn 88 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Serra Angel (86)
 Bob casts Serra Angel (86) (putting on stack)
 Turn 89 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (19)
 Alice plays Plains (19)
 Turn 90 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (94)
 Bob discards Grizzly Bears (102)
 Turn 91 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Grizzly Bears (36)
 Alice discards Grizzly Bears (34)
 Turn 92 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (122)
 Bob plays Plains (122)
 Turn 93 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (61)
 Alice plays Plains (61)
 Turn 94 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (75)
 Bob plays Plains (75)
 Turn 95 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (60)
 Alice plays Plains (60)
 Turn 96 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (80)
 Bob plays Plains (80)
 Turn 97 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (54)
 Alice plays Plains (54)
 Turn 98 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Serra Angel (88)
 Bob casts Serra Angel (88) (putting on stack)
 Turn 99 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Serra Angel (26)
 Alice casts Serra Angel (26) (putting on stack)
 Turn 100 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (120)
 Bob plays Plains (120)
 Turn 101 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Grizzly Bears (37)
 Alice discards Grizzly Bears (38)
 Turn 102 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Plains (104)
 Bob plays Plains (104)
 Turn 103 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (45)
 Alice plays Plains (45)
 Turn 104 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (93)
 Bob discards Grizzly Bears (99)
 Turn 105 - Alice's turn
-Life: 20
+Life: 16
 Life: 8
 Alice draws Plains (59)
 Alice plays Plains (59)
 Turn 106 - Bob's turn
-Life: 20
+Life: 16
 Life: 8
 Bob draws Grizzly Bears (96)
 Bob discards Grizzly Bears (95)

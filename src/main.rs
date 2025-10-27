@@ -507,7 +507,14 @@ async fn run_tui(
     // Note: snapshot.turn_number represents the turn we're STARTING,
     // but turns_elapsed tracks COMPLETED turns, so we need turn_number - 1
     if let Some(turn_num) = snapshot_turn_number {
-        let turns_elapsed = if turn_num > 0 { turn_num - 1 } else { 0 };
+        // Turn numbers are 1-based (turn 1, 2, 3...), never 0
+        // If we see turn 0, that's a critical bug in snapshot serialization
+        if turn_num == 0 {
+            return Err(mtg_forge_rs::MtgError::InvalidAction(
+                "Invalid snapshot: turn_number is 0 (turns are 1-based, not 0-based)".to_string(),
+            ));
+        }
+        let turns_elapsed = turn_num - 1;
         game_loop = game_loop.with_turn_counter(turns_elapsed);
     }
 

@@ -4,7 +4,7 @@ status: open
 priority: 0
 issue_type: task
 created_at: "2025-10-27T09:12:20Z"
-updated_at: "2025-10-27T08:00:45-07:00"
+updated_at: "2025-10-27T15:10:24Z"
 closed_at: "2025-10-27T14:01:45Z"
 ---
 
@@ -21,7 +21,7 @@ below.
 Don't update this first section, but update the Tracking section below to track
 progress on this issue.
 
-## Basid stress test design
+## Basic stress test design
 
 For a growable list of test decks:
  For both random/random and heuristic/heuristic modes:
@@ -60,25 +60,64 @@ This INCLUDES the deep comparison of final gamestate. Until we have total fideli
 
 ## Tracking - Implementation Progress (2025-10-27)
 
-### COMPLETED ✓
+### Phase 1: COMPLETED ✓ (commit 15426e1)
 
 Implemented comprehensive stress test in `./tests/snapshot_stress_test.py` that validates
 strict determinism of the snapshot/resume mechanism.
 
-**Test Results - ALL PASSING:**
-- ✓ Royal Assassin (heuristic vs heuristic): PASS - 629 actions match exactly
-- ✓ White Aggro 4ED (heuristic vs heuristic): PASS - 586 actions match exactly  
-- ✓ Grizzly Bears (heuristic vs heuristic): PASS - 606 actions match exactly
+**Test Results - ALL PASSING (heuristic vs heuristic):**
+- ✓ Royal Assassin: PASS - 629 actions match exactly
+- ✓ White Aggro 4ED: PASS - 586 actions match exactly  
+- ✓ Grizzly Bears: PASS - 606 actions match exactly
 
 Note: monored.dck contains modern cards that don't exist in our cardsfolder. Used 
 grizzly_bears.dck as substitute, which still meets the "at least three decks" criterion.
 
-**Implementation Details:**
-- Runs normal game with heuristic controllers (inherently deterministic)
-- Runs same game stop-and-go with 5 random stop points
-- Filters logs to compare only meaningful game actions (draws, plays, attacks, etc)
-- Verifies logs match EXACTLY between normal and stop-and-go runs
-- Successfully validates that snapshot/resume preserves complete game state
+However, heuristic vs heuristic doesn't truly test the replay mechanism since heuristic
+is deterministic on its own. Need to test with random vs heuristic where there are
+actual choices to extract and replay.
 
-The test is integrated into the existing test suite and runs via cargo nextest run.
+### Phase 2: IN PROGRESS (commit c5ecdf4)
 
+Enhanced test to use random vs heuristic matchups, revealing critical issues:
+
+**Major Fixes Implemented:**
+1. ✅ **Turn counter off-by-one error** (src/main.rs:510)
+   - snapshot.turn_number represents the STARTING turn
+   - turns_elapsed tracks COMPLETED turns  
+   - Fixed: use turn_number - 1 when resuming
+   - Result: Turn skipping eliminated (Turn 5 no longer missing)
+
+2. ✅ **Added GameState serialization comparison**
+   - Implemented --save-final-gamestate flag
+   - Deep comparison of final game states
+   - Helps pinpoint exact state differences
+
+**Current Test Results - ALL FAILING:**
+- ✗ Royal Assassin: 1,449 log diffs, 15 gamestate diffs
+- ✗ White Aggro 4ED: 652 log diffs, 36 gamestate diffs
+- ✗ Grizzly Bears: 235 log diffs, 24 gamestate diffs
+
+**Remaining Critical Issues:**
+
+1. **Choice replay determinism** (HIGH PRIORITY)
+   - FixedScriptController replays choice INDICES (0, 1, 2...)
+   - But available options may be in DIFFERENT ORDER between runs
+   - Example: Turn 5 both draw GB(35), but normal plays GB(52) and stopgo plays GB(34)
+   - Root cause: Hand cards or SpellAbility options not in deterministic order
+   - Fix needed: Ensure consistent ordering of available choices
+   - See: ai_docs/snapshot_determinism_issues.md for detailed analysis
+
+2. **Investigate card ordering in zones**
+   - CardZone uses Vec for storage (should be deterministic)
+   - But iteration over HashMap-based EntityStore might not be
+   - Need to verify all choice generation uses deterministic ordering
+
+3. **Verify RNG state not used during choice generation**
+   - Game uses rng_seed but this is just the initial seed
+   - Need to ensure no RNG calls happen during choice enumeration
+   - RNG should only be used by RandomController, not game engine
+
+**Documentation:**
+- Created ai_docs/snapshot_determinism_issues.md with full analysis
+- Created beads issues mtg-103, mtg-104, mtg-105 for follow-up work

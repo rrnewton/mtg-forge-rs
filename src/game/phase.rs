@@ -87,6 +87,10 @@ impl Step {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TurnStructure {
     /// Current turn number (starts at 1)
+    ///
+    /// INVARIANT: Turn numbers are 1-based (turn 1, 2, 3, ...), NEVER 0.
+    /// This matches MTG rules where the first turn is "Turn 1".
+    /// Any code that sees turn_number == 0 should treat it as a critical bug.
     pub turn_number: u32,
 
     /// Current step

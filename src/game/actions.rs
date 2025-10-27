@@ -428,6 +428,8 @@ impl GameState {
             }
         }
 
+        // Sort for deterministic ordering (critical for snapshot/resume)
+        valid_targets.sort();
         Ok(valid_targets)
     }
 
@@ -570,6 +572,8 @@ impl GameState {
             }
         }
 
+        // Sort for deterministic ordering (critical for snapshot/resume)
+        valid_targets.sort();
         Ok(valid_targets)
     }
 
