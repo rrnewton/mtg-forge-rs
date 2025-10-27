@@ -45,43 +45,38 @@ impl PlayerController for RandomController {
         view: &GameStateView,
         available: &[SpellAbility],
     ) -> Option<SpellAbility> {
-        if available.is_empty() {
-            // No available actions - pass priority
-            // Log as index 0 (which will be >= len when replaying with empty array)
-            view.logger().controller_choice(
-                "RANDOM",
-                "chose spell/ability 0 out of choices (pass priority - no available actions)",
-            );
-            None
-        } else {
-            // Random controller passes priority with 30% probability
-            // This allows actions to be taken most of the time while still preventing infinite loops
-            if self.rng.gen_bool(0.3) {
-                // Log pass-priority as index = available.len()
-                // This ensures FixedScriptController recognizes it as "pass" since index >= len
-                view.logger().controller_choice(
-                    "RANDOM",
-                    &format!(
-                        "chose spell/ability {} out of choices 0-{} (pass priority)",
-                        available.len(),
-                        available.len() - 1
-                    ),
-                );
-                return None;
-            }
+        // INVARIANT: Choice 0 = pass priority (always available)
+        //            Choice N (N > 0) = available[N-1]
 
-            // Randomly choose one of the available spell abilities
-            let index = self.rng.gen_range(0..available.len());
+        // Random controller passes priority with 30% probability
+        // This allows actions to be taken most of the time while still preventing infinite loops
+        if available.is_empty() || self.rng.gen_bool(0.3) {
+            // Pass priority = choice 0
             view.logger().controller_choice(
                 "RANDOM",
                 &format!(
-                    "chose spell/ability {} out of choices 0-{}",
-                    index,
-                    available.len() - 1
+                    "chose 0 (pass priority) out of choices 0-{}",
+                    available.len()
                 ),
             );
-            Some(available[index].clone())
+            return None;
         }
+
+        // Randomly choose one of the available spell abilities
+        // Map to 1-based indexing (choice 1 = available[0], choice 2 = available[1], etc.)
+        let ability_index = self.rng.gen_range(0..available.len());
+        let choice_index = ability_index + 1;
+
+        view.logger().controller_choice(
+            "RANDOM",
+            &format!(
+                "chose {} (ability {}) out of choices 0-{}",
+                choice_index,
+                ability_index,
+                available.len()
+            ),
+        );
+        Some(available[ability_index].clone())
     }
 
     fn choose_targets(

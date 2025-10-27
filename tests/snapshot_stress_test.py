@@ -46,23 +46,20 @@ def find_mtg_binary() -> Path:
         sys.exit(1)
 
 def extract_choice_from_line(line: str) -> Optional[int]:
-    """Extract the choice index from a RANDOM or HEURISTIC log line"""
-    # Pattern: "chose spell/ability N out of choices"
-    # Pattern: "chose creature N to attack"
-    # Pattern: "chose blocker N"
-    # Pattern: "chose no attackers" -> 0
-    # Note: Pass priority is now logged as "chose spell/ability N" where N >= len(available)
+    """Extract the choice index from a RANDOM or HEURISTIC log line
+
+    INVARIANT: Choice 0 = pass priority (always available)
+               Choice N (N > 0) = select ability N-1 from available array
+    """
+    # Pattern: "chose N" where N is the choice number
+    # Pattern: "chose N (pass priority)" - index 0
+    # Pattern: "chose N (ability M)" - index N selects available[M]
 
     if "chose no attackers" in line:
         return 0  # No attackers is choice 0
 
-    # Match "chose spell/ability N" or "chose creature N" or "chose blocker N"
-    match = re.search(r'chose (?:spell/ability|creature|blocker) (\d+)', line)
-    if match:
-        return int(match.group(1))
-
-    # Match patterns like "chose spell/ability N out of choices"
-    match = re.search(r'chose spell/ability (\d+) out of', line)
+    # Match "chose N" at the beginning of choice descriptions
+    match = re.search(r'chose (\d+)', line)
     if match:
         return int(match.group(1))
 
@@ -249,11 +246,17 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
         return result.stdout
 
     # Generate random stop points
-    choices_per_stop = max(1, total_choices // (num_stops + 1))
+    # Adjust num_stops if we don't have enough choices
+    actual_num_stops = min(num_stops, max(1, total_choices - 1))
+
+    choices_per_stop = max(1, total_choices // (actual_num_stops + 1))
     stop_points = []
     cumulative = 0
-    for i in range(num_stops):
-        advance = random.randint(1, min(choices_per_stop * 2, total_choices - cumulative - (num_stops - i)))
+    for i in range(actual_num_stops):
+        remaining = total_choices - cumulative - (actual_num_stops - i)
+        if remaining <= 0:
+            break
+        advance = random.randint(1, min(choices_per_stop * 2, remaining))
         if advance > 0:
             cumulative += advance
             stop_points.append(advance)

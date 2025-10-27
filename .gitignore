@@ -21,6 +21,9 @@ experiment_results/
 # Validation logs
 validate_logs/
 
+# Test logs (RNG-dependent, not durable)
+test_logs/
+
 # Legacy patterns (in case files are created in root by mistake)
 *.svg
 *.zst

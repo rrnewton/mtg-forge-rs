@@ -73,20 +73,29 @@ impl PlayerController for FixedScriptController {
         view: &GameStateView,
         available: &[SpellAbility],
     ) -> Option<SpellAbility> {
-        if available.is_empty() {
-            view.logger()
-                .controller_choice("SCRIPT", "chose to pass priority (no available actions)");
-            return None;
-        }
-
         let choice_index = self.next_choice();
 
-        // If choice index is out of bounds, treat as "pass priority"
-        if choice_index >= available.len() {
+        // INVARIANT: Choice 0 = pass priority, Choice N = available[N-1]
+        if choice_index == 0 {
             view.logger().controller_choice(
                 "SCRIPT",
                 &format!(
-                    "chose to pass priority (choice {} >= {} available actions)",
+                    "chose 0 (pass priority) out of choices 0-{}",
+                    available.len()
+                ),
+            );
+            return None;
+        }
+
+        // Adjust index to available array (1-based to 0-based)
+        let ability_index = choice_index - 1;
+
+        if ability_index >= available.len() {
+            // Out of bounds, default to pass
+            view.logger().controller_choice(
+                "SCRIPT",
+                &format!(
+                    "chose {} (out of bounds, defaulting to pass priority) out of choices 0-{}",
                     choice_index,
                     available.len()
                 ),
@@ -97,12 +106,13 @@ impl PlayerController for FixedScriptController {
         view.logger().controller_choice(
             "SCRIPT",
             &format!(
-                "chose spell/ability {} out of choices 0-{}",
+                "chose {} (ability {}) out of choices 0-{}",
                 choice_index,
-                available.len() - 1
+                ability_index,
+                available.len()
             ),
         );
-        Some(available[choice_index].clone())
+        Some(available[ability_index].clone())
     }
 
     fn choose_targets(
@@ -349,13 +359,14 @@ mod tests {
             },
         ];
 
-        // First choice: index 1 (second ability)
+        // INVARIANT: Choice 0 = pass priority, Choice N = available[N-1]
+        // First choice: index 1 → abilities[0] (first ability)
         let choice1 = controller.choose_spell_ability_to_play(&view, &abilities);
-        assert_eq!(choice1, Some(abilities[1].clone()));
+        assert_eq!(choice1, Some(abilities[0].clone()));
 
-        // Second choice: index 0 (first ability)
+        // Second choice: index 0 → None (pass priority)
         let choice2 = controller.choose_spell_ability_to_play(&view, &abilities);
-        assert_eq!(choice2, Some(abilities[0].clone()));
+        assert_eq!(choice2, None);
     }
 
     #[test]
@@ -438,16 +449,17 @@ mod tests {
             },
         ];
 
-        // First choice: index 1
+        // INVARIANT: Choice 0 = pass priority, Choice N = available[N-1]
+        // First choice: index 1 → abilities[0] (first ability)
         let choice1 = controller.choose_spell_ability_to_play(&view, &abilities);
-        assert_eq!(choice1, Some(abilities[1].clone()));
+        assert_eq!(choice1, Some(abilities[0].clone()));
 
-        // Script exhausted, should default to index 0
+        // Script exhausted, should default to index 0 → pass priority
         let choice2 = controller.choose_spell_ability_to_play(&view, &abilities);
-        assert_eq!(choice2, Some(abilities[0].clone()));
+        assert_eq!(choice2, None);
 
-        // Should keep returning index 0
+        // Should keep returning None (pass priority)
         let choice3 = controller.choose_spell_ability_to_play(&view, &abilities);
-        assert_eq!(choice3, Some(abilities[0].clone()));
+        assert_eq!(choice3, None);
     }
 }
