@@ -446,13 +446,23 @@ impl GameState {
             let next_player = self.get_next_player(self.turn.active_player)?;
             let old_turn_number = self.turn.turn_number;
 
+            // Serialize RNG state BEFORE changing turns
+            // This captures the RNG state at the END of the current turn,
+            // which will be the START of the next turn after next_turn() is called
+            let rng_state = {
+                use serde::Serialize;
+                let rng = self.rng.borrow();
+                serde_json::to_vec(&*rng).ok()
+            };
+
             self.turn.next_turn(next_player);
 
-            // Log the turn change
+            // Log the turn change with RNG state from before the turn change
             self.undo_log.log(crate::undo::GameAction::ChangeTurn {
                 from_player,
                 to_player: next_player,
                 turn_number: old_turn_number + 1,
+                rng_state,
             });
 
             // Reset per-turn state
@@ -656,10 +666,20 @@ impl GameState {
                     from_player,
                     to_player: _,
                     turn_number,
+                    rng_state,
                 } => {
                     // Revert to previous turn
                     self.turn.active_player = from_player;
                     self.turn.turn_number = turn_number - 1;
+
+                    // Restore RNG state if available
+                    if let Some(rng_bytes) = rng_state {
+                        use serde::Deserialize;
+                        if let Ok(rng) = serde_json::from_slice::<ChaCha12Rng>(&rng_bytes) {
+                            *self.rng.borrow_mut() = rng;
+                        }
+                    }
+
                     // Note: We don't reset lands_played here as that state
                     // should be managed by separate actions if needed
                 }

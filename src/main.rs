@@ -270,38 +270,33 @@ async fn run_tui(
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::new(cardsfolder);
 
-    // Track snapshot metadata if loading from snapshot
-    let (snapshot_turn_number, snapshot_replay_choices): (
-        Option<u32>,
-        Option<Vec<mtg_forge_rs::game::ReplayChoice>>,
-    ) = if let Some(ref snapshot_file) = start_from {
+    // Load snapshot early if resuming, so we can extract both game state and player-specific choices
+    let loaded_snapshot: Option<GameSnapshot> = if let Some(ref snapshot_file) = start_from {
         let snapshot = GameSnapshot::load_from_file(snapshot_file).map_err(|e| {
             mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
         })?;
-        let replay_choices = snapshot.extract_replay_choices();
-        (Some(snapshot.turn_number), Some(replay_choices))
+        Some(snapshot)
     } else {
-        (None, None)
+        None
     };
 
-    let mut game = if let Some(snapshot_file) = start_from {
-        // Load game from snapshot file
-        println!("Loading snapshot file: {}", snapshot_file.display());
-        let snapshot = GameSnapshot::load_from_file(&snapshot_file).map_err(|e| {
-            mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
-        })?;
+    let snapshot_turn_number: Option<u32> = loaded_snapshot.as_ref().map(|s| s.turn_number);
 
-        println!("  Turn number: {}", snapshot.turn_number);
-        println!(
-            "  Intra-turn choices to replay: {}",
-            snapshot.choice_count()
-        );
+    let mut game = if let Some(ref snapshot) = loaded_snapshot {
+        // Load game from snapshot
+        if verbosity >= VerbosityLevel::Minimal {
+            println!("Loading snapshot from: {}", start_from.as_ref().unwrap().display());
+            println!("  Turn number: {}", snapshot.turn_number);
+            println!(
+                "  Intra-turn choices to replay: {}",
+                snapshot.choice_count()
+            );
+            println!("Game loaded from snapshot!\n");
+        }
 
         // Note: We don't need to load cards for snapshots since the GameState
         // already contains all the card data
-        println!("Game loaded from snapshot!\n");
-
-        snapshot.game_state
+        snapshot.game_state.clone()
     } else if let Some(puzzle_file) = puzzle_path {
         // Load game from puzzle file
         println!("Loading puzzle file: {}", puzzle_file.display());
@@ -470,24 +465,61 @@ async fn run_tui(
     };
 
     // Wrap with ReplayController if resuming from snapshot
+    // CRITICAL: Each controller must only replay its OWN choices, not the other player's!
+    //
+    // EXCEPTION: Don't wrap FixedScriptController with ReplayController.
+    // Fixed controller already has the full game script and wrapping it would cause
+    // double-replay (ReplayController replays intra-turn, then Fixed restarts from index 0).
     let mut controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> =
-        if let Some(ref replay_choices) = snapshot_replay_choices {
-            Box::new(mtg_forge_rs::game::ReplayController::new(
-                p1_id,
-                base_controller1,
-                replay_choices.clone(),
-            ))
+        if let Some(ref snapshot) = loaded_snapshot {
+            // Check if base controller is Fixed - don't wrap if it is
+            let is_fixed = matches!(p1_type, ControllerType::Fixed);
+            if is_fixed {
+                if verbosity >= VerbosityLevel::Verbose {
+                    println!("Player 1 using Fixed controller (skipping Replay wrapper)");
+                }
+                base_controller1
+            } else {
+                let p1_replay_choices = snapshot.extract_replay_choices_for_player(p1_id);
+                if verbosity >= VerbosityLevel::Verbose {
+                    println!(
+                        "Player 1 will replay {} intra-turn choices",
+                        p1_replay_choices.len()
+                    );
+                }
+                Box::new(mtg_forge_rs::game::ReplayController::new(
+                    p1_id,
+                    base_controller1,
+                    p1_replay_choices,
+                ))
+            }
         } else {
             base_controller1
         };
 
     let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> =
-        if let Some(ref replay_choices) = snapshot_replay_choices {
-            Box::new(mtg_forge_rs::game::ReplayController::new(
-                p2_id,
-                base_controller2,
-                replay_choices.clone(),
-            ))
+        if let Some(ref snapshot) = loaded_snapshot {
+            // Check if base controller is Fixed - don't wrap if it is
+            let is_fixed = matches!(p2_type, ControllerType::Fixed);
+            if is_fixed {
+                if verbosity >= VerbosityLevel::Verbose {
+                    println!("Player 2 using Fixed controller (skipping Replay wrapper)");
+                }
+                base_controller2
+            } else {
+                let p2_replay_choices = snapshot.extract_replay_choices_for_player(p2_id);
+                if verbosity >= VerbosityLevel::Verbose {
+                    println!(
+                        "Player 2 will replay {} intra-turn choices",
+                        p2_replay_choices.len()
+                    );
+                }
+                Box::new(mtg_forge_rs::game::ReplayController::new(
+                    p2_id,
+                    base_controller2,
+                    p2_replay_choices,
+                ))
+            }
         } else {
             base_controller2
         };

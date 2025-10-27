@@ -242,3 +242,169 @@ The `rewind_to_turn_start()` method in UndoLog **does not actually rewind game s
 - This is a fundamental architectural issue requiring design decision
 - Cannot achieve determinism without proper state restoration
 - Recommend solution #1 or #2 (track RNG in undo log)
+
+###Phase 6: Implemented Undo Mechanism - Discovered Turn Boundary Bug (2025-10-27_current)
+
+**WORK COMPLETED:**
+
+1. ✅ **Implemented GameAction::undo() method** (src/undo.rs:94-107)
+   - Added proper undo logic for all GameAction variants
+   - MoveCard: reverses card movement between zones
+   - TapCard: reverses tap state
+   - ModifyLife: applies negative delta
+   - AddMana/EmptyManaPool: restores previous mana state
+   - AddCounter/RemoveCounter: reverses counter operations
+   - AdvanceStep: restores previous step
+   - ChangeTurn: restores previous player, turn number, and RNG state
+   - PumpCreature: applies negative deltas (with Option<i8> handling)
+
+2. ✅ **Updated rewind_to_turn_start() to call undo()** (src/undo.rs:195-227)
+   - Now actually undoes game state when rewinding
+   - Calls action.undo(game) for each action popped from log
+   - Properly restores game state to turn boundary
+
+3. ✅ **Added RNG state to ChangeTurn action** (src/undo.rs:66-73)
+   - ChangeTurn now stores rng_state: Option<Vec<u8>>
+   - RNG state serialized when logging turn change
+   - RNG state restored when undoing turn change
+
+4. ✅ **All unit tests passing** - 244/244 tests pass
+
+**CRITICAL BUG DISCOVERED - Turn Boundary Semantics:**
+
+The fundamental issue is that "rewind to turn start" actually rewinds to BEFORE the turn started:
+
+1. **Current behavior:**
+   - When ChangeTurn is logged at turn N→N+1, it records turn_number=N+1
+   - When undoing ChangeTurn, we restore to turn_number=N, active_player=previous_player
+   - This puts us at the END of turn N, not the START of turn N+1!
+
+2. **Impact on snapshots:**
+   - Snapshot represents END of turn N (wrong player active)
+   - When resuming, intra-turn choices are from turn N+1 (different player)
+   - This causes turn order corruption (Turn 7 shows Bob instead of Alice)
+
+3. **Evidence from logs:**
+   - Normal: Turn 6 (Bob) → Turn 7 (Alice) ✓
+   - Stop-go: Turn 6 (Bob) → Turn 7 (Bob) ✗ (player not changed!)
+   - Multiple consecutive turns by same player in stop-go logs
+
+**ARCHITECTURAL DECISION NEEDED:**
+
+Two possible approaches:
+
+**Option A: Don't undo ChangeTurn (RECOMMENDED)**
+- Stop AT the ChangeTurn action, don't undo it
+- Put ChangeTurn back on the log after finding it
+- Snapshot represents START of current turn (correct semantics)
+- Requires change in rewind_to_turn_start() logic only
+
+**Option B: Change ChangeTurn semantics**
+- Store TWO RNG states: before and after turn change
+- Or store "target turn state" instead of "previous turn state"
+- More invasive change, affects logging and undo logic
+
+**Recommend Option A** - simpler, clearer semantics, minimal code change.
+
+**Test Results - Still FAILING:**
+- ✗ Royal Assassin: 1,483 log diffs, 15 gamestate diffs
+- ✗ White Aggro 4ED: 652 log diffs, 42 gamestate diffs
+- ✗ Grizzly Bears: 660 log diffs, 48 gamestate diffs
+
+All failures due to turn boundary bug - wrong player active after resume.
+
+### Phase 7: Implemented Option A Fix - Partial Success (2025-10-27_current)
+
+**FIX IMPLEMENTED:**
+
+Modified `rewind_to_turn_start()` to NOT undo the ChangeTurn action (src/undo.rs:337-363):
+- When finding ChangeTurn, put it back on the log instead of undoing it
+- Snapshot now represents START of current turn (correct semantics)
+- Game state remains at turn boundary with correct player active
+
+**Test Results - Still FAILING but different symptom:**
+- ✗ Royal Assassin: Turn 10 shows Alice twice (should be Alice then Bob)
+- ✗ White Aggro 4ED: Similar turn duplication issues
+- ✗ Grizzly Bears: Similar turn duplication issues
+
+**REMAINING ISSUE - Turn Duplication:**
+
+Turn sequence in stop-go shows:
+- Turn 9 - Alice's turn ✓
+- Turn 10 - Alice's turn ✗ (should be Bob)
+- Turn 11 - Bob's turn ✓
+
+**Hypothesis:**
+When resuming from snapshot:
+1. Snapshot has game state at Turn 10 (Alice) with ChangeTurn to Turn 10 on log
+2. Intra-turn choices for Turn 10 are replayed
+3. Turn should advance to Turn 11 (Bob) at end of Turn 10
+4. But something prevents turn advancement or corrupts player
+
+**Next Investigation Needed:**
+- Check how ReplayController interacts with turn advancement
+- Verify turn counter synchronization between GameState and GameLoop
+- Examine advance_step() behavior when resuming from snapshot
+- Check if undo log state affects turn advancement logic
+
+**Progress Made:**
+- ✅ Proper undo implementation for all GameAction types
+- ✅ RNG state tracking in ChangeTurn actions
+- ✅ Fixed turn boundary semantics (snapshot at START not END)
+- ✅ All 244 unit tests passing
+- ⚠️ Stress tests still failing but symptom changed (turn duplication vs turn corruption)
+
+### Phase 8: Fixed Player-Specific Replay Choices (2025-10-27_current)
+
+**CRITICAL BUG FOUND - Controllers Replayed Wrong Player's Choices:**
+
+When resuming from snapshot, BOTH controllers were getting ALL intra-turn choices without filtering by player. This caused controllers to replay the opponent's choices!
+
+**Root Cause:**
+```rust
+// BEFORE (WRONG):
+snapshot.extract_replay_choices()  // Returns ALL choices for BOTH players
+```
+
+Both P1 and P2 controllers wrapped with ReplayController([Alice's choices, Bob's choices...]), causing them to consume each other's choices!
+
+**Fix Implemented:**
+
+1. ✅ **Added extract_replay_choices_for_player()** (src/game/snapshot.rs:98-121)
+   - Filters intra-turn choices by player_id
+   - Each controller only gets its own choices
+
+2. ✅ **Updated main.rs to use per-player filtering** (src/main.rs:470-525)
+   - Calls snapshot.extract_replay_choices_for_player(p1_id) for P1
+   - Calls snapshot.extract_replay_choices_for_player(p2_id) for P2
+   - Fixed: Don't wrap FixedScriptController (prevents double-replay)
+
+**Test Results - Major Progress:**
+- ✅ Turn corruption FIXED! Turns now alternate correctly:
+  ```
+  Turn 1 - Alice
+  Turn 2 - Bob
+  Turn 3 - Alice
+  Turn 4 - Bob
+  ```
+- ⚠️ Gameplay still diverges (different cards played)
+- Issue: FixedScriptController resets to index 0 in each snapshot segment
+
+**Remaining Issue - FixedScript State Not Preserved:**
+
+The stress test uses FixedScriptController with full game script across multiple segments:
+- Segment 1: Fixed(0,1,2,3,4...) plays choices 0-4
+- Segment 2: NEW Fixed(0,1,2,3,4...) starts from index 0 again (should start from index 5!)
+
+This is an architectural limitation - FixedScriptController.current_index is not serialized in snapshots.
+
+**Architectural Options for Future:**
+1. Serialize FixedScript current_index in snapshots
+2. Redesign stress test to use ReplayController only (not Fixed)
+3. Make FixedScript resume-aware (read consumed count from snapshot metadata)
+
+**Overall Progress:**
+- ✅ Turn order determinism achieved
+- ✅ Per-player replay filtering working
+- ✅ All unit tests passing (244/244)
+- ⚠️ Stress tests show gameplay divergence due to FixedScript state issue

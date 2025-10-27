@@ -441,8 +441,13 @@ impl<'a> GameLoop<'a> {
         snapshot_path: P,
     ) -> Result<GameResult> {
         // Rewind to the most recent turn boundary and extract intra-turn choices
-        if let Some((turn_number, intra_turn_choices, actions_rewound)) =
-            self.game.undo_log.rewind_to_turn_start()
+        // This actually undoes game state to the turn boundary
+        // We need to temporarily take ownership of undo_log to avoid borrowing conflicts
+        let mut undo_log = std::mem::take(&mut self.game.undo_log);
+        let rewind_result = undo_log.rewind_to_turn_start(&mut self.game);
+        self.game.undo_log = undo_log;
+
+        if let Some((turn_number, intra_turn_choices, actions_rewound)) = rewind_result
         {
             // Clone the game state at the turn boundary
             let game_state_snapshot = self.game.clone();

@@ -90,6 +90,35 @@ impl GameSnapshot {
             })
             .collect()
     }
+
+    /// Extract replay choices for a specific player
+    ///
+    /// Filters the intra-turn choice log to only include choices made by the specified player.
+    /// This is critical for snapshot resume - each controller should only replay its own choices!
+    pub fn extract_replay_choices_for_player(
+        &self,
+        player_id: crate::core::PlayerId,
+    ) -> Vec<crate::game::ReplayChoice> {
+        self.intra_turn_choices
+            .iter()
+            .filter_map(|action| {
+                if let GameAction::ChoicePoint {
+                    player_id: choice_player,
+                    choice,
+                    ..
+                } = action
+                {
+                    if *choice_player == player_id {
+                        choice.clone()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 /// Errors that can occur during snapshot operations
