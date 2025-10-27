@@ -177,7 +177,11 @@ impl<'a> GameStateView<'a> {
             .get_player(self.player_id)
             .ok()
             .map(|p| p.name.to_string())
-            .unwrap_or_else(|| format!("Player {:?}", self.player_id))
+            .unwrap_or_else(|| {
+                // Use 1-based indexing for human-readable player numbers
+                let player_num = self.player_id.as_u32() + 1;
+                format!("Player {}", player_num)
+            })
     }
 
     /// Get a specific player's life total

@@ -574,7 +574,11 @@ impl<'a> GameLoop<'a> {
         self.game
             .get_player(player_id)
             .map(|p| p.name.to_string())
-            .unwrap_or_else(|_| format!("Player {player_id:?}"))
+            .unwrap_or_else(|_| {
+                // Use 1-based indexing for human-readable player numbers
+                let player_num = player_id.as_u32() + 1;
+                format!("Player {}", player_num)
+            })
     }
 
     /// Get step name for display
