@@ -1896,7 +1896,8 @@ Let's back up, stash these changes, and instead refactor so that we instead prov
 
 ----
 
-TODO:
+done: cargo doc warninsg
+------
 `cargo doc` reports some warnings. Fix those and add a `make docs` target to remind us to build the docs.
 
 done:
@@ -2154,11 +2155,399 @@ While MTG may allow scenarios where a spell fizzles, our philosophy in this impl
 
 That will force us to look at whether our existing tests are triggering this.
 
+----
+
+I'm still seeing messages like this from the heuristic AI:
+
+  Player 2 declares Royal Assassin (114) (1/1) as attacker
+  Error declaring attacker: Invalid game action: Creature has summoning sickness and can't attack this turn
+
+
+
+
+## The TUI interface is significantly lagging behind
+
+When I run it with two of our test decks it has problems:
+
+```
+$ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck
+...
+DEBUG get_activatable_abilities: Found Royal Assassin (121) for player 1
+  tapped=true, activated_abilities.len()=1
+  Ability 0: Destroy target tapped creature. (is_mana_ability=false)
+    cost: Tap
+    cost.includes_tap()=true
+    REJECTED: includes tap but card is tapped
+    NOT ACCEPTED: can_activate=false
+```
+
+- it only asks me to play land, never to play a creature, much less attack or use tapped ability
+- it has the DEBUG message above left over from testing royal assassin
+
+I think it's important that you directly use the TUI more to see how it is doing. To make that easier for you, add a `--p1=fixed` option with a `--fixed-inputs="1 1 2"` argument so that you can directly pass in choices without piping to stdin.
+
+Please fix the above missing choices.
+
+Fix names for consistency
+---------
+
+We use p1/p2 and elsewhere "P0/P1". Let's purge uses of the latter and make sure
+we're consistent. Right now I see all three of these in a game, which is
+DEFINITELY a bug:
+
+```
+Turn 22 - Player 2's turn
+...
+  Player 1 discards Royal Assassin (35)
+...
+=== Your Turn (Player 0) ===
+```
+
+There should at least be one consistent name for each player
+that is the only name ever displayed on the TUI. We should also have `--p1-name`
+and `--p2-name` for setting the names to whatever we like. And if we pass
+"Alice" and "Bob", then we'd better not see any other names during the game.
+
+
+inprogress: feature for stop and go games
+----------
+
+I want you to be able to have the same experience that I do playing through the
+`mtg tui` interface. We could build something complicated, like an MCP server
+just for playing magic games. But I think there is a simpler solution that will
+also stress test our serialization support.
+
+ - Add an mtg tui flag `--stop-every=p1:1:choice`, where we provide a stop
+   condition for the game.  Right now it only accepts "[p1|p2|both]:<NUM>:choice" but we
+   could expand it in the future.
+ - When this is passed, then IRRESPECTIVE of the controller used player(s) in question
+   we stop at the next choice point. So if --p1=tui and --p2=heuristic and `--stop-every=p1:1:choice`,
+   then the AI will play its turns but the game will stop on our (p1's) turns.
+ - When we stop the game we write out to a file in the current directory ()
+
+------
+
+```
+Available actions:
+  [0] Play land: Swamp
+  [1] Play land: Swamp
+  [2] Play land: Swamp
+
+Choose action (0-2 or 'p' to pass):
+```
+
+Then we should resume in the same state and it should actually re-echo
+at least the line `Choose action (0-2 or 'p' to pass):` if possible.
+If we're using a fixed controller, the new  `--p1-fixed-inputs=1` would provide the
+input for the very next choice, and then we would stop again.
+
+In this way, you can explore the game tree interactively, playing to a specific
+position, pausing, reevaluating, and then calling the CLI again to continue.
+Build this feature and write an initial test with it on the royal assassin v assassin decks.
+
+----
+
+Let's introduce a feature branch at this point, and move this most recent initial commit to it. On the `stop-replay` branch let's explore option 3. We've
+  already greatly invested in our undo log.  We can add choices to the undo log as well.
+
+We will save and restore the GameState only at the beginning of a turn. At whatever point we are at when we hit the choice where we want to save, we then return to the top of the turn with an abort/save choice, and rewind the undo log until the start of turn. While we rewind it, we accumulate (in reverse) any intra-turn choices so far for both players. We then serialize the rewound GameState plus the partial log of forward choices that get us to the intra-turn point.
+
+This exercises our serialization plus our undo logging. When we partially replay the turn we switch logging to buffered (in memory), and then when we reach the choice point we want to restore to, we play only the last log line and reenable regular logging to stdout, clearing the in-memory log.
+
+
+-----
+
+Note that you can strategically combine these options to jump ahead a known
+number of steps in a game without doing multiple round trips:
+```
+# Stop every 3 choices, but provide 3 inputs so we stop just before when we run out:
+mtg tui --stop-every=p1:choice:3 --p1=fixed --p1-fixed-inputs="1 2 3" ...
+```
+
+done: don't need buffer_only flag in game logger
+------------------------------------------------
+
+Why do we have this distinction between logging to memory with or without also printing to stdout? The intent of the in-memory logger was to capture output without echoing to stdout. Indeed that's what the point of the benchmark that runs with_logging vs with_stdout logging is.
+
+
+(Response to work on stop-resume)
+----------------------------------------
+
+One request before proceeding.
+
+This looks good, but run_game_with_snapshot is a bit long and, I see several examples of code duplication between run_game and run_game_with_snapshot. Let's err on the side of DRY.
+
+- Factoring: the "Rewind to the most recent" exit path can be factored out into its own method.
+- Refactoring: The "Run one turn and check" section and shuffling code look the same between the normal and snapshot-based game loop. These can be factored out so that as much as possible the `run_game_with_snapshot` contains only the unique elements differing from the normal game loop.
+
+
+
+
+
+
+
+Use ZERO for the pass/done action
+------ 
+Even with `--numeric-choices` I see this, which asks for 'p'
+```
+Available actions:
+  [0] Play land: Swamp
+  [1] Play land: Swamp
+  [2] Play land: Swamp
+
+Choose action (0-2 or 'p' to pass):
+```
+Again, `mtg tui --numeric-choices --p1=tui` should ALWAYS ask the user ONLY to enter
+numbers 0-N, and the prompt should always take this form:
+```
+Enter choice (0-2): 2
+```
+
+wip: Even with numeric choices, I'm asked to provide space-separated input
+------
+
+`mtg tui --numeric-choices --p1=tui` should ALWAYS ask the user ONLY to enter
+numbers 0-N, and the prompt should always take this form:
+```
+Enter choice (0-2): 2
+```
+
+Note that it should always echo the choice to the terminal for readability, even
+if it is a Fixed controller for example
+
+Instead, what I observe now is: 
+
+```
+$ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck --numeric-choices
+...
+Your hand:
+  [0] Royal Assassin
+  [1] Royal Assassin
+  [2] Royal Assassin
+  [3] Royal Assassin
+  [4] Royal Assassin
+  [5] Royal Assassin
+  [6] Royal Assassin
+  [7] Swamp
+
+Select cards to discard (enter indices separated by space):
+
+  Player 1 discards Royal Assassin (51)
+```
+
+I should not be asked for anything but numbers, not "indices separated by space".
+
+-----
+
+wip: this turn makes no sense, investigate
+------
+
+Just now I got the below output.
+ - it shows Player 0, as well as 1 and 2
+ - let's customizable names and default them to Alice(p1) Bob(p2) for now
+   and make sure we don't see "Player N" anywhere in the output
+ - the "=== Your Turn (Player 0) ===" makes no sense, because it's in the 
+   middle of the turn.. I think it means "Your priority, make a choice".
+ - It presents options of "0: swamp" but then it seems to play a royal
+   assassin as a result. That's a definite bug.
+
+
+      $ cargo run --bin mtg -- tui --p1=tui --p2=heuristic test_decks/royal_assassin.dck  test_decks/royal_assassin.dck
+      ========================================
+      Turn 16 - Player 2's turn
+      ========================================
+
+      Player 1:
+        Life: 19
+        Hand: 7 | Library: 53 | Graveyard: 0 | Exile: 0
+        Battlefield: (empty)
+
+
+      Player 2 (active):
+        Life: 20
+        Hand: 0 | Library: 53 | Graveyard: 2 | Exile: 0
+        Battlefield:
+          Swamp (77) (tapped)
+          Swamp (83) (tapped)
+          Swamp (73) (tapped)
+          Swamp (91)
+          Royal Assassin (96) - 1/1 (tapped)
+
+      --- Draw Step ---
+        Player 2 draws Royal Assassin (114)
+        >>> HEURISTIC: chose to play spell/ability: CastSpell { card_id: 114 }
+        Player 2 casts Royal Assassin (114) (putting on stack)
+
+      === Your Turn (Player 0) ===
+      Life: 19
+      Step: Main1
+
+      Available actions:
+        [0] Play land: Swamp
+
+      Choose action (0-0 or 'p' to pass):
+        Royal Assassin (114) resolves
+        Royal Assassin (114) enters the battlefield as a 1/1 creature
+
+---
+
+Enter choice (0-2, or ? for help):
+
+More text output improvement
+---------------------------------------------
+
+  Let's make some updates to textual output.
+  - Remove the extra newline before "Enter choice (0-1): 0"
+  - Let's compress the urrent priority notification line and indent it:
+
+  ```
+    ==> Priority Player 1: life 17, Main2
+  ```
+
+  - Let's interpret a raw enter key as option 0.
+  Let's print "Passed priority..." after we choose that action. The line after the "Enter Choice" prompt should generally acknowledge the action taken.
+
+
+done: try downloading old school decks
+---------------
+Let's download a representative top deck for each of the top Old-School MTG metagame deck archetypes ("Rogue" to "GR Aggro"). Browse for them here:
+
+  https://mtgdecks.net/Old-school
+
+When you click into each archetype, pick the top deck in the table as long as Players>10 for the event.
+
+Then click "Arena Export" and copy the deck list to a simply-named lowercase+underscore file `test_decks/old_school/<ARCHETYPE_NAME>_<USERNAME>.txt`, e.g. "mono_black_deck_rogerbrand.txt". We will convert these to .dck in a later step.
+
+
+TODO: improve error on card-not-found
+--------------------------------------
+Improve the below error and look into why that deck won't load.
+```
+$ cargo run --bin mtg -- tui test_decks/monored.dck test_decks/monored.dck
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running `target/debug/mtg tui test_decks/monored.dck test_decks/monored.dck`
+=== MTG Forge Rust - Text UI Mode ===
+
+Loading deck files...
+  Player 1: 60 cards
+  Player 2: 60 cards
+
+Loading card database...
+Error: InvalidCardFormat("Card file not found")
+```
+
+TODO: Find and fix our leaky tests
+--------------------
+
+TODO: minor if one deck is passed to `mtg tui` use that for both players
+-------------------
+
+Still have some bugs to fix with stop resume
+-------
+Run the following and consider the output:
+```
+P1=random
+cargo run --bin mtg -- tui test_decks/grizzly_bears.dck test_decks/royal_assassin.dck --p1=$P1 --p2=heuristic --stop-every=p1:choice:1
+cargo run --bin mtg -- tui --p1=$P1 --p2=heuristic --stop-every=p1:choice:1 --start-from=game.snapshot
+```
+If we use a random controller for P1 we expect `>>> RANDOM: chose` messages
+for each choice. Specifically, we expect a prompt for the choice BEFORE the snapshot-and-exit event. Then we expect the choice to be made right at the beginning of the restart with --start-from.
+
+We are not seeing the prompt BEFORE we exit, and when we restart, we see a card draw (re?)occur BEFORE we get to our choice, when logging should be suppressed until we get to the resumed choice:
+
+```
+  Player 1 draws Forest (6)
+  >>> RANDOM: chose spell/ability 0 out of choices 0-0
+```
+
+------
+
+One clarification. You correctly say that you replay choices not actions. 
+You don't need to REPLAY intra-turn actions. The idea is that
+we make the simulation determinstic EXCEPT for the choice points. Only the choices 
+need to be read from the log.
+
+There is something to watch out for here. If there are other uses of RNG in the simulator, this RNG will need to be kept SEPARATE from the random controller RNG.
+That already seems to be the case but we should verify. For deterministic simulation
+we need to restore the rng state of the GameState... Right now I see the rng_seed stored there, but when we snapshot/restore we must restore the CURRENT rng state, not just what it was seeded with on turn 0.
+
+Check over these issues and then get to work on implementing the snapshot replay logic.
+
+
+TODO: Randomized stress tests with invariants for snapshot resume
+--------------------------------------------------------------------------------
+
+Now you can see how to play some number of turns, and stop and resume randomly.
+Build an e2e test script (under tests/) which stresses the system. This script can be in python and we can extend the e2e test script runner to run both .py and .sh files in that directory.
+
+For a list of test decks (initially just grizzly bears and royal assassin):
+ For both random/random and heuristic/heuristic modes:
+ - Play a game with the deterministic seed and count the turns,
+   choices, and log of choices made by P1/P2.
+ - Play the same game stop-and-go, with players switched to fixed controllers
+    - advance a random count of choices, 1-5, passing in fixed inputs
+    - snapshot, resume, repeat until game end
+
+ - Examine the collected logs of both the original and stop-and-go runs.
+   - Filtering for relevant game actions (draw card, spell resolves, etc),
+     the logs should match EXACTLY. The differences are only extra messages around stopping/resuming.
+   - Make sure the final game 
+
+If this works, you can make the test go even deeper by adding a `--save-final-gamestate=file` flag which will save the end-of-game state of play
+to a snapshot file. When both run modes produce a final file, we can do a
+deep comparison to make sure they match. Perhaps we can get the serialized text files to EXACTLY match, but there may be good reasons to ignore certain bits of state in the comparison instead.
+
+
+TODO: don't pretty print the json snapshots
+--------------------------------------------
+
+TODO: switch to binary serialized snapshots
+----------------------------------------
+
+
+TODO: Guide on how to make progress on the TUI
+--------------------------------------------------------------------------------
+
+Now you have the tools you need to:
+ - play real games of magic with real decks
+ - have the full experience that I will have while playing
+ - identify gaps/bugs and make progress to fix them.
+
+
+TODO: add install root and resource files
+------------------------------------------
+
+
+
+
+
+TODO: ingest task importer does destroys input even when it fails
+--------------------------------------------------------------------------------
+```
+===================================
+Processing 1 file(s) from inbox
+===================================
+
+Processing: tasks.md
+  → Creating issue: Begin or progress work on simple interactive TUI
+    ✗ Failed to create issue
+    Error: Error: --no-db and --no-json cannot both be enabled
+The data needs to be stored somewhere (either in the database or in JSONL)
+  → Creating issue: TODO: Randomized stress tests with invariants for snapshot resume
+    ✗ Failed to create issue
+    Error: Error: --no-db and --no-json cannot both be enabled
+The data needs to be stored somewhere (either in the database or in JSONL)
+
+  → Moved to: .beads/done/20251027_090755_tasks.md
+  → Added to git
+  ```
+
+Also, if the file you move already has a timestamp on the front, don't add a redundant timestamp.
 
 
 
 TODO: Optimized mode to cut down on choices
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 Following the full magic rules, we will give players priority at every opportunity.
 If we are doing aggressive filtering of valid actions, then many of these priorities

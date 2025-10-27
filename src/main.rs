@@ -5,8 +5,9 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{
-        random_controller::RandomController, zero_controller::ZeroController, GameLoop,
-        HeuristicController, InteractiveController, VerbosityLevel,
+        random_controller::RandomController, zero_controller::ZeroController,
+        FixedScriptController, GameLoop, GameSnapshot, HeuristicController, InteractiveController,
+        StopCondition, VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
@@ -25,6 +26,8 @@ enum ControllerType {
     Tui,
     /// Heuristic AI controller with strategic decision making
     Heuristic,
+    /// Fixed script controller with predetermined choices (requires --fixed-inputs)
+    Fixed,
 }
 
 /// Verbosity level for game output (custom parser supporting both names and numbers)
@@ -62,15 +65,16 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 enum Commands {
     /// Text UI Mode - Interactive Forge Gameplay
     Tui {
-        /// Deck file (.dck) for player 1 (required unless --start-state is provided)
-        #[arg(value_name = "PLAYER1_DECK", required_unless_present = "start_state")]
+        /// Deck file (.dck) for player 1 (required unless --start-state or --start-from is provided)
+        #[arg(value_name = "PLAYER1_DECK", required_unless_present_any = ["start_state", "start_from"])]
         deck1: Option<PathBuf>,
 
-        /// Deck file (.dck) for player 2 (required unless --start-state is provided)
-        #[arg(value_name = "PLAYER2_DECK", required_unless_present = "start_state")]
+        /// Deck file (.dck) for player 2 (required unless --start-state or --start-from is provided)
+        #[arg(value_name = "PLAYER2_DECK", required_unless_present_any = ["start_state", "start_from"])]
         deck2: Option<PathBuf>,
 
         /// Load game state from puzzle file (.pzl)
@@ -84,6 +88,22 @@ enum Commands {
         /// Player 2 controller type
         #[arg(long, value_enum, default_value = "random")]
         p2: ControllerType,
+
+        /// Player 1 name (default: Alice)
+        #[arg(long, default_value = "Alice")]
+        p1_name: String,
+
+        /// Player 2 name (default: Bob)
+        #[arg(long, default_value = "Bob")]
+        p2_name: String,
+
+        /// Fixed script input for player 1 (space or comma separated indices, e.g., "1 1 2" or "1,1,2")
+        #[arg(long, value_name = "CHOICES")]
+        p1_fixed_inputs: Option<String>,
+
+        /// Fixed script input for player 2 (space or comma separated indices, e.g., "1 1 2" or "1,1,2")
+        #[arg(long, value_name = "CHOICES")]
+        p2_fixed_inputs: Option<String>,
 
         /// Set random seed for deterministic testing
         #[arg(long)]
@@ -101,13 +121,19 @@ enum Commands {
         #[arg(long)]
         numeric_choices: bool,
 
-        /// Player 1 name (default: Alice)
-        #[arg(long, default_value = "Alice")]
-        p1_name: String,
+        /// Stop after N choices by specified player(s) and save snapshot
+        /// Format: [p1|p2|both]:choice:<NUM>
+        /// Examples: p1:choice:5, both:choice:10
+        #[arg(long, value_name = "CONDITION")]
+        stop_every: Option<String>,
 
-        /// Player 2 name (default: Bob)
-        #[arg(long, default_value = "Bob")]
-        p2_name: String,
+        /// Output file for game snapshot (default: game.snapshot)
+        #[arg(long, value_name = "FILE", default_value = "game.snapshot")]
+        snapshot_output: PathBuf,
+
+        /// Load and resume game from snapshot file
+        #[arg(long, value_name = "FILE")]
+        start_from: Option<PathBuf>,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -137,12 +163,17 @@ async fn main() -> Result<()> {
             start_state,
             p1,
             p2,
+            p1_name,
+            p2_name,
+            p1_fixed_inputs,
+            p2_fixed_inputs,
             seed,
             load_all_cards,
             verbosity,
             numeric_choices,
-            p1_name,
-            p2_name,
+            stop_every,
+            snapshot_output,
+            start_from,
         } => {
             run_tui(
                 deck1,
@@ -150,12 +181,17 @@ async fn main() -> Result<()> {
                 start_state,
                 p1,
                 p2,
+                p1_name,
+                p2_name,
+                p1_fixed_inputs,
+                p2_fixed_inputs,
                 seed,
                 load_all_cards,
                 verbosity,
                 numeric_choices,
-                p1_name,
-                p2_name,
+                stop_every,
+                snapshot_output,
+                start_from,
             )
             .await?
         }
@@ -165,6 +201,20 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Parse fixed input string into a vector of choice indices
+fn parse_fixed_inputs(input: &str) -> std::result::Result<Vec<usize>, String> {
+    input
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.parse::<usize>()
+                .map_err(|_| format!("invalid choice index: '{}'", s))
+        })
+        .collect()
+}
+
+// StopCondition is now imported from mtg_forge_rs::game module
+
 /// Run TUI with async card loading
 #[allow(clippy::too_many_arguments)] // CLI parameters naturally map to function args
 async fn run_tui(
@@ -173,21 +223,79 @@ async fn run_tui(
     puzzle_path: Option<PathBuf>,
     p1_type: ControllerType,
     p2_type: ControllerType,
+    p1_name: String,
+    p2_name: String,
+    p1_fixed_inputs: Option<String>,
+    p2_fixed_inputs: Option<String>,
     seed: Option<u64>,
     load_all_cards: bool,
     verbosity: VerbosityArg,
     numeric_choices: bool,
-    p1_name: String,
-    p2_name: String,
+    stop_every: Option<String>,
+    snapshot_output: PathBuf,
+    start_from: Option<PathBuf>,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
+
+    // Parse stop condition if provided
+    let stop_condition = if let Some(ref stop_str) = stop_every {
+        let condition = StopCondition::parse(stop_str).map_err(|e| {
+            mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e))
+        })?;
+        println!("Stop condition: {:?}", condition);
+        println!("Snapshot output: {}\n", snapshot_output.display());
+        Some(condition)
+    } else {
+        None
+    };
+
+    // Check for conflicting options
+    if start_from.is_some()
+        && (deck1_path.is_some() || deck2_path.is_some() || puzzle_path.is_some())
+    {
+        return Err(mtg_forge_rs::MtgError::InvalidAction(
+            "Cannot specify both --start-from and deck/puzzle files".to_string(),
+        ));
+    }
 
     // Create async card database
     let cardsfolder = PathBuf::from("cardsfolder");
     let card_db = CardDatabase::new(cardsfolder);
 
-    let mut game = if let Some(puzzle_file) = puzzle_path {
+    // Track snapshot metadata if loading from snapshot
+    let (snapshot_turn_number, snapshot_replay_choices): (
+        Option<u32>,
+        Option<Vec<mtg_forge_rs::game::ReplayChoice>>,
+    ) = if let Some(ref snapshot_file) = start_from {
+        let snapshot = GameSnapshot::load_from_file(snapshot_file).map_err(|e| {
+            mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
+        })?;
+        let replay_choices = snapshot.extract_replay_choices();
+        (Some(snapshot.turn_number), Some(replay_choices))
+    } else {
+        (None, None)
+    };
+
+    let mut game = if let Some(snapshot_file) = start_from {
+        // Load game from snapshot file
+        println!("Loading snapshot file: {}", snapshot_file.display());
+        let snapshot = GameSnapshot::load_from_file(&snapshot_file).map_err(|e| {
+            mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
+        })?;
+
+        println!("  Turn number: {}", snapshot.turn_number);
+        println!(
+            "  Intra-turn choices to replay: {}",
+            snapshot.choice_count()
+        );
+
+        // Note: We don't need to load cards for snapshots since the GameState
+        // already contains all the card data
+        println!("Game loaded from snapshot!\n");
+
+        snapshot.game_state
+    } else if let Some(puzzle_file) = puzzle_path {
         // Load game from puzzle file
         println!("Loading puzzle file: {}", puzzle_file.display());
         let puzzle_contents = std::fs::read_to_string(&puzzle_file)?;
@@ -286,7 +394,9 @@ async fn run_tui(
         (p1.id, p2.id)
     };
 
-    let mut controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type {
+    // Create base controllers
+    let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type
+    {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
         ControllerType::Random => {
             if let Some(seed_value) = seed {
@@ -300,9 +410,26 @@ async fn run_tui(
             numeric_choices,
         )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
+        ControllerType::Fixed => {
+            let script = match &p1_fixed_inputs {
+                Some(input) => parse_fixed_inputs(input).map_err(|e| {
+                    mtg_forge_rs::MtgError::InvalidAction(format!(
+                        "Error parsing --p1-fixed-inputs: {}",
+                        e
+                    ))
+                })?,
+                None => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "--p1-fixed-inputs is required when --p1=fixed".to_string(),
+                    ));
+                }
+            };
+            Box::new(FixedScriptController::new(p1_id, script))
+        }
     };
 
-    let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
+    let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type
+    {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
         ControllerType::Random => {
             if let Some(seed_value) = seed {
@@ -317,18 +444,80 @@ async fn run_tui(
             numeric_choices,
         )),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
+        ControllerType::Fixed => {
+            let script = match &p2_fixed_inputs {
+                Some(input) => parse_fixed_inputs(input).map_err(|e| {
+                    mtg_forge_rs::MtgError::InvalidAction(format!(
+                        "Error parsing --p2-fixed-inputs: {}",
+                        e
+                    ))
+                })?,
+                None => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "--p2-fixed-inputs is required when --p2=fixed".to_string(),
+                    ));
+                }
+            };
+            Box::new(FixedScriptController::new(p2_id, script))
+        }
     };
 
+    // Wrap with ReplayController if resuming from snapshot
+    let mut controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> =
+        if let Some(ref replay_choices) = snapshot_replay_choices {
+            Box::new(mtg_forge_rs::game::ReplayController::new(
+                p1_id,
+                base_controller1,
+                replay_choices.clone(),
+            ))
+        } else {
+            base_controller1
+        };
+
+    let mut controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> =
+        if let Some(ref replay_choices) = snapshot_replay_choices {
+            Box::new(mtg_forge_rs::game::ReplayController::new(
+                p2_id,
+                base_controller2,
+                replay_choices.clone(),
+            ))
+        } else {
+            base_controller2
+        };
+
     if verbosity >= VerbosityLevel::Minimal {
-        println!("=== Starting Game ===\n");
+        if snapshot_turn_number.is_some() {
+            println!("=== Continuing Game ===\n");
+        } else {
+            println!("=== Starting Game ===\n");
+        }
     }
 
-    // Run the game loop
+    // Run the game loop (with or without snapshots)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(verbosity);
-    let result = game_loop.run_game(&mut *controller1, &mut *controller2)?;
 
-    // Display results
-    if verbosity >= VerbosityLevel::Minimal {
+    // If loading from snapshot, restore the turn counter
+    if let Some(turn_num) = snapshot_turn_number {
+        game_loop = game_loop.with_turn_counter(turn_num);
+    }
+
+    let result = if let Some(ref stop_cond) = stop_condition {
+        // Run with snapshot functionality
+        game_loop.run_game_with_snapshots(
+            &mut *controller1,
+            &mut *controller2,
+            p1_id, // Player 1 ID for filtering player choices
+            stop_cond,
+            &snapshot_output,
+        )?
+    } else {
+        // Normal game loop
+        game_loop.run_game(&mut *controller1, &mut *controller2)?
+    };
+
+    // Display results (suppress for snapshot exits)
+    use mtg_forge_rs::game::GameEndReason;
+    if verbosity >= VerbosityLevel::Minimal && result.end_reason != GameEndReason::Snapshot {
         println!("\n=== Game Over ===");
         match result.winner {
             Some(winner_id) => {

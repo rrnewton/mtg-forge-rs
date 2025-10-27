@@ -233,7 +233,7 @@ impl PlayerController for InteractiveController {
         }
 
         // Get player name from view
-        let player_name = view.player_name().unwrap_or_else(|| "Player".to_string());
+        let player_name = view.player_name();
         println!(
             "\n  ==> Priority {}: life {}, {:?}",
             player_name,

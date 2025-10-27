@@ -43,6 +43,10 @@ impl CardZone {
 
     pub fn remove(&mut self, card_id: CardId) -> bool {
         if let Some(pos) = self.cards.iter().position(|&id| id == card_id) {
+            // Note: We use remove() instead of swap_remove() even for semantically unordered zones
+            // (Hand, Battlefield, etc.) because iteration order matters for deterministic gameplay.
+            // Controllers iterate over cards in a consistent order, so changing iteration order
+            // would break determinism tests.
             self.cards.remove(pos);
             true
         } else {

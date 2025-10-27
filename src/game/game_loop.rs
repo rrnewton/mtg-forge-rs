@@ -96,6 +96,8 @@ pub enum GameEndReason {
     Draw,
     /// Game was manually ended
     Manual,
+    /// Game was stopped to save a snapshot
+    Snapshot,
 }
 
 /// Game loop manager
@@ -115,6 +117,9 @@ pub struct GameLoop<'a> {
     /// Track targets for spells on the stack (spell_id -> chosen_targets)
     /// This is needed because targets are chosen at cast time but used at resolution time
     spell_targets: Vec<(CardId, Vec<CardId>)>,
+    /// Global choice counter for tracking all player choices
+    /// Increments each time a controller makes any decision
+    choice_counter: u32,
 }
 
 impl<'a> GameLoop<'a> {
@@ -128,6 +133,7 @@ impl<'a> GameLoop<'a> {
             verbosity,
             step_header_printed: false,
             spell_targets: Vec::new(),
+            choice_counter: 0,
         }
     }
 
@@ -144,6 +150,15 @@ impl<'a> GameLoop<'a> {
     pub fn with_verbosity(mut self, verbosity: VerbosityLevel) -> Self {
         self.verbosity = verbosity;
         self.game.logger.set_verbosity(verbosity);
+        self
+    }
+
+    /// Set initial turn counter (for resuming from snapshots)
+    ///
+    /// This should be called when loading a game from a snapshot to ensure
+    /// turn numbering continues correctly.
+    pub fn with_turn_counter(mut self, turns_elapsed: u32) -> Self {
+        self.turns_elapsed = turns_elapsed;
         self
     }
 
@@ -168,7 +183,26 @@ impl<'a> GameLoop<'a> {
         self.turns_elapsed = 0;
         self.step_header_printed = false;
         self.spell_targets.clear();
+        self.choice_counter = 0;
         self.game.logger.reset_step_header();
+    }
+
+    /// Log a choice point to the undo log and increment choice counter
+    ///
+    /// Call this every time a controller makes a decision.
+    ///
+    /// # Arguments
+    /// * `player_id` - The player who made the choice
+    /// * `choice` - The actual choice made (for replay), or None if not available
+    fn log_choice_point(&mut self, player_id: PlayerId, choice: Option<crate::game::ReplayChoice>) {
+        self.choice_counter += 1;
+        self.game
+            .undo_log
+            .log(crate::undo::GameAction::ChoicePoint {
+                player_id,
+                choice_id: self.choice_counter,
+                choice,
+            });
     }
 
     /// Run the game loop with the given player controllers
@@ -179,56 +213,20 @@ impl<'a> GameLoop<'a> {
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
     ) -> Result<GameResult> {
-        // Verify controllers match players (extract exactly 2 player IDs without allocating)
-        let (player1_id, player2_id) = {
-            let mut players_iter = self.game.players.iter().map(|p| p.id);
-            let player1_id = players_iter.next().ok_or_else(|| {
-                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
-            })?;
-            let player2_id = players_iter.next().ok_or_else(|| {
-                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
-            })?;
-            if players_iter.next().is_some() {
-                return Err(MtgError::InvalidAction(
-                    "Game loop requires exactly 2 players".to_string(),
-                ));
-            }
-            (player1_id, player2_id)
-        };
-
-        if controller1.player_id() != player1_id || controller2.player_id() != player2_id {
-            return Err(MtgError::InvalidAction(
-                "Controller player IDs don't match game players".to_string(),
-            ));
-        }
-
-        // Shuffle each player's library at game start (MTG Rules 103.2a)
-        // This uses the game's RNG which can be seeded for deterministic testing
-        use rand::SeedableRng;
-        let seed = self.game.rng_seed;
-        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-
-        // Extract player IDs to avoid borrow checker issues
-        let player_ids: [PlayerId; 2] = [player1_id, player2_id];
-        for &player_id in &player_ids {
-            if let Some(zones) = self.game.get_player_zones_mut(player_id) {
-                zones.library.shuffle(&mut rng);
-            }
-        }
+        // Setup: verify controllers and shuffle libraries
+        let (player1_id, player2_id) = self.setup_game(controller1, controller2)?;
 
         // Main game loop - repeatedly run turns until game ends
         loop {
             // Run one turn and check if game should end
             if let Some(result) = self.run_turn_once(controller1, controller2)? {
                 // Notify controllers of game end
-                let winner_id = result.winner;
-                controller1.on_game_end(
-                    &GameStateView::new(self.game, player1_id),
-                    winner_id == Some(player1_id),
-                );
-                controller2.on_game_end(
-                    &GameStateView::new(self.game, player2_id),
-                    winner_id == Some(player2_id),
+                self.notify_game_end(
+                    controller1,
+                    controller2,
+                    player1_id,
+                    player2_id,
+                    result.winner,
                 );
                 return Ok(result);
             }
@@ -262,6 +260,227 @@ impl<'a> GameLoop<'a> {
             turns_played: self.turns_elapsed,
             end_reason: GameEndReason::Manual,
         })
+    }
+
+    /// Run the game with stop-and-save snapshot functionality
+    ///
+    /// This method runs the game but stops after a certain number of player choices
+    /// (filtered by the stop condition) and saves a snapshot to disk. The snapshot includes:
+    /// - GameState at the most recent turn boundary
+    /// - All intra-turn choices made since that boundary
+    ///
+    /// ## Parameters
+    /// - `controller1`, `controller2`: Player controllers
+    /// - `p1_id`: Player 1's ID (used for filtering player choices)
+    /// - `stop_condition`: Specifies which player's choices to count and how many
+    /// - `snapshot_path`: Where to save the snapshot file
+    ///
+    /// ## Returns
+    /// - `Ok(GameResult)` with `GameEndReason::Snapshot` if snapshot was saved
+    /// - `Ok(GameResult)` with normal end reason if game finished before limit
+    pub fn run_game_with_snapshots<P: AsRef<std::path::Path>>(
+        &mut self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+        p1_id: PlayerId,
+        stop_condition: &crate::game::StopCondition,
+        snapshot_path: P,
+    ) -> Result<GameResult> {
+        // Setup: verify controllers and shuffle libraries
+        let (player1_id, player2_id) = self.setup_game(controller1, controller2)?;
+
+        // Track per-player choices that match the stop condition
+        let mut filtered_choice_count: usize = 0;
+
+        // Main game loop - run turns until game ends or choice limit reached
+        loop {
+            // Check if we've reached the filtered choice limit
+            if filtered_choice_count >= stop_condition.choice_count {
+                // Save snapshot and return early
+                return self.save_snapshot_and_exit(stop_condition.choice_count, snapshot_path);
+            }
+
+            // Run one turn and check if game should end
+            if let Some(result) = self.run_turn_once(controller1, controller2)? {
+                // Game ended normally, notify controllers
+                self.notify_game_end(
+                    controller1,
+                    controller2,
+                    player1_id,
+                    player2_id,
+                    result.winner,
+                );
+                return Ok(result);
+            }
+
+            // Update filtered choice count
+            filtered_choice_count = self.count_filtered_choices(p1_id, stop_condition);
+
+            // Check again after the turn completes (in case we hit the limit mid-turn)
+            if filtered_choice_count >= stop_condition.choice_count {
+                // Save snapshot and return early
+                return self.save_snapshot_and_exit(stop_condition.choice_count, snapshot_path);
+            }
+        }
+    }
+
+    /// Count how many choices in the undo log match the stop condition filter
+    fn count_filtered_choices(
+        &self,
+        p1_id: PlayerId,
+        stop_condition: &crate::game::StopCondition,
+    ) -> usize {
+        self.game
+            .undo_log
+            .actions()
+            .iter()
+            .filter_map(|action| {
+                if let crate::undo::GameAction::ChoicePoint { player_id, .. } = action {
+                    if stop_condition.applies_to(p1_id, *player_id) {
+                        Some(())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .count()
+    }
+
+    /// Set up a game for two-player gameplay
+    ///
+    /// This verifies that:
+    /// - Exactly 2 players exist in the game
+    /// - Controllers match the player IDs
+    /// - Libraries are shuffled using the game's RNG seed (unless resuming from snapshot)
+    ///
+    /// Returns the player IDs for both players.
+    fn setup_game(
+        &mut self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+    ) -> Result<(PlayerId, PlayerId)> {
+        // Verify controllers match players (extract exactly 2 player IDs without allocating)
+        let (player1_id, player2_id) = {
+            let mut players_iter = self.game.players.iter().map(|p| p.id);
+            let player1_id = players_iter.next().ok_or_else(|| {
+                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
+            })?;
+            let player2_id = players_iter.next().ok_or_else(|| {
+                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
+            })?;
+            if players_iter.next().is_some() {
+                return Err(MtgError::InvalidAction(
+                    "Game loop requires exactly 2 players".to_string(),
+                ));
+            }
+            (player1_id, player2_id)
+        };
+
+        if controller1.player_id() != player1_id || controller2.player_id() != player2_id {
+            return Err(MtgError::InvalidAction(
+                "Controller player IDs don't match game players".to_string(),
+            ));
+        }
+
+        // Only shuffle libraries if this is a fresh game (not resuming from snapshot)
+        // We detect snapshot resume by checking if undo log has actions
+        let is_resuming_from_snapshot = !self.game.undo_log.actions().is_empty();
+
+        if !is_resuming_from_snapshot {
+            // Shuffle each player's library at game start (MTG Rules 103.2a)
+            // This uses the game's RNG which can be seeded for deterministic testing
+            use rand::SeedableRng;
+            let seed = self.game.rng_seed;
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
+            // Extract player IDs to avoid borrow checker issues
+            let player_ids: [PlayerId; 2] = [player1_id, player2_id];
+            for &player_id in &player_ids {
+                if let Some(zones) = self.game.get_player_zones_mut(player_id) {
+                    zones.library.shuffle(&mut rng);
+                }
+            }
+        }
+
+        Ok((player1_id, player2_id))
+    }
+
+    /// Save a snapshot when choice limit is reached and exit
+    ///
+    /// This rewinds the undo log to the most recent turn boundary, extracts
+    /// intra-turn choices, and saves a GameSnapshot to disk.
+    ///
+    /// Returns a GameResult with `GameEndReason::Snapshot`.
+    fn save_snapshot_and_exit<P: AsRef<std::path::Path>>(
+        &mut self,
+        choice_limit: usize,
+        snapshot_path: P,
+    ) -> Result<GameResult> {
+        // Rewind to the most recent turn boundary and extract intra-turn choices
+        if let Some((turn_number, intra_turn_choices, actions_rewound)) =
+            self.game.undo_log.rewind_to_turn_start()
+        {
+            // Clone the game state at the turn boundary
+            let game_state_snapshot = self.game.clone();
+
+            // Create snapshot with state + choices
+            let snapshot = crate::game::GameSnapshot::new(
+                game_state_snapshot,
+                turn_number,
+                intra_turn_choices,
+            );
+
+            // Save to file
+            snapshot
+                .save_to_file(&snapshot_path)
+                .map_err(|e| MtgError::InvalidAction(format!("Failed to save snapshot: {}", e)))?;
+
+            // Log snapshot info
+            if self.verbosity >= VerbosityLevel::Minimal {
+                println!("\n=== Snapshot Saved ===");
+                println!("  Choice limit reached: {} choices", choice_limit);
+                println!("  Snapshot saved to: {}", snapshot_path.as_ref().display());
+                println!("  Turn number: {}", turn_number);
+                println!("  Intra-turn choices: {}", snapshot.choice_count());
+                println!("  Actions rewound: {}", actions_rewound);
+            }
+
+            // Return early with Snapshot end reason
+            Ok(GameResult {
+                winner: None,
+                turns_played: self.turns_elapsed,
+                end_reason: GameEndReason::Snapshot,
+            })
+        } else {
+            // Failed to rewind to turn start (shouldn't happen)
+            Err(MtgError::InvalidAction(
+                "Failed to rewind to turn start for snapshot".to_string(),
+            ))
+        }
+    }
+
+    /// Notify both controllers that the game has ended
+    ///
+    /// Calls the `on_game_end` callback for each controller with their view
+    /// of the game state and whether they won.
+    fn notify_game_end(
+        &self,
+        controller1: &mut dyn PlayerController,
+        controller2: &mut dyn PlayerController,
+        player1_id: PlayerId,
+        player2_id: PlayerId,
+        winner_id: Option<PlayerId>,
+    ) {
+        controller1.on_game_end(
+            &GameStateView::new(self.game, player1_id),
+            winner_id == Some(player1_id),
+        );
+        controller2.on_game_end(
+            &GameStateView::new(self.game, player2_id),
+            winner_id == Some(player2_id),
+        );
     }
 
     /// Run a single turn and check for game-ending conditions
@@ -355,7 +574,11 @@ impl<'a> GameLoop<'a> {
         self.game
             .get_player(player_id)
             .map(|p| p.name.to_string())
-            .unwrap_or_else(|_| format!("Player {player_id:?}"))
+            .unwrap_or_else(|_| {
+                // Use 1-based indexing for human-readable player numbers
+                let player_num = player_id.as_u32() + 1;
+                format!("Player {}", player_num)
+            })
     }
 
     /// Get step name for display
@@ -842,6 +1065,10 @@ impl<'a> GameLoop<'a> {
             let view = GameStateView::new(self.game, active_player);
             let attackers = controller.choose_attackers(&view, &available_creatures);
 
+            // Log this choice point for snapshot/replay
+            let replay_choice = crate::game::ReplayChoice::Attackers(attackers.clone());
+            self.log_choice_point(active_player, Some(replay_choice));
+
             // Declare each chosen attacker
             for attacker_id in attackers.iter() {
                 // Use GameState::declare_attacker() which taps the creature (MTG Rules 508.1f)
@@ -910,6 +1137,10 @@ impl<'a> GameLoop<'a> {
             // Ask controller to choose all blocker assignments at once (v2 interface)
             let view = GameStateView::new(self.game, defending_player);
             let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
+
+            // Log this choice point for snapshot/replay
+            let replay_choice = crate::game::ReplayChoice::Blockers(blocks.clone());
+            self.log_choice_point(defending_player, Some(replay_choice));
 
             // Declare each blocking assignment
             for (blocker_id, attacker_id) in blocks.iter() {
@@ -1146,6 +1377,10 @@ impl<'a> GameLoop<'a> {
                 let cards_to_discard =
                     controller.choose_cards_to_discard(&view, hand, discard_count);
 
+                // Log this choice point for snapshot/replay
+                let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
+                self.log_choice_point(player_id, Some(replay_choice));
+
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
                     return Err(crate::MtgError::InvalidAction(format!(
@@ -1316,7 +1551,13 @@ impl<'a> GameLoop<'a> {
                 } else {
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);
-                    controller.choose_spell_ability_to_play(&view, &available)
+                    let choice = controller.choose_spell_ability_to_play(&view, &available);
+
+                    // Log this choice point for snapshot/replay
+                    let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
+                    self.log_choice_point(current_priority, Some(replay_choice));
+
+                    choice
                 };
 
                 match choice {
@@ -1391,6 +1632,12 @@ impl<'a> GameLoop<'a> {
                                     let view = GameStateView::new(self.game, current_priority);
                                     let chosen_targets =
                                         controller.choose_targets(&view, card_id, &valid_targets);
+
+                                    // Log this choice point for snapshot/replay
+                                    let replay_choice =
+                                        crate::game::ReplayChoice::Targets(chosen_targets.clone());
+                                    self.log_choice_point(current_priority, Some(replay_choice));
+
                                     chosen_targets.into_iter().collect()
                                 } else {
                                     // No targets needed - spell has no targeting effects
@@ -1498,6 +1745,16 @@ impl<'a> GameLoop<'a> {
                                             card_id,
                                             &valid_targets,
                                         );
+
+                                        // Log this choice point for snapshot/replay
+                                        let replay_choice = crate::game::ReplayChoice::Targets(
+                                            chosen_targets.clone(),
+                                        );
+                                        self.log_choice_point(
+                                            current_priority,
+                                            Some(replay_choice),
+                                        );
+
                                         chosen_targets.into_iter().collect()
                                     } else {
                                         // No targets needed

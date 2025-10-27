@@ -39,14 +39,6 @@ impl<'a> GameStateView<'a> {
         self.player_id
     }
 
-    /// Get the player's name
-    pub fn player_name(&self) -> Option<String> {
-        self.game
-            .get_player(self.player_id)
-            .ok()
-            .map(|p| p.name.to_string())
-    }
-
     /// Get cards in this player's hand
     pub fn hand(&self) -> &[CardId] {
         self.game
@@ -177,6 +169,19 @@ impl<'a> GameStateView<'a> {
             .ok()
             .map(|p| p.life)
             .unwrap_or(0)
+    }
+
+    /// Get player's name
+    pub fn player_name(&self) -> String {
+        self.game
+            .get_player(self.player_id)
+            .ok()
+            .map(|p| p.name.to_string())
+            .unwrap_or_else(|| {
+                // Use 1-based indexing for human-readable player numbers
+                let player_num = self.player_id.as_u32() + 1;
+                format!("Player {}", player_num)
+            })
     }
 
     /// Get a specific player's life total

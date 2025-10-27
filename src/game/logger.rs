@@ -111,12 +111,12 @@ impl GameLogger {
         }
     }
 
-    /// Enable log capture to in-memory buffer
+    /// Enable log capture to in-memory buffer (suppresses stdout output)
     pub fn enable_capture(&mut self) {
         self.capture_logs = true;
     }
 
-    /// Disable log capture
+    /// Disable log capture (re-enables stdout output)
     pub fn disable_capture(&mut self) {
         self.capture_logs = false;
     }
@@ -124,6 +124,21 @@ impl GameLogger {
     /// Check if log capture is enabled
     pub fn is_capturing(&self) -> bool {
         self.capture_logs
+    }
+
+    /// Flush buffered logs to stdout, respecting verbosity and format settings
+    ///
+    /// This prints all buffered logs and then clears the buffer.
+    pub fn flush_buffer(&mut self) {
+        let buffer = self.log_buffer.borrow();
+        for entry in buffer.iter() {
+            // Only print if verbosity allows
+            if entry.level <= self.verbosity {
+                self.log_to_stdout(entry.level, &entry.message);
+            }
+        }
+        drop(buffer);
+        self.clear_logs();
     }
 
     /// Get access to captured log entries
@@ -239,9 +254,10 @@ impl GameLogger {
                 message: message.to_string(),
                 category: None,
             });
+            return; // Don't print to stdout when capturing
         }
 
-        // Output if verbosity allows
+        // Output to stdout if verbosity allows and not capturing
         if VerbosityLevel::Minimal <= self.verbosity {
             self.log_to_stdout(VerbosityLevel::Minimal, message);
         }
@@ -261,9 +277,10 @@ impl GameLogger {
                 message: message.to_string(),
                 category: None,
             });
+            return; // Don't print to stdout when capturing
         }
 
-        // Output if verbosity allows
+        // Output to stdout if verbosity allows and not capturing
         if VerbosityLevel::Normal <= self.verbosity {
             self.log_to_stdout(VerbosityLevel::Normal, message);
         }
@@ -283,9 +300,10 @@ impl GameLogger {
                 message: message.to_string(),
                 category: None,
             });
+            return; // Don't print to stdout when capturing
         }
 
-        // Output if verbosity allows
+        // Output to stdout if verbosity allows and not capturing
         if VerbosityLevel::Verbose <= self.verbosity {
             self.log_to_stdout(VerbosityLevel::Verbose, message);
         }
@@ -317,12 +335,13 @@ impl GameLogger {
         if self.capture_logs {
             self.log_buffer.borrow_mut().push(LogEntry {
                 level: VerbosityLevel::Normal,
-                message: formatted.clone(),
+                message: formatted,
                 category: Some("controller_choice".to_string()),
             });
+            return; // Don't print to stdout when capturing
         }
 
-        // Output if should_log
+        // Output to stdout if should_log and not capturing
         if should_log {
             println!("  {}", formatted);
         }
@@ -448,5 +467,50 @@ mod tests {
 
         // Should match: 5, 15, 25, ..., 95, 50-59
         assert!(count > 10);
+    }
+
+    #[test]
+    fn test_capture_suppresses_stdout() {
+        let mut logger = GameLogger::new();
+        logger.enable_capture();
+
+        assert!(logger.is_capturing());
+
+        // Log some messages (they should be captured but not printed to stdout)
+        logger.normal("message 1");
+        logger.normal("message 2");
+        logger.minimal("minimal message");
+
+        // Verify messages were captured
+        let logs = logger.logs();
+        assert_eq!(logs.len(), 3);
+        assert_eq!(logs[0].message, "message 1");
+        assert_eq!(logs[1].message, "message 2");
+        assert_eq!(logs[2].message, "minimal message");
+    }
+
+    #[test]
+    fn test_flush_buffer() {
+        let mut logger = GameLogger::new();
+        logger.enable_capture();
+
+        logger.normal("message 1");
+        logger.normal("message 2");
+
+        assert_eq!(logger.logs().len(), 2);
+
+        // Flush should print to stdout and clear the buffer
+        logger.flush_buffer();
+        assert_eq!(logger.logs().len(), 0);
+    }
+
+    #[test]
+    fn test_disable_capture() {
+        let mut logger = GameLogger::new();
+        logger.enable_capture();
+        assert!(logger.is_capturing());
+
+        logger.disable_capture();
+        assert!(!logger.is_capturing());
     }
 }

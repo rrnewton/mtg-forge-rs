@@ -12,7 +12,10 @@ pub mod logger;
 pub mod mana_engine;
 pub mod phase;
 pub mod random_controller;
+pub mod replay_controller;
+pub mod snapshot;
 pub mod state;
+pub mod stop_condition;
 pub mod zero_controller;
 
 #[cfg(test)]
@@ -32,5 +35,8 @@ pub use logger::{GameLogger, LogEntry, OutputFormat};
 pub use mana_engine::{ManaCapacity, ManaEngine};
 pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;
+pub use replay_controller::{ReplayChoice, ReplayController};
+pub use snapshot::{GameSnapshot, SnapshotError};
 pub use state::GameState;
+pub use stop_condition::{StopCondition, StopPlayer};
 pub use zero_controller::ZeroController;

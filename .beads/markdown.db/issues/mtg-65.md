@@ -1,12 +1,13 @@
 ---
 title: Need ask the choice oracle ALL questions
-status: open
+status: closed
 priority: 0
 issue_type: task
 labels:
   - human
 created_at: "2025-10-26T21:06:34Z"
-updated_at: "2025-10-26T21:06:51Z"
+updated_at: "2025-10-27T05:53:47-04:00"
+closed_at: "2025-10-27T05:53:47-04:00"
 ---
 
 # Description
@@ -25,5 +26,3 @@ This will be a large task, but you can get started by incrementally
 shifting choices from this "auto-targetting" code over to correct
 choices by the agent.  We can run games with the random agent to test
 changes and observe which choices are asked of the agent.
-
-

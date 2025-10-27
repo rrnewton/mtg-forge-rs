@@ -199,7 +199,14 @@ impl CardDatabase {
             .await
             .map_err(MtgError::IoError)?;
 
-        CardLoader::parse(&contents)
+        CardLoader::parse(&contents).map_err(|e| {
+            // Enhance error message with file path for easier debugging
+            MtgError::InvalidCardFormat(format!(
+                "Failed to parse card file '{}': {}",
+                path.display(),
+                e
+            ))
+        })
     }
 
     /// Get a clone of the database handle (shares the cache)
