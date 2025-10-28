@@ -1,4 +1,4 @@
-a
+
 Look at TODO.md, Claude.md, and PROJECT_VISION and get ready to work.
 
 Dependencies:
