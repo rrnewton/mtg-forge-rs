@@ -135,6 +135,11 @@ enum Commands {
         #[arg(long, value_name = "CONDITION")]
         stop_every: Option<String>,
 
+        /// Stop and save snapshot when fixed controller script is exhausted
+        /// (useful for building reproducers incrementally)
+        #[arg(long)]
+        stop_when_fixed_exhausted: bool,
+
         /// Output file for game snapshot (default: game.snapshot)
         #[arg(long, value_name = "FILE", default_value = "game.snapshot")]
         snapshot_output: PathBuf,
@@ -186,6 +191,7 @@ async fn main() -> Result<()> {
             verbosity,
             numeric_choices,
             stop_every,
+            stop_when_fixed_exhausted,
             snapshot_output,
             start_from,
             save_final_gamestate,
@@ -207,6 +213,7 @@ async fn main() -> Result<()> {
                 verbosity,
                 numeric_choices,
                 stop_every,
+                stop_when_fixed_exhausted,
                 snapshot_output,
                 start_from,
                 save_final_gamestate,
@@ -252,6 +259,7 @@ async fn run_tui(
     verbosity: VerbosityArg,
     numeric_choices: bool,
     stop_every: Option<String>,
+    stop_when_fixed_exhausted: bool,
     snapshot_output: PathBuf,
     start_from: Option<PathBuf>,
     save_final_gamestate: Option<PathBuf>,
@@ -673,19 +681,18 @@ async fn run_tui(
         game_loop = game_loop.with_turn_counter(turns_elapsed);
     }
 
-    let result = if let Some(ref stop_cond) = stop_condition {
-        // Run with snapshot functionality
-        game_loop.run_game_with_snapshots(
-            &mut *controller1,
-            &mut *controller2,
-            p1_id, // Player 1 ID for filtering player choices
-            stop_cond,
-            &snapshot_output,
-        )?
-    } else {
-        // Normal game loop
-        game_loop.run_game(&mut *controller1, &mut *controller2)?
-    };
+    // Enable stop-when-fixed-exhausted if requested
+    if stop_when_fixed_exhausted {
+        game_loop = game_loop.with_stop_when_fixed_exhausted(&snapshot_output);
+    }
+
+    // Enable stop condition (--stop-every) if requested
+    if let Some(ref stop_cond) = stop_condition {
+        game_loop = game_loop.with_stop_condition(p1_id, stop_cond.clone(), &snapshot_output);
+    }
+
+    // Run the game (with mid-turn exits if stop conditions enabled)
+    let result = game_loop.run_game(&mut *controller1, &mut *controller2)?;
 
     // If game ended with a snapshot, reload and add controller state
     use mtg_forge_rs::game::GameEndReason;

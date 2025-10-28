@@ -120,6 +120,12 @@ pub struct GameLoop<'a> {
     /// Global choice counter for tracking all player choices
     /// Increments each time a controller makes any decision
     choice_counter: u32,
+    /// Stop and snapshot when fixed controller is exhausted
+    stop_when_fixed_exhausted: bool,
+    /// Snapshot path for fixed-exhausted snapshots
+    snapshot_path_for_fixed: Option<std::path::PathBuf>,
+    /// Stop condition tracking for --stop-every (p1_id, stop_condition, snapshot_path)
+    stop_condition_info: Option<(PlayerId, crate::game::StopCondition, std::path::PathBuf)>,
 }
 
 impl<'a> GameLoop<'a> {
@@ -134,6 +140,9 @@ impl<'a> GameLoop<'a> {
             step_header_printed: false,
             spell_targets: Vec::new(),
             choice_counter: 0,
+            stop_when_fixed_exhausted: false,
+            snapshot_path_for_fixed: None,
+            stop_condition_info: None,
         }
     }
 
@@ -159,6 +168,38 @@ impl<'a> GameLoop<'a> {
     /// turn numbering continues correctly.
     pub fn with_turn_counter(mut self, turns_elapsed: u32) -> Self {
         self.turns_elapsed = turns_elapsed;
+        self
+    }
+
+    /// Enable stop-when-fixed-exhausted mode with snapshot path
+    ///
+    /// When enabled, the game will automatically save a snapshot and exit
+    /// when a FixedScriptController runs out of predetermined choices.
+    pub fn with_stop_when_fixed_exhausted<P: AsRef<std::path::Path>>(
+        mut self,
+        snapshot_path: P,
+    ) -> Self {
+        self.stop_when_fixed_exhausted = true;
+        self.snapshot_path_for_fixed = Some(snapshot_path.as_ref().to_path_buf());
+        self
+    }
+
+    /// Enable stop condition for --stop-every (mid-turn exit at exact choice count)
+    ///
+    /// When enabled, the game will save a snapshot and exit as soon as the filtered
+    /// choice count reaches the limit specified in the stop condition. This provides
+    /// precise stopping at the exact choice point (no overshooting).
+    pub fn with_stop_condition<P: AsRef<std::path::Path>>(
+        mut self,
+        p1_id: PlayerId,
+        stop_condition: crate::game::StopCondition,
+        snapshot_path: P,
+    ) -> Self {
+        self.stop_condition_info = Some((
+            p1_id,
+            stop_condition,
+            snapshot_path.as_ref().to_path_buf(),
+        ));
         self
     }
 
@@ -203,6 +244,47 @@ impl<'a> GameLoop<'a> {
                 choice_id: self.choice_counter,
                 choice,
             });
+    }
+
+    /// Check if we should save a snapshot before asking for next controller choice
+    ///
+    /// This is the PREAMBLE check that happens before asking a controller for a choice.
+    /// It checks two conditions:
+    /// 1. If stop_when_fixed_exhausted is enabled and controller is out of choices
+    /// 2. If stop condition is set and filtered choice count reached limit
+    ///
+    /// Returns Some(GameResult) if snapshot should be saved, None to continue.
+    fn check_stop_conditions(
+        &mut self,
+        controller: &dyn PlayerController,
+        player_id: PlayerId,
+    ) -> Result<Option<GameResult>> {
+        // Check 1: Fixed controller exhaustion
+        if self.stop_when_fixed_exhausted && !controller.has_more_choices() {
+            if let Some(snapshot_path) = self.snapshot_path_for_fixed.clone() {
+                return self
+                    .save_snapshot_and_exit(self.choice_counter as usize, &snapshot_path)
+                    .map(Some);
+            }
+        }
+
+        // Check 2: Stop condition (--stop-every)
+        if let Some((p1_id, ref stop_condition, ref snapshot_path)) = self.stop_condition_info {
+            // Only count this choice if it matches the stop condition filter
+            if stop_condition.applies_to(p1_id, player_id) {
+                let filtered_count = self.count_filtered_choices(p1_id, stop_condition);
+
+                // If we've reached the limit, save snapshot and exit
+                if filtered_count >= stop_condition.choice_count {
+                    let snapshot_path = snapshot_path.clone();
+                    return self
+                        .save_snapshot_and_exit(stop_condition.choice_count, &snapshot_path)
+                        .map(Some);
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     /// Run the game loop with the given player controllers
@@ -260,68 +342,6 @@ impl<'a> GameLoop<'a> {
             turns_played: self.turns_elapsed,
             end_reason: GameEndReason::Manual,
         })
-    }
-
-    /// Run the game with stop-and-save snapshot functionality
-    ///
-    /// This method runs the game but stops after a certain number of player choices
-    /// (filtered by the stop condition) and saves a snapshot to disk. The snapshot includes:
-    /// - GameState at the most recent turn boundary
-    /// - All intra-turn choices made since that boundary
-    ///
-    /// ## Parameters
-    /// - `controller1`, `controller2`: Player controllers
-    /// - `p1_id`: Player 1's ID (used for filtering player choices)
-    /// - `stop_condition`: Specifies which player's choices to count and how many
-    /// - `snapshot_path`: Where to save the snapshot file
-    ///
-    /// ## Returns
-    /// - `Ok(GameResult)` with `GameEndReason::Snapshot` if snapshot was saved
-    /// - `Ok(GameResult)` with normal end reason if game finished before limit
-    pub fn run_game_with_snapshots<P: AsRef<std::path::Path>>(
-        &mut self,
-        controller1: &mut dyn PlayerController,
-        controller2: &mut dyn PlayerController,
-        p1_id: PlayerId,
-        stop_condition: &crate::game::StopCondition,
-        snapshot_path: P,
-    ) -> Result<GameResult> {
-        // Setup: verify controllers and shuffle libraries
-        let (player1_id, player2_id) = self.setup_game(controller1, controller2)?;
-
-        // Track per-player choices that match the stop condition
-        let mut filtered_choice_count: usize = 0;
-
-        // Main game loop - run turns until game ends or choice limit reached
-        loop {
-            // Check if we've reached the filtered choice limit
-            if filtered_choice_count >= stop_condition.choice_count {
-                // Save snapshot and return early
-                return self.save_snapshot_and_exit(stop_condition.choice_count, snapshot_path);
-            }
-
-            // Run one turn and check if game should end
-            if let Some(result) = self.run_turn_once(controller1, controller2)? {
-                // Game ended normally, notify controllers
-                self.notify_game_end(
-                    controller1,
-                    controller2,
-                    player1_id,
-                    player2_id,
-                    result.winner,
-                );
-                return Ok(result);
-            }
-
-            // Update filtered choice count
-            filtered_choice_count = self.count_filtered_choices(p1_id, stop_condition);
-
-            // Check again after the turn completes (in case we hit the limit mid-turn)
-            if filtered_choice_count >= stop_condition.choice_count {
-                // Save snapshot and return early
-                return self.save_snapshot_and_exit(stop_condition.choice_count, snapshot_path);
-            }
-        }
     }
 
     /// Count how many choices in the undo log match the stop condition filter
@@ -538,7 +558,10 @@ impl<'a> GameLoop<'a> {
         }
 
         // Run the turn
-        self.run_turn(controller1, controller2)?;
+        if let Some(result) = self.run_turn(controller1, controller2)? {
+            // Mid-turn snapshot triggered
+            return Ok(Some(result));
+        }
         self.turns_elapsed += 1;
 
         // Check win conditions after running the turn
@@ -558,7 +581,7 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         let active_player = self.game.turn.active_player;
 
         if self.verbosity >= VerbosityLevel::Normal {
@@ -577,7 +600,10 @@ impl<'a> GameLoop<'a> {
         // Run through all steps of the turn
         loop {
             // Execute the step
-            self.execute_step(controller1, controller2)?;
+            if let Some(result) = self.execute_step(controller1, controller2)? {
+                // Mid-turn snapshot triggered (e.g., fixed controller exhausted)
+                return Ok(Some(result));
+            }
 
             // Try to advance to next step
             // IMPORTANT: Call game.advance_step() not turn.advance_step()
@@ -592,7 +618,7 @@ impl<'a> GameLoop<'a> {
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
     /// Get player name for display
@@ -950,7 +976,7 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         let step = self.game.turn.current_step;
 
         // Reset step header tracking for each new step
@@ -962,7 +988,10 @@ impl<'a> GameLoop<'a> {
         }
 
         match step {
-            Step::Untap => self.untap_step(),
+            Step::Untap => {
+                self.untap_step()?;
+                Ok(None)
+            }
             Step::Upkeep => self.upkeep_step(controller1, controller2),
             Step::Draw => self.draw_step(controller1, controller2),
             Step::Main1 | Step::Main2 => self.main_phase(controller1, controller2),
@@ -1011,11 +1040,13 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         // TODO: Handle triggered abilities
         // For now, just pass priority
-        self.priority_round(controller1, controller2)?;
-        Ok(())
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
+        Ok(None)
     }
 
     /// Draw step - active player draws a card
@@ -1023,13 +1054,13 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         let active_player = self.game.turn.active_player;
 
         // Skip draw on first turn (player going first doesn't draw)
         if self.game.turn.turn_number == 1 {
             self.log_normal("(First turn - no draw)");
-            return Ok(());
+            return Ok(None);
         }
 
         // Draw a card
@@ -1054,9 +1085,11 @@ impl<'a> GameLoop<'a> {
         }
 
         // MTG Rules 504.2: After draw, players receive priority
-        self.priority_round(controller1, controller2)?;
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
 
-        Ok(())
+        Ok(None)
     }
 
     /// Main phase - players can play spells and lands
@@ -1064,10 +1097,12 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         // Priority round where players can take actions
-        self.priority_round(controller1, controller2)?;
-        Ok(())
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
+        Ok(None)
     }
 
     /// Combat phases (simplified for now)
@@ -1075,16 +1110,18 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
-        self.priority_round(controller1, controller2)?;
-        Ok(())
+    ) -> Result<Option<GameResult>> {
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
+        Ok(None)
     }
 
     fn declare_attackers_step(
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         // Active player declares attackers
         let active_player = self.game.turn.active_player;
         let controller: &mut dyn PlayerController = if active_player == controller1.player_id() {
@@ -1097,6 +1134,11 @@ impl<'a> GameLoop<'a> {
         let available_creatures = self.get_available_attacker_creatures(active_player);
 
         if !available_creatures.is_empty() {
+            // PREAMBLE: Check stop conditions before asking for choice
+            if let Some(result) = self.check_stop_conditions(controller, active_player)? {
+                return Ok(Some(result));
+            }
+
             // Ask controller to choose all attackers at once (v2 interface)
             let view = GameStateView::new(self.game, active_player);
 
@@ -1143,16 +1185,18 @@ impl<'a> GameLoop<'a> {
         }
 
         // MTG Rules 508.4: After attackers are declared, players receive priority
-        self.priority_round(controller1, controller2)?;
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
 
-        Ok(())
+        Ok(None)
     }
 
     fn declare_blockers_step(
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         // Defending player declares blockers
         let active_player = self.game.turn.active_player;
         let defending_player = self
@@ -1171,6 +1215,11 @@ impl<'a> GameLoop<'a> {
         let attackers = self.get_current_attackers();
 
         if !available_blockers.is_empty() && !attackers.is_empty() {
+            // PREAMBLE: Check stop conditions before asking for choice
+            if let Some(result) = self.check_stop_conditions(controller, defending_player)? {
+                return Ok(Some(result));
+            }
+
             // Ask controller to choose all blocker assignments at once (v2 interface)
             let view = GameStateView::new(self.game, defending_player);
 
@@ -1210,16 +1259,18 @@ impl<'a> GameLoop<'a> {
         }
 
         // MTG Rules 509.4: After blockers are declared, players receive priority
-        self.priority_round(controller1, controller2)?;
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
 
-        Ok(())
+        Ok(None)
     }
 
     fn combat_damage_step(
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         // Check if any attacking or blocking creature has first strike or double strike
         // MTG Rules 510.4: If so, we have two combat damage steps
         let has_first_strike = self.has_first_strike_combat();
@@ -1232,7 +1283,9 @@ impl<'a> GameLoop<'a> {
             self.log_combat_damage(true)?;
             self.game
                 .assign_combat_damage(controller1, controller2, true)?;
-            self.priority_round(controller1, controller2)?;
+            if let Some(result) = self.priority_round(controller1, controller2)? {
+                return Ok(Some(result));
+            }
         }
 
         // Normal combat damage step (or only step if no first strike)
@@ -1244,8 +1297,10 @@ impl<'a> GameLoop<'a> {
             .assign_combat_damage(controller1, controller2, false)?;
 
         // After damage is dealt, players get priority
-        self.priority_round(controller1, controller2)?;
-        Ok(())
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
+        Ok(None)
     }
 
     /// Check if any attacking or blocking creature has first strike or double strike
@@ -1347,22 +1402,26 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         // Clear combat state at end of combat
         self.game.combat.clear();
 
         // Players get priority
-        self.priority_round(controller1, controller2)?;
-        Ok(())
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
+        Ok(None)
     }
 
     fn end_step(
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
-        self.priority_round(controller1, controller2)?;
-        Ok(())
+    ) -> Result<Option<GameResult>> {
+        if let Some(result) = self.priority_round(controller1, controller2)? {
+            return Ok(Some(result));
+        }
+        Ok(None)
     }
 
     /// Cleanup step - discard to hand size, remove damage
@@ -1370,7 +1429,7 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         let active_player = self.game.turn.active_player;
 
         // Get non-active player
@@ -1409,6 +1468,11 @@ impl<'a> GameLoop<'a> {
                     controller2
                 };
 
+                // PREAMBLE: Check stop conditions before asking for choice
+                if let Some(result) = self.check_stop_conditions(controller, player_id)? {
+                    return Ok(Some(result));
+                }
+
                 // Ask controller which cards to discard
                 let view = GameStateView::new(self.game, player_id);
                 let hand = view.hand();
@@ -1416,7 +1480,7 @@ impl<'a> GameLoop<'a> {
                 let cards_to_discard =
                     controller.choose_cards_to_discard(&view, hand, discard_count);
 
-                // Log this choice point for snapshot/replay
+                // POSTAMBLE: Log this choice point for snapshot/replay
                 let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
                 self.log_choice_point(player_id, Some(replay_choice));
 
@@ -1471,7 +1535,7 @@ impl<'a> GameLoop<'a> {
 
         // TODO: Remove damage from creatures
 
-        Ok(())
+        Ok(None)
     }
 
     /// Resolve the top spell from the stack
@@ -1546,7 +1610,7 @@ impl<'a> GameLoop<'a> {
         &mut self,
         controller1: &mut dyn PlayerController,
         controller2: &mut dyn PlayerController,
-    ) -> Result<()> {
+    ) -> Result<Option<GameResult>> {
         let active_player = self.game.turn.active_player;
         let non_active_player = self
             .game
@@ -1588,12 +1652,17 @@ impl<'a> GameLoop<'a> {
                     // No available actions - automatically pass priority
                     None
                 } else {
+                    // PREAMBLE: Check stop conditions before asking for choice
+                    if let Some(result) = self.check_stop_conditions(controller, current_priority)? {
+                        return Ok(Some(result));
+                    }
+
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);
 
                     let choice = controller.choose_spell_ability_to_play(&view, &available);
 
-                    // Log this choice point for snapshot/replay
+                    // POSTAMBLE: Log this choice point for snapshot/replay
                     let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
                     self.log_choice_point(current_priority, Some(replay_choice));
 
@@ -1969,7 +2038,7 @@ impl<'a> GameLoop<'a> {
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
     /// Get available attackers for a player
