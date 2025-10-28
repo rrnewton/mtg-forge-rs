@@ -2512,6 +2512,19 @@ The data needs to be stored somewhere (either in the database or in JSONL)
 Also, if the file you move already has a timestamp on the front, don't add a redundant timestamp.
 
 
+Redundant prints after choice entry
+----------------------------------------
+
+For actions like playing a land or casting a spell
+
+```
+Choose action (0-0, 'p' to pass, or ? for help): 0
+  Alice cast spell: Animate Dead
+  Alice casts Animate Dead (39) (putting on stack)
+  Error casting spell: Invalid game action: Failed to pay mana cost: Insufficient mana to pay cost 1B. Pool has: 0W 0U 0B 0R 0G 0C
+```
+
+ALSO this is an example of 'Invalid game action'. Which we want to eliminate.
 
 
 

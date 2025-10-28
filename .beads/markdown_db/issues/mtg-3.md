@@ -28,8 +28,7 @@ doing your testing. You can pick random decks and do manual testing in order to
 FIND an issue, but then you should add a test that demonstrates the problem and
 do a piece of work that makes the test pass.
 
-
-# Tracking: Current status
+## Tracking: Current status
 
 **Card types:**
 - Creature cards: ✅ Complete (combat, summoning sickness, keywords)
