@@ -1,4 +1,5 @@
 issue_prefix: mtg
+issue-prefix: mtg
 no-db: false
 no-json: true
 backend: markdown
