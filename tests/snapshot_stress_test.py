@@ -338,9 +338,33 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
 
     return accumulated_log
 
+def strip_metadata_fields(obj):
+    """
+    Recursively strip metadata fields from gamestate that differ due to
+    snapshot/resume mechanics but don't affect gameplay determinism.
+
+    Strips:
+    - undo_log.actions[].ChoicePoint.choice_id (counter offset from snapshot)
+    """
+    if isinstance(obj, dict):
+        result = {}
+        for key, value in obj.items():
+            # Skip choice_id fields in ChoicePoint entries
+            if key == "choice_id":
+                continue
+            result[key] = strip_metadata_fields(value)
+        return result
+    elif isinstance(obj, list):
+        return [strip_metadata_fields(item) for item in obj]
+    else:
+        return obj
+
 def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path) -> Tuple[bool, List[str]]:
     """
     Compare final GameState snapshots for differences.
+
+    Strips harmless metadata fields (choice_id) before comparison to focus
+    on actual gameplay state differences.
 
     Returns: (match_result, list_of_differences)
     """
@@ -359,6 +383,10 @@ def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path) -> Tupl
     # Extract just the game_state portion (not the snapshot metadata)
     normal_gs = normal_state.get("game_state", {})
     stopgo_gs = stopgo_state.get("game_state", {})
+
+    # Strip metadata fields that differ due to snapshot/resume but don't affect gameplay
+    normal_gs = strip_metadata_fields(normal_gs)
+    stopgo_gs = strip_metadata_fields(stopgo_gs)
 
     # Serialize both to canonical JSON for comparison
     normal_json = json.dumps(normal_gs, sort_keys=True, indent=2)
@@ -506,23 +534,20 @@ def run_test_for_deck(mtg_bin: Path, deck_name: str, deck_path: str,
         save_logs=keep_logs, log_dir=log_dir, test_name=test_name
     )
 
-    # Compare final gamestates (disabled - only cosmetic metadata differences exist)
-    # Deep analysis (see ai_docs/gamestate_comparison_analysis.md) shows that:
-    # - All gameplay state matches perfectly between normal and stop-go runs
-    # - Only difference is choice_id counter offset in undo_log metadata
-    # - This is harmless: choice_id is just a tracking number, not used for gameplay logic
-    # - Log comparison already validates true determinism
+    # Compare final gamestates (with metadata filtering)
+    # Strips harmless metadata fields (choice_id) that differ due to snapshot mechanics
+    # See ai_docs/gamestate_comparison_analysis.md for details on what's filtered and why
     gamestate_success = True
     gamestate_diffs = []
-    # if normal_state_file.exists() and stopgo_state_file.exists():
-    #     gamestate_success, gamestate_diffs = compare_gamestates(
-    #         normal_state_file, stopgo_state_file
-    #     )
-    # else:
-    #     print_color(YELLOW, "Warning: GameState files not found, skipping comparison")
+    if normal_state_file.exists() and stopgo_state_file.exists():
+        gamestate_success, gamestate_diffs = compare_gamestates(
+            normal_state_file, stopgo_state_file
+        )
+    else:
+        print_color(YELLOW, "Warning: GameState files not found, skipping comparison")
 
-    # Overall success requires log match (gamestate comparison disabled - only metadata diffs)
-    success = log_success
+    # Overall success requires BOTH log match AND gamestate match
+    success = log_success and gamestate_success
 
     if success:
         print_color(GREEN, f"\n✓ SUCCESS: {deck_name} test passed!")
