@@ -141,6 +141,32 @@ impl GameLogger {
         self.clear_logs();
     }
 
+    /// Flush only the last K lines of buffered logs to stdout
+    ///
+    /// This prints the tail of the log buffer (last K lines) and then clears the buffer.
+    /// Useful with --log-tail to show constant-sized output at game exit.
+    pub fn flush_tail(&mut self, tail_lines: usize) {
+        let buffer = self.log_buffer.borrow();
+
+        // Calculate start index for the tail
+        let start_idx = if buffer.len() > tail_lines {
+            buffer.len() - tail_lines
+        } else {
+            0
+        };
+
+        // Print only the last K lines
+        for entry in buffer.iter().skip(start_idx) {
+            // Only print if verbosity allows
+            if entry.level <= self.verbosity {
+                self.log_to_stdout(entry.level, &entry.message);
+            }
+        }
+
+        drop(buffer);
+        self.clear_logs();
+    }
+
     /// Get access to captured log entries
     ///
     /// Returns a guard that derefs to `[LogEntry]`. You can iterate over it:
