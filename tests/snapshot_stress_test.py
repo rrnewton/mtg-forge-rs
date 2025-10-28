@@ -661,10 +661,10 @@ def main():
 
     # Test decks (as specified in mtg-89)
     # Note: monored.dck requires modern cards not in cardsfolder, using grizzly_bears as substitute
-    test_decks = [
-        ("Royal Assassin", "test_decks/royal_assassin.dck"),
-        ("White Aggro 4ED", "test_decks/white_aggro_4ed.dck"),
-        ("Grizzly Bears", "test_decks/grizzly_bears.dck"),
+    decks = [
+        ("Royal Assassin", "decks/royal_assassin.dck"),
+        ("White Aggro 4ED", "decks/white_aggro_4ed.dck"),
+        ("Grizzly Bears", "decks/grizzly_bears.dck"),
     ]
 
     # Controller matchups to test
@@ -679,7 +679,7 @@ def main():
     all_passed = True
     results = []
 
-    for deck_name, deck_path in test_decks:
+    for deck_name, deck_path in decks:
         # Check if deck exists
         if not Path(deck_path).exists():
             print_color(YELLOW, f"Skipping {deck_name}: deck file not found at {deck_path}")

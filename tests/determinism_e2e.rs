@@ -3,7 +3,7 @@
 //! Verifies that games with the same seed produce identical output across multiple runs.
 //! This test runs the actual binary and compares stdout to ensure deterministic behavior.
 //!
-//! Tests are automatically generated for each `.dck` file in the `test_decks/` directory
+//! Tests are automatically generated for each `.dck` file in the `decks/` directory
 //! using the `dir-test` procedural macro. No manual test registration needed!
 
 use dir_test::{dir_test, Fixture};
@@ -39,12 +39,12 @@ fn run_game_with_seed(deck_path: &str, seed: u64, verbosity: &str) -> String {
 // Automatic deck determinism tests
 // ============================================================================
 // The dir_test macro automatically generates one test per .dck file
-// No manual test registration needed - just add a .dck file to test_decks/!
+// No manual test registration needed - just add a .dck file to decks/!
 
-/// Test determinism for all deck files in test_decks/
+/// Test determinism for all deck files in decks/
 /// Automatically generates a separate test for each .dck file found
 #[dir_test(
-    dir: "$CARGO_MANIFEST_DIR/test_decks",
+    dir: "$CARGO_MANIFEST_DIR/decks",
     glob: "**/*.dck",
 )]
 fn test_deck_determinism(fixture: Fixture<&str>) {
@@ -74,7 +74,7 @@ fn test_deck_determinism(fixture: Fixture<&str>) {
 /// Test that different seeds produce consistent but different results
 #[test]
 fn test_different_seeds_consistency() {
-    let deck_path = "test_decks/simple_bolt.dck";
+    let deck_path = "decks/simple_bolt.dck";
     if !PathBuf::from(deck_path).exists() {
         return;
     }

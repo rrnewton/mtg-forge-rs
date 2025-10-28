@@ -45,7 +45,7 @@
 #
 # SEE ALSO:
 # - Prodigal Sorcerer (similar tap ability for damage)
-# - test_decks/royal_assassin.dck (has Royal Assassin)
+# - decks/royal_assassin.dck (has Royal Assassin)
 # - forge-java/forge-gui/res/cardsfolder/r/royal_assassin.txt
 
 set -euo pipefail

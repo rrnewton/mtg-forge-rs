@@ -11,7 +11,7 @@ These decks are representative of archetypes from the Old School Magic: The Gath
 **Gameplay**: ⚠️ Currently blocked by unimplemented complex mana sources
 - These decks contain dual lands (e.g., Tundra, Underground Sea) and multicolor lands (e.g., City of Brass)
 - The mana engine needs enhancement to handle lands that can produce multiple colors
-- Simpler decks in `/test_decks/` work fine with both random and heuristic controllers
+- Simpler decks in `/decks/` work fine with both random and heuristic controllers
 
 ## Deck List
 
@@ -27,12 +27,12 @@ These decks are representative of archetypes from the Old School Magic: The Gath
 ```bash
 # This will load successfully but fail at runtime when complex mana is encountered:
 cargo run --bin mtg --release -- tui \
-  test_decks/old_school/01_rogue_rogerbrand.dck \
-  test_decks/old_school/02_thedeck_peterschnidrig.dck \
+  decks/old_school/01_rogue_rogerbrand.dck \
+  decks/old_school/02_thedeck_peterschnidrig.dck \
   --p1=random --p2=random --seed=42
 ```
 
 ## See Also
 
 - `/docs/DCK_FORMAT.md` - Complete .dck file format specification
-- `/test_decks/` - Simpler decks that work with current mana engine
+- `/decks/` - Simpler decks that work with current mana engine

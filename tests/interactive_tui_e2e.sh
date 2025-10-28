@@ -35,8 +35,8 @@ echo "Using binary: $MTG_BIN"
 echo
 
 # Check if test deck exists
-if [[ ! -f "test_decks/simple_bolt.dck" ]]; then
-    echo -e "${RED}Error: test_decks/simple_bolt.dck not found${NC}"
+if [[ ! -f "decks/simple_bolt.dck" ]]; then
+    echo -e "${RED}Error: decks/simple_bolt.dck not found${NC}"
     exit 1
 fi
 
@@ -83,8 +83,8 @@ echo
 # P2 = zero (deterministic choices)
 # Redirect stderr to capture game output
 if echo -e "$INPUT_SEQUENCE" | timeout 30s "$MTG_BIN" tui \
-    test_decks/simple_bolt.dck \
-    test_decks/simple_bolt.dck \
+    decks/simple_bolt.dck \
+    decks/simple_bolt.dck \
     --p1 tui \
     --p2 zero \
     --seed 42 \

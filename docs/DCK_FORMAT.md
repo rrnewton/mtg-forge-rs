@@ -174,5 +174,5 @@ Description=Deck featuring the Power 9 cards from various sets
 ## See Also
 
 - `/workspace/src/loader/deck.rs` - Rust parser implementation
-- `/workspace/test_decks/` - Example deck files
-- `/workspace/test_decks/old_school/` - Complex historical deck examples
+- `/workspace/decks/` - Example deck files
+- `/workspace/decks/old_school/` - Complex historical deck examples

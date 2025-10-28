@@ -37,8 +37,8 @@ echo "Using binary: $MTG_BIN"
 echo
 
 # Create test deck for attacker (minimal - just bears and lands)
-ATTACKER_DECK="test_decks/heuristic_test_attacker.dck"
-mkdir -p test_decks
+ATTACKER_DECK="decks/heuristic_test_attacker.dck"
+mkdir -p decks
 cat > "$ATTACKER_DECK" << 'EOF'
 [metadata]
 Name=Heuristic Test - Attacker
@@ -50,7 +50,7 @@ Description=Minimal deck for testing Grizzly Bears attacking
 EOF
 
 # Create test deck for defender (no creatures - cannot block)
-DEFENDER_DECK="test_decks/heuristic_test_defender_no_blockers.dck"
+DEFENDER_DECK="decks/heuristic_test_defender_no_blockers.dck"
 cat > "$DEFENDER_DECK" << 'EOF'
 [metadata]
 Name=Heuristic Test - Defender (No Creatures)

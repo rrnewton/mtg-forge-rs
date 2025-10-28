@@ -169,7 +169,7 @@ benchmark_commit() {
     fi
 
     # Check if test resources exist
-    if [ ! -f "test_decks/simple_bolt.dck" ]; then
+    if [ ! -f "decks/simple_bolt.dck" ]; then
         echo "  Skipping - missing test resources"
         git checkout -q "$ORIGINAL_COMMIT"
         echo ""

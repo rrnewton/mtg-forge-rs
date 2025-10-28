@@ -130,7 +130,7 @@ impl BenchmarkSetup {
         let cardsfolder = PathBuf::from("cardsfolder");
         let card_db = CardDatabase::new(cardsfolder);
 
-        let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+        let deck_path = PathBuf::from("decks/simple_bolt.dck");
         let deck = DeckLoader::load_from_file(&deck_path)?;
 
         // Prefetch deck cards

@@ -28,7 +28,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
-    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     // ===== Phase 1: Play initial game =====
@@ -486,7 +486,7 @@ async fn test_action_undo() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
-    let deck_path = PathBuf::from("test_decks/grizzly_bears.dck");
+    let deck_path = PathBuf::from("decks/grizzly_bears.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     let game_init = GameInitializer::new(&card_db);
@@ -591,7 +591,7 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
-    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     // Initialize game

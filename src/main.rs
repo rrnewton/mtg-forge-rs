@@ -159,7 +159,7 @@ enum Commands {
         seed: u64,
 
         /// Deck file to use (uses same deck for both players)
-        #[arg(long, short = 'd', default_value = "test_decks/simple_bolt.dck")]
+        #[arg(long, short = 'd', default_value = "decks/simple_bolt.dck")]
         deck: PathBuf,
     },
 }

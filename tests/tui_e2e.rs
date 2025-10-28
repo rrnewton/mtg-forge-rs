@@ -23,7 +23,7 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only cards from the deck
 
     // Load test decks
-    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     // Initialize game (this will lazily load Mountain and Lightning Bolt from cardsfolder)
@@ -100,7 +100,7 @@ async fn test_tui_deterministic_with_seed() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
-    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     // Run the same game twice with the same seed
@@ -152,7 +152,7 @@ async fn test_tui_runs_to_completion() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
-    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     // Run a game and verify it completes
@@ -205,7 +205,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck with Mountains and Lightning Bolts
-    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     // Run a game with random controllers
@@ -284,7 +284,7 @@ async fn test_discard_to_hand_size() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load test deck
-    let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
     let deck = DeckLoader::load_from_file(&deck_path)?;
 
     // Initialize game
@@ -377,10 +377,10 @@ async fn test_creature_combat_game() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load creature decks
-    let vigilance_deck_path = PathBuf::from("test_decks/vigilance_deck.dck");
+    let vigilance_deck_path = PathBuf::from("decks/vigilance_deck.dck");
     let vigilance_deck = DeckLoader::load_from_file(&vigilance_deck_path)?;
 
-    let bears_deck_path = PathBuf::from("test_decks/grizzly_bears.dck");
+    let bears_deck_path = PathBuf::from("decks/grizzly_bears.dck");
     let bears_deck = DeckLoader::load_from_file(&bears_deck_path)?;
 
     // Run a game with random controllers
@@ -486,10 +486,10 @@ async fn test_different_deck_matchup() -> Result<()> {
     // Note: No eager_load() - GameInitializer will lazily load only deck cards
 
     // Load two different decks
-    let bolt_deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+    let bolt_deck_path = PathBuf::from("decks/simple_bolt.dck");
     let bolt_deck = DeckLoader::load_from_file(&bolt_deck_path)?;
 
-    let bears_deck_path = PathBuf::from("test_decks/grizzly_bears.dck");
+    let bears_deck_path = PathBuf::from("decks/grizzly_bears.dck");
     let bears_deck = DeckLoader::load_from_file(&bears_deck_path)?;
 
     // Run multiple games to test consistency

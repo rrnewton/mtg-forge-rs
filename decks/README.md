@@ -17,7 +17,7 @@ This directory contains minimal deck files (.dck) used for end-to-end testing of
 Test decks are referenced in integration tests located in `/tests/`:
 
 ```rust
-let deck_path = PathBuf::from("test_decks/simple_bolt.dck");
+let deck_path = PathBuf::from("decks/simple_bolt.dck");
 let deck = DeckLoader::load_from_file(&deck_path)?;
 ```
 
