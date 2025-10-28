@@ -310,6 +310,196 @@ impl ManaPaymentResolver for SimpleManaResolver {
     }
 }
 
+/// Greedy resolver for complex mana sources
+///
+/// This resolver handles dual lands (Taiga, Badlands, etc.) and multicolor lands
+/// (City of Brass) using a greedy algorithm similar to Java Forge.
+///
+/// Algorithm:
+/// 1. Pay specific color requirements first, preferring:
+///    - Fixed sources of that color (e.g., Mountain for R)
+///    - Dual lands that produce that color (e.g., Taiga for R)
+///    - Any-color sources (e.g., City of Brass)
+/// 2. Pay colorless requirements with Wastes
+/// 3. Pay generic requirements with any remaining sources
+///
+/// The greedy approach preserves more flexible sources (any-color lands)
+/// for later requirements when possible.
+pub struct GreedyManaResolver;
+
+impl GreedyManaResolver {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Check if a source can produce a specific color
+    fn can_produce_color(production: &ManaProduction, color: ManaColor) -> bool {
+        match production {
+            ManaProduction::Fixed(c) => *c == color,
+            ManaProduction::Choice(colors) => colors.contains(&color),
+            ManaProduction::AnyColor => true,
+            ManaProduction::Colorless => false,
+        }
+    }
+
+    /// Score a source for a specific color (lower = better = more specific)
+    /// This helps us tap the most specific sources first
+    fn score_for_color(production: &ManaProduction, color: ManaColor) -> u8 {
+        match production {
+            ManaProduction::Fixed(c) if *c == color => 0, // Best: exact match
+            ManaProduction::Choice(colors) if colors.contains(&color) => {
+                colors.len() as u8 // Better: dual land (prefer fewer options)
+            }
+            ManaProduction::AnyColor => 100, // Worst: save for last resort
+            _ => 255,                        // Can't produce this color
+        }
+    }
+}
+
+impl Default for GreedyManaResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ManaPaymentResolver for GreedyManaResolver {
+    fn can_pay(&self, cost: &ManaCost, sources: &[ManaSource]) -> bool {
+        // Quick check: count total available mana
+        let mut available = 0u8;
+        for source in sources {
+            if !source.is_tapped && !source.has_summoning_sickness {
+                available = available.saturating_add(1);
+            }
+        }
+
+        let needed = cost
+            .white
+            .saturating_add(cost.blue)
+            .saturating_add(cost.black)
+            .saturating_add(cost.red)
+            .saturating_add(cost.green)
+            .saturating_add(cost.colorless)
+            .saturating_add(cost.generic);
+
+        if available < needed {
+            return false;
+        }
+
+        // Try to compute tap order - if successful, we can pay
+        self.compute_tap_order(cost, sources).is_some()
+    }
+
+    fn compute_tap_order(&self, cost: &ManaCost, sources: &[ManaSource]) -> Option<Vec<CardId>> {
+        let mut tap_order = Vec::new();
+        let mut remaining_cost = *cost;
+
+        // Helper to tap sources for a specific color
+        let mut tap_for_color = |color: ManaColor, amount: u8| {
+            let mut tapped = 0u8;
+
+            // Create list of available sources that can produce this color
+            let mut candidates: Vec<(usize, u8)> = sources
+                .iter()
+                .enumerate()
+                .filter(|(_, s)| {
+                    !s.is_tapped
+                        && !s.has_summoning_sickness
+                        && !tap_order.contains(&s.card_id)
+                        && Self::can_produce_color(&s.production, color)
+                })
+                .map(|(idx, s)| (idx, Self::score_for_color(&s.production, color)))
+                .collect();
+
+            // Sort by score (lower = more specific = tap first)
+            candidates.sort_by_key(|(_, score)| *score);
+
+            // Tap sources in priority order
+            for (idx, _score) in candidates {
+                if tapped >= amount {
+                    break;
+                }
+                tap_order.push(sources[idx].card_id);
+                tapped += 1;
+            }
+
+            tapped >= amount
+        };
+
+        // Pay specific color requirements first
+        if remaining_cost.white > 0 && !tap_for_color(ManaColor::White, remaining_cost.white) {
+            return None;
+        }
+        remaining_cost.white = 0;
+
+        if remaining_cost.blue > 0 && !tap_for_color(ManaColor::Blue, remaining_cost.blue) {
+            return None;
+        }
+        remaining_cost.blue = 0;
+
+        if remaining_cost.black > 0 && !tap_for_color(ManaColor::Black, remaining_cost.black) {
+            return None;
+        }
+        remaining_cost.black = 0;
+
+        if remaining_cost.red > 0 && !tap_for_color(ManaColor::Red, remaining_cost.red) {
+            return None;
+        }
+        remaining_cost.red = 0;
+
+        if remaining_cost.green > 0 && !tap_for_color(ManaColor::Green, remaining_cost.green) {
+            return None;
+        }
+        remaining_cost.green = 0;
+
+        // Pay colorless requirement with colorless sources
+        if remaining_cost.colorless > 0 {
+            let mut tapped = 0u8;
+            for source in sources {
+                if tapped >= remaining_cost.colorless {
+                    break;
+                }
+                if source.is_tapped
+                    || source.has_summoning_sickness
+                    || tap_order.contains(&source.card_id)
+                {
+                    continue;
+                }
+                if source.production == ManaProduction::Colorless {
+                    tap_order.push(source.card_id);
+                    tapped += 1;
+                }
+            }
+            if tapped < remaining_cost.colorless {
+                return None;
+            }
+        }
+        remaining_cost.colorless = 0;
+
+        // Pay generic cost with any remaining sources
+        if remaining_cost.generic > 0 {
+            let mut tapped = 0u8;
+            for source in sources {
+                if tapped >= remaining_cost.generic {
+                    break;
+                }
+                if source.is_tapped
+                    || source.has_summoning_sickness
+                    || tap_order.contains(&source.card_id)
+                {
+                    continue;
+                }
+                tap_order.push(source.card_id);
+                tapped += 1;
+            }
+            if tapped < remaining_cost.generic {
+                return None;
+            }
+        }
+
+        Some(tap_order)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -422,5 +612,182 @@ mod tests {
 
         // SimpleManaResolver conservatively rejects when complex sources present
         assert!(!resolver.can_pay(&cost, &sources));
+    }
+
+    #[test]
+    fn test_greedy_resolver_dual_land() {
+        let resolver = GreedyManaResolver::new();
+
+        // Taiga (dual land: R or G)
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::Fixed(ManaColor::Red),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        // Cost: 1R
+        let cost = ManaCost {
+            generic: 1,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 0,
+            colorless: 0,
+        };
+
+        assert!(resolver.can_pay(&cost, &sources));
+
+        let tap_order = resolver.compute_tap_order(&cost, &sources).unwrap();
+        assert_eq!(tap_order.len(), 2);
+        // Should prefer Mountain (card 2) for R, then Taiga for generic
+        assert_eq!(tap_order[0], CardId::new(2)); // Mountain for R
+        assert_eq!(tap_order[1], CardId::new(1)); // Taiga for generic
+    }
+
+    #[test]
+    fn test_greedy_resolver_city_of_brass() {
+        let resolver = GreedyManaResolver::new();
+
+        // City of Brass (any color)
+        let sources = vec![ManaSource {
+            card_id: CardId::new(1),
+            production: ManaProduction::AnyColor,
+            is_tapped: false,
+            has_summoning_sickness: false,
+        }];
+
+        // Cost: 1R
+        let cost = ManaCost {
+            generic: 0,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 0,
+            colorless: 0,
+        };
+
+        assert!(resolver.can_pay(&cost, &sources));
+        let tap_order = resolver.compute_tap_order(&cost, &sources).unwrap();
+        assert_eq!(tap_order.len(), 1);
+    }
+
+    #[test]
+    fn test_greedy_resolver_prefers_specific_sources() {
+        let resolver = GreedyManaResolver::new();
+
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::AnyColor, // City of Brass
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]), // Taiga
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(3),
+                production: ManaProduction::Fixed(ManaColor::Red), // Mountain
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        // Cost: R (just one red)
+        let cost = ManaCost {
+            generic: 0,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 0,
+            colorless: 0,
+        };
+
+        let tap_order = resolver.compute_tap_order(&cost, &sources).unwrap();
+        assert_eq!(tap_order.len(), 1);
+        // Should prefer Mountain (most specific) over Taiga or City of Brass
+        assert_eq!(tap_order[0], CardId::new(3));
+    }
+
+    #[test]
+    fn test_greedy_resolver_multicolor_cost() {
+        let resolver = GreedyManaResolver::new();
+
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::Fixed(ManaColor::Red),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::Fixed(ManaColor::Green),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(3),
+                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]), // Taiga
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        // Cost: 1RG
+        let cost = ManaCost {
+            generic: 1,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 1,
+            colorless: 0,
+        };
+
+        assert!(resolver.can_pay(&cost, &sources));
+        let tap_order = resolver.compute_tap_order(&cost, &sources).unwrap();
+        assert_eq!(tap_order.len(), 3);
+    }
+
+    #[test]
+    fn test_greedy_resolver_insufficient_mana() {
+        let resolver = GreedyManaResolver::new();
+
+        let sources = vec![ManaSource {
+            card_id: CardId::new(1),
+            production: ManaProduction::Fixed(ManaColor::Red),
+            is_tapped: false,
+            has_summoning_sickness: false,
+        }];
+
+        // Cost: 1UU (needs blue)
+        let cost = ManaCost {
+            generic: 1,
+            white: 0,
+            blue: 2,
+            black: 0,
+            red: 0,
+            green: 0,
+            colorless: 0,
+        };
+
+        assert!(!resolver.can_pay(&cost, &sources));
+        assert!(resolver.compute_tap_order(&cost, &sources).is_none());
     }
 }

@@ -34,6 +34,10 @@ pub use heuristic_controller::HeuristicController;
 pub use interactive_controller::InteractiveController;
 pub use logger::{GameLogger, LogEntry, OutputFormat};
 pub use mana_engine::{ManaCapacity, ManaEngine};
+pub use mana_payment::{
+    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource,
+    SimpleManaResolver,
+};
 pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;
 pub use replay_controller::{ReplayChoice, ReplayController};

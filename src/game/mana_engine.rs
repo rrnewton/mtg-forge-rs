@@ -114,7 +114,8 @@
 
 use crate::core::{CardId, ManaCost, PlayerId};
 use crate::game::mana_payment::{
-    ManaColor, ManaPaymentResolver, ManaProduction, ManaSource, SimpleManaResolver,
+    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource,
+    SimpleManaResolver,
 };
 use crate::game::GameState;
 
@@ -307,15 +308,26 @@ impl ManaEngine {
                             is_tapped: card.tapped,
                             has_summoning_sickness,
                         });
-                    } else {
-                        // Complex source - requires search
+                    } else if let Some(production) = get_complex_mana_production(card) {
+                        // Complex source - dual land or any-color land
                         self.complex_sources.push(card_id);
-                        // TODO: Determine the actual production type from card abilities
-                        // For now, mark as needing analysis
-                        // This will be filled in when we implement Phase 2
+                        self.mana_sources.push(ManaSource {
+                            card_id,
+                            production,
+                            is_tapped: card.tapped,
+                            has_summoning_sickness,
+                        });
                     }
+                    // If we can't parse it, just ignore it for now
                 }
             }
+        }
+
+        // Switch to GreedyManaResolver if we have complex sources
+        if !self.complex_sources.is_empty() {
+            self.resolver = Box::new(GreedyManaResolver::new());
+        } else {
+            self.resolver = Box::new(SimpleManaResolver::new());
         }
     }
 
@@ -360,6 +372,52 @@ fn get_simple_mana_color(land_name: &str) -> Option<char> {
         // Any other land is considered complex for now
         _ => None,
     }
+}
+
+/// Determine mana production for complex lands
+///
+/// Analyzes card subtypes and abilities to determine what mana a land can produce.
+/// Returns None if this isn't a mana-producing land or should be handled by simple check.
+fn get_complex_mana_production(card: &crate::core::Card) -> Option<ManaProduction> {
+    use crate::core::CardType;
+
+    // Must be a land
+    if !card.types.contains(&CardType::Land) {
+        return None;
+    }
+
+    // Check for dual lands by looking at basic land subtypes
+    let mut colors = Vec::new();
+
+    // Check subtypes for basic land types
+    for subtype in &card.subtypes {
+        let color = match subtype.as_str() {
+            "Plains" => Some(ManaColor::White),
+            "Island" => Some(ManaColor::Blue),
+            "Swamp" => Some(ManaColor::Black),
+            "Mountain" => Some(ManaColor::Red),
+            "Forest" => Some(ManaColor::Green),
+            _ => None,
+        };
+        if let Some(c) = color {
+            colors.push(c);
+        }
+    }
+
+    // If we have exactly 2 basic land subtypes, it's a dual land
+    if colors.len() == 2 {
+        return Some(ManaProduction::Choice(colors));
+    }
+
+    // Check oracle text for any-color lands (City of Brass pattern)
+    // Example: "Add one mana of any color"
+    let text_lower = card.text.to_lowercase();
+    if text_lower.contains("any color") {
+        return Some(ManaProduction::AnyColor);
+    }
+
+    // Not a complex source we can handle yet
+    None
 }
 
 #[cfg(test)]
