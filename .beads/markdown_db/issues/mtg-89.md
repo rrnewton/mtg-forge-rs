@@ -1,11 +1,11 @@
 ---
 title: Randomized stress tests with invariants for snapshot resume
-status: open
+status: closed
 priority: 0
 issue_type: task
 created_at: "2025-10-27T09:12:20Z"
-updated_at: "2025-10-27T22:01:46Z"
-closed_at: "2025-10-27T14:01:45Z"
+updated_at: "2025-10-28T00:55:30Z"
+closed_at: "2025-10-28T00:55:30Z"
 ---
 
 # Description
