@@ -322,6 +322,10 @@ impl PlayerController for FixedScriptController {
         // Serialize the entire controller state (script + current_index)
         serde_json::to_value(self).ok()
     }
+
+    fn has_more_choices(&self) -> bool {
+        self.current_index < self.script.len()
+    }
 }
 
 #[cfg(test)]

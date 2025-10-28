@@ -387,6 +387,16 @@ pub trait PlayerController {
     fn get_snapshot_state(&self) -> Option<serde_json::Value> {
         None // Default implementation returns None
     }
+
+    /// Check if controller has more choices available
+    ///
+    /// Used for `--stop-when-fixed-exhausted` flag. Returns true if the controller
+    /// has more choices to make, false if exhausted (only relevant for FixedScriptController).
+    ///
+    /// Default implementation returns true (infinite choices for AI/human controllers).
+    fn has_more_choices(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(test)]
