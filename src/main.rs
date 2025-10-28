@@ -73,8 +73,8 @@ enum Commands {
         #[arg(value_name = "PLAYER1_DECK", required_unless_present_any = ["start_state", "start_from"])]
         deck1: Option<PathBuf>,
 
-        /// Deck file (.dck) for player 2 (required unless --start-state or --start-from is provided)
-        #[arg(value_name = "PLAYER2_DECK", required_unless_present_any = ["start_state", "start_from"])]
+        /// Deck file (.dck) for player 2 (optional; if omitted, uses PLAYER1_DECK for both players)
+        #[arg(value_name = "PLAYER2_DECK")]
         deck2: Option<PathBuf>,
 
         /// Load game state from puzzle file (.pzl)
@@ -354,13 +354,23 @@ async fn run_tui(
     } else {
         // Load game from deck files
         let deck1_path = deck1_path.expect("deck1 required when not loading from puzzle");
-        let deck2_path = deck2_path.expect("deck2 required when not loading from puzzle");
+        // If deck2 not provided, use deck1 for both players
+        let deck2_path = deck2_path.as_ref().unwrap_or(&deck1_path);
 
         println!("Loading deck files...");
         let deck1 = DeckLoader::load_from_file(&deck1_path)?;
-        let deck2 = DeckLoader::load_from_file(&deck2_path)?;
-        println!("  Player 1: {} cards", deck1.total_cards());
-        println!("  Player 2: {} cards\n", deck2.total_cards());
+        let deck2 = DeckLoader::load_from_file(deck2_path)?;
+
+        if deck2_path == &deck1_path {
+            println!(
+                "  Using same deck for both players: {} cards",
+                deck1.total_cards()
+            );
+        } else {
+            println!("  Player 1: {} cards", deck1.total_cards());
+            println!("  Player 2: {} cards", deck2.total_cards());
+        }
+        println!();
 
         // Load cards based on mode
         println!("Loading card database...");
