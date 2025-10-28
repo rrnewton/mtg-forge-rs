@@ -14,8 +14,22 @@ use tokio::time::Instant;
 
 /// Convert card name to file path
 /// "Lightning Bolt" -> "cardsfolder/l/lightning_bolt.txt"
+/// "All Hallow's Eve" -> "cardsfolder/a/all_hallows_eve.txt"
+/// Removes apostrophes and other special characters to match Java Forge convention
 fn card_name_to_path(cardsfolder: &Path, card_name: &str) -> PathBuf {
-    let normalized = card_name.to_lowercase().replace(' ', "_");
+    // Normalize card name for filesystem: lowercase, replace/remove special chars
+    // Using iterator-based approach for efficiency
+    let normalized: String = card_name
+        .to_lowercase()
+        .chars()
+        .map(|c| match c {
+            ' ' | '-' => '_',                     // Spaces and hyphens become underscores
+            '\'' | ',' | ':' | '!' | '?' => '\0', // Remove these characters
+            _ => c,
+        })
+        .filter(|&c| c != '\0') // Remove marked characters
+        .collect();
+
     let first_char = normalized.chars().next().unwrap_or('_');
 
     cardsfolder
@@ -83,28 +97,35 @@ impl CardDatabase {
     pub async fn load_cards(&self, names: &[String]) -> Result<(usize, std::time::Duration)> {
         let start = Instant::now();
 
-        // Spawn tasks for all cards in parallel
+        // Spawn tasks for all cards in parallel - track names for error reporting
         let mut tasks = Vec::new();
         for name in names {
             let name = name.clone();
             let db = self.clone_handle();
-            tasks.push(tokio::spawn(async move { db.get_card(&name).await }));
+            let task_name = name.clone(); // Keep name for error reporting
+            tasks.push((
+                task_name,
+                tokio::spawn(async move { db.get_card(&name).await }),
+            ));
         }
 
         // Wait for all to complete - fail fast on any error
         let mut loaded = 0;
-        for task in tasks {
+        for (card_name, task) in tasks {
             match task.await {
                 Ok(Ok(Some(_))) => loaded += 1,
                 Ok(Ok(None)) => {
-                    return Err(crate::MtgError::InvalidCardFormat(
-                        "Card file not found".to_string(),
-                    ))
+                    return Err(crate::MtgError::InvalidCardFormat(format!(
+                        "Card file not found: '{}' (expected path: {})",
+                        card_name,
+                        card_name_to_path(&self.cardsfolder, &card_name).display()
+                    )))
                 }
                 Ok(Err(e)) => return Err(e),
                 Err(e) => {
                     return Err(crate::MtgError::InvalidCardFormat(format!(
-                        "Task join error: {e}"
+                        "Task join error for card '{}': {e}",
+                        card_name
                     )))
                 }
             }
@@ -250,6 +271,16 @@ mod tests {
 
         let path = card_name_to_path(&cardsfolder, "Black Lotus");
         assert_eq!(path, PathBuf::from("cardsfolder/b/black_lotus.txt"));
+
+        // Test special character handling
+        let path = card_name_to_path(&cardsfolder, "All Hallow's Eve");
+        assert_eq!(path, PathBuf::from("cardsfolder/a/all_hallows_eve.txt"));
+
+        let path = card_name_to_path(&cardsfolder, "Nevinyrral's Disk");
+        assert_eq!(path, PathBuf::from("cardsfolder/n/nevinyrrals_disk.txt"));
+
+        let path = card_name_to_path(&cardsfolder, "Mishra's Factory");
+        assert_eq!(path, PathBuf::from("cardsfolder/m/mishras_factory.txt"));
     }
 
     #[tokio::test]
