@@ -234,19 +234,3 @@ heapprofile:
 	@echo ""
 	@echo "Analysis complete! Check output above for top allocation sites."
 
-# TODO: need a way to pass this into happy on the CLI.
-# It can take an MCP action to change it, but that's lame and wasteful.
-.session_title.txt:
-	echo mtg-container-`hostname` > $@
-
-happy: .session_title.txt
-	TZ=America/New_York happy claude --dangerously-skip-permissions "Tell happy to change the title to "`cat .session_title.txt`
-
-setup-claude: claude-github claude-beads
-
-claude-github:
-	claude mcp add --transport http github https://api.githubcopilot.com/mcp -H "Authorization: Bearer $GITHUB_PERSONAL_ACCESS_TOKEN"
-
-claude-beads:
-	claude plugin marketplace add steveyegge/beads
-	claude plugin install beads
