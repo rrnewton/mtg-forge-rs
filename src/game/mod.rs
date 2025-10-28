@@ -10,6 +10,7 @@ pub mod heuristic_controller;
 pub mod interactive_controller;
 pub mod logger;
 pub mod mana_engine;
+pub mod mana_payment;
 pub mod phase;
 pub mod random_controller;
 pub mod replay_controller;

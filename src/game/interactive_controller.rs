@@ -95,7 +95,6 @@ impl InteractiveController {
                 return None;
             }
 
-
             // Try to parse as number
             match trimmed.parse::<usize>() {
                 Ok(choice) if choice < num_options => return Some(choice),

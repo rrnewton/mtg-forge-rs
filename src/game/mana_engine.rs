@@ -113,6 +113,9 @@
 //! - **Cost reduction**: Handle effects like Goblin Electromancer that reduce spell costs
 
 use crate::core::{CardId, ManaCost, PlayerId};
+use crate::game::mana_payment::{
+    ManaColor, ManaPaymentResolver, ManaProduction, ManaSource, SimpleManaResolver,
+};
 use crate::game::GameState;
 
 /// Maximum mana production capacity
@@ -212,6 +215,10 @@ pub struct ManaEngine {
     complex_sources: Vec<CardId>,
     /// Cached capacity from simple sources
     simple_capacity: ManaCapacity,
+    /// All mana sources as ManaSource structs (for resolver)
+    mana_sources: Vec<ManaSource>,
+    /// Payment resolver (strategy pattern for complex mana handling)
+    resolver: Box<dyn ManaPaymentResolver>,
 }
 
 impl ManaEngine {
@@ -222,6 +229,8 @@ impl ManaEngine {
             simple_sources: Vec::new(),
             complex_sources: Vec::new(),
             simple_capacity: ManaCapacity::new(),
+            mana_sources: Vec::new(),
+            resolver: Box::new(SimpleManaResolver::new()),
         }
     }
 
@@ -236,28 +245,74 @@ impl ManaEngine {
         self.simple_sources.clear();
         self.complex_sources.clear();
         self.simple_capacity = ManaCapacity::new();
+        self.mana_sources.clear();
 
-        // Scan battlefield for untapped lands owned by this player
+        // Scan battlefield for lands owned by this player
         for &card_id in &game.battlefield.cards {
             if let Ok(card) = game.cards.get(card_id) {
-                // Check if this is an untapped land owned by this player
-                if card.owner == self.player_id && card.is_land() && !card.tapped {
-                    // Determine if this is a simple or complex mana source
-                    if let Some(color) = get_simple_mana_color(card.name.as_str()) {
-                        // Simple source - produces exactly one color
-                        self.simple_sources.push(card_id);
-                        match color {
-                            'W' => self.simple_capacity.white += 1,
-                            'U' => self.simple_capacity.blue += 1,
-                            'B' => self.simple_capacity.black += 1,
-                            'R' => self.simple_capacity.red += 1,
-                            'G' => self.simple_capacity.green += 1,
-                            'C' => self.simple_capacity.colorless += 1,
-                            _ => {}
+                // Check if this is a land owned by this player
+                if card.owner == self.player_id && card.is_land() {
+                    // Determine if this source has summoning sickness (for creatures with mana abilities)
+                    let has_summoning_sickness = if card.is_creature() {
+                        if let Some(entered_turn) = card.turn_entered_battlefield {
+                            entered_turn == game.turn.turn_number
+                                && !card.has_keyword(&crate::core::Keyword::Haste)
+                        } else {
+                            false
                         }
+                    } else {
+                        false
+                    };
+
+                    // Determine the mana production type
+                    if let Some(color_char) = get_simple_mana_color(card.name.as_str()) {
+                        // Simple source - produces exactly one color
+                        let color = match color_char {
+                            'W' => ManaColor::White,
+                            'U' => ManaColor::Blue,
+                            'B' => ManaColor::Black,
+                            'R' => ManaColor::Red,
+                            'G' => ManaColor::Green,
+                            'C' => {
+                                // Colorless is handled separately in ManaProduction
+                                self.simple_sources.push(card_id);
+                                if !card.tapped {
+                                    self.simple_capacity.colorless += 1;
+                                }
+                                self.mana_sources.push(ManaSource {
+                                    card_id,
+                                    production: ManaProduction::Colorless,
+                                    is_tapped: card.tapped,
+                                    has_summoning_sickness,
+                                });
+                                continue;
+                            }
+                            _ => continue, // Unknown color
+                        };
+
+                        self.simple_sources.push(card_id);
+                        if !card.tapped {
+                            match color {
+                                ManaColor::White => self.simple_capacity.white += 1,
+                                ManaColor::Blue => self.simple_capacity.blue += 1,
+                                ManaColor::Black => self.simple_capacity.black += 1,
+                                ManaColor::Red => self.simple_capacity.red += 1,
+                                ManaColor::Green => self.simple_capacity.green += 1,
+                            }
+                        }
+
+                        self.mana_sources.push(ManaSource {
+                            card_id,
+                            production: ManaProduction::Fixed(color),
+                            is_tapped: card.tapped,
+                            has_summoning_sickness,
+                        });
                     } else {
                         // Complex source - requires search
                         self.complex_sources.push(card_id);
+                        // TODO: Determine the actual production type from card abilities
+                        // For now, mark as needing analysis
+                        // This will be filled in when we implement Phase 2
                     }
                 }
             }
@@ -269,14 +324,8 @@ impl ManaEngine {
     /// This considers all mana sources (simple and complex) and determines
     /// whether there exists a way to tap them to produce the required mana.
     pub fn can_pay(&self, cost: &ManaCost) -> bool {
-        // Quick check: if we don't have any complex sources, use simple check
-        if self.complex_sources.is_empty() {
-            return self.simple_capacity.can_pay_simple(cost);
-        }
-
-        // TODO: Implement search algorithm for complex sources
-        // For now, use pessimistic simple check (may reject valid combinations)
-        todo!("Complex mana source handling not yet implemented. This will require a small search process to handle lands like City of Brass that can produce any color, or dual lands that produce {{R}} OR {{G}}.");
+        // Use the resolver to check payment
+        self.resolver.can_pay(cost, &self.mana_sources)
     }
 
     /// Get the current mana capacity from simple sources only
