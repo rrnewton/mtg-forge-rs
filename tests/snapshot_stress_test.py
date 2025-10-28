@@ -5,8 +5,14 @@ Randomized stress test for snapshot/resume functionality.
 This test verifies STRICT DETERMINISM by:
 1. Running a game with deterministic controllers (heuristic/heuristic or random with fixed seed)
 2. Extracting the exact sequence of choices made
-3. Running the same game stop-and-go with fixed controllers replaying those choices
-4. Comparing game action logs to verify they match EXACTLY
+3. Running the same game stop-and-go 3 times, each with DIFFERENT randomized stop points
+4. Comparing game action logs AND final gamestates to verify they match EXACTLY
+
+Each test runs:
+- 1 normal game (baseline)
+- 3 replay games with different random stop/resume points (5 stops each)
+
+This ensures determinism holds regardless of WHERE in the execution we snapshot/resume.
 """
 
 import argparse
@@ -492,17 +498,21 @@ def compare_game_logs(normal_log: str, stopgo_log: str,
 
 def run_test_for_deck(mtg_bin: Path, deck_name: str, deck_path: str,
                       p1_controller: str, p2_controller: str, seed: int,
-                      keep_logs: bool = False, log_dir: Optional[Path] = None) -> bool:
-    """Run complete test for a specific deck"""
+                      keep_logs: bool = False, log_dir: Optional[Path] = None,
+                      num_replays: int = 3) -> bool:
+    """Run complete test for a specific deck with multiple replay runs
+
+    Args:
+        num_replays: Number of stop-and-go replay games to run (default: 3)
+    """
     print(f"\n{'='*70}")
     print(f"{CYAN}Testing: {deck_name} ({p1_controller} vs {p2_controller}){NC}")
-    print(f"Seed: {seed}")
+    print(f"Seed: {seed}, Replays: {num_replays}")
     print(f"{'='*70}")
 
     # Create temp files for gamestates
     import tempfile
     normal_state_file = Path(tempfile.mktemp(suffix="_normal.gamestate"))
-    stopgo_state_file = Path(tempfile.mktemp(suffix="_stopgo.gamestate"))
 
     # Run normal game and extract choices
     normal_log, p1_choices, p2_choices = run_normal_game(
@@ -510,67 +520,79 @@ def run_test_for_deck(mtg_bin: Path, deck_name: str, deck_path: str,
         save_gamestate=normal_state_file
     )
 
-    # Run stop-and-go game with fixed controllers replaying random choices
-    stopgo_log = run_stop_and_go_game(
-        mtg_bin, deck_path, deck_path,
-        p1_controller, p2_controller,
-        p1_choices, p2_choices, seed, num_stops=5,
-        save_gamestate=stopgo_state_file
-    )
+    # Run multiple stop-and-go games with different random stop points
+    all_success = True
 
-    if not stopgo_log:
-        print_color(RED, f"\n✗ FAILURE: {deck_name} - stop-and-go game failed")
-        # Cleanup temp files
-        if normal_state_file.exists():
-            normal_state_file.unlink()
+    for replay_num in range(num_replays):
+        print(f"\n{YELLOW}--- Replay Run {replay_num + 1}/{num_replays} ---{NC}")
+
+        # Use different random seed for stop point generation each replay
+        # This ensures each replay has different stop/resume points
+        random.seed(seed + replay_num + 1000)
+
+        stopgo_state_file = Path(tempfile.mktemp(suffix=f"_stopgo_{replay_num}.gamestate"))
+
+        # Run stop-and-go game with randomized stop points (5 stops)
+        stopgo_log = run_stop_and_go_game(
+            mtg_bin, deck_path, deck_path,
+            p1_controller, p2_controller,
+            p1_choices, p2_choices, seed, num_stops=5,
+            save_gamestate=stopgo_state_file
+        )
+
+        if not stopgo_log:
+            print_color(RED, f"✗ Replay {replay_num + 1} - stop-and-go game failed")
+            # Cleanup temp files
+            if stopgo_state_file.exists():
+                stopgo_state_file.unlink()
+            all_success = False
+            continue
+
+        # Compare logs for exact match
+        test_name = f"{deck_name}_{p1_controller}v{p2_controller}_seed{seed}_replay{replay_num + 1}"
+        log_success, normal_path, stopgo_path = compare_game_logs(
+            normal_log, stopgo_log,
+            save_logs=keep_logs, log_dir=log_dir, test_name=test_name
+        )
+
+        # Compare final gamestates (with metadata filtering)
+        gamestate_success = True
+        gamestate_diffs = []
+        if normal_state_file.exists() and stopgo_state_file.exists():
+            gamestate_success, gamestate_diffs = compare_gamestates(
+                normal_state_file, stopgo_state_file
+            )
+        else:
+            print_color(YELLOW, "Warning: GameState files not found, skipping comparison")
+
+        # Check if this replay succeeded
+        replay_success = log_success and gamestate_success
+        all_success = all_success and replay_success
+
+        if replay_success:
+            print_color(GREEN, f"✓ Replay {replay_num + 1}/{num_replays} PASSED")
+        else:
+            print_color(RED, f"✗ Replay {replay_num + 1}/{num_replays} FAILED")
+            if not log_success:
+                print(f"  - Log comparison failed")
+            if not gamestate_success:
+                print(f"  - GameState comparison failed ({len(gamestate_diffs)} differences)")
+
+        # Cleanup this replay's gamestate file
         if stopgo_state_file.exists():
             stopgo_state_file.unlink()
-        return False
 
-    # Compare logs for exact match
-    test_name = f"{deck_name}_{p1_controller}v{p2_controller}_seed{seed}"
-    log_success, normal_path, stopgo_path = compare_game_logs(
-        normal_log, stopgo_log,
-        save_logs=keep_logs, log_dir=log_dir, test_name=test_name
-    )
-
-    # Compare final gamestates (with metadata filtering)
-    # Strips harmless metadata fields (choice_id) that differ due to snapshot mechanics
-    # See ai_docs/gamestate_comparison_analysis.md for details on what's filtered and why
-    gamestate_success = True
-    gamestate_diffs = []
-    if normal_state_file.exists() and stopgo_state_file.exists():
-        gamestate_success, gamestate_diffs = compare_gamestates(
-            normal_state_file, stopgo_state_file
-        )
-    else:
-        print_color(YELLOW, "Warning: GameState files not found, skipping comparison")
-
-    # Overall success requires BOTH log match AND gamestate match
-    success = log_success and gamestate_success
-
-    if success:
-        print_color(GREEN, f"\n✓ SUCCESS: {deck_name} test passed!")
-    else:
-        print_color(RED, f"\n✗ FAILURE: {deck_name} test failed!")
-        if not log_success:
-            print(f"  - Log comparison failed")
-        if not gamestate_success:
-            print(f"  - GameState comparison failed ({len(gamestate_diffs)} differences)")
-
-    # Report log paths if saved
-    if keep_logs and normal_path and stopgo_path:
-        print(f"\n{CYAN}Filtered logs saved:{NC}")
-        print(f"  Normal game:  {normal_path}")
-        print(f"  Stop-and-go:  {stopgo_path}")
-
-    # Cleanup temp gamestate files
+    # Cleanup normal gamestate file
     if normal_state_file.exists():
         normal_state_file.unlink()
-    if stopgo_state_file.exists():
-        stopgo_state_file.unlink()
 
-    return success
+    # Overall result
+    if all_success:
+        print_color(GREEN, f"\n✓ SUCCESS: {deck_name} - all {num_replays} replays passed!")
+    else:
+        print_color(RED, f"\n✗ FAILURE: {deck_name} - some replays failed")
+
+    return all_success
 
 def parse_args():
     """Parse command line arguments"""
