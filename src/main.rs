@@ -652,10 +652,28 @@ async fn run_tui(
         if p1_state_json.is_some() || p2_state_json.is_some() {
             if let Ok(mut snapshot) = GameSnapshot::load_from_file(&snapshot_output) {
                 // Deserialize JSON back to ControllerState (Fixed or Random) if present
-                snapshot.p1_controller_state =
-                    p1_state_json.and_then(|json| serde_json::from_value(json).ok());
-                snapshot.p2_controller_state =
-                    p2_state_json.and_then(|json| serde_json::from_value(json).ok());
+                snapshot.p1_controller_state = p1_state_json.and_then(|json| {
+                    serde_json::from_value(json.clone())
+                        .map_err(|e| {
+                            if verbosity >= VerbosityLevel::Verbose {
+                                eprintln!("Failed to deserialize P1 controller state: {}", e);
+                                eprintln!("  JSON: {}", json);
+                            }
+                            e
+                        })
+                        .ok()
+                });
+                snapshot.p2_controller_state = p2_state_json.and_then(|json| {
+                    serde_json::from_value(json.clone())
+                        .map_err(|e| {
+                            if verbosity >= VerbosityLevel::Verbose {
+                                eprintln!("Failed to deserialize P2 controller state: {}", e);
+                                eprintln!("  JSON: {}", json);
+                            }
+                            e
+                        })
+                        .ok()
+                });
 
                 if let Err(e) = snapshot.save_to_file(&snapshot_output) {
                     eprintln!(

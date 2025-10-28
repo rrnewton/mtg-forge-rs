@@ -22,7 +22,6 @@ pub enum ControllerState {
 
     /// Random controller with its own RNG state
     Random(crate::game::RandomController),
-
     // Other controller types don't need state preservation:
     // - Heuristic: Deterministic, no state needed
     // - Zero: Deterministic, no state needed

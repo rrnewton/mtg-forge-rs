@@ -210,12 +210,12 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
     """
     print(f"\n{CYAN}=== Running stop-and-go game ({num_stops} stops) ==={NC}")
 
-    # For stop-and-go, use 'fixed' for random players (to replay their choices)
-    # and keep original controller type for deterministic players (heuristic/zero)
-    p1_stopgo_controller = "fixed" if p1_controller == "random" else p1_controller
-    p2_stopgo_controller = "fixed" if p2_controller == "random" else p2_controller
+    # With the new RNG architecture, RandomController state is preserved in snapshots
+    # So we use the SAME controller types for stop-and-go as in the normal game
+    p1_stopgo_controller = p1_controller
+    p2_stopgo_controller = p2_controller
 
-    # Convert choices to strings for command line
+    # Convert choices to strings for command line (used for fixed controllers only)
     p1_choices_str = " ".join(map(str, p1_choices))
     p2_choices_str = " ".join(map(str, p2_choices))
 
@@ -277,11 +277,8 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
                 f"--seed={seed}",
                 "--verbosity=3"
             ]
-            # Only add fixed-inputs for players using fixed controller
-            if p1_stopgo_controller == "fixed":
-                cmd.append(f"--p1-fixed-inputs={p1_choices_str}")
-            if p2_stopgo_controller == "fixed":
-                cmd.append(f"--p2-fixed-inputs={p2_choices_str}")
+            # Note: No --p1-fixed-inputs or --p2-fixed-inputs needed
+            # Random controllers will use same seed and make same choices deterministically
 
             if stop_after > 0:
                 cmd.extend([
@@ -302,12 +299,13 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
             cmd = [
                 str(mtg_bin), "tui",
                 f"--start-from={snapshot_file}",
-                f"--p1={p1_stopgo_controller}",
-                f"--p2={p2_stopgo_controller}",
+                # Use ORIGINAL controller types on resume - snapshot contains actual controller state
+                f"--p1={p1_controller}",
+                f"--p2={p2_controller}",
                 "--verbosity=3"
             ]
-            # DON'T add fixed-inputs when resuming - let snapshot restore controller state
-            # The snapshot contains the controller state with current_index preserved
+            # DON'T add fixed-inputs when resuming - snapshot contains full controller state
+            # The snapshot preserves RandomController RNG state and FixedScriptController position
 
             if stop_after > 0:
                 cmd.extend([

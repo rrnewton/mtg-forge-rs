@@ -29,6 +29,7 @@ nom = "7.1"
 # Random number generation
 rand = { version = "0.8", features = ["serde1"] }
 rand_chacha = { version = "0.3", features = ["serde1"] }
+rand_xoshiro = { version = "0.6", features = ["serde1"] }
 
 # Hashing (for fast lookups)
 rustc-hash = "1.1"

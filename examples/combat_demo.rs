@@ -45,7 +45,6 @@ impl PlayerController for AliceController {
         &mut self,
         _view: &GameStateView,
         _available: &[SpellAbility],
-        _rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         None // Alice doesn't take actions in this demo (combat-only)
     }
@@ -55,7 +54,6 @@ impl PlayerController for AliceController {
         _view: &GameStateView,
         _spell: CardId,
         _valid_targets: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         SmallVec::new() // Alice doesn't cast spells in this demo
     }
@@ -65,7 +63,6 @@ impl PlayerController for AliceController {
         _view: &GameStateView,
         _cost: &ManaCost,
         _available_sources: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         SmallVec::new() // Alice doesn't tap for mana in this demo
     }
@@ -74,7 +71,6 @@ impl PlayerController for AliceController {
         &mut self,
         view: &GameStateView,
         available_creatures: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Attack with all our creatures that are in the list
         let mut attackers = SmallVec::new();
@@ -99,7 +95,6 @@ impl PlayerController for AliceController {
         _view: &GameStateView,
         _available_blockers: &[CardId],
         _attackers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         SmallVec::new() // Alice doesn't block in this demo
     }
@@ -109,7 +104,6 @@ impl PlayerController for AliceController {
         _view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // Keep blockers in the order they were provided
         blockers.iter().copied().collect()
@@ -120,7 +114,6 @@ impl PlayerController for AliceController {
         _view: &GameStateView,
         hand: &[CardId],
         count: usize,
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         // Alice discards the first N cards in hand
         hand.iter().take(count).copied().collect()
@@ -159,7 +152,6 @@ impl PlayerController for BobController {
         &mut self,
         _view: &GameStateView,
         _available: &[SpellAbility],
-        _rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         None // Bob doesn't take actions in this demo (combat-only)
     }
@@ -169,7 +161,6 @@ impl PlayerController for BobController {
         _view: &GameStateView,
         _spell: CardId,
         _valid_targets: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         SmallVec::new() // Bob doesn't cast spells in this demo
     }
@@ -179,7 +170,6 @@ impl PlayerController for BobController {
         _view: &GameStateView,
         _cost: &ManaCost,
         _available_sources: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         SmallVec::new() // Bob doesn't tap for mana in this demo
     }
@@ -188,7 +178,6 @@ impl PlayerController for BobController {
         &mut self,
         _view: &GameStateView,
         _available_creatures: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         SmallVec::new() // Bob doesn't attack in this demo
     }
@@ -198,7 +187,6 @@ impl PlayerController for BobController {
         view: &GameStateView,
         available_blockers: &[CardId],
         _attackers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         // Block according to our plan
         let mut blocks = SmallVec::new();
@@ -226,7 +214,6 @@ impl PlayerController for BobController {
         _view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // Keep blockers in the order they were provided
         blockers.iter().copied().collect()
@@ -237,7 +224,6 @@ impl PlayerController for BobController {
         _view: &GameStateView,
         hand: &[CardId],
         count: usize,
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         // Bob discards the first N cards in hand
         hand.iter().take(count).copied().collect()

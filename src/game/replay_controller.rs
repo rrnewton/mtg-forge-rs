@@ -130,8 +130,7 @@ impl PlayerController for ReplayController {
         }
 
         // No replay choice available, delegate to inner controller
-        self.inner
-            .choose_spell_ability_to_play(view, available)
+        self.inner.choose_spell_ability_to_play(view, available)
     }
 
     fn choose_targets(
@@ -271,6 +270,13 @@ impl PlayerController for ReplayController {
         // Always delegate notifications to inner controller
         self.inner.on_game_end(view, won);
     }
+
+    fn get_snapshot_state(&self) -> Option<serde_json::Value> {
+        // Delegate to inner controller for state serialization
+        // This allows the wrapped controller (RandomController, FixedScriptController, etc.)
+        // to properly save its state even when wrapped in a ReplayController
+        self.inner.get_snapshot_state()
+    }
 }
 
 #[cfg(test)]
@@ -299,7 +305,6 @@ mod tests {
             20,
         );
         let view = crate::game::GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         // First call should return the replayed choice
         assert!(replay.has_replay_choice());

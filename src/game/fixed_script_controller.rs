@@ -358,7 +358,6 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![1, 0]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {
@@ -386,7 +385,6 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![5]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {
@@ -408,7 +406,6 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![2, 0]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let spell_id = EntityId::new(100);
         let valid_targets = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
@@ -431,7 +428,6 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![2, 0]);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let creatures = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
 
@@ -452,7 +448,6 @@ mod tests {
         let mut controller = FixedScriptController::new(player_id, vec![1]); // Only one choice
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {

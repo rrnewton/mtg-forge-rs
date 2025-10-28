@@ -15,6 +15,8 @@ use smallvec::SmallVec;
 /// This controller owns its own RNG, seeded independently from the game engine.
 /// This separation ensures that controller decisions don't affect game engine
 /// randomness (like shuffling), enabling proper deterministic replay.
+///
+/// Uses Xoshiro256PlusPlus which has built-in serde support without u128 fields.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RandomController {
     player_id: PlayerId,
@@ -22,51 +24,21 @@ pub struct RandomController {
     ///
     /// This RNG is seeded separately from the game engine's RNG to ensure
     /// complete independence between controller choices and game mechanics.
-    #[serde(with = "serde_rng")]
-    rng: rand::rngs::StdRng,
-}
-
-/// Serde module for serializing/deserializing StdRng
-mod serde_rng {
-    use rand::SeedableRng;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    pub fn serialize<S>(rng: &rand::rngs::StdRng, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // Serialize RNG by cloning and extracting seed
-        // Note: This is a workaround since StdRng doesn't directly expose its seed
-        // We serialize the current state which can be deserialized
-        use rand::RngCore;
-        let mut clone = rng.clone();
-        // Generate a sequence of random values to capture state
-        let state: Vec<u64> = (0..4).map(|_| clone.next_u64()).collect();
-        state.serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<rand::rngs::StdRng, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let state = Vec::<u64>::deserialize(deserializer)?;
-        // Create RNG from state
-        // This is approximate - for true state preservation we'd need a different approach
-        // For now, seed from first value
-        Ok(rand::rngs::StdRng::seed_from_u64(state[0]))
-    }
+    ///
+    /// We use Xoshiro256PlusPlus instead of StdRng because it has proper serde1 support
+    /// that preserves the full RNG state with serde_json (no u128 fields).
+    rng: rand_xoshiro::Xoshiro256PlusPlus,
 }
 
 impl RandomController {
-    /// Create a new random controller with a given seed
+    /// Create a new random controller with system entropy
     ///
     /// The controller maintains its own RNG, seeded independently from the game engine.
     /// This ensures controller decisions don't interfere with game mechanics randomness.
     pub fn new(player_id: PlayerId) -> Self {
-        // Create unseeded RNG (will be seeded from system entropy)
         RandomController {
             player_id,
-            rng: rand::rngs::StdRng::from_entropy(),
+            rng: rand_xoshiro::Xoshiro256PlusPlus::from_entropy(),
         }
     }
 
@@ -77,7 +49,7 @@ impl RandomController {
     pub fn with_seed(player_id: PlayerId, seed: u64) -> Self {
         RandomController {
             player_id,
-            rng: rand::rngs::StdRng::seed_from_u64(seed),
+            rng: rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(seed),
         }
     }
 }
@@ -338,8 +310,10 @@ impl PlayerController for RandomController {
     }
 
     fn get_snapshot_state(&self) -> Option<serde_json::Value> {
-        // Serialize the entire controller state (including RNG state)
-        serde_json::to_value(self).ok()
+        // Wrap in ControllerState::Random to match the expected format
+        // This ensures the JSON has the correct "controller_type": "Random" tag
+        let state = crate::game::ControllerState::Random(self.clone());
+        serde_json::to_value(state).ok()
     }
 }
 
@@ -369,7 +343,6 @@ mod tests {
         let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         // With no available abilities, should return None
         let choice = controller.choose_spell_ability_to_play(&view, &[]);
@@ -382,7 +355,6 @@ mod tests {
         let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let abilities = vec![
             SpellAbility::PlayLand {
@@ -414,7 +386,6 @@ mod tests {
         let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let spell_id = EntityId::new(100);
         let valid_targets = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
@@ -432,7 +403,6 @@ mod tests {
         let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let cost = ManaCost::from_string("2RR"); // CMC = 4
         let available = vec![
@@ -459,7 +429,6 @@ mod tests {
         let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let creatures = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
         let attackers = controller.choose_attackers(&view, &creatures);
@@ -477,7 +446,6 @@ mod tests {
         let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
-        let mut rng = game.rng.borrow_mut();
 
         let hand = vec![
             EntityId::new(30),
