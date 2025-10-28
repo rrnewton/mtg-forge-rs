@@ -5,7 +5,7 @@ Randomized stress test for snapshot/resume functionality.
 NOTE: For faster testing, use run_stress_tests.sh which runs tests in parallel:
     ./tests/run_stress_tests.sh                   # Run all default decks
     ./tests/run_stress_tests.sh royal_assassin    # Run specific deck
-    ./tests/snapshot_stress_test_single.py decks/royal_assassin.dck heuristic heuristic
+    ./scripts/snapshot_stress_test_single.py decks/royal_assassin.dck heuristic heuristic
 
 This test verifies STRICT DETERMINISM by:
 1. Running a game with deterministic controllers (heuristic/heuristic or random with fixed seed)

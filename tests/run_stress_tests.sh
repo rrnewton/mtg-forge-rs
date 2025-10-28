@@ -89,7 +89,7 @@ echo "Total test cases: $TOTAL"
 echo ""
 
 # Make test script executable
-chmod +x tests/snapshot_stress_test_single.py
+chmod +x scripts/snapshot_stress_test_single.py
 
 # Function to run a single test case
 run_test() {
@@ -102,7 +102,7 @@ run_test() {
     deck_name=$(basename "$deck_path" .dck)
 
     # Run the test (quietly - only errors shown)
-    if ./tests/snapshot_stress_test_single.py "$deck_path" "$p1" "$p2" --quiet 2>&1; then
+    if ./scripts/snapshot_stress_test_single.py "$deck_path" "$p1" "$p2" --quiet 2>&1; then
         echo "✓ $deck_name ($p1 vs $p2)"
         return 0
     else
