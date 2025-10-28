@@ -43,11 +43,14 @@ do a piece of work that makes the test pass.
 - Spell effects (A:SP$): ✅ DealDamage, Draw, Destroy, GainLife, Pump, Tap, Untap, Mill, Counter
 - Activated abilities (A:AB$): ✅ Basic execution with tap/mana costs
 - Mana abilities: ✅ AB$ Mana production (basic lands only)
-- mtg-108: **Complex mana source handling** (dual lands, City of Brass, etc.) - blocks Old School decks
+- mtg-108: ✅ **Complex mana source handling** - Phases 1&2 complete (dual lands, City of Brass work!)
 - mtg-19: Advanced activated abilities (complex costs, stack interaction, player choice for "Any"/"Combo" mana)
 - Triggered abilities (T:): ✅ ETB triggers with multiple effect types
 - mtg-20: Static abilities (S:) - continuous effects
 - mtg-21: SVar resolution (DB$ sub-abilities)
+
+**Card loading:**
+- ✅ Unicode card name normalization (e.g., "Juzám Djinn" → juzam_djinn.txt)
 
 **Targeting:**
 - mtg-22: Target validation (legal targets)
