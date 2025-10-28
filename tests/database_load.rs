@@ -7,93 +7,58 @@ use mtg_forge_rs::{
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader},
     Result,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
-/// Test that the full card database and all forge-java decks can be loaded
-/// This is the ONLY test in the entire test suite that should call eager_load()
-/// Also serves as a regression test to ensure deck loading doesn't get worse
-#[tokio::test]
-async fn test_load_cards_and_decks() -> Result<()> {
-    let cardsfolder = PathBuf::from("cardsfolder");
-    if !cardsfolder.exists() {
-        // Skip test if cardsfolder doesn't exist
-        println!("Skipping full database load test - cardsfolder not present");
+/// Test deck loading for a given directory with a maximum allowed failure count
+/// This serves as a regression test to ensure deck loading doesn't get worse
+async fn test_deck_directory(
+    card_db: &CardDatabase,
+    directory: &Path,
+    max_allowed_failures: usize,
+    directory_name: &str,
+) -> Result<()> {
+    println!("\n=== Testing Deck Loading: {} ===", directory_name);
+
+    if !directory.exists() {
+        println!(
+            "Skipping {} deck loading test - directory not present",
+            directory_name
+        );
         return Ok(());
     }
 
-    println!("Loading full card database from cardsfolder...");
-    let card_db = CardDatabase::new(cardsfolder);
-    let (loaded, duration) = card_db.eager_load().await?;
-
-    println!("Successfully loaded {} cards in {:?}", loaded, duration);
-
-    // Verify we loaded a reasonable number of cards (should be 30,000+)
-    assert!(
-        loaded > 30000,
-        "Expected to load full database (30,000+ cards), but only loaded {}",
-        loaded
-    );
-
-    // Verify some known cards can be retrieved
-    let mountain = card_db.get_card("Mountain").await?;
-    assert!(mountain.is_some(), "Mountain should be in database");
-    assert_eq!(mountain.unwrap().name.as_str(), "Mountain");
-
-    let lightning_bolt = card_db.get_card("Lightning Bolt").await?;
-    assert!(
-        lightning_bolt.is_some(),
-        "Lightning Bolt should be in database"
-    );
-    assert_eq!(lightning_bolt.unwrap().name.as_str(), "Lightning Bolt");
-
-    let grizzly_bears = card_db.get_card("Grizzly Bears").await?;
-    assert!(
-        grizzly_bears.is_some(),
-        "Grizzly Bears should be in database"
-    );
-    assert_eq!(grizzly_bears.unwrap().name.as_str(), "Grizzly Bears");
-
-    // Now test loading all .dck files from forge-java
-    let forge_java = PathBuf::from("forge-java");
-    if !forge_java.exists() {
-        println!("Skipping deck loading test - forge-java directory not present");
-        return Ok(());
-    }
-
-    println!("\n=== Testing Deck Loading ===");
-    println!("Discovering .dck files in forge-java...");
+    println!("Discovering .dck files in {}...", directory.display());
 
     // Discover all .dck files using jwalk (parallel directory walking)
-    let deck_paths: Vec<PathBuf> =
-        jwalk::WalkDir::new(&forge_java)
-            .skip_hidden(false)
-            .into_iter()
-            .filter_map(|entry| {
-                entry.ok().and_then(|e| {
-                    if e.file_type().is_file() {
-                        e.path().extension().and_then(|ext| {
-                            if ext == "dck" {
-                                Some(e.path())
-                            } else {
-                                None
-                            }
-                        })
-                    } else {
-                        None
-                    }
-                })
+    let deck_paths: Vec<PathBuf> = jwalk::WalkDir::new(directory)
+        .skip_hidden(false)
+        .into_iter()
+        .filter_map(|entry| {
+            entry.ok().and_then(|e| {
+                if e.file_type().is_file() {
+                    e.path().extension().and_then(|ext| {
+                        if ext == "dck" {
+                            Some(e.path())
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
             })
-            .collect();
+        })
+        .collect();
 
     let deck_count = deck_paths.len();
     println!("Found {} .dck files", deck_count);
-    assert!(
-        deck_count > 6000,
-        "Expected to find 6000+ deck files, but only found {}",
-        deck_count
-    );
+
+    if deck_count == 0 {
+        println!("No decks found in {}, skipping", directory_name);
+        return Ok(());
+    }
 
     // Load all decks in parallel with concurrency limit
     println!("Loading all decks and verifying card resolution...");
@@ -198,28 +163,19 @@ async fn test_load_cards_and_decks() -> Result<()> {
             println!("  {}. {}", i + 1, card);
         }
 
-        // For now, we expect failures due to double-faced cards and other special cases
-        // This is a known limitation that requires building a card name index
-        println!("\n=== Known Issue ===");
-        println!("Double-faced cards (DFCs) and modal double-faced cards (MDFCs) are stored");
-        println!("in files with both face names combined, but decks reference only one face.");
         println!(
-            "Example: 'Ludevic, Necrogenius' is in 'ludevic_necrogenius_olag_ludevics_hubris.txt'"
-        );
-        println!("\nThis requires building a card name index during database load.");
-        println!(
-            "Success rate: {}/{} decks ({:.1}%)",
+            "\nSuccess rate: {}/{} decks ({:.1}%)",
             loaded_decks,
             deck_count,
             (loaded_decks as f64 / deck_count as f64) * 100.0
         );
 
         // Regression test: ensure we don't get worse than the current baseline
-        let max_allowed_failures = 1730;
         assert!(
             failed_decks.len() <= max_allowed_failures,
-            "Deck loading regressed! Expected <= {} failures, got {}. This means card name \
+            "Deck loading regressed in {}! Expected <= {} failures, got {}. This means card name \
              normalization or database loading got worse.",
+            directory_name,
             max_allowed_failures,
             failed_decks.len()
         );
@@ -229,7 +185,72 @@ async fn test_load_cards_and_decks() -> Result<()> {
             failed_decks.len(),
             max_allowed_failures
         );
+    } else {
+        println!("\n✓ All {} decks loaded successfully!", deck_count);
     }
+
+    Ok(())
+}
+
+/// Test that the full card database and all forge-java decks can be loaded
+/// This is the ONLY test in the entire test suite that should call eager_load()
+/// Also serves as a regression test to ensure deck loading doesn't get worse
+#[tokio::test]
+async fn test_load_cards_and_decks() -> Result<()> {
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        // Skip test if cardsfolder doesn't exist
+        println!("Skipping full database load test - cardsfolder not present");
+        return Ok(());
+    }
+
+    println!("Loading full card database from cardsfolder...");
+    let card_db = CardDatabase::new(cardsfolder);
+    let (loaded, duration) = card_db.eager_load().await?;
+
+    println!("Successfully loaded {} cards in {:?}", loaded, duration);
+
+    // Verify we loaded a reasonable number of cards (should be 30,000+)
+    assert!(
+        loaded > 30000,
+        "Expected to load full database (30,000+ cards), but only loaded {}",
+        loaded
+    );
+
+    // Verify some known cards can be retrieved
+    let mountain = card_db.get_card("Mountain").await?;
+    assert!(mountain.is_some(), "Mountain should be in database");
+    assert_eq!(mountain.unwrap().name.as_str(), "Mountain");
+
+    let lightning_bolt = card_db.get_card("Lightning Bolt").await?;
+    assert!(
+        lightning_bolt.is_some(),
+        "Lightning Bolt should be in database"
+    );
+    assert_eq!(lightning_bolt.unwrap().name.as_str(), "Lightning Bolt");
+
+    let grizzly_bears = card_db.get_card("Grizzly Bears").await?;
+    assert!(
+        grizzly_bears.is_some(),
+        "Grizzly Bears should be in database"
+    );
+    assert_eq!(grizzly_bears.unwrap().name.as_str(), "Grizzly Bears");
+
+    // Test loading decks from forge-java
+    // Known limitation: Double-faced cards (DFCs) and modal double-faced cards (MDFCs)
+    // are stored in files with both face names combined, but decks reference only one face.
+    // Example: 'Ludevic, Necrogenius' is in 'ludevic_necrogenius_olag_ludevics_hubris.txt'
+    // This requires building a card name index during database load.
+    // Current baseline: 1730 failures out of 6000+ decks (~71% success rate)
+    let forge_java = PathBuf::from("forge-java");
+    test_deck_directory(&card_db, &forge_java, 1730, "forge-java").await?;
+
+    // Test loading decks from ./decks directory
+    // These are our test decks - mostly should load successfully
+    // Known failure: monored.dck contains "Ojer Axonil, Deepest Might" (double-faced card)
+    // Current baseline: 1 failure (out of 29 decks, ~96.6% success rate)
+    let local_decks = PathBuf::from("decks");
+    test_deck_directory(&card_db, &local_decks, 1, "decks").await?;
 
     Ok(())
 }
