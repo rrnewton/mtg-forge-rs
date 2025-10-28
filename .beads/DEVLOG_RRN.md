@@ -2700,3 +2700,21 @@ TODO: towards playing against the Java Forge engine
 
 
 
+wip: Let's tackle complex mana
+----------------------------------------
+
+You can see TODOs in the code about complex mana sources, and a game like this will fail with a panic right now:
+
+```
+cargo run --bin mtg -- tui --p1=random --p2=random decks/old_school/01_rogue_rogerbrand.dck decks/old_school/01_rogue_rogerbrand.dck
+```
+
+Complex mana sources create a complex choice series (land 1 A-or-B compounds with land 2 B-or_C and you have a series of choices making an explosion of possibilities.)
+
+Your goal is to port the Java version of complex mana handling. But make sure this mana cost system is behind a minimal interface, because in the future we will provide multiple implementations.  We want to isolate the complexity of the forge-java approach inside one such implementation.
+
+The forge Java approach uses a greedy policy for the order of tapping mana. In the future we will probably do a more complete backtracking search implementation.  But they should satisy the same basic interface. "Give me a tap-order of the current mana sources in order to satisfy a cost".
+
+It may make sense to start with costless mana sources only (whether creature or land). The next level of complexity is handling lands such as "pay {1} to generate a mana of any color", where there is both a cost a and resulting mana production.
+
+File an issue to track this, as it will take multiple commits to work through it.
