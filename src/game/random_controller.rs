@@ -316,14 +316,14 @@ mod tests {
     #[test]
     fn test_seeded_controller() {
         let player_id = EntityId::new(1);
-        let controller = RandomController::with_seed(player_id, 42);
+        let controller = RandomController::new(player_id);
         assert_eq!(controller.player_id(), player_id);
     }
 
     #[test]
     fn test_choose_spell_ability_empty() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::with_seed(player_id, 42);
+        let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
         let mut rng = game.rng.borrow_mut();
@@ -336,7 +336,7 @@ mod tests {
     #[test]
     fn test_choose_spell_ability() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::with_seed(player_id, 42);
+        let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
         let mut rng = game.rng.borrow_mut();
@@ -368,7 +368,7 @@ mod tests {
     #[test]
     fn test_choose_targets() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::with_seed(player_id, 42);
+        let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
         let mut rng = game.rng.borrow_mut();
@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn test_choose_mana_sources() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::with_seed(player_id, 42);
+        let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
         let mut rng = game.rng.borrow_mut();
@@ -413,7 +413,7 @@ mod tests {
     #[test]
     fn test_choose_attackers() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::with_seed(player_id, 42);
+        let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
         let mut rng = game.rng.borrow_mut();
@@ -431,7 +431,7 @@ mod tests {
     #[test]
     fn test_choose_cards_to_discard() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::with_seed(player_id, 42);
+        let mut controller = RandomController::new(player_id);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
         let mut rng = game.rng.borrow_mut();

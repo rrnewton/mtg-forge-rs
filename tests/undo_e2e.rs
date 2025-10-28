@@ -85,8 +85,8 @@ async fn test_full_game_undo_replay() -> Result<()> {
     );
 
     // Use seeded random controllers for determinism
-    let mut controller1 = RandomController::with_seed(p1_id, 42424);
-    let mut controller2 = RandomController::with_seed(p2_id, 42425);
+    let mut controller1 = RandomController::new(p1_id);
+    let mut controller2 = RandomController::new(p2_id);
 
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
     let initial_result = game_loop.run_game(&mut controller1, &mut controller2)?;
@@ -136,8 +136,8 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
     // Now play forward from the 50% point with fresh controllers
     println!("\nPlaying forward from 50% point...");
-    let mut controller1 = RandomController::with_seed(p1_id, 50001);
-    let mut controller2 = RandomController::with_seed(p2_id, 50002);
+    let mut controller1 = RandomController::new(p1_id);
+    let mut controller2 = RandomController::new(p2_id);
     game_loop.reset();
 
     let phase2_result = game_loop.run_game(&mut controller1, &mut controller2)?;
@@ -377,8 +377,8 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("\n=== Phase 4: Play forward to completion from beginning ===");
 
     // Reset controllers with different seeds to get a different game path
-    let mut controller1 = RandomController::with_seed(p1_id, 77777);
-    let mut controller2 = RandomController::with_seed(p2_id, 77778);
+    let mut controller1 = RandomController::new(p1_id);
+    let mut controller2 = RandomController::new(p2_id);
 
     // IMPORTANT: Reset game loop state before replaying
     game_loop.reset();
@@ -612,8 +612,8 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
     let p2_id = players[1];
 
     // Use seeded random controllers for determinism
-    let mut controller1 = RandomController::with_seed(p1_id, 12345);
-    let mut controller2 = RandomController::with_seed(p2_id, 12346);
+    let mut controller1 = RandomController::new(p1_id);
+    let mut controller2 = RandomController::new(p2_id);
 
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
 
@@ -676,8 +676,8 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
                 snapshots.truncate(snapshot_idx + 1);
 
                 // Reset controllers with new seeds to get fresh decisions
-                controller1 = RandomController::with_seed(p1_id, 12345 + iteration as u64 * 2);
-                controller2 = RandomController::with_seed(p2_id, 12346 + iteration as u64 * 2);
+                controller1 = RandomController::new(p1_id);
+                controller2 = RandomController::new(p2_id);
                 game_loop.reset();
 
                 continue; // Don't count this as an iteration
@@ -689,8 +689,8 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
                     game_loop.game.undo()?;
                 }
                 snapshots.truncate(1);
-                controller1 = RandomController::with_seed(p1_id, 12345 + iteration as u64 * 2);
-                controller2 = RandomController::with_seed(p2_id, 12346 + iteration as u64 * 2);
+                controller1 = RandomController::new(p1_id);
+                controller2 = RandomController::new(p2_id);
                 game_loop.reset();
                 continue;
             }

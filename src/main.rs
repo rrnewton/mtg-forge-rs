@@ -285,7 +285,10 @@ async fn run_tui(
     let mut game = if let Some(ref snapshot) = loaded_snapshot {
         // Load game from snapshot
         if verbosity >= VerbosityLevel::Minimal {
-            println!("Loading snapshot from: {}", start_from.as_ref().unwrap().display());
+            println!(
+                "Loading snapshot from: {}",
+                start_from.as_ref().unwrap().display()
+            );
             println!("  Turn number: {}", snapshot.turn_number);
             println!(
                 "  Intra-turn choices to replay: {}",
@@ -400,13 +403,7 @@ async fn run_tui(
     let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type
     {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
-        ControllerType::Random => {
-            if let Some(seed_value) = seed {
-                Box::new(RandomController::with_seed(p1_id, seed_value))
-            } else {
-                Box::new(RandomController::new(p1_id))
-            }
-        }
+        ControllerType::Random => Box::new(RandomController::new(p1_id)),
         ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
             p1_id,
             numeric_choices,
@@ -451,14 +448,7 @@ async fn run_tui(
     let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type
     {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
-        ControllerType::Random => {
-            if let Some(seed_value) = seed {
-                // Use seed + 1 for player 2 so they have different random sequences
-                Box::new(RandomController::with_seed(p2_id, seed_value + 1))
-            } else {
-                Box::new(RandomController::new(p2_id))
-            }
-        }
+        ControllerType::Random => Box::new(RandomController::new(p2_id)),
         ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
             p2_id,
             numeric_choices,
@@ -611,13 +601,16 @@ async fn run_tui(
         if p1_state_json.is_some() || p2_state_json.is_some() {
             if let Ok(mut snapshot) = GameSnapshot::load_from_file(&snapshot_output) {
                 // Deserialize JSON back to FixedScriptController if present
-                snapshot.p1_controller_state = p1_state_json
-                    .and_then(|json| serde_json::from_value(json).ok());
-                snapshot.p2_controller_state = p2_state_json
-                    .and_then(|json| serde_json::from_value(json).ok());
+                snapshot.p1_controller_state =
+                    p1_state_json.and_then(|json| serde_json::from_value(json).ok());
+                snapshot.p2_controller_state =
+                    p2_state_json.and_then(|json| serde_json::from_value(json).ok());
 
                 if let Err(e) = snapshot.save_to_file(&snapshot_output) {
-                    eprintln!("Warning: Failed to update snapshot with controller state: {}", e);
+                    eprintln!(
+                        "Warning: Failed to update snapshot with controller state: {}",
+                        e
+                    );
                 } else if verbosity >= VerbosityLevel::Verbose {
                     println!("Snapshot updated with controller state");
                 }
@@ -657,14 +650,20 @@ async fn run_tui(
                 Vec::new(), // No intra-turn choices for final state
             );
 
-            final_snapshot.save_to_file(&final_state_path).map_err(|e| {
-                mtg_forge_rs::MtgError::InvalidAction(format!(
-                    "Failed to save final gamestate: {}", e
-                ))
-            })?;
+            final_snapshot
+                .save_to_file(&final_state_path)
+                .map_err(|e| {
+                    mtg_forge_rs::MtgError::InvalidAction(format!(
+                        "Failed to save final gamestate: {}",
+                        e
+                    ))
+                })?;
 
             if verbosity >= VerbosityLevel::Verbose {
-                println!("\nFinal game state saved to: {}", final_state_path.display());
+                println!(
+                    "\nFinal game state saved to: {}",
+                    final_state_path.display()
+                );
             }
         }
     }
@@ -719,8 +718,8 @@ async fn run_profile(iterations: usize, seed: u64, deck_path: PathBuf) -> Result
         let p1_id = players[0];
         let p2_id = players[1];
 
-        let mut controller1 = RandomController::with_seed(p1_id, seed);
-        let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+        let mut controller1 = RandomController::new(p1_id);
+        let mut controller2 = RandomController::new(p2_id);
 
         // Run game
         let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);

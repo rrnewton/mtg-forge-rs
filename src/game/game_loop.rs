@@ -444,11 +444,10 @@ impl<'a> GameLoop<'a> {
         // This actually undoes game state to the turn boundary
         // We need to temporarily take ownership of undo_log to avoid borrowing conflicts
         let mut undo_log = std::mem::take(&mut self.game.undo_log);
-        let rewind_result = undo_log.rewind_to_turn_start(&mut self.game);
+        let rewind_result = undo_log.rewind_to_turn_start(self.game);
         self.game.undo_log = undo_log;
 
-        if let Some((turn_number, intra_turn_choices, actions_rewound)) = rewind_result
-        {
+        if let Some((turn_number, intra_turn_choices, actions_rewound)) = rewind_result {
             // Clone the game state at the turn boundary
             let game_state_snapshot = self.game.clone();
 
@@ -1090,8 +1089,12 @@ impl<'a> GameLoop<'a> {
         if !available_creatures.is_empty() {
             // Ask controller to choose all attackers at once (v2 interface)
             let view = GameStateView::new(self.game, active_player);
-            
-            let attackers = controller.choose_attackers(&view, &available_creatures, &mut *self.game.rng.borrow_mut());
+
+            let attackers = controller.choose_attackers(
+                &view,
+                &available_creatures,
+                &mut *self.game.rng.borrow_mut(),
+            );
 
             // Log this choice point for snapshot/replay
             let replay_choice = crate::game::ReplayChoice::Attackers(attackers.clone());
@@ -1164,8 +1167,13 @@ impl<'a> GameLoop<'a> {
         if !available_blockers.is_empty() && !attackers.is_empty() {
             // Ask controller to choose all blocker assignments at once (v2 interface)
             let view = GameStateView::new(self.game, defending_player);
-            
-            let blocks = controller.choose_blockers(&view, &available_blockers, &attackers, &mut *self.game.rng.borrow_mut());
+
+            let blocks = controller.choose_blockers(
+                &view,
+                &available_blockers,
+                &attackers,
+                &mut *self.game.rng.borrow_mut(),
+            );
 
             // Log this choice point for snapshot/replay
             let replay_choice = crate::game::ReplayChoice::Blockers(blocks.clone());
@@ -1403,9 +1411,13 @@ impl<'a> GameLoop<'a> {
                 // Ask controller which cards to discard
                 let view = GameStateView::new(self.game, player_id);
                 let hand = view.hand();
-                
-                let cards_to_discard =
-                    controller.choose_cards_to_discard(&view, hand, discard_count, &mut *self.game.rng.borrow_mut());
+
+                let cards_to_discard = controller.choose_cards_to_discard(
+                    &view,
+                    hand,
+                    discard_count,
+                    &mut *self.game.rng.borrow_mut(),
+                );
 
                 // Log this choice point for snapshot/replay
                 let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
@@ -1581,8 +1593,12 @@ impl<'a> GameLoop<'a> {
                 } else {
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);
-                    
-                    let choice = controller.choose_spell_ability_to_play(&view, &available, &mut *self.game.rng.borrow_mut());
+
+                    let choice = controller.choose_spell_ability_to_play(
+                        &view,
+                        &available,
+                        &mut *self.game.rng.borrow_mut(),
+                    );
 
                     // Log this choice point for snapshot/replay
                     let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
@@ -1659,11 +1675,23 @@ impl<'a> GameLoop<'a> {
                                     .unwrap_or_else(|_| SmallVec::new());
 
                                 // Ask controller to choose targets (only if there are valid targets)
-                                let chosen_targets_vec: Vec<CardId> = if !valid_targets.is_empty() {
+                                let chosen_targets_vec: Vec<CardId> = if valid_targets.is_empty() {
+                                    // No targets needed - spell has no targeting effects
+                                    Vec::new()
+                                } else if valid_targets.len() == 1 {
+                                    // Only one valid target - auto-select without calling controller
+                                    // This is not a choice, so don't log ChoicePoint
+                                    vec![valid_targets[0]]
+                                } else {
+                                    // Multiple valid targets - ask controller to choose
                                     let view = GameStateView::new(self.game, current_priority);
-                                    
-                                    let chosen_targets =
-                                        controller.choose_targets(&view, card_id, &valid_targets, &mut *self.game.rng.borrow_mut());
+
+                                    let chosen_targets = controller.choose_targets(
+                                        &view,
+                                        card_id,
+                                        &valid_targets,
+                                        &mut *self.game.rng.borrow_mut(),
+                                    );
 
                                     // Log this choice point for snapshot/replay
                                     let replay_choice =
@@ -1671,9 +1699,6 @@ impl<'a> GameLoop<'a> {
                                     self.log_choice_point(current_priority, Some(replay_choice));
 
                                     chosen_targets.into_iter().collect()
-                                } else {
-                                    // No targets needed - spell has no targeting effects
-                                    Vec::new()
                                 };
 
                                 // Clone for closure (which will move it)
@@ -1771,11 +1796,19 @@ impl<'a> GameLoop<'a> {
                                         .unwrap_or_else(|_| SmallVec::new());
 
                                     // Ask controller to choose targets (only if there are valid targets)
-                                    let chosen_targets_vec: Vec<CardId> = if !valid_targets
+                                    let chosen_targets_vec: Vec<CardId> = if valid_targets
                                         .is_empty()
                                     {
+                                        // No targets needed - ability has no targeting effects
+                                        Vec::new()
+                                    } else if valid_targets.len() == 1 {
+                                        // Only one valid target - auto-select without calling controller
+                                        // This is not a choice, so don't log ChoicePoint
+                                        vec![valid_targets[0]]
+                                    } else {
+                                        // Multiple valid targets - ask controller to choose
                                         let view = GameStateView::new(self.game, current_priority);
-                                        
+
                                         let chosen_targets = controller.choose_targets(
                                             &view,
                                             card_id,
@@ -1793,9 +1826,6 @@ impl<'a> GameLoop<'a> {
                                         );
 
                                         chosen_targets.into_iter().collect()
-                                    } else {
-                                        // No targets needed
-                                        Vec::new()
                                     };
 
                                     // Pay costs

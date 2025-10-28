@@ -155,7 +155,7 @@ where
 
     // Initialize game using provided function
     let mut game = game_init_fn()?;
-    game.rng_seed = seed;
+    game.seed_rng(seed);
 
     // Create random controllers
     let (p1_id, p2_id) = {
@@ -166,8 +166,8 @@ where
         )
     };
 
-    let mut controller1 = RandomController::with_seed(p1_id, seed);
-    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+    let mut controller1 = RandomController::new(p1_id);
+    let mut controller2 = RandomController::new(p2_id);
 
     // Run game (still within timing)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
@@ -203,7 +203,7 @@ where
 
     // Initialize game using provided function
     let mut game = game_init_fn()?;
-    game.rng_seed = seed;
+    game.seed_rng(seed);
 
     // Enable log capture
     game.logger.enable_capture();
@@ -228,8 +228,8 @@ where
         )
     };
 
-    let mut controller1 = RandomController::with_seed(p1_id, seed);
-    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+    let mut controller1 = RandomController::new(p1_id);
+    let mut controller2 = RandomController::new(p2_id);
 
     // Run game with Normal verbosity to capture logs
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
@@ -278,7 +278,7 @@ where
 
     // Initialize game using provided function
     let mut game = game_init_fn()?;
-    game.rng_seed = seed;
+    game.seed_rng(seed);
 
     // DO NOT enable log capture - we want stdout logging
 
@@ -301,8 +301,8 @@ where
         )
     };
 
-    let mut controller1 = RandomController::with_seed(p1_id, seed);
-    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+    let mut controller1 = RandomController::new(p1_id);
+    let mut controller2 = RandomController::new(p2_id);
 
     // Run game with Normal verbosity (logs to stdout via reusable buffer)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
@@ -650,7 +650,7 @@ fn bench_game_snapshot(c: &mut Criterion) {
                     })
                     .expect("Failed to initialize game");
 
-                game.rng_seed = seed;
+                game.seed_rng(seed);
                 initial_game = Some(game);
             }
 
@@ -721,7 +721,7 @@ fn bench_game_rewind(c: &mut Criterion) {
                     })
                     .expect("Failed to initialize game");
 
-                game.rng_seed = seed;
+                game.seed_rng(seed);
 
                 // Play the game once to build the undo log
                 {
@@ -733,8 +733,8 @@ fn bench_game_rewind(c: &mut Criterion) {
                         )
                     };
 
-                    let mut controller1 = RandomController::with_seed(p1_id, seed);
-                    let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+                    let mut controller1 = RandomController::new(p1_id);
+                    let mut controller2 = RandomController::new(p2_id);
 
                     let mut game_loop =
                         GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
@@ -791,8 +791,8 @@ fn bench_game_rewind(c: &mut Criterion) {
                     )
                 };
 
-                let mut controller1 = RandomController::with_seed(p1_id, seed);
-                let mut controller2 = RandomController::with_seed(p2_id, seed + 1);
+                let mut controller1 = RandomController::new(p1_id);
+                let mut controller2 = RandomController::new(p2_id);
 
                 let mut game_loop = GameLoop::new(game).with_verbosity(VerbosityLevel::Silent);
                 let _ = game_loop

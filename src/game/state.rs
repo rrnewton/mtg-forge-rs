@@ -112,7 +112,12 @@ impl GameState {
     pub fn shuffle_library(&mut self, player_id: PlayerId) {
         use rand::seq::SliceRandom;
         // First, get a mutable reference to the library cards
-        if let Some(zones) = self.player_zones.iter_mut().find(|(id, _)| *id == player_id).map(|(_, z)| z) {
+        if let Some(zones) = self
+            .player_zones
+            .iter_mut()
+            .find(|(id, _)| *id == player_id)
+            .map(|(_, z)| z)
+        {
             zones.library.cards.shuffle(&mut *self.rng.borrow_mut());
         }
     }
@@ -450,7 +455,6 @@ impl GameState {
             // This captures the RNG state at the END of the current turn,
             // which will be the START of the next turn after next_turn() is called
             let rng_state = {
-                use serde::Serialize;
                 let rng = self.rng.borrow();
                 serde_json::to_vec(&*rng).ok()
             };
@@ -674,7 +678,6 @@ impl GameState {
 
                     // Restore RNG state if available
                     if let Some(rng_bytes) = rng_state {
-                        use serde::Deserialize;
                         if let Ok(rng) = serde_json::from_slice::<ChaCha12Rng>(&rng_bytes) {
                             *self.rng.borrow_mut() = rng;
                         }

@@ -85,11 +85,12 @@ async fn main() {
     // (In a real game, this would be done by the card loader)
     setup_lightning_bolt_effects(&mut game, &players);
 
+    // Seed the game RNG for determinism
+    game.seed_rng(42);
+
     // Create AI controllers
-    let mut alice_ai =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[0].0, 42);
-    let mut bob_ai =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[1].0, 123);
+    let mut alice_ai = mtg_forge_rs::game::random_controller::RandomController::new(players[0].0);
+    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::new(players[1].0);
 
     println!("=== Starting Game Loop ===\n");
 
@@ -238,10 +239,12 @@ fn run_simplified_game() {
     println!("  - Alice: {alice_hand} cards");
     println!("  - Bob: {bob_hand} cards\n");
 
+    // Seed the game RNG for determinism
+    game.seed_rng(42);
+
     // Create AI controllers
-    let mut alice_ai =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(alice, 42);
-    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::with_seed(bob, 123);
+    let mut alice_ai = mtg_forge_rs::game::random_controller::RandomController::new(alice);
+    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::new(bob);
 
     println!("=== Starting Game Loop ===\n");
 

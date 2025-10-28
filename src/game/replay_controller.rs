@@ -131,7 +131,8 @@ impl PlayerController for ReplayController {
         }
 
         // No replay choice available, delegate to inner controller
-        self.inner.choose_spell_ability_to_play(view, available, rng)
+        self.inner
+            .choose_spell_ability_to_play(view, available, rng)
     }
 
     fn choose_targets(

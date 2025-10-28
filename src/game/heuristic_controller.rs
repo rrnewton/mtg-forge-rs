@@ -1097,7 +1097,7 @@ mod tests {
     #[test]
     fn test_seeded_controller() {
         let player_id = EntityId::new(1);
-        let controller = HeuristicController::with_seed(player_id, 42);
+        let controller = HeuristicController::new(player_id);
         assert_eq!(controller.player_id(), player_id);
     }
 

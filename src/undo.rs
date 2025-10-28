@@ -113,7 +113,10 @@ impl GameAction {
                 if let Ok(card) = game.cards.get_mut(*card_id) {
                     card.tapped = !tapped;
                 } else {
-                    return Err(format!("Card {} not found for TapCard undo", card_id.as_u32()));
+                    return Err(format!(
+                        "Card {} not found for TapCard undo",
+                        card_id.as_u32()
+                    ));
                 }
             }
 
@@ -122,7 +125,10 @@ impl GameAction {
                 if let Some(player) = game.players.iter_mut().find(|p| p.id == *player_id) {
                     player.life -= delta;
                 } else {
-                    return Err(format!("Player {} not found for ModifyLife undo", player_id.as_u32()));
+                    return Err(format!(
+                        "Player {} not found for ModifyLife undo",
+                        player_id.as_u32()
+                    ));
                 }
             }
 
@@ -134,9 +140,13 @@ impl GameAction {
                     player.mana_pool.black = player.mana_pool.black.saturating_sub(mana.black);
                     player.mana_pool.red = player.mana_pool.red.saturating_sub(mana.red);
                     player.mana_pool.green = player.mana_pool.green.saturating_sub(mana.green);
-                    player.mana_pool.colorless = player.mana_pool.colorless.saturating_sub(mana.colorless);
+                    player.mana_pool.colorless =
+                        player.mana_pool.colorless.saturating_sub(mana.colorless);
                 } else {
-                    return Err(format!("Player {} not found for AddMana undo", player_id.as_u32()));
+                    return Err(format!(
+                        "Player {} not found for AddMana undo",
+                        player_id.as_u32()
+                    ));
                 }
             }
 
@@ -158,7 +168,10 @@ impl GameAction {
                     player.mana_pool.green = *prev_green;
                     player.mana_pool.colorless = *prev_colorless;
                 } else {
-                    return Err(format!("Player {} not found for EmptyManaPool undo", player_id.as_u32()));
+                    return Err(format!(
+                        "Player {} not found for EmptyManaPool undo",
+                        player_id.as_u32()
+                    ));
                 }
             }
 
@@ -182,7 +195,10 @@ impl GameAction {
                     .map_err(|e| format!("Failed to undo RemoveCounter: {}", e))?;
             }
 
-            GameAction::AdvanceStep { from_step, to_step: _ } => {
+            GameAction::AdvanceStep {
+                from_step,
+                to_step: _,
+            } => {
                 // Restore previous step
                 game.turn.current_step = *from_step;
             }
@@ -225,9 +241,14 @@ impl GameAction {
                 if let Ok(card) = game.cards.get_mut(*card_id) {
                     // Handle Option<i8> by mapping to subtract the delta
                     card.power = card.power.map(|p| p.saturating_sub(*power_delta as i8));
-                    card.toughness = card.toughness.map(|t| t.saturating_sub(*toughness_delta as i8));
+                    card.toughness = card
+                        .toughness
+                        .map(|t| t.saturating_sub(*toughness_delta as i8));
                 } else {
-                    return Err(format!("Card {} not found for PumpCreature undo", card_id.as_u32()));
+                    return Err(format!(
+                        "Card {} not found for PumpCreature undo",
+                        card_id.as_u32()
+                    ));
                 }
             }
 
@@ -325,7 +346,10 @@ impl UndoLog {
     /// - actions_rewound: Total number of actions popped from the log
     ///
     /// Returns None if no ChangeTurn action is found in the log.
-    pub fn rewind_to_turn_start(&mut self, game: &mut GameState) -> Option<(u32, Vec<GameAction>, usize)> {
+    pub fn rewind_to_turn_start(
+        &mut self,
+        game: &mut GameState,
+    ) -> Option<(u32, Vec<GameAction>, usize)> {
         if !self.enabled {
             return None;
         }
@@ -529,10 +553,7 @@ mod tests {
 
         // Log should have the ChangeTurn action still (we stopped AT the turn boundary)
         assert_eq!(log.len(), 1);
-        assert!(matches!(
-            log.peek().unwrap(),
-            GameAction::ChangeTurn { .. }
-        ));
+        assert!(matches!(log.peek().unwrap(), GameAction::ChangeTurn { .. }));
     }
 
     #[test]

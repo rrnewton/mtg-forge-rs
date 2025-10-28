@@ -400,10 +400,8 @@ async fn test_creature_combat_game() -> Result<()> {
     let p1_id = players[0];
     let p2_id = players[1];
 
-    let mut controller1 =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, 77777);
-    let mut controller2 =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, 77778);
+    let mut controller1 = mtg_forge_rs::game::random_controller::RandomController::new(p1_id);
+    let mut controller2 = mtg_forge_rs::game::random_controller::RandomController::new(p2_id);
 
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
     let result = game_loop.run_game(&mut controller1, &mut controller2)?;
@@ -512,10 +510,8 @@ async fn test_different_deck_matchup() -> Result<()> {
         let p1_id = players[0];
         let p2_id = players[1];
 
-        let mut controller1 =
-            mtg_forge_rs::game::random_controller::RandomController::with_seed(p1_id, seed);
-        let mut controller2 =
-            mtg_forge_rs::game::random_controller::RandomController::with_seed(p2_id, seed + 1);
+        let mut controller1 = mtg_forge_rs::game::random_controller::RandomController::new(p1_id);
+        let mut controller2 = mtg_forge_rs::game::random_controller::RandomController::new(p2_id);
 
         let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
         let result = game_loop.run_game(&mut controller1, &mut controller2)?;
