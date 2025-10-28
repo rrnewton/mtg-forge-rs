@@ -2528,34 +2528,56 @@ ALSO this is an example of 'Invalid game action'. Which we want to eliminate.
 
 
 
-TODO: Keep going until we can load all decks with full legal games
---------------------------------------------------------------------------------
 
-Issue mtg-3 should be a checklist of what MTG features we support.
+TODO: annotate targets by owner
+----------------------------------------
 
-### Guide on how to make general progress on the TUI
-### General guide
+If the list of targets presented to the user includes only those from one owner, then include that name in the prompt header:
 
-Now you have the tools you need to:
- - play real games of magic with real decks
- - have the full experience that I will have while playing (stop/resume games to explore particular choice points)
- - identify gaps/bugs and make progress to fix them.
+```
+--- Targeting for: Sinkhole ---
+Valid targets, owner <Player1Name>:
+  [0] Black Knight
+  [1] Swamp  
+```
 
-Indeed, you should prefer using the `mtg tui` CLI directly for testing where
-possible, because that will ensure you're testing the same experience I'm
-viewing. Unit testing is fine for targeted checking of functionality, but we
-need heavy e2e testing.
+If the list of targets presented to the user includes ones from both owners, then split the list to make it clear where the separation is:
+
+```
+--- Targeting for: Sinkhole ---
+Valid targets, owner <Player1Name>:
+  [0] Black Knight
+  [1] Swamp  
+Valid targets, owner <Player2Name>:
+  [2] Black Knight
+  [3] Swamp  
+```
 
 
+TODO: stack does not resolve correctly for royal assassin
+----------------------------------------
 
+Consider this game log, and first see if you see anything that violates MTG rules.
+```
+--- Declare Attackers ---
+Available creatures:
+  [0] Hypnotic Specter
+  [1] Sengir Vampire
 
-### Specific Instructions
+Select creatures to attack with (enter indices separated by space,
+or press Enter to attack with none):
+0
+  Alice declares Hypnotic Specter (9) (2/2) as attacker
+  >>> HEURISTIC: chose to play spell/ability: ActivateAbility { card_id: 77, ability_index: 0 }
+  Royal Assassin activates ability: Destroy target tapped creature.
+  Hypnotic Specter (9) deals 2 damage to Bob
+```
 
-
-### What to do with this task
-
-
-### Tracking area
+---
+Next, try to reproduce this failure by passing fixed inputs and seeds in to control
+two players with `decks/old_school/05_mono_black_rogerbrand.dck`. Share the repro command with me.
+--
+Now fix the bug.
 
 
 
