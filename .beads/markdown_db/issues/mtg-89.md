@@ -1,6 +1,6 @@
 ---
 title: Randomized stress tests with invariants for snapshot resume
-status: closed
+status: open
 priority: 0
 issue_type: task
 created_at: "2025-10-27T09:12:20Z"
@@ -47,6 +47,37 @@ You can choose whatever mechanism you like to collect the choices from the first
 (normal) game run. You can either standardize the choice output in the logs
 enough that it can be extracted from the logs OR you can have a flag that
 activates logging of just the [p1/p2] choices.
+
+## Principle of independent objects for gamestate / controllers
+
+For this stop/go setup to work, and the game to remain deterministic, we need
+SEPARATION between the game state and the controllers. These should be viewed as
+separate, interacting systems. One key place where this appears is in the
+handling of RNG seeding. We will add flags to control seeding of systems separately:
+
+```
+--seed         # master seed to which the others default
+--seed-shuffle # affects only the initial shuffle
+--seed-engine  # affects game engine evolution
+--seed-p1      # affects P1 controller only
+--seed-p2
+```
+
+Irrespective of whether we control them from the CLI, the important thing is the 
+non-interference of these different RNGs during play.
+
+The master seed can be used by COPYING it to each of the per-system seeds (not
+by using it to generate a random number, which mutates it). A constant inside
+each system can be used to add salt to the random seed, so that, e.g. P1 P2
+don't see the identical stream of random numbers.
+
+When a stop/resume occurs, the state of the engine is serialized and resumed.
+But it is independent from the RNG of the controllers. When we resume we 
+may carry on with the controller from the snapshot, or change it to a new controller.
+These are two different scenarios that both need to be tested.
+If the controller is reinitialized, then the CLI args determine its state, but it
+remains completely unentangled from the game engine's state.
+
 
 ## CRITICAL: Criteria for closing this task
 
