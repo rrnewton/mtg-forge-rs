@@ -105,9 +105,17 @@ enum Commands {
         #[arg(long, value_name = "CHOICES")]
         p2_fixed_inputs: Option<String>,
 
-        /// Set random seed for deterministic testing
+        /// Set random seed for deterministic testing (master seed for engine and controller defaults)
         #[arg(long)]
         seed: Option<u64>,
+
+        /// Set random seed for Player 1 controller (overrides seed-derived default)
+        #[arg(long)]
+        seed_p1: Option<u64>,
+
+        /// Set random seed for Player 2 controller (overrides seed-derived default)
+        #[arg(long)]
+        seed_p2: Option<u64>,
 
         /// Load all cards from cardsfolder (default: only load cards in decks)
         #[arg(long)]
@@ -172,6 +180,8 @@ async fn main() -> Result<()> {
             p1_fixed_inputs,
             p2_fixed_inputs,
             seed,
+            seed_p1,
+            seed_p2,
             load_all_cards,
             verbosity,
             numeric_choices,
@@ -191,6 +201,8 @@ async fn main() -> Result<()> {
                 p1_fixed_inputs,
                 p2_fixed_inputs,
                 seed,
+                seed_p1,
+                seed_p2,
                 load_all_cards,
                 verbosity,
                 numeric_choices,
@@ -234,6 +246,8 @@ async fn run_tui(
     p1_fixed_inputs: Option<String>,
     p2_fixed_inputs: Option<String>,
     seed: Option<u64>,
+    seed_p1: Option<u64>,
+    seed_p2: Option<u64>,
     load_all_cards: bool,
     verbosity: VerbosityArg,
     numeric_choices: bool,
@@ -382,6 +396,25 @@ async fn run_tui(
         println!("Using random seed: {seed_value}");
     }
 
+    // Report controller seeds if set
+    if let Some(p1_seed_value) = seed_p1 {
+        println!("Using explicit P1 controller seed: {p1_seed_value}");
+    } else if let Some(seed_value) = seed {
+        println!(
+            "Using derived P1 controller seed: {} (from master seed)",
+            seed_value.wrapping_add(0x1234_5678_9ABC_DEF0)
+        );
+    }
+
+    if let Some(p2_seed_value) = seed_p2 {
+        println!("Using explicit P2 controller seed: {p2_seed_value}");
+    } else if let Some(seed_value) = seed {
+        println!(
+            "Using derived P2 controller seed: {} (from master seed)",
+            seed_value.wrapping_add(0xFEDC_BA98_7654_3210)
+        );
+    }
+
     // Enable numeric choices mode if requested
     if numeric_choices {
         game.logger.set_numeric_choices(true);
@@ -400,9 +433,12 @@ async fn run_tui(
     };
 
     // Derive controller seeds from master seed using salt constants
+    // Priority: explicit --seed-p1/--seed-p2 > derived from --seed > None
     // This ensures P1 and P2 get independent random streams from the same master seed
-    let p1_controller_seed = seed.map(|s| s.wrapping_add(0x1234_5678_9ABC_DEF0));
-    let p2_controller_seed = seed.map(|s| s.wrapping_add(0xFEDC_BA98_7654_3210));
+    let p1_controller_seed =
+        seed_p1.or_else(|| seed.map(|s| s.wrapping_add(0x1234_5678_9ABC_DEF0)));
+    let p2_controller_seed =
+        seed_p2.or_else(|| seed.map(|s| s.wrapping_add(0xFEDC_BA98_7654_3210)));
 
     // Create base controllers
     let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type
