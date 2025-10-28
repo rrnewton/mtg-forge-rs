@@ -15,11 +15,16 @@ use tokio::time::Instant;
 /// Convert card name to file path
 /// "Lightning Bolt" -> "cardsfolder/l/lightning_bolt.txt"
 /// "All Hallow's Eve" -> "cardsfolder/a/all_hallows_eve.txt"
+/// "Juzám Djinn" -> "cardsfolder/j/juzam_djinn.txt" (Unicode normalized to ASCII)
 /// Removes apostrophes and other special characters to match Java Forge convention
 fn card_name_to_path(cardsfolder: &Path, card_name: &str) -> PathBuf {
-    // Normalize card name for filesystem: lowercase, replace/remove special chars
+    // First normalize Unicode characters to ASCII (e.g., "á" -> "a", "ñ" -> "n")
+    // This is necessary because cardsfolder uses ASCII-only filenames
+    let ascii = deunicode::deunicode(card_name);
+
+    // Then normalize for filesystem: lowercase, replace/remove special chars
     // Using iterator-based approach for efficiency
-    let normalized: String = card_name
+    let normalized: String = ascii
         .to_lowercase()
         .chars()
         .map(|c| match c {
@@ -281,6 +286,13 @@ mod tests {
 
         let path = card_name_to_path(&cardsfolder, "Mishra's Factory");
         assert_eq!(path, PathBuf::from("cardsfolder/m/mishras_factory.txt"));
+
+        // Test Unicode normalization
+        let path = card_name_to_path(&cardsfolder, "Juzám Djinn");
+        assert_eq!(path, PathBuf::from("cardsfolder/j/juzam_djinn.txt"));
+
+        let path = card_name_to_path(&cardsfolder, "Dandan");
+        assert_eq!(path, PathBuf::from("cardsfolder/d/dandan.txt"));
     }
 
     #[tokio::test]

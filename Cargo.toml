@@ -25,6 +25,7 @@ thiserror = "1.0"
 
 # Parsing
 nom = "7.1"
+deunicode = "1.6"  # Unicode to ASCII normalization for card names
 
 # Random number generation
 rand = { version = "0.8", features = ["serde1"] }
