@@ -32,25 +32,26 @@ async fn test_deck_directory(
     println!("Discovering .dck files in {}...", directory.display());
 
     // Discover all .dck files using jwalk (parallel directory walking)
-    let deck_paths: Vec<PathBuf> = jwalk::WalkDir::new(directory)
-        .skip_hidden(false)
-        .into_iter()
-        .filter_map(|entry| {
-            entry.ok().and_then(|e| {
-                if e.file_type().is_file() {
-                    e.path().extension().and_then(|ext| {
-                        if ext == "dck" {
-                            Some(e.path())
-                        } else {
-                            None
-                        }
-                    })
-                } else {
-                    None
-                }
+    let deck_paths: Vec<PathBuf> =
+        jwalk::WalkDir::new(directory)
+            .skip_hidden(false)
+            .into_iter()
+            .filter_map(|entry| {
+                entry.ok().and_then(|e| {
+                    if e.file_type().is_file() {
+                        e.path().extension().and_then(|ext| {
+                            if ext == "dck" {
+                                Some(e.path())
+                            } else {
+                                None
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                })
             })
-        })
-        .collect();
+            .collect();
 
     let deck_count = deck_paths.len();
     println!("Found {} .dck files", deck_count);

@@ -81,12 +81,12 @@ enum Commands {
         #[arg(long, value_name = "PUZZLE_FILE")]
         start_state: Option<PathBuf>,
 
-        /// Player 1 controller type
-        #[arg(long, value_enum, default_value = "random")]
+        /// Player 1 controller type (default: human TUI)
+        #[arg(long, value_enum, default_value = "tui")]
         p1: ControllerType,
 
-        /// Player 2 controller type
-        #[arg(long, value_enum, default_value = "random")]
+        /// Player 2 controller type (default: heuristic AI)
+        #[arg(long, value_enum, default_value = "heuristic")]
         p2: ControllerType,
 
         /// Player 1 name (default: Alice)
