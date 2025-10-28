@@ -231,7 +231,7 @@ impl CardDatabase {
     }
 
     /// Get a clone of the database handle (shares the cache)
-    fn clone_handle(&self) -> Self {
+    pub fn clone_handle(&self) -> Self {
         CardDatabase {
             cardsfolder: self.cardsfolder.clone(),
             cards: Arc::clone(&self.cards),
