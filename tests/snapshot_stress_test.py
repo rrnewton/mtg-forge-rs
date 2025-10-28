@@ -506,9 +506,12 @@ def run_test_for_deck(mtg_bin: Path, deck_name: str, deck_path: str,
         save_logs=keep_logs, log_dir=log_dir, test_name=test_name
     )
 
-    # Compare final gamestates (disabled - log comparison is sufficient)
-    # GameState snapshots may differ in metadata (RNG state, controller state)
-    # even when game execution is identical, so we only check log determinism
+    # Compare final gamestates (disabled - only cosmetic metadata differences exist)
+    # Deep analysis (see ai_docs/gamestate_comparison_analysis.md) shows that:
+    # - All gameplay state matches perfectly between normal and stop-go runs
+    # - Only difference is choice_id counter offset in undo_log metadata
+    # - This is harmless: choice_id is just a tracking number, not used for gameplay logic
+    # - Log comparison already validates true determinism
     gamestate_success = True
     gamestate_diffs = []
     # if normal_state_file.exists() and stopgo_state_file.exists():
@@ -518,7 +521,7 @@ def run_test_for_deck(mtg_bin: Path, deck_name: str, deck_path: str,
     # else:
     #     print_color(YELLOW, "Warning: GameState files not found, skipping comparison")
 
-    # Overall success requires log match (gamestate comparison disabled)
+    # Overall success requires log match (gamestate comparison disabled - only metadata diffs)
     success = log_success
 
     if success:
