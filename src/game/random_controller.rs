@@ -10,6 +10,34 @@ use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use smallvec::SmallVec;
 
+/// Helper function to display available spell/ability choices
+/// Returns formatted string showing all available options
+fn display_available_choices(view: &GameStateView, available: &[SpellAbility]) -> String {
+    let mut output = String::new();
+    output.push_str("\nAvailable actions:\n");
+    for (idx, ability) in available.iter().enumerate() {
+        match ability {
+            SpellAbility::PlayLand { card_id } => {
+                let name = view.card_name(*card_id).unwrap_or_default();
+                output.push_str(&format!("  [{}] Play land: {}\n", idx, name));
+            }
+            SpellAbility::CastSpell { card_id } => {
+                let name = view.card_name(*card_id).unwrap_or_default();
+                output.push_str(&format!("  [{}] Cast spell: {}\n", idx, name));
+            }
+            SpellAbility::ActivateAbility { card_id, .. } => {
+                let name = view.card_name(*card_id).unwrap_or_default();
+                output.push_str(&format!("  [{}] Activate ability: {}\n", idx, name));
+            }
+        }
+    }
+    output.push_str(&format!(
+        "Choose action (0-{}, 'p' to pass, or ? for help):\n",
+        available.len() - 1
+    ));
+    output
+}
+
 /// A controller that makes random choices using its own independent RNG
 ///
 /// This controller owns its own RNG, seeded independently from the game engine.
@@ -67,33 +95,47 @@ impl PlayerController for RandomController {
         // INVARIANT: Choice 0 = pass priority (always available)
         //            Choice N (N > 0) = available[N-1]
 
+        // Display available choices (like TUI does)
+        if !available.is_empty() {
+            print!("{}", display_available_choices(view, available));
+        }
+
         // Random controller passes priority with 30% probability
         // This allows actions to be taken most of the time while still preventing infinite loops
         if available.is_empty() || self.rng.gen_bool(0.3) {
             // Pass priority = choice 0
-            view.logger().controller_choice(
-                "RANDOM",
-                &format!(
-                    "chose 0 (pass priority) out of choices 0-{}",
-                    available.len()
-                ),
-            );
+            println!("  >>> RANDOM: chose 'p' (pass priority)");
             return None;
         }
 
         // Randomly choose one of the available spell abilities
-        // Map to 1-based indexing (choice 1 = available[0], choice 2 = available[1], etc.)
         let ability_index = self.rng.gen_range(0..available.len());
-        let choice_index = ability_index + 1;
 
-        view.logger().controller_choice(
-            "RANDOM",
-            &format!(
-                "chose {} (ability {}) out of choices 0-{}",
-                choice_index,
-                ability_index,
-                available.len()
-            ),
+        // Display which choice was made
+        let choice_description = match &available[ability_index] {
+            SpellAbility::PlayLand { card_id } => {
+                format!(
+                    "Play land: {}",
+                    view.card_name(*card_id).unwrap_or_default()
+                )
+            }
+            SpellAbility::CastSpell { card_id } => {
+                format!(
+                    "Cast spell: {}",
+                    view.card_name(*card_id).unwrap_or_default()
+                )
+            }
+            SpellAbility::ActivateAbility { card_id, .. } => {
+                format!(
+                    "Activate ability: {}",
+                    view.card_name(*card_id).unwrap_or_default()
+                )
+            }
+        };
+
+        println!(
+            "  >>> RANDOM: chose {} - {}",
+            ability_index, choice_description
         );
         Some(available[ability_index].clone())
     }

@@ -1,0 +1,21 @@
+[metadata]
+Name=Royal Assassin Combat Bug
+Goal=Win
+Turns=2
+Difficulty=Easy
+Description=Demonstrates bug where creature destroyed during declare attackers step still deals combat damage. Royal Assassin should destroy the attacking Hypnotic Specter, preventing it from dealing damage per MTG Rule 510.1c.
+
+[state]
+turn=3
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Swamp;Swamp;Swamp;Hypnotic Specter
+p0library=Swamp;Swamp;Swamp;Swamp;Swamp
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Swamp;Swamp;Swamp;Royal Assassin
+p1library=Swamp;Swamp;Swamp;Swamp;Swamp
+p1graveyard=

@@ -648,6 +648,16 @@ impl<'a> GameLoop<'a> {
                     zones.graveyard.len(),
                     zones.exile.len()
                 );
+
+                // Show hand contents for active player (whose turn it is)
+                if is_active && !zones.hand.is_empty() {
+                    println!("  Hand contents:");
+                    for &card_id in &zones.hand.cards {
+                        if let Ok(card) = self.game.cards.get(card_id) {
+                            println!("    - {}", card.name);
+                        }
+                    }
+                }
             }
 
             // Battlefield permanents controlled by this player

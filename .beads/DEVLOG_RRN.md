@@ -2574,11 +2574,103 @@ or press Enter to attack with none):
 ```
 
 ---
-Next, try to reproduce this failure by passing fixed inputs and seeds in to control
+Before you fix it try to reproduce this failure by passing fixed inputs and seeds in to control
 two players with `decks/old_school/05_mono_black_rogerbrand.dck`. Share the repro command with me.
 --
 Now fix the bug.
 
+(Cool, it attempted a puzzle repro, but it had a summoning sickness problem)
+```
+[metadata]
+Name=Royal Assassin Combat Bug
+Goal=Win
+Turns=2
+Difficulty=Easy
+Description=Demonstrates bug where creature destroyed during declare attackers step still deals combat damage. Royal Assassin should destroy the attacking Hypnotic Specter, preventing it from dealing damage per MTG Rule 510.1c.
+
+[state]
+turn=3
+activeplayer=p0
+activephase=MAIN1
+p0life=20
+p0hand=
+p0battlefield=Swamp;Swamp;Swamp;Hypnotic Specter
+p0library=Swamp;Swamp;Swamp;Swamp;Swamp
+p0graveyard=
+p1life=20
+p1hand=
+p1battlefield=Swamp;Swamp;Swamp;Royal Assassin
+p1library=Swamp;Swamp;Swamp;Swamp;Swamp
+p1graveyard=
+```
+
+--
+No, don't ask me to manually reproduce. YOU play the game until you reproduce the bug.
+You can repeatedly call that `mtg tui` command while adding arguments for the fixed controllers until it does what you want.
+```
+--p1=fixed --p2=fixed --p1-fixed-inputs="..." --p2-fixed-inputs="..." --stop-every=both:choice:10
+```
+You can provide the `--stop-every` to make the game only run for a certain amount, just enough to get past the point where the bug is demonstrated.
+
+```
+  cargo run --bin mtg -- tui \
+    decks/old_school/05_mono_black_rogerbrand.dck \
+    decks/old_school/05_mono_black_rogerbrand.dck \
+    --p1=heuristic \
+    --p2=heuristic \
+    --seed=100 \
+    --stop-every=both:choice:50
+```
+
+It's great that you could reproduce it by just letting the heurstic AI do its
+thing, and that it happened to trigger the bug around line 301 of the command
+output. But try to be more intentional and see if you can create a shorter
+reproducer that produces less output.
+
+You can first run the game up to choice K, and see what the choices are, then
+make your choice and add it to your fixed input for the next attempt.
+
+You'll have to make a change first, however, currently the random controller prints something like this:
+
+```
+  >>> RANDOM: chose 4 (ability 3) out of choices 0-4
+```
+But it doesn't say what the choices ARE.
+
+Instead refactor the random controller to share code with the TUI controller.
+It should call the same code path for PRINTING the choice, but then
+it responds to the choice with a random one:
+
+```
+Available actions:
+  [0] Play land: Swamp
+  [1] Play land: Swamp
+  [2] Play land: Swamp
+  [3] Play land: Mishra's Factory
+Choose action (0-3, 'p' to pass, or ? for help):
+  >>> RANDOM: chose 4 (ability 3) out of choices 0-4
+```
+
+This should give you what you need to (1) see what the options are at choice N,
+(2) make a choice and add it to your fixed-input list, (3) repeat to
+intentionally grow a small, targeted reproducer.  Try again to do that for the
+royal assassin / hypnotic spectre bug.
+
+
+
+
+HOW_TO REPRODUCE A SCENARIO OR BUG
+--------------------------------------------------------------------------------
+
+When investigating any kind of bug or deviance from MTG rules, it will help us
+both to have a minimal reproducer. We will discuss two kinds of reproducers
+below and when each is appropriate.
+
+### mtg tui CLI reproducers
+
+This should be in the form  `mtg tui`
+
+### puzzle file reproducers
 
 
 
