@@ -155,6 +155,11 @@ enum Commands {
         /// Save final game state when game ends (for determinism testing)
         #[arg(long, value_name = "FILE")]
         save_final_gamestate: Option<PathBuf>,
+
+        /// Only print the last K lines of log output at game exit
+        /// (useful with --stop-every to see constant-sized output)
+        #[arg(long, value_name = "K")]
+        log_tail: Option<usize>,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -200,6 +205,7 @@ async fn main() -> Result<()> {
             snapshot_output,
             start_from,
             save_final_gamestate,
+            log_tail,
         } => {
             run_tui(
                 deck1,
@@ -223,6 +229,7 @@ async fn main() -> Result<()> {
                 snapshot_output,
                 start_from,
                 save_final_gamestate,
+                log_tail,
             )
             .await?
         }
@@ -270,6 +277,7 @@ async fn run_tui(
     snapshot_output: PathBuf,
     start_from: Option<PathBuf>,
     save_final_gamestate: Option<PathBuf>,
+    log_tail: Option<usize>,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     println!("=== MTG Forge Rust - Text UI Mode ===\n");
@@ -676,6 +684,12 @@ async fn run_tui(
         }
     }
 
+    // Enable log tail mode if requested (captures logs to buffer)
+    // Must be done BEFORE creating game loop since loop borrows game mutably
+    if log_tail.is_some() {
+        game.logger.enable_capture();
+    }
+
     // Run the game loop (with or without snapshots)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(verbosity);
 
@@ -753,6 +767,11 @@ async fn run_tui(
 
     // Run the game (with mid-turn exits if stop conditions enabled)
     let result = game_loop.run_game(&mut *controller1, &mut *controller2)?;
+
+    // If log_tail was enabled, flush only the last K lines now
+    if let Some(tail_lines) = log_tail {
+        game.logger.flush_tail(tail_lines);
+    }
 
     // If game ended with a snapshot, reload and add controller state
     use mtg_forge_rs::game::GameEndReason;
