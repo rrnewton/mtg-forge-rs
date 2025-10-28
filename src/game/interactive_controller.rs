@@ -80,15 +80,21 @@ impl InteractiveController {
                 }
             }
 
+            // In non-numeric mode, empty input just re-prompts
+            if trimmed.is_empty() {
+                if !allow_pass {
+                    // In numeric mode, empty = option 0
+                    return Some(0);
+                }
+                // In pass mode, empty just re-prompts
+                continue;
+            }
+
             // Check for pass in non-numeric mode (allow_pass: true)
-            if allow_pass && (trimmed == "p" || trimmed == "pass" || trimmed.is_empty()) {
+            if allow_pass && (trimmed == "p" || trimmed == "pass") {
                 return None;
             }
 
-            // In numeric mode (allow_pass: false), treat empty input as option 0
-            if !allow_pass && trimmed.is_empty() {
-                return Some(0);
-            }
 
             // Try to parse as number
             match trimmed.parse::<usize>() {
@@ -319,21 +325,29 @@ impl PlayerController for InteractiveController {
                 available.len(),
                 true,
                 Some(view),
-            )?;
+            );
+
+            // Check if user passed priority
+            if choice.is_none() {
+                println!("  {} passed priority.", player_name);
+                return None;
+            }
+
+            let choice = choice.unwrap();
 
             // Acknowledge the chosen action
             match &available[choice] {
                 SpellAbility::PlayLand { card_id } => {
                     let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("Playing land: {}", name);
+                    println!("  {} played land: {}", player_name, name);
                 }
                 SpellAbility::CastSpell { card_id } => {
                     let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("Casting spell: {}", name);
+                    println!("  {} cast spell: {}", player_name, name);
                 }
                 SpellAbility::ActivateAbility { card_id, .. } => {
                     let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("Activating ability: {}", name);
+                    println!("  {} activated ability: {}", player_name, name);
                 }
             }
 
