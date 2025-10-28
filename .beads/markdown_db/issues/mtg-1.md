@@ -19,6 +19,7 @@ This is the main tracking issue for MTG Forge Rust development.
 - mtg-4: Gameplay features (TUI, human play, controls)
 - mtg-5: Cross-cutting codebase issues (APIs, testing, architecture)
 - mtg-77: Heuristic AI completeness tracking
+- mtg-108: Complex mana source handling (blocks Old School decks)
 
 **Current status as of 2025-10-27_#381(9fea5cda):**
 - Tests: 360 passing (nextest, all categories)
