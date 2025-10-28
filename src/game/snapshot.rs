@@ -10,6 +10,26 @@ use crate::undo::GameAction;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+/// Controller state that can be preserved across snapshot/resume
+///
+/// This enum allows us to serialize and restore the state of different controller types.
+/// Each variant contains the full state needed to reconstruct the controller.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "controller_type")]
+pub enum ControllerState {
+    /// Fixed script controller with predetermined choices
+    Fixed(crate::game::FixedScriptController),
+
+    /// Random controller with its own RNG state
+    Random(crate::game::RandomController),
+
+    // Other controller types don't need state preservation:
+    // - Heuristic: Deterministic, no state needed
+    // - Zero: Deterministic, no state needed
+    // - Interactive: Human input, no state to preserve
+    // - Replay: Wrapper around another controller (state handled separately)
+}
+
 /// A game snapshot saved at a turn boundary with intra-turn replay data
 ///
 /// This format allows us to save only at clean turn boundaries while still
@@ -30,17 +50,17 @@ pub struct GameSnapshot {
 
     /// Optional controller state for player 1
     ///
-    /// Allows FixedScriptController to preserve its position across snapshot/resume.
-    /// If new --p1-fixed-inputs are provided on resume, this is ignored.
+    /// Preserves the full state of player 1's controller across snapshot/resume.
+    /// Supports Fixed and Random controllers (others are stateless).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub p1_controller_state: Option<crate::game::FixedScriptController>,
+    pub p1_controller_state: Option<ControllerState>,
 
     /// Optional controller state for player 2
     ///
-    /// Allows FixedScriptController to preserve its position across snapshot/resume.
-    /// If new --p2-fixed-inputs are provided on resume, this is ignored.
+    /// Preserves the full state of player 2's controller across snapshot/resume.
+    /// Supports Fixed and Random controllers (others are stateless).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub p2_controller_state: Option<crate::game::FixedScriptController>,
+    pub p2_controller_state: Option<ControllerState>,
 }
 
 impl GameSnapshot {
@@ -64,8 +84,8 @@ impl GameSnapshot {
         game_state: GameState,
         turn_number: u32,
         intra_turn_choices: Vec<GameAction>,
-        p1_controller_state: Option<crate::game::FixedScriptController>,
-        p2_controller_state: Option<crate::game::FixedScriptController>,
+        p1_controller_state: Option<ControllerState>,
+        p2_controller_state: Option<ControllerState>,
     ) -> Self {
         GameSnapshot {
             game_state,

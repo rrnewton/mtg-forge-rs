@@ -409,7 +409,22 @@ async fn run_tui(
     {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
         ControllerType::Random => {
-            if let Some(p1_seed) = p1_controller_seed {
+            // Check if we're resuming from snapshot with saved RandomController state
+            if let Some(ref snapshot) = loaded_snapshot {
+                if let Some(mtg_forge_rs::game::ControllerState::Random(random_controller)) =
+                    &snapshot.p1_controller_state
+                {
+                    if verbosity >= VerbosityLevel::Verbose {
+                        println!("Player 1 Random controller restored from snapshot");
+                    }
+                    Box::new(random_controller.clone())
+                } else if let Some(p1_seed) = p1_controller_seed {
+                    // No saved state, create fresh controller with seed
+                    Box::new(RandomController::with_seed(p1_id, p1_seed))
+                } else {
+                    Box::new(RandomController::new(p1_id))
+                }
+            } else if let Some(p1_seed) = p1_controller_seed {
                 Box::new(RandomController::with_seed(p1_id, p1_seed))
             } else {
                 Box::new(RandomController::new(p1_id))
@@ -433,17 +448,19 @@ async fn run_tui(
                 FixedScriptController::new(p1_id, script)
             } else if let Some(ref snapshot) = loaded_snapshot {
                 // Restore from snapshot if available
-                if let Some(controller_state) = &snapshot.p1_controller_state {
+                if let Some(mtg_forge_rs::game::ControllerState::Fixed(fixed_controller)) =
+                    &snapshot.p1_controller_state
+                {
                     if verbosity >= VerbosityLevel::Verbose {
                         println!(
                             "Player 1 Fixed controller restored from snapshot (at index {})",
-                            controller_state.current_index
+                            fixed_controller.current_index
                         );
                     }
-                    controller_state.clone()
+                    fixed_controller.clone()
                 } else {
                     return Err(mtg_forge_rs::MtgError::InvalidAction(
-                        "--p1-fixed-inputs is required when --p1=fixed (no snapshot state available)".to_string(),
+                        "--p1-fixed-inputs is required when --p1=fixed (no snapshot state available or wrong controller type)".to_string(),
                     ));
                 }
             } else {
@@ -460,7 +477,22 @@ async fn run_tui(
     {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
         ControllerType::Random => {
-            if let Some(p2_seed) = p2_controller_seed {
+            // Check if we're resuming from snapshot with saved RandomController state
+            if let Some(ref snapshot) = loaded_snapshot {
+                if let Some(mtg_forge_rs::game::ControllerState::Random(random_controller)) =
+                    &snapshot.p2_controller_state
+                {
+                    if verbosity >= VerbosityLevel::Verbose {
+                        println!("Player 2 Random controller restored from snapshot");
+                    }
+                    Box::new(random_controller.clone())
+                } else if let Some(p2_seed) = p2_controller_seed {
+                    // No saved state, create fresh controller with seed
+                    Box::new(RandomController::with_seed(p2_id, p2_seed))
+                } else {
+                    Box::new(RandomController::new(p2_id))
+                }
+            } else if let Some(p2_seed) = p2_controller_seed {
                 Box::new(RandomController::with_seed(p2_id, p2_seed))
             } else {
                 Box::new(RandomController::new(p2_id))
@@ -484,17 +516,19 @@ async fn run_tui(
                 FixedScriptController::new(p2_id, script)
             } else if let Some(ref snapshot) = loaded_snapshot {
                 // Restore from snapshot if available
-                if let Some(controller_state) = &snapshot.p2_controller_state {
+                if let Some(mtg_forge_rs::game::ControllerState::Fixed(fixed_controller)) =
+                    &snapshot.p2_controller_state
+                {
                     if verbosity >= VerbosityLevel::Verbose {
                         println!(
                             "Player 2 Fixed controller restored from snapshot (at index {})",
-                            controller_state.current_index
+                            fixed_controller.current_index
                         );
                     }
-                    controller_state.clone()
+                    fixed_controller.clone()
                 } else {
                     return Err(mtg_forge_rs::MtgError::InvalidAction(
-                        "--p2-fixed-inputs is required when --p2=fixed (no snapshot state available)".to_string(),
+                        "--p2-fixed-inputs is required when --p2=fixed (no snapshot state available or wrong controller type)".to_string(),
                     ));
                 }
             } else {
@@ -617,7 +651,7 @@ async fn run_tui(
         // If either controller has state to preserve, update the snapshot
         if p1_state_json.is_some() || p2_state_json.is_some() {
             if let Ok(mut snapshot) = GameSnapshot::load_from_file(&snapshot_output) {
-                // Deserialize JSON back to FixedScriptController if present
+                // Deserialize JSON back to ControllerState (Fixed or Random) if present
                 snapshot.p1_controller_state =
                     p1_state_json.and_then(|json| serde_json::from_value(json).ok());
                 snapshot.p2_controller_state =

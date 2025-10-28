@@ -36,7 +36,7 @@ pub use mana_engine::{ManaCapacity, ManaEngine};
 pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;
 pub use replay_controller::{ReplayChoice, ReplayController};
-pub use snapshot::{GameSnapshot, SnapshotError};
+pub use snapshot::{ControllerState, GameSnapshot, SnapshotError};
 pub use state::GameState;
 pub use stop_condition::{StopCondition, StopPlayer};
 pub use zero_controller::ZeroController;
