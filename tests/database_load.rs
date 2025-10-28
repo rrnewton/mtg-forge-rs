@@ -11,10 +11,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
-/// Test that the full card database can be loaded successfully
+/// Test that the full card database and all forge-java decks can be loaded
 /// This is the ONLY test in the entire test suite that should call eager_load()
+/// Also serves as a regression test to ensure deck loading doesn't get worse
 #[tokio::test]
-async fn test_load_full_card_database() -> Result<()> {
+async fn test_load_cards_and_decks() -> Result<()> {
     let cardsfolder = PathBuf::from("cardsfolder");
     if !cardsfolder.exists() {
         // Skip test if cardsfolder doesn't exist
@@ -213,8 +214,21 @@ async fn test_load_full_card_database() -> Result<()> {
             (loaded_decks as f64 / deck_count as f64) * 100.0
         );
 
-        // Don't panic - this is expected for now
-        // panic!("{} decks failed to load or had missing cards", failed_decks.len());
+        // Regression test: ensure we don't get worse than the current baseline
+        let max_allowed_failures = 1730;
+        assert!(
+            failed_decks.len() <= max_allowed_failures,
+            "Deck loading regressed! Expected <= {} failures, got {}. This means card name \
+             normalization or database loading got worse.",
+            max_allowed_failures,
+            failed_decks.len()
+        );
+
+        println!(
+            "\n✓ Regression test passed: {} failures <= {} allowed",
+            failed_decks.len(),
+            max_allowed_failures
+        );
     }
 
     Ok(())
