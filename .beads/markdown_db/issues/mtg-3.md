@@ -13,6 +13,24 @@ updated_at: "2025-10-26T21:06:34Z"
 
 Track implementation of Magic: The Gathering game mechanics.
 
+## HOWTO make progress on this task.
+
+Your primary method of making progress and adding more MTG compatibility is this:
+
+* Pick real decks and run real games (`mtg tui` subcommand).
+* Read logs carefully and question the relationship to (1) MTG rules, and (2)
+  whether the AI actions make some basic level of sense.
+* As the agent, have the full experience that I will have while playing games
+  with our engine (stop/resume games to explore particular choice points).
+
+For now, use the test decks under `decks/` including `decks/old_school` when
+doing your testing. You can pick random decks and do manual testing in order to
+FIND an issue, but then you should add a test that demonstrates the problem and
+do a piece of work that makes the test pass.
+
+
+# Tracking: Current status
+
 **Card types:**
 - Creature cards: ✅ Complete (combat, summoning sickness, keywords)
 - Enchantment cards: ✅ Basic support (cast, enters battlefield)
