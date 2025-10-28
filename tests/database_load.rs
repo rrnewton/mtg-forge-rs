@@ -65,25 +65,26 @@ async fn test_load_full_card_database() -> Result<()> {
     println!("Discovering .dck files in forge-java...");
 
     // Discover all .dck files using jwalk (parallel directory walking)
-    let deck_paths: Vec<PathBuf> = jwalk::WalkDir::new(&forge_java)
-        .skip_hidden(false)
-        .into_iter()
-        .filter_map(|entry| {
-            entry.ok().and_then(|e| {
-                if e.file_type().is_file() {
-                    e.path().extension().and_then(|ext| {
-                        if ext == "dck" {
-                            Some(e.path())
-                        } else {
-                            None
-                        }
-                    })
-                } else {
-                    None
-                }
+    let deck_paths: Vec<PathBuf> =
+        jwalk::WalkDir::new(&forge_java)
+            .skip_hidden(false)
+            .into_iter()
+            .filter_map(|entry| {
+                entry.ok().and_then(|e| {
+                    if e.file_type().is_file() {
+                        e.path().extension().and_then(|ext| {
+                            if ext == "dck" {
+                                Some(e.path())
+                            } else {
+                                None
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                })
             })
-        })
-        .collect();
+            .collect();
 
     let deck_count = deck_paths.len();
     println!("Found {} .dck files", deck_count);
@@ -109,9 +110,8 @@ async fn test_load_full_card_database() -> Result<()> {
             let _permit = sem.acquire().await.unwrap();
 
             // Load deck file
-            let deck = DeckLoader::load_from_file(&deck_path).map_err(|e| {
-                format!("Failed to parse deck {}: {}", deck_path.display(), e)
-            })?;
+            let deck = DeckLoader::load_from_file(&deck_path)
+                .map_err(|e| format!("Failed to parse deck {}: {}", deck_path.display(), e))?;
 
             // Verify all cards in deck can be resolved
             let all_cards = deck.unique_card_names();
@@ -202,9 +202,12 @@ async fn test_load_full_card_database() -> Result<()> {
         println!("\n=== Known Issue ===");
         println!("Double-faced cards (DFCs) and modal double-faced cards (MDFCs) are stored");
         println!("in files with both face names combined, but decks reference only one face.");
-        println!("Example: 'Ludevic, Necrogenius' is in 'ludevic_necrogenius_olag_ludevics_hubris.txt'");
+        println!(
+            "Example: 'Ludevic, Necrogenius' is in 'ludevic_necrogenius_olag_ludevics_hubris.txt'"
+        );
         println!("\nThis requires building a card name index during database load.");
-        println!("Success rate: {}/{} decks ({:.1}%)",
+        println!(
+            "Success rate: {}/{} decks ({:.1}%)",
             loaded_decks,
             deck_count,
             (loaded_decks as f64 / deck_count as f64) * 100.0
