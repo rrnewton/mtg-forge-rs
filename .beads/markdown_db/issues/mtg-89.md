@@ -4,7 +4,7 @@ status: open
 priority: 0
 issue_type: task
 created_at: "2025-10-27T09:12:20Z"
-updated_at: "2025-10-28T00:55:30Z"
+updated_at: "2025-10-28T03:33:26-07:00"
 closed_at: "2025-10-28T00:55:30Z"
 ---
 
@@ -17,6 +17,9 @@ But to make sure it is rock solid we need a STRICT DETERMINISM GUARANTEE. We are
 achieving this by rigorous stress testing. Continue to improve
 `./tests/snapshot_stress_test.py` until it's fully deterministic as described
 below.
+
+Design
+==============================================================================
 
 Don't update this first section, but update the Tracking section below to track
 progress on this issue.
@@ -89,7 +92,9 @@ exact matching game game actions between the normal and stop-and-go run.
 
 This INCLUDES the deep comparison of final gamestate. Until we have total fidelity between original runs (random and heuristic) and replays, we are not done with this task.
 
-## Tracking - Implementation Progress
+
+Tracking - Implementation Progress
+==============================================================================
 
 ### Phase 9: Implemented Controller State Serialization (2025-10-27 commit ec4540c)
 
@@ -173,3 +178,4 @@ D. Have GameLoop export ChoicePoint log as choices file
 Blocks (2):
   ← mtg-103: Make snapshot stress test run NUM_REPLAYS=3 per deck [P3]
   ← mtg-104: Split snapshot stress test into per-deck script and parallel runner [P3]
+

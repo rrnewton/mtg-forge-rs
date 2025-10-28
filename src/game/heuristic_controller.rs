@@ -777,7 +777,6 @@ impl PlayerController for HeuristicController {
         &mut self,
         view: &GameStateView,
         available: &[SpellAbility],
-        _rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         if available.is_empty() {
             view.logger()
@@ -810,7 +809,6 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         spell: CardId,
         valid_targets: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         if valid_targets.is_empty() {
             return SmallVec::new();
@@ -869,7 +867,6 @@ impl PlayerController for HeuristicController {
         _view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Simple greedy approach for now
         // TODO: Implement intelligent mana tapping order from ComputerUtilMana
@@ -887,7 +884,6 @@ impl PlayerController for HeuristicController {
         &mut self,
         view: &GameStateView,
         available_creatures: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Port of Java's AiAttackController.declareAttackers()
         // Reference: AiAttackController.java:818
@@ -936,7 +932,6 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         // Port of Java's AiBlockController.assignBlockersForCombat()
         // Reference: AiBlockController.java:998
@@ -1041,7 +1036,6 @@ impl PlayerController for HeuristicController {
         _view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // For now, just return the blockers in order
         // TODO: Implement intelligent ordering to kill blockers efficiently
@@ -1053,7 +1047,6 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         hand: &[CardId],
         count: usize,
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         // Simple heuristic: Discard lands first, then worst creatures
         let mut hand_cards: Vec<&Card> = hand.iter().filter_map(|&id| view.get_card(id)).collect();

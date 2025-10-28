@@ -1093,7 +1093,6 @@ impl<'a> GameLoop<'a> {
             let attackers = controller.choose_attackers(
                 &view,
                 &available_creatures,
-                &mut *self.game.rng.borrow_mut(),
             );
 
             // Log this choice point for snapshot/replay
@@ -1172,7 +1171,6 @@ impl<'a> GameLoop<'a> {
                 &view,
                 &available_blockers,
                 &attackers,
-                &mut *self.game.rng.borrow_mut(),
             );
 
             // Log this choice point for snapshot/replay
@@ -1416,7 +1414,6 @@ impl<'a> GameLoop<'a> {
                     &view,
                     hand,
                     discard_count,
-                    &mut *self.game.rng.borrow_mut(),
                 );
 
                 // Log this choice point for snapshot/replay
@@ -1597,7 +1594,6 @@ impl<'a> GameLoop<'a> {
                     let choice = controller.choose_spell_ability_to_play(
                         &view,
                         &available,
-                        &mut *self.game.rng.borrow_mut(),
                     );
 
                     // Log this choice point for snapshot/replay
@@ -1690,7 +1686,6 @@ impl<'a> GameLoop<'a> {
                                         &view,
                                         card_id,
                                         &valid_targets,
-                                        &mut *self.game.rng.borrow_mut(),
                                     );
 
                                     // Log this choice point for snapshot/replay
@@ -1813,7 +1808,6 @@ impl<'a> GameLoop<'a> {
                                             &view,
                                             card_id,
                                             &valid_targets,
-                                            &mut *self.game.rng.borrow_mut(),
                                         );
 
                                         // Log this choice point for snapshot/replay

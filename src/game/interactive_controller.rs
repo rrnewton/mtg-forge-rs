@@ -227,7 +227,6 @@ impl PlayerController for InteractiveController {
         &mut self,
         view: &GameStateView,
         available: &[SpellAbility],
-        _rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         if available.is_empty() {
             return None;
@@ -347,7 +346,6 @@ impl PlayerController for InteractiveController {
         view: &GameStateView,
         spell: CardId,
         valid_targets: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         if valid_targets.is_empty() {
             return SmallVec::new();
@@ -410,7 +408,6 @@ impl PlayerController for InteractiveController {
         view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         if available_sources.is_empty() {
             return SmallVec::new();
@@ -450,7 +447,6 @@ impl PlayerController for InteractiveController {
         &mut self,
         view: &GameStateView,
         available_creatures: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         if available_creatures.is_empty() {
             return SmallVec::new();
@@ -527,7 +523,6 @@ impl PlayerController for InteractiveController {
         view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         if attackers.is_empty() || available_blockers.is_empty() {
             return SmallVec::new();
@@ -604,7 +599,6 @@ impl PlayerController for InteractiveController {
         view: &GameStateView,
         attacker: CardId,
         blockers: &[CardId],
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         if blockers.len() <= 1 {
             return blockers.iter().copied().collect();
@@ -690,7 +684,6 @@ impl PlayerController for InteractiveController {
         view: &GameStateView,
         hand: &[CardId],
         count: usize,
-        _rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         println!("\n--- Discard Down to Hand Size ---");
         println!("You must discard {} card(s).", count);

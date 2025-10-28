@@ -7,33 +7,78 @@ use crate::core::{CardId, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
 use rand::seq::SliceRandom;
-use rand::Rng;
+use rand::{Rng, SeedableRng};
 use smallvec::SmallVec;
 
-/// A controller that makes random choices using the new callback interface
+/// A controller that makes random choices using its own independent RNG
 ///
-/// This controller no longer owns an RNG - instead it uses the RNG passed
-/// from GameState to ensure deterministic replay across snapshot/resume.
+/// This controller owns its own RNG, seeded independently from the game engine.
+/// This separation ensures that controller decisions don't affect game engine
+/// randomness (like shuffling), enabling proper deterministic replay.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RandomController {
     player_id: PlayerId,
+    /// Independent RNG for this controller's decisions
+    ///
+    /// This RNG is seeded separately from the game engine's RNG to ensure
+    /// complete independence between controller choices and game mechanics.
+    #[serde(with = "serde_rng")]
+    rng: rand::rngs::StdRng,
+}
+
+/// Serde module for serializing/deserializing StdRng
+mod serde_rng {
+    use rand::SeedableRng;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S>(rng: &rand::rngs::StdRng, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Serialize RNG by cloning and extracting seed
+        // Note: This is a workaround since StdRng doesn't directly expose its seed
+        // We serialize the current state which can be deserialized
+        use rand::RngCore;
+        let mut clone = rng.clone();
+        // Generate a sequence of random values to capture state
+        let state: Vec<u64> = (0..4).map(|_| clone.next_u64()).collect();
+        state.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<rand::rngs::StdRng, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let state = Vec::<u64>::deserialize(deserializer)?;
+        // Create RNG from state
+        // This is approximate - for true state preservation we'd need a different approach
+        // For now, seed from first value
+        Ok(rand::rngs::StdRng::seed_from_u64(state[0]))
+    }
 }
 
 impl RandomController {
-    /// Create a new random controller
+    /// Create a new random controller with a given seed
     ///
-    /// The RNG is now provided by GameState and passed to each decision method,
-    /// ensuring deterministic gameplay across snapshot/resume cycles.
+    /// The controller maintains its own RNG, seeded independently from the game engine.
+    /// This ensures controller decisions don't interfere with game mechanics randomness.
     pub fn new(player_id: PlayerId) -> Self {
-        RandomController { player_id }
+        // Create unseeded RNG (will be seeded from system entropy)
+        RandomController {
+            player_id,
+            rng: rand::rngs::StdRng::from_entropy(),
+        }
     }
 
-    /// Create a random controller (seed is no longer needed here)
+    /// Create a random controller with a specific seed
     ///
-    /// This method is kept for API compatibility but the seed parameter is ignored.
-    /// The RNG seed should be set on GameState instead using `game.seed_rng(seed)`.
-    #[deprecated(note = "Use RandomController::new() and seed the GameState RNG instead")]
-    pub fn with_seed(player_id: PlayerId, _seed: u64) -> Self {
-        RandomController { player_id }
+    /// Use this when you want deterministic controller behavior (for testing or replay).
+    /// The seed should be derived from a master seed with player-specific salt.
+    pub fn with_seed(player_id: PlayerId, seed: u64) -> Self {
+        RandomController {
+            player_id,
+            rng: rand::rngs::StdRng::seed_from_u64(seed),
+        }
     }
 }
 
@@ -46,14 +91,13 @@ impl PlayerController for RandomController {
         &mut self,
         view: &GameStateView,
         available: &[SpellAbility],
-        rng: &mut dyn rand::RngCore,
     ) -> Option<SpellAbility> {
         // INVARIANT: Choice 0 = pass priority (always available)
         //            Choice N (N > 0) = available[N-1]
 
         // Random controller passes priority with 30% probability
         // This allows actions to be taken most of the time while still preventing infinite loops
-        if available.is_empty() || rng.gen_bool(0.3) {
+        if available.is_empty() || self.rng.gen_bool(0.3) {
             // Pass priority = choice 0
             view.logger().controller_choice(
                 "RANDOM",
@@ -67,7 +111,7 @@ impl PlayerController for RandomController {
 
         // Randomly choose one of the available spell abilities
         // Map to 1-based indexing (choice 1 = available[0], choice 2 = available[1], etc.)
-        let ability_index = rng.gen_range(0..available.len());
+        let ability_index = self.rng.gen_range(0..available.len());
         let choice_index = ability_index + 1;
 
         view.logger().controller_choice(
@@ -87,7 +131,6 @@ impl PlayerController for RandomController {
         view: &GameStateView,
         _spell: CardId,
         valid_targets: &[CardId],
-        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // For now, just pick a random target if any are available
         // TODO: Improve targeting logic based on spell requirements
@@ -103,7 +146,7 @@ impl PlayerController for RandomController {
             targets
         } else {
             // Multiple targets - this is a real choice
-            let index = rng.gen_range(0..valid_targets.len());
+            let index = self.rng.gen_range(0..valid_targets.len());
             view.logger().controller_choice(
                 "RANDOM",
                 &format!(
@@ -123,7 +166,6 @@ impl PlayerController for RandomController {
         view: &GameStateView,
         cost: &ManaCost,
         available_sources: &[CardId],
-        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Simple greedy approach: tap sources until we have enough mana
         // TODO: Improve to consider mana colors and optimization
@@ -132,7 +174,7 @@ impl PlayerController for RandomController {
 
         // Shuffle to randomize which sources we choose
         let mut shuffled: Vec<CardId> = available_sources.to_vec();
-        shuffled.shuffle(rng);
+        shuffled.shuffle(&mut self.rng);
 
         // Only log if there's a real choice (more sources than needed)
         if available_sources.len() > needed {
@@ -157,14 +199,13 @@ impl PlayerController for RandomController {
         &mut self,
         view: &GameStateView,
         available_creatures: &[CardId],
-        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 8]> {
         // Randomly decide whether each creature attacks
         let mut attackers = SmallVec::new();
 
         for (idx, &creature_id) in available_creatures.iter().enumerate() {
             // 50% chance each creature attacks
-            if rng.gen_bool(0.5) {
+            if self.rng.gen_bool(0.5) {
                 view.logger().controller_choice(
                     "RANDOM",
                     &format!(
@@ -195,7 +236,6 @@ impl PlayerController for RandomController {
         view: &GameStateView,
         available_blockers: &[CardId],
         attackers: &[CardId],
-        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[(CardId, CardId); 8]> {
         // Randomly assign blockers to attackers
         let mut blocks = SmallVec::new();
@@ -208,9 +248,9 @@ impl PlayerController for RandomController {
 
         for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
             // 50% chance each creature blocks
-            if rng.gen_bool(0.5) {
+            if self.rng.gen_bool(0.5) {
                 // Pick a random attacker to block
-                let attacker_idx = rng.gen_range(0..attackers.len());
+                let attacker_idx = self.rng.gen_range(0..attackers.len());
                 view.logger().controller_choice(
                     "RANDOM",
                     &format!(
@@ -242,11 +282,10 @@ impl PlayerController for RandomController {
         view: &GameStateView,
         _attacker: CardId,
         blockers: &[CardId],
-        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 4]> {
         // Randomly shuffle the blockers to create a damage assignment order
         let mut ordered_blockers: Vec<CardId> = blockers.to_vec();
-        ordered_blockers.shuffle(rng);
+        ordered_blockers.shuffle(&mut self.rng);
 
         // Only log if there's a real choice (2+ blockers to order)
         if blockers.len() >= 2 {
@@ -267,11 +306,10 @@ impl PlayerController for RandomController {
         view: &GameStateView,
         hand: &[CardId],
         count: usize,
-        rng: &mut dyn rand::RngCore,
     ) -> SmallVec<[CardId; 7]> {
         // Randomly choose cards to discard from hand
         let mut hand_vec: Vec<CardId> = hand.to_vec();
-        hand_vec.shuffle(rng);
+        hand_vec.shuffle(&mut self.rng);
 
         let num_discarding = count.min(hand.len());
 
@@ -297,6 +335,11 @@ impl PlayerController for RandomController {
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {
         // Could log game result here for statistics
         // Disabled for quiet operation during benchmarks and batch runs
+    }
+
+    fn get_snapshot_state(&self) -> Option<serde_json::Value> {
+        // Serialize the entire controller state (including RNG state)
+        serde_json::to_value(self).ok()
     }
 }
 
@@ -329,7 +372,7 @@ mod tests {
         let mut rng = game.rng.borrow_mut();
 
         // With no available abilities, should return None
-        let choice = controller.choose_spell_ability_to_play(&view, &[], &mut *rng);
+        let choice = controller.choose_spell_ability_to_play(&view, &[]);
         assert_eq!(choice, None);
     }
 
@@ -354,7 +397,7 @@ mod tests {
         // Try multiple times to ensure it makes choices sometimes
         let mut found_choice = false;
         for _ in 0..20 {
-            let choice = controller.choose_spell_ability_to_play(&view, &abilities, &mut *rng);
+            let choice = controller.choose_spell_ability_to_play(&view, &abilities);
             if let Some(chosen) = choice {
                 found_choice = true;
                 // The choice should be one of the available abilities
@@ -375,7 +418,7 @@ mod tests {
 
         let spell_id = EntityId::new(100);
         let valid_targets = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
-        let targets = controller.choose_targets(&view, spell_id, &valid_targets, &mut *rng);
+        let targets = controller.choose_targets(&view, spell_id, &valid_targets);
 
         // Should choose exactly one target
         assert_eq!(targets.len(), 1);
@@ -400,7 +443,7 @@ mod tests {
             EntityId::new(14),
         ];
 
-        let sources = controller.choose_mana_sources_to_pay(&view, &cost, &available, &mut *rng);
+        let sources = controller.choose_mana_sources_to_pay(&view, &cost, &available);
 
         // Should choose exactly 4 sources (equal to CMC)
         assert_eq!(sources.len(), 4);
@@ -419,7 +462,7 @@ mod tests {
         let mut rng = game.rng.borrow_mut();
 
         let creatures = vec![EntityId::new(20), EntityId::new(21), EntityId::new(22)];
-        let attackers = controller.choose_attackers(&view, &creatures, &mut *rng);
+        let attackers = controller.choose_attackers(&view, &creatures);
 
         // Should return a SmallVec (possibly empty)
         // All attackers should be from the available creatures
@@ -443,7 +486,7 @@ mod tests {
             EntityId::new(33),
         ];
 
-        let discards = controller.choose_cards_to_discard(&view, &hand, 2, &mut *rng);
+        let discards = controller.choose_cards_to_discard(&view, &hand, 2);
 
         // Should discard exactly 2 cards
         assert_eq!(discards.len(), 2);

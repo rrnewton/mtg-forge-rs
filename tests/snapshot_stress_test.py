@@ -622,8 +622,10 @@ def main():
     # Controller matchups to test
     # Using heuristic vs heuristic gives us deterministic choices we can extract and replay
     # Heuristic controllers log their choices, making extraction reliable
+    # Random controllers also work - their choices are extracted and replayed via fixed controller
     controller_matchups = [
         ("heuristic", "heuristic"),
+        ("random", "heuristic"),
     ]
 
     all_passed = True

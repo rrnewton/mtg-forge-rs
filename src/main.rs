@@ -399,11 +399,22 @@ async fn run_tui(
         (p1.id, p2.id)
     };
 
+    // Derive controller seeds from master seed using salt constants
+    // This ensures P1 and P2 get independent random streams from the same master seed
+    let p1_controller_seed = seed.map(|s| s.wrapping_add(0x1234_5678_9ABC_DEF0));
+    let p2_controller_seed = seed.map(|s| s.wrapping_add(0xFEDC_BA98_7654_3210));
+
     // Create base controllers
     let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type
     {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
-        ControllerType::Random => Box::new(RandomController::new(p1_id)),
+        ControllerType::Random => {
+            if let Some(p1_seed) = p1_controller_seed {
+                Box::new(RandomController::with_seed(p1_id, p1_seed))
+            } else {
+                Box::new(RandomController::new(p1_id))
+            }
+        }
         ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
             p1_id,
             numeric_choices,
@@ -448,7 +459,13 @@ async fn run_tui(
     let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type
     {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
-        ControllerType::Random => Box::new(RandomController::new(p2_id)),
+        ControllerType::Random => {
+            if let Some(p2_seed) = p2_controller_seed {
+                Box::new(RandomController::with_seed(p2_id, p2_seed))
+            } else {
+                Box::new(RandomController::new(p2_id))
+            }
+        }
         ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
             p2_id,
             numeric_choices,
@@ -713,13 +730,17 @@ async fn run_profile(iterations: usize, seed: u64, deck_path: PathBuf) -> Result
             .await?;
         game.seed_rng(seed);
 
-        // Create random controllers
+        // Create random controllers with deterministic seeds derived from master seed
         let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
         let p1_id = players[0];
         let p2_id = players[1];
 
-        let mut controller1 = RandomController::new(p1_id);
-        let mut controller2 = RandomController::new(p2_id);
+        // Use same salt constants as main game for consistency
+        let p1_seed = seed.wrapping_add(0x1234_5678_9ABC_DEF0);
+        let p2_seed = seed.wrapping_add(0xFEDC_BA98_7654_3210);
+
+        let mut controller1 = RandomController::with_seed(p1_id, p1_seed);
+        let mut controller2 = RandomController::with_seed(p2_id, p2_seed);
 
         // Run game
         let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);

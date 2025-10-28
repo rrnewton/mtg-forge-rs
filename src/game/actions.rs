@@ -1287,14 +1287,12 @@ impl GameState {
                             &view,
                             attacker_id,
                             &blockers,
-                            &mut *self.rng.borrow_mut(),
                         )
                     } else {
                         blocker_controller.choose_damage_assignment_order(
                             &view,
                             attacker_id,
                             &blockers,
-                            &mut *self.rng.borrow_mut(),
                         )
                     };
 
