@@ -13,6 +13,8 @@ use std::io::{self, Write};
 pub struct InteractiveController {
     player_id: PlayerId,
     numeric_choices: bool,
+    /// Command buffer for semicolon-separated inputs
+    command_buffer: Vec<String>,
 }
 
 impl InteractiveController {
@@ -21,6 +23,7 @@ impl InteractiveController {
         InteractiveController {
             player_id,
             numeric_choices: false,
+            command_buffer: Vec::new(),
         }
     }
 
@@ -29,7 +32,34 @@ impl InteractiveController {
         InteractiveController {
             player_id,
             numeric_choices,
+            command_buffer: Vec::new(),
         }
+    }
+
+    /// Get the next buffered command, or read new input from stdin
+    ///
+    /// If the input contains semicolons, splits and buffers the remaining commands
+    fn get_next_command(&mut self) -> Option<String> {
+        // Check if we have buffered commands
+        if !self.command_buffer.is_empty() {
+            return Some(self.command_buffer.remove(0));
+        }
+        None
+    }
+
+    /// Read and buffer commands from stdin, splitting on semicolons
+    fn read_and_buffer_commands(&mut self) -> Result<(), std::io::Error> {
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        // Split on semicolons and buffer all commands
+        for cmd in input.split(';') {
+            let trimmed = cmd.trim();
+            if !trimmed.is_empty() {
+                self.command_buffer.push(trimmed.to_string());
+            }
+        }
+        Ok(())
     }
 
     /// Helper: prompt user for a choice and validate input
@@ -575,23 +605,75 @@ impl PlayerController for InteractiveController {
                 }
             }
         } else {
-            // Original mode: space-separated input
+            // Rich input mode: support "attack X" commands and buffering
             println!("Available creatures:");
             self.display_cards(view, available_creatures, "  ");
-            println!("\nSelect creatures to attack with (enter indices separated by space,");
-            println!("or press Enter to attack with none):");
 
-            let mut input = String::new();
-            if io::stdin().read_line(&mut input).is_err() {
-                return attackers;
-            }
-
-            for index_str in input.split_whitespace() {
-                if let Ok(idx) = index_str.parse::<usize>() {
-                    if idx < available_creatures.len() {
-                        attackers.push(available_creatures[idx]);
+            loop {
+                // Check if we have a buffered command
+                let command = if let Some(cmd) = self.get_next_command() {
+                    cmd
+                } else {
+                    // No buffered commands, read new input
+                    println!("\nSelect attackers ('attack X', numeric indices, 'done', or press Enter):");
+                    if self.read_and_buffer_commands().is_err() {
+                        break;
                     }
+
+                    // Get the first buffered command
+                    if let Some(cmd) = self.get_next_command() {
+                        cmd
+                    } else {
+                        // Empty input = done
+                        break;
+                    }
+                };
+
+                let trimmed = command.trim().to_lowercase();
+
+                // Check for "done" or empty
+                if trimmed.is_empty() || trimmed == "done" {
+                    break;
                 }
+
+                // Try parsing as "attack X" command
+                if trimmed.starts_with("attack ") {
+                    let card_pattern = &trimmed[7..];
+                    let mut found = false;
+                    for &creature_id in available_creatures {
+                        if let Some(card_name) = view.card_name(creature_id) {
+                            if RichInputController::card_matches(&card_name, card_pattern) {
+                                if !attackers.contains(&creature_id) {
+                                    attackers.push(creature_id);
+                                    println!("  Attacking with {}", card_name);
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if !found {
+                        eprintln!("No matching creature found for '{}'", card_pattern);
+                    }
+                    continue;
+                }
+
+                // Try parsing as numeric index
+                if let Ok(idx) = trimmed.parse::<usize>() {
+                    if idx < available_creatures.len() {
+                        let card_id = available_creatures[idx];
+                        if !attackers.contains(&card_id) {
+                            attackers.push(card_id);
+                            let name = view.card_name(card_id).unwrap_or_default();
+                            println!("  Attacking with {}", name);
+                        }
+                    } else {
+                        eprintln!("Invalid index: {}", idx);
+                    }
+                    continue;
+                }
+
+                eprintln!("Invalid command: '{}'. Use 'attack <name>', index, or 'done'.", command);
             }
         }
 
@@ -648,26 +730,102 @@ impl PlayerController for InteractiveController {
                 }
             }
         } else {
-            // Original mode: 'p' to skip
-            println!("\nFor each blocker, choose which attacker it blocks");
-            println!("(or enter 'p' to stop assigning blockers):");
+            // Rich input mode: support "X blocks Y" commands and buffering
+            println!("\nSelect blockers ('X blocks Y', numeric syntax, 'done', or press Enter):");
 
-            for (blocker_idx, &blocker_id) in available_blockers.iter().enumerate() {
-                let blocker_name = view.card_name(blocker_id).unwrap_or_default();
-                if let Some(attacker_idx) = self.get_user_choice(
-                    &format!(
-                        "Blocker {} ({}) blocks attacker (0-{}):",
-                        blocker_idx,
-                        blocker_name,
-                        attackers.len() - 1
-                    ),
-                    attackers.len(),
-                    true,
-                ) {
-                    blocks.push((blocker_id, attackers[attacker_idx]));
+            loop {
+                // Check if we have a buffered command
+                let command = if let Some(cmd) = self.get_next_command() {
+                    cmd
                 } else {
-                    break; // Stop assigning blockers
+                    // No buffered commands, read new input
+                    println!("\nEnter blocker assignments:");
+                    if self.read_and_buffer_commands().is_err() {
+                        break;
+                    }
+
+                    // Get the first buffered command
+                    if let Some(cmd) = self.get_next_command() {
+                        cmd
+                    } else {
+                        // Empty input = done
+                        break;
+                    }
+                };
+
+                let trimmed = command.trim().to_lowercase();
+
+                // Check for "done" or empty
+                if trimmed.is_empty() || trimmed == "done" {
+                    break;
                 }
+
+                // Try parsing as "X blocks Y" command
+                if trimmed.contains(" blocks ") {
+                    if let Some(blocks_pos) = trimmed.find(" blocks ") {
+                        let blocker_pattern = &trimmed[..blocks_pos];
+                        let attacker_pattern = &trimmed[blocks_pos + 8..];
+
+                        // Find matching blocker
+                        let mut blocker_id = None;
+                        for &creature_id in available_blockers {
+                            if let Some(card_name) = view.card_name(creature_id) {
+                                if RichInputController::card_matches(&card_name, blocker_pattern) {
+                                    blocker_id = Some(creature_id);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Find matching attacker
+                        let mut attacker_id = None;
+                        for &creature_id in attackers {
+                            if let Some(card_name) = view.card_name(creature_id) {
+                                if RichInputController::card_matches(&card_name, attacker_pattern) {
+                                    attacker_id = Some(creature_id);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if let (Some(blocker), Some(attacker)) = (blocker_id, attacker_id) {
+                            blocks.push((blocker, attacker));
+                            let blocker_name = view.card_name(blocker).unwrap_or_default();
+                            let attacker_name = view.card_name(attacker).unwrap_or_default();
+                            println!("  {} blocks {}", blocker_name, attacker_name);
+                        } else {
+                            eprintln!("Could not find matching blocker or attacker for '{}'", command);
+                        }
+                    }
+                    continue;
+                }
+
+                // Try parsing as numeric syntax (blocker_idx attacker_idx)
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                if parts.len() == 2 {
+                    if let (Ok(blocker_idx), Ok(attacker_idx)) =
+                        (parts[0].parse::<usize>(), parts[1].parse::<usize>())
+                    {
+                        if blocker_idx < available_blockers.len()
+                            && attacker_idx < attackers.len()
+                        {
+                            let blocker_id = available_blockers[blocker_idx];
+                            let attacker_id = attackers[attacker_idx];
+                            blocks.push((blocker_id, attacker_id));
+                            let blocker_name = view.card_name(blocker_id).unwrap_or_default();
+                            let attacker_name = view.card_name(attacker_id).unwrap_or_default();
+                            println!("  {} blocks {}", blocker_name, attacker_name);
+                        } else {
+                            eprintln!("Invalid indices: {} {}", blocker_idx, attacker_idx);
+                        }
+                        continue;
+                    }
+                }
+
+                eprintln!(
+                    "Invalid command: '{}'. Use 'X blocks Y', 'blocker_idx attacker_idx', or 'done'.",
+                    command
+                );
             }
         }
 
