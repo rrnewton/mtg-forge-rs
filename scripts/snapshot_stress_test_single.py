@@ -291,139 +291,80 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
 
     return accumulated_log, saved_snapshots
 
-def strip_metadata_fields(obj):
-    """Recursively strip metadata fields from gamestate."""
-    if isinstance(obj, dict):
-        result = {}
-        for key, value in obj.items():
-            # Skip metadata/presentation fields that differ between normal and stop/go modes:
-            # - choice_id: unique ID for each choice (increments differently based on stop points)
-            # - undo_log: snapshot/replay metadata, not actual game state
-            # - show_choice_menu: presentation flag (set true in stop/go mode)
-            # - output_mode: presentation setting (Stdout vs Both)
-            # - output_format: presentation setting (Text vs JSON)
-            # - numeric_choices: presentation setting
-            # - step_header_printed: transient UI state
-            if key in ("choice_id", "undo_log", "show_choice_menu", "output_mode",
-                      "output_format", "numeric_choices", "step_header_printed"):
-                continue
-            result[key] = strip_metadata_fields(value)
-        return result
-    elif isinstance(obj, list):
-        return [strip_metadata_fields(item) for item in obj]
-    else:
-        return obj
+def compare_game_logs_via_tool(normal_log: str, stopgo_log: str, verbose: bool = False,
+                                save_logs: bool = False, log_dir: Optional[Path] = None,
+                                test_name: str = "") -> Tuple[bool, Optional[Path], Optional[Path]]:
+    """Compare game action logs using the diff_logs.py tool.
 
-def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path, verbose: bool = False) -> bool:
-    """Compare final GameState snapshots for differences."""
-    try:
-        with open(normal_state_file, 'r') as f:
-            normal_state = json.load(f)
-        with open(stopgo_state_file, 'r') as f:
-            stopgo_state = json.load(f)
-    except Exception as e:
-        print_color(RED, f"✗ Failed to load gamestate files: {e}")
-        return False
-
-    # Extract just the game_state portion
-    normal_gs = normal_state.get("game_state", {})
-    stopgo_gs = stopgo_state.get("game_state", {})
-
-    # Strip metadata fields
-    normal_gs = strip_metadata_fields(normal_gs)
-    stopgo_gs = strip_metadata_fields(stopgo_gs)
-
-    # Serialize both to canonical JSON for comparison
-    normal_json = json.dumps(normal_gs, sort_keys=True, indent=2)
-    stopgo_json = json.dumps(stopgo_gs, sort_keys=True, indent=2)
-
-    if normal_json != stopgo_json and verbose:
-        # Show differences using unified diff
-        import difflib
-        diff = difflib.unified_diff(
-            normal_json.splitlines(keepends=True),
-            stopgo_json.splitlines(keepends=True),
-            fromfile='normal_gamestate',
-            tofile='stopgo_gamestate',
-            lineterm=''
-        )
-        print_color(YELLOW, "    GameState differences:")
-        for i, line in enumerate(diff):
-            if i < 50:  # Show first 50 lines of diff
-                print(f"      {line.rstrip()}")
-            elif i == 50:
-                print("      ... (diff truncated)")
-                break
-
-    return normal_json == stopgo_json
-
-def compare_game_logs(normal_log: str, stopgo_log: str, verbose: bool = False,
-                      save_logs: bool = False, log_dir: Optional[Path] = None,
-                      test_name: str = "") -> Tuple[bool, List[str], List[str], Optional[Path], Optional[Path]]:
-    """Compare game action logs for exact match.
-
-    Returns: (match_success, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path)
+    Returns: (match_success, normal_log_path, stopgo_log_path)
     """
+    # Always filter and save logs to temp or permanent location
     normal_actions = filter_game_actions(normal_log)
     stopgo_actions = filter_game_actions(stopgo_log)
 
-    # Save logs if requested
-    normal_log_path = None
-    stopgo_log_path = None
+    # Determine where to save logs
+    import tempfile
     if save_logs and log_dir:
         log_dir.mkdir(parents=True, exist_ok=True)
-
-        # Sanitize test name for filename
         safe_name = test_name.replace(" ", "_").replace("/", "_")
-
         normal_log_path = log_dir / f"{safe_name}_normal.log"
         stopgo_log_path = log_dir / f"{safe_name}_stopgo.log"
+    else:
+        # Use temp files for comparison
+        normal_log_path = Path(tempfile.mktemp(suffix="_normal.log"))
+        stopgo_log_path = Path(tempfile.mktemp(suffix="_stopgo.log"))
 
-        # Write filtered actions to files
-        with open(normal_log_path, 'w') as f:
-            f.write('\n'.join(normal_actions))
+    # Write filtered actions to files
+    with open(normal_log_path, 'w') as f:
+        f.write('\n'.join(normal_actions))
+    with open(stopgo_log_path, 'w') as f:
+        f.write('\n'.join(stopgo_actions))
 
-        with open(stopgo_log_path, 'w') as f:
-            f.write('\n'.join(stopgo_actions))
+    # Call diff_logs.py tool
+    script_dir = Path(__file__).parent
+    diff_logs_script = script_dir / "diff_logs.py"
 
-    if len(normal_actions) == 0 or len(stopgo_actions) == 0:
-        if verbose:
-            print_color(RED, f"  Empty action logs: normal={len(normal_actions)}, stopgo={len(stopgo_actions)}")
-        return False, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path
+    cmd = [sys.executable, str(diff_logs_script), str(normal_log_path), str(stopgo_log_path)]
+    if verbose:
+        cmd.append("--verbose")
 
-    # Compare action by action
-    match = True
-    if len(normal_actions) != len(stopgo_actions):
-        match = False
-        if verbose:
-            print_color(RED, f"  Action count mismatch: normal={len(normal_actions)}, stopgo={len(stopgo_actions)}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
 
-    for i in range(min(len(normal_actions), len(stopgo_actions))):
-        if normal_actions[i] != stopgo_actions[i]:
-            match = False
-            if verbose and i < 20:  # Show first 20 differences
-                print_color(RED, f"  Line {i+1} differs:")
-                print(f"    Normal:  {normal_actions[i]}")
-                print(f"    Stop-go: {stopgo_actions[i]}")
+    # Print output from diff tool
+    if result.stdout:
+        print(result.stdout, end='')
+    if result.stderr:
+        print(result.stderr, end='', file=sys.stderr)
 
-    # If lengths differ, show where they diverge
-    if verbose and len(normal_actions) != len(stopgo_actions):
-        shorter = min(len(normal_actions), len(stopgo_actions))
-        # Show last few actions before divergence
-        print_color(CYAN, f"  Last 5 common actions before divergence:")
-        for i in range(max(0, shorter - 5), shorter):
-            print(f"    [{i+1}] {normal_actions[i]}")
+    # Clean up temp files if not saving
+    if not save_logs:
+        normal_log_path.unlink()
+        stopgo_log_path.unlink()
+        normal_log_path = None
+        stopgo_log_path = None
 
-        if len(normal_actions) > len(stopgo_actions):
-            print_color(YELLOW, f"  Normal has {len(normal_actions) - shorter} extra actions:")
-            for i in range(shorter, min(shorter + 10, len(normal_actions))):
-                print(f"    [{i+1}] {normal_actions[i]}")
-        else:
-            print_color(YELLOW, f"  Stop-go has {len(stopgo_actions) - shorter} extra actions:")
-            for i in range(shorter, min(shorter + 10, len(stopgo_actions))):
-                print(f"    [{i+1}] {stopgo_actions[i]}")
+    # Return code 0 means match
+    return result.returncode == 0, normal_log_path, stopgo_log_path
 
-    return match, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path
+def compare_gamestates_via_tool(normal_state_file: Path, stopgo_state_file: Path, verbose: bool = False) -> bool:
+    """Compare GameState files using the diff_gamestate.py tool."""
+    script_dir = Path(__file__).parent
+    diff_gamestate_script = script_dir / "diff_gamestate.py"
+
+    cmd = [sys.executable, str(diff_gamestate_script), str(normal_state_file), str(stopgo_state_file)]
+    if verbose:
+        cmd.append("--verbose")
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    # Print output from diff tool
+    if result.stdout:
+        print(result.stdout, end='')
+    if result.stderr:
+        print(result.stderr, end='', file=sys.stderr)
+
+    # Return code 0 means match
+    return result.returncode == 0
 
 def run_test_for_deck(mtg_bin: Path, deck_path: str,
                       p1_controller: str, p2_controller: str, seed: int,
@@ -470,18 +411,18 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
                 stopgo_state_file.unlink()
             continue
 
-        # Compare logs for exact match
-        log_success, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path = compare_game_logs(
+        # Compare logs using diff_logs.py tool
+        log_success, normal_log_path, stopgo_log_path = compare_game_logs_via_tool(
             normal_log, stopgo_log, verbose=verbose,
             save_logs=keep_artifacts, log_dir=artifact_dir, test_name=test_name
         )
 
-        # Compare final gamestates
+        # Compare final gamestates using diff_gamestate.py tool
         gamestate_success = True
         normal_state_saved = None
         stopgo_state_saved = None
         if normal_state_file.exists() and stopgo_state_file.exists():
-            gamestate_success = compare_gamestates(normal_state_file, stopgo_state_file, verbose=verbose)
+            gamestate_success = compare_gamestates_via_tool(normal_state_file, stopgo_state_file, verbose=verbose)
 
             # Save gamestate files if requested
             if keep_artifacts and artifact_dir:
