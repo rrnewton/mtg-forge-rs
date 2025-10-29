@@ -280,8 +280,10 @@ def strip_metadata_fields(obj):
     if isinstance(obj, dict):
         result = {}
         for key, value in obj.items():
-            # Skip choice_id fields in ChoicePoint entries
-            if key == "choice_id":
+            # Skip metadata fields:
+            # - choice_id: unique ID for each choice (increments differently based on stop points)
+            # - undo_log: snapshot/replay metadata, not actual game state
+            if key in ("choice_id", "undo_log"):
                 continue
             result[key] = strip_metadata_fields(value)
         return result
@@ -290,7 +292,7 @@ def strip_metadata_fields(obj):
     else:
         return obj
 
-def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path) -> bool:
+def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path, verbose: bool = False) -> bool:
     """Compare final GameState snapshots for differences."""
     try:
         with open(normal_state_file, 'r') as f:
@@ -312,6 +314,24 @@ def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path) -> bool
     # Serialize both to canonical JSON for comparison
     normal_json = json.dumps(normal_gs, sort_keys=True, indent=2)
     stopgo_json = json.dumps(stopgo_gs, sort_keys=True, indent=2)
+
+    if normal_json != stopgo_json and verbose:
+        # Show differences using unified diff
+        import difflib
+        diff = difflib.unified_diff(
+            normal_json.splitlines(keepends=True),
+            stopgo_json.splitlines(keepends=True),
+            fromfile='normal_gamestate',
+            tofile='stopgo_gamestate',
+            lineterm=''
+        )
+        print_color(YELLOW, "    GameState differences:")
+        for i, line in enumerate(diff):
+            if i < 50:  # Show first 50 lines of diff
+                print(f"      {line.rstrip()}")
+            elif i == 50:
+                print("      ... (diff truncated)")
+                break
 
     return normal_json == stopgo_json
 
@@ -338,10 +358,27 @@ def compare_game_logs(normal_log: str, stopgo_log: str, verbose: bool = False) -
     for i in range(min(len(normal_actions), len(stopgo_actions))):
         if normal_actions[i] != stopgo_actions[i]:
             match = False
-            if verbose and i < 10:  # Show first 10 differences
+            if verbose and i < 20:  # Show first 20 differences
                 print_color(RED, f"  Line {i+1} differs:")
                 print(f"    Normal:  {normal_actions[i]}")
                 print(f"    Stop-go: {stopgo_actions[i]}")
+
+    # If lengths differ, show where they diverge
+    if verbose and len(normal_actions) != len(stopgo_actions):
+        shorter = min(len(normal_actions), len(stopgo_actions))
+        # Show last few actions before divergence
+        print_color(CYAN, f"  Last 5 common actions before divergence:")
+        for i in range(max(0, shorter - 5), shorter):
+            print(f"    [{i+1}] {normal_actions[i]}")
+
+        if len(normal_actions) > len(stopgo_actions):
+            print_color(YELLOW, f"  Normal has {len(normal_actions) - shorter} extra actions:")
+            for i in range(shorter, min(shorter + 10, len(normal_actions))):
+                print(f"    [{i+1}] {normal_actions[i]}")
+        else:
+            print_color(YELLOW, f"  Stop-go has {len(stopgo_actions) - shorter} extra actions:")
+            for i in range(shorter, min(shorter + 10, len(stopgo_actions))):
+                print(f"    [{i+1}] {stopgo_actions[i]}")
 
     return match, normal_actions, stopgo_actions
 
@@ -388,7 +425,7 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
         # Compare final gamestates
         gamestate_success = True
         if normal_state_file.exists() and stopgo_state_file.exists():
-            gamestate_success = compare_gamestates(normal_state_file, stopgo_state_file)
+            gamestate_success = compare_gamestates(normal_state_file, stopgo_state_file, verbose=verbose)
 
         # Check if this replay succeeded
         replay_success = log_success and gamestate_success
