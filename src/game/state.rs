@@ -274,6 +274,19 @@ impl GameState {
         Ok(())
     }
 
+    /// Print state hash to stderr if debug mode is enabled
+    ///
+    /// This is called before logging game actions to help debug divergence.
+    /// Prints format: [STATE:a3f7b2c1] message
+    #[inline]
+    pub fn debug_log_state_hash(&self, message: &str) {
+        if self.logger.debug_state_hash_enabled() {
+            use crate::game::{compute_state_hash, format_hash};
+            let hash = compute_state_hash(self);
+            eprintln!("[STATE:{}] {}", format_hash(hash), message);
+        }
+    }
+
     /// Draw a card for a player
     pub fn draw_card(&mut self, player_id: PlayerId) -> Result<Option<CardId>> {
         if let Some(zones) = self.get_player_zones_mut(player_id) {

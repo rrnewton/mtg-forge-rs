@@ -251,6 +251,16 @@ impl GameLogger {
         self.verbosity = verbosity;
     }
 
+    /// Enable state hash debugging
+    pub fn set_debug_state_hash(&mut self, enabled: bool) {
+        self.debug_state_hash = enabled;
+    }
+
+    /// Check if state hash debugging is enabled
+    pub fn debug_state_hash_enabled(&self) -> bool {
+        self.debug_state_hash
+    }
+
     /// Reset the step header flag
     pub fn reset_step_header(&mut self) {
         self.step_header_printed = false;
