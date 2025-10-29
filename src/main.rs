@@ -129,6 +129,10 @@ enum Commands {
         #[arg(long)]
         numeric_choices: bool,
 
+        /// Enable state hash debugging (prints hash before each action to stderr)
+        #[arg(long)]
+        debug_state_hash: bool,
+
         /// Stop after N choices by specified player(s) and save snapshot
         /// Format: [p1|p2|both]:choice:<NUM>
         /// Examples: p1:choice:5, both:choice:10
@@ -190,6 +194,7 @@ async fn main() -> Result<()> {
             load_all_cards,
             verbosity,
             numeric_choices,
+            debug_state_hash,
             stop_every,
             stop_when_fixed_exhausted,
             snapshot_output,
@@ -212,6 +217,7 @@ async fn main() -> Result<()> {
                 load_all_cards,
                 verbosity,
                 numeric_choices,
+                debug_state_hash,
                 stop_every,
                 stop_when_fixed_exhausted,
                 snapshot_output,
@@ -258,6 +264,7 @@ async fn run_tui(
     load_all_cards: bool,
     verbosity: VerbosityArg,
     numeric_choices: bool,
+    debug_state_hash: bool,
     stop_every: Option<String>,
     stop_when_fixed_exhausted: bool,
     snapshot_output: PathBuf,
@@ -437,6 +444,12 @@ async fn run_tui(
     if numeric_choices {
         game.logger.set_numeric_choices(true);
         println!("Numeric choices mode: enabled");
+    }
+
+    // Enable state hash debugging if requested
+    if debug_state_hash {
+        game.logger.set_debug_state_hash(true);
+        println!("State hash debugging: enabled (output to stderr)");
     }
 
     println!("Game initialized!");

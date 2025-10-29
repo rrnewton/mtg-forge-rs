@@ -805,8 +805,13 @@ impl<'a> GameLoop<'a> {
         if self.verbosity >= VerbosityLevel::Normal && !is_resumed_turn
         {
             let player_name = self.get_player_name(active_player);
+
+            // Debug: Log state hash before turn header
+            let turn_msg = format!("Turn {} - {}'s turn", self.turns_elapsed + 1, player_name);
+            self.game.debug_log_state_hash(&turn_msg);
+
             println!("\n========================================");
-            println!("Turn {} - {}'s turn", self.turns_elapsed + 1, player_name);
+            println!("{}", turn_msg);
             println!("========================================");
 
             // Print detailed battlefield state for both players
@@ -1290,6 +1295,16 @@ impl<'a> GameLoop<'a> {
         if self.game.turn.turn_number == 1 {
             self.log_normal("(First turn - no draw)");
             return Ok(None);
+        }
+
+        // Debug: Log state hash before draw (when not replaying)
+        #[cfg(feature = "verbose-logging")]
+        {
+            if !self.resumed_from_snapshot {
+                let player_name = self.get_player_name(active_player);
+                let draw_msg = format!("{} draws", player_name);
+                self.game.debug_log_state_hash(&draw_msg);
+            }
         }
 
         // Draw a card
@@ -1964,6 +1979,23 @@ impl<'a> GameLoop<'a> {
 
                         match ability {
                             crate::core::SpellAbility::PlayLand { card_id } => {
+                                // Debug: Log state hash before playing land
+                                if !self.replaying {
+                                    let card_name = self
+                                        .game
+                                        .cards
+                                        .get(card_id)
+                                        .map(|c| c.name.as_str())
+                                        .unwrap_or("Unknown");
+                                    let play_msg = format!(
+                                        "{} plays {} ({})",
+                                        self.get_player_name(current_priority),
+                                        card_name,
+                                        card_id
+                                    );
+                                    self.game.debug_log_state_hash(&play_msg);
+                                }
+
                                 // Play land - resolves directly (no stack)
                                 if let Err(e) = self.game.play_land(current_priority, card_id) {
                                     if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
@@ -2006,6 +2038,17 @@ impl<'a> GameLoop<'a> {
                                     .get(card_id)
                                     .map(|c| c.name.to_string())
                                     .unwrap_or_else(|_| "Unknown".to_string());
+
+                                // Debug: Log state hash before casting spell
+                                if !self.replaying {
+                                    let cast_msg = format!(
+                                        "{} casts {} ({}) (putting on stack)",
+                                        self.get_player_name(current_priority),
+                                        card_name,
+                                        card_id
+                                    );
+                                    self.game.debug_log_state_hash(&cast_msg);
+                                }
 
                                 if self.verbosity >= VerbosityLevel::Normal {
                                     if !self.replaying {
