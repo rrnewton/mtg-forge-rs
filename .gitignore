@@ -42,3 +42,4 @@ prompts/
 *.lock
 game.snapshot
 *.snapshot
+test_artifacts/
