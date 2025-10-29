@@ -138,58 +138,73 @@ if [ "$FORCE_VALIDATION" = false ] && [ -L "$LATEST_SYMLINK" ]; then
     # Extract hash from filename: validate_HASH[_dirty].log
     LATEST_HASH=$(echo "$LATEST_LOG" | sed -E 's/validate_([a-f0-9]+)(_dirty)?\.log/\1/')
 
-    if [ -n "$LATEST_HASH" ] && [ "$LATEST_HASH" != "$COMMIT_HASH" ]; then
+    # Validate that we extracted a valid git hash (40 hex characters)
+    if [ -n "$LATEST_HASH" ] && [[ "$LATEST_HASH" =~ ^[a-f0-9]{40}$ ]] && [ "$LATEST_HASH" != "$COMMIT_HASH" ]; then
         echo ""
         echo -e "${CYAN}Checking for documentation-only changes...${NC}"
         echo -e "${CYAN}Comparing: ${LATEST_HASH} → ${COMMIT_HASH}${NC}"
 
-        # Get list of changed files
-        CHANGED_FILES=$(git diff --name-only "$LATEST_HASH" "$COMMIT_HASH" 2>/dev/null || echo "")
-
-        if [ -z "$CHANGED_FILES" ]; then
-            # No changes at all - perfect cache hit
-            echo -e "${GREEN}✓ No changes detected - using cached validation${NC}"
-            CACHE_HIT=true
+        # Verify both commits exist before comparing
+        if ! git cat-file -e "$LATEST_HASH" 2>/dev/null; then
+            echo -e "${YELLOW}Warning: Previous validation commit ${LATEST_HASH} not found - forcing validation${NC}"
+            echo ""
+        elif ! git cat-file -e "$COMMIT_HASH" 2>/dev/null; then
+            echo -e "${YELLOW}Warning: Current commit ${COMMIT_HASH} not found - forcing validation${NC}"
+            echo ""
         else
-            # Check if all changed files are *.md
-            NON_MD_FILES=$(echo "$CHANGED_FILES" | grep -v '\.md$' || true)
+            # Get list of changed files (capture exit code separately)
+            CHANGED_FILES=$(git diff --name-only "$LATEST_HASH" "$COMMIT_HASH" 2>/dev/null)
+            DIFF_EXIT_CODE=$?
 
-            if [ -z "$NON_MD_FILES" ]; then
-                # Only .md files changed
-                echo -e "${GREEN}✓ Only documentation files changed:${NC}"
-                echo "$CHANGED_FILES" | sed 's/^/  - /'
-                echo -e "${GREEN}✓ Using cached validation${NC}"
+            if [ $DIFF_EXIT_CODE -ne 0 ]; then
+                # git diff failed - don't trust the result, force validation
+                echo -e "${YELLOW}Warning: git diff failed (exit code $DIFF_EXIT_CODE) - forcing validation${NC}"
+                echo ""
+            elif [ -z "$CHANGED_FILES" ]; then
+                # No changes at all - perfect cache hit
+                echo -e "${GREEN}✓ No changes detected - using cached validation${NC}"
                 CACHE_HIT=true
             else
-                # Non-markdown files changed
-                echo -e "${YELLOW}Code changes detected - validation required${NC}"
-                echo "Changed files:"
-                echo "$CHANGED_FILES" | sed 's/^/  - /'
-                CACHE_HIT=false
+                # Check if all changed files are *.md
+                NON_MD_FILES=$(echo "$CHANGED_FILES" | grep -v '\.md$' || true)
+
+                if [ -z "$NON_MD_FILES" ]; then
+                    # Only .md files changed
+                    echo -e "${GREEN}✓ Only documentation files changed:${NC}"
+                    echo "$CHANGED_FILES" | sed 's/^/  - /'
+                    echo -e "${GREEN}✓ Using cached validation${NC}"
+                    CACHE_HIT=true
+                else
+                    # Non-markdown files changed
+                    echo -e "${YELLOW}Code changes detected - validation required${NC}"
+                    echo "Changed files:"
+                    echo "$CHANGED_FILES" | sed 's/^/  - /'
+                    CACHE_HIT=false
+                fi
             fi
+
+            if [ "$CACHE_HIT" = true ]; then
+                # Create symlink from old log to new log
+                LATEST_LOG_PATH="$LOG_DIR/$LATEST_LOG"
+                ln -s "$(basename "$LATEST_LOG")" "$LOG_FILE"
+
+                # Update latest symlink to point to new hash
+                rm -f "$LATEST_SYMLINK"
+                ln -s "$(basename "$LOG_FILE")" "$LATEST_SYMLINK"
+
+                echo ""
+                echo "==================================="
+                echo -e "${GREEN}✓ Smart cache hit!${NC}"
+                echo "==================================="
+                echo ""
+                echo "Cached from: $LATEST_LOG_PATH"
+                echo "Linked to:   $LOG_FILE"
+                echo "Latest:      $LATEST_SYMLINK -> $(basename "$LOG_FILE")"
+                echo ""
+                exit 0
+            fi
+            echo ""
         fi
-
-        if [ "$CACHE_HIT" = true ]; then
-            # Create symlink from old log to new log
-            LATEST_LOG_PATH="$LOG_DIR/$LATEST_LOG"
-            ln -s "$(basename "$LATEST_LOG")" "$LOG_FILE"
-
-            # Update latest symlink to point to new hash
-            rm -f "$LATEST_SYMLINK"
-            ln -s "$(basename "$LOG_FILE")" "$LATEST_SYMLINK"
-
-            echo ""
-            echo "==================================="
-            echo -e "${GREEN}✓ Smart cache hit!${NC}"
-            echo "==================================="
-            echo ""
-            echo "Cached from: $LATEST_LOG_PATH"
-            echo "Linked to:   $LOG_FILE"
-            echo "Latest:      $LATEST_SYMLINK -> $(basename "$LOG_FILE")"
-            echo ""
-            exit 0
-        fi
-        echo ""
     fi
 fi
 
