@@ -686,31 +686,22 @@ async fn run_tui(
         game_loop = game_loop.with_stop_when_fixed_exhausted(&snapshot_output);
     }
 
-    // If resuming from snapshot, set replay action count to suppress logging during replay
+    // If resuming from snapshot, enable replay mode to suppress logging during replay
     // This must be done BEFORE enabling stop conditions, and applies regardless of stop_condition
     if let Some(ref snapshot) = loaded_snapshot {
         use mtg_forge_rs::undo::GameAction;
 
-        // Count only SpellAbility choices that actually execute actions (PlayLand or CastSpell)
-        // Exclude SpellAbility(None) which represents passing priority (no action logged)
-        let replay_action_count = snapshot
+        // Count ALL ChoicePoint entries - each one will trigger log_choice_point
+        // and we need to suppress logging for all of them until replay is complete
+        let replay_choice_count = snapshot
             .intra_turn_choices
             .iter()
-            .filter(|action| {
-                if let GameAction::ChoicePoint { choice, .. } = action {
-                    matches!(
-                        choice,
-                        Some(mtg_forge_rs::game::ReplayChoice::SpellAbility(Some(_)))
-                    )
-                } else {
-                    false
-                }
-            })
+            .filter(|action| matches!(action, GameAction::ChoicePoint { .. }))
             .count();
-        game_loop = game_loop.with_replay_action_count(replay_action_count);
+        game_loop = game_loop.with_replay_mode(replay_choice_count);
 
         if verbosity >= VerbosityLevel::Verbose {
-            println!("Replay action count (SpellAbility choices only): {}", replay_action_count);
+            println!("Replay mode enabled: {} choices to replay", replay_choice_count);
         }
     }
 
