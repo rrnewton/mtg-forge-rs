@@ -1,7 +1,7 @@
 # MTG Forge Rust - Development Makefile
 #
 # Quick reference for common development tasks
-.PHONY: help build test validate clean run check fmt clippy doc docs examples full-benchmark bench-snapshot bench-logging profile heapprofile count setup-claude claude-github claude-beads happy
+.PHONY: help build test validate clean run check fmt clippy doc docs examples full-benchmark bench-snapshot bench-logging profile heapprofile count setup-claude claude-github claude-beads happy code-dups
 
 # Default target - show available commands
 help:
@@ -59,6 +59,13 @@ fmt-check:
 clippy:
 	@echo "=== Running clippy ==="
 	cargo clippy --all-targets --all-features -- -D warnings
+
+# Detect code duplication
+code-dups:
+	which jscpd || npm install -g jscpd
+	jscpd src/ tests/ scripts/ --min-tokens=100
+# pmd cpd --minimum-tokens=100 -d src -d tests -l rust
+# pmd cpd --minimum-tokens=100 -d scripts -d tests -l python
 
 count:
 	@echo "=== Counting lines of code ==="
@@ -165,6 +172,9 @@ info:
 	@echo "Cargo version: $$(cargo --version)"
 	@cargo tree --depth 1
 
+# Benchmarking
+# ==============================================================================
+
 # Run all performance benchmarks (takes a long time)
 full-benchmark:
 	@echo "=== Running all benchmarks ==="
@@ -179,6 +189,9 @@ bench-snapshot:
 bench-logging:
 	@echo "=== Running stdout logging benchmark ==="
 	cargo bench --bench game_benchmark stdout_logging
+
+# Profiling
+# ==============================================================================
 
 # Profile game execution with flamegraph (CPU time profiling)
 # Requires cargo-flamegraph: cargo install flamegraph
