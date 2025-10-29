@@ -109,12 +109,15 @@ mod tests {
 
         let cleaned = strip_metadata(json);
 
-        assert_eq!(cleaned, serde_json::json!({
-            "turn_number": 5,
-            "player": {
-                "life": 20
-            }
-        }));
+        assert_eq!(
+            cleaned,
+            serde_json::json!({
+                "turn_number": 5,
+                "player": {
+                    "life": 20
+                }
+            })
+        );
     }
 
     #[test]

@@ -252,7 +252,10 @@ impl<'a> GameLoop<'a> {
         // Track which turn we resumed into (use turns_elapsed since that's the turn we're in)
         self.resumed_turn_number = Some(self.turns_elapsed);
         if self.verbosity >= VerbosityLevel::Verbose {
-            println!("📸 RESUMED FROM SNAPSHOT into turn {} (resumed_from_snapshot flag set)", self.turns_elapsed + 1);
+            println!(
+                "📸 RESUMED FROM SNAPSHOT into turn {} (resumed_from_snapshot flag set)",
+                self.turns_elapsed + 1
+            );
         }
         self
     }
@@ -669,54 +672,67 @@ impl<'a> GameLoop<'a> {
         let rewind_result = undo_log.rewind_to_turn_start(self.game);
         self.game.undo_log = undo_log;
 
-        if let Some((turn_number, intra_turn_choices, actions_rewound)) = rewind_result {
-            // Clone the game state at the turn boundary
-            let game_state_snapshot = self.game.clone();
-
-            // Capture controller RNG states (no borrow conflicts at this level!)
-            let p1_controller_state = controller1
-                .get_snapshot_state()
-                .and_then(|v| serde_json::from_value(v).ok());
-            let p2_controller_state = controller2
-                .get_snapshot_state()
-                .and_then(|v| serde_json::from_value(v).ok());
-
-            // Create snapshot with state + choices + controller states
-            let snapshot = crate::game::GameSnapshot::with_controller_state(
-                game_state_snapshot,
-                turn_number,
-                intra_turn_choices,
-                p1_controller_state,
-                p2_controller_state,
-            );
-
-            // Save to file
-            snapshot
-                .save_to_file(&snapshot_path)
-                .map_err(|e| MtgError::InvalidAction(format!("Failed to save snapshot: {}", e)))?;
-
-            // Log snapshot info to stderr (meta-information, not game output)
-            if self.verbosity >= VerbosityLevel::Minimal {
-                eprintln!("\n=== Snapshot Saved ===");
-                eprintln!("  Choice limit reached: {} choices", choice_limit);
-                eprintln!("  Snapshot saved to: {}", snapshot_path.as_ref().display());
-                eprintln!("  Turn number: {}", turn_number);
-                eprintln!("  Intra-turn choices: {}", snapshot.choice_count());
-                eprintln!("  Actions rewound: {}", actions_rewound);
+        let (turn_number, intra_turn_choices, actions_rewound) = if let Some(result) = rewind_result {
+            result
+        } else {
+            // No ChangeTurn action found - we're still in turn 1!
+            // Extract all ChoicePoint actions from the undo log as intra-turn choices
+            let mut intra_turn_choices = Vec::new();
+            for action in self.game.undo_log.actions() {
+                if let crate::undo::GameAction::ChoicePoint { .. } = action {
+                    intra_turn_choices.push(action.clone());
+                }
             }
 
-            // Return early with Snapshot end reason
-            Ok(GameResult {
-                winner: None,
-                turns_played: self.turns_elapsed,
-                end_reason: GameEndReason::Snapshot,
-            })
-        } else {
-            // Failed to rewind to turn start (shouldn't happen)
-            Err(MtgError::InvalidAction(
-                "Failed to rewind to turn start for snapshot".to_string(),
-            ))
+            if self.verbosity >= VerbosityLevel::Verbose {
+                eprintln!("  (Snapshot during turn 1 - no rewind needed, {} choice points captured)", intra_turn_choices.len());
+            }
+
+            // Turn 1, all choices are intra-turn, no actions were rewound
+            (1, intra_turn_choices, 0)
+        };
+
+        // Clone the game state at the turn boundary (or game start if turn 1)
+        let game_state_snapshot = self.game.clone();
+
+        // Capture controller RNG states (no borrow conflicts at this level!)
+        let p1_controller_state = controller1
+            .get_snapshot_state()
+            .and_then(|v| serde_json::from_value(v).ok());
+        let p2_controller_state = controller2
+            .get_snapshot_state()
+            .and_then(|v| serde_json::from_value(v).ok());
+
+        // Create snapshot with state + choices + controller states
+        let snapshot = crate::game::GameSnapshot::with_controller_state(
+            game_state_snapshot,
+            turn_number,
+            intra_turn_choices,
+            p1_controller_state,
+            p2_controller_state,
+        );
+
+        // Save to file
+        snapshot
+            .save_to_file(&snapshot_path)
+            .map_err(|e| MtgError::InvalidAction(format!("Failed to save snapshot: {}", e)))?;
+
+        // Log snapshot info to stderr (meta-information, not game output)
+        if self.verbosity >= VerbosityLevel::Minimal {
+            eprintln!("\n=== Snapshot Saved ===");
+            eprintln!("  Choice limit reached: {} choices", choice_limit);
+            eprintln!("  Snapshot saved to: {}", snapshot_path.as_ref().display());
+            eprintln!("  Turn number: {}", turn_number);
+            eprintln!("  Intra-turn choices: {}", snapshot.choice_count());
+            eprintln!("  Actions rewound: {}", actions_rewound);
         }
+
+        // Return early with Snapshot end reason
+        Ok(GameResult {
+            winner: None,
+            turns_played: self.turns_elapsed,
+            end_reason: GameEndReason::Snapshot,
+        })
     }
 
     /// Notify both controllers that the game has ended
@@ -802,8 +818,7 @@ impl<'a> GameLoop<'a> {
         // Skip turn header ONLY if we're in the resumed turn (it was already printed before snapshot)
         // Note: We intentionally do NOT check self.replaying here, because replaying can span
         // multiple turns and we want to print headers for new turns even during replay.
-        if self.verbosity >= VerbosityLevel::Normal && !is_resumed_turn
-        {
+        if self.verbosity >= VerbosityLevel::Normal && !is_resumed_turn {
             let player_name = self.get_player_name(active_player);
 
             // Debug: Log state hash before turn header
@@ -820,7 +835,10 @@ impl<'a> GameLoop<'a> {
 
         // Suppress turn header ONLY if we're in the resumed turn (it was already printed before snapshot)
         if is_resumed_turn && self.verbosity >= VerbosityLevel::Verbose {
-            println!("🔄 RESUMING TURN {} (will suppress header)", self.turns_elapsed + 1);
+            println!(
+                "🔄 RESUMING TURN {} (will suppress header)",
+                self.turns_elapsed + 1
+            );
         }
 
         // Reset turn-based state
@@ -847,7 +865,10 @@ impl<'a> GameLoop<'a> {
                 // Clear resumed tracking after we finish the resumed turn
                 if is_resumed_turn {
                     if self.verbosity >= VerbosityLevel::Verbose {
-                        println!("✅ FINISHING RESUMED TURN {} (will clear resumed tracking)", self.turns_elapsed);
+                        println!(
+                            "✅ FINISHING RESUMED TURN {} (will clear resumed tracking)",
+                            self.turns_elapsed
+                        );
                     }
                     self.resumed_from_snapshot = false;
                     self.resumed_turn_number = None;
