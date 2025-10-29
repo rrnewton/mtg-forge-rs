@@ -137,6 +137,8 @@ pub struct GameLoop<'a> {
     /// Flag indicating we just resumed from snapshot and should skip turn header on first turn
     /// Gets cleared after the first turn executes.
     resumed_from_snapshot: bool,
+    /// The turn number we resumed into (used to suppress header for that specific turn only)
+    resumed_turn_number: Option<u32>,
 }
 
 impl<'a> GameLoop<'a> {
@@ -158,6 +160,7 @@ impl<'a> GameLoop<'a> {
             replaying: false,
             replay_choices_remaining: 0,
             resumed_from_snapshot: false,
+            resumed_turn_number: None,
         }
     }
 
@@ -246,8 +249,10 @@ impl<'a> GameLoop<'a> {
         }
         // Always set resumed flag when loading from snapshot (even if 0 intra-turn choices)
         self.resumed_from_snapshot = true;
+        // Track which turn we resumed into (use turns_elapsed since that's the turn we're in)
+        self.resumed_turn_number = Some(self.turns_elapsed);
         if self.verbosity >= VerbosityLevel::Verbose {
-            println!("📸 RESUMED FROM SNAPSHOT (resumed_from_snapshot flag set)");
+            println!("📸 RESUMED FROM SNAPSHOT into turn {} (resumed_from_snapshot flag set)", self.turns_elapsed + 1);
         }
         self
     }
@@ -791,10 +796,13 @@ impl<'a> GameLoop<'a> {
     ) -> Result<Option<GameResult>> {
         let active_player = self.game.turn.active_player;
 
-        // Skip turn header if we just resumed from snapshot (it was already printed before snapshot)
-        if self.verbosity >= VerbosityLevel::Normal
-            && !self.replaying
-            && !self.resumed_from_snapshot
+        // Check if we're in the resumed turn (skip header) or a new turn (print header)
+        let is_resumed_turn = self.resumed_turn_number == Some(self.turns_elapsed);
+
+        // Skip turn header ONLY if we're in the resumed turn (it was already printed before snapshot)
+        // Note: We intentionally do NOT check self.replaying here, because replaying can span
+        // multiple turns and we want to print headers for new turns even during replay.
+        if self.verbosity >= VerbosityLevel::Normal && !is_resumed_turn
         {
             let player_name = self.get_player_name(active_player);
             println!("\n========================================");
@@ -803,6 +811,15 @@ impl<'a> GameLoop<'a> {
 
             // Print detailed battlefield state for both players
             self.print_battlefield_state();
+        }
+
+        // Clear resumed tracking after we finish the resumed turn
+        if is_resumed_turn {
+            if self.verbosity >= VerbosityLevel::Verbose {
+                println!("✅ FINISHING RESUMED TURN {} (will clear resumed tracking)", self.turns_elapsed + 1);
+            }
+            self.resumed_from_snapshot = false;
+            self.resumed_turn_number = None;
         }
 
         // Reset turn-based state
@@ -827,15 +844,6 @@ impl<'a> GameLoop<'a> {
                 // The turn change was already logged by advance_step()
                 break;
             }
-        }
-
-        // Clear resumed flag after first turn completes (not at the beginning!)
-        // This ensures all steps in the first turn after resumption suppress their logging
-        if self.resumed_from_snapshot {
-            if self.verbosity >= VerbosityLevel::Verbose {
-                println!("✅ RESUMED FLAG CLEARED (first turn complete)");
-            }
-            self.resumed_from_snapshot = false;
         }
 
         Ok(None)
