@@ -89,6 +89,8 @@ pub struct GameLogger {
     output_mode: OutputMode,
     /// Always show choice menus (set true in stop/go mode)
     show_choice_menu: bool,
+    /// Enable state hash debugging (print hash before each logged action)
+    debug_state_hash: bool,
 
     /// Bump allocator for temporary string formatting
     /// Reset after each format operation to avoid growth
@@ -108,6 +110,7 @@ impl GameLogger {
             output_format: OutputFormat::default(),
             output_mode: OutputMode::default(),
             show_choice_menu: false,
+            debug_state_hash: false,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         }
@@ -122,6 +125,7 @@ impl GameLogger {
             output_format: OutputFormat::default(),
             output_mode: OutputMode::default(),
             show_choice_menu: false,
+            debug_state_hash: false,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         }
@@ -422,6 +426,7 @@ impl Clone for GameLogger {
             output_format: self.output_format,
             output_mode: self.output_mode,
             show_choice_menu: self.show_choice_menu,
+            debug_state_hash: self.debug_state_hash,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         }
@@ -467,6 +472,7 @@ impl<'de> Deserialize<'de> for GameLogger {
             output_format: data.output_format,
             output_mode: data.output_mode,
             show_choice_menu: data.show_choice_menu,
+            debug_state_hash: false,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         })

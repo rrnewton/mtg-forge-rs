@@ -16,6 +16,7 @@ pub mod random_controller;
 pub mod replay_controller;
 pub mod snapshot;
 pub mod state;
+pub mod state_hash;
 pub mod stop_condition;
 pub mod zero_controller;
 
@@ -43,5 +44,6 @@ pub use random_controller::RandomController;
 pub use replay_controller::{ReplayChoice, ReplayController};
 pub use snapshot::{ControllerState, GameSnapshot, SnapshotError};
 pub use state::GameState;
+pub use state_hash::{compute_state_hash, format_hash};
 pub use stop_condition::{StopCondition, StopPlayer};
 pub use zero_controller::ZeroController;
