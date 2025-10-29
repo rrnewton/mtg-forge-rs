@@ -337,15 +337,16 @@ impl<'a> GameLoop<'a> {
         player_id: PlayerId,
     ) -> Result<Option<GameResult>> {
         // Check 1: Fixed controller exhaustion
-        if self.stop_when_fixed_exhausted && !controller.has_more_choices() {
-            if self.snapshot_path_for_fixed.is_some() {
-                // Just signal - snapshot will be saved at top level
-                return Ok(Some(GameResult {
-                    winner: None,
-                    turns_played: self.turns_elapsed,
-                    end_reason: GameEndReason::Snapshot,
-                }));
-            }
+        if self.stop_when_fixed_exhausted
+            && !controller.has_more_choices()
+            && self.snapshot_path_for_fixed.is_some()
+        {
+            // Just signal - snapshot will be saved at top level
+            return Ok(Some(GameResult {
+                winner: None,
+                turns_played: self.turns_elapsed,
+                end_reason: GameEndReason::Snapshot,
+            }));
         }
 
         // Check 2: Stop condition (--stop-every)
@@ -672,7 +673,8 @@ impl<'a> GameLoop<'a> {
         let rewind_result = undo_log.rewind_to_turn_start(self.game);
         self.game.undo_log = undo_log;
 
-        let (turn_number, intra_turn_choices, actions_rewound) = if let Some(result) = rewind_result {
+        let (turn_number, intra_turn_choices, actions_rewound) = if let Some(result) = rewind_result
+        {
             result
         } else {
             // No ChangeTurn action found - we're still in turn 1!
@@ -685,7 +687,10 @@ impl<'a> GameLoop<'a> {
             }
 
             if self.verbosity >= VerbosityLevel::Verbose {
-                eprintln!("  (Snapshot during turn 1 - no rewind needed, {} choice points captured)", intra_turn_choices.len());
+                eprintln!(
+                    "  (Snapshot during turn 1 - no rewind needed, {} choice points captured)",
+                    intra_turn_choices.len()
+                );
             }
 
             // Turn 1, all choices are intra-turn, no actions were rewound
