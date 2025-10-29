@@ -818,13 +818,9 @@ impl<'a> GameLoop<'a> {
             self.print_battlefield_state();
         }
 
-        // Clear resumed tracking after we finish the resumed turn
-        if is_resumed_turn {
-            if self.verbosity >= VerbosityLevel::Verbose {
-                println!("✅ FINISHING RESUMED TURN {} (will clear resumed tracking)", self.turns_elapsed + 1);
-            }
-            self.resumed_from_snapshot = false;
-            self.resumed_turn_number = None;
+        // Suppress turn header ONLY if we're in the resumed turn (it was already printed before snapshot)
+        if is_resumed_turn && self.verbosity >= VerbosityLevel::Verbose {
+            println!("🔄 RESUMING TURN {} (will suppress header)", self.turns_elapsed + 1);
         }
 
         // Reset turn-based state
@@ -847,6 +843,27 @@ impl<'a> GameLoop<'a> {
             if self.game.turn.current_step == crate::game::Step::Untap {
                 // We wrapped back to Untap, which means a new turn started
                 // The turn change was already logged by advance_step()
+
+                // Clear resumed tracking after we finish the resumed turn
+                if is_resumed_turn {
+                    if self.verbosity >= VerbosityLevel::Verbose {
+                        println!("✅ FINISHING RESUMED TURN {} (will clear resumed tracking)", self.turns_elapsed);
+                    }
+                    self.resumed_from_snapshot = false;
+                    self.resumed_turn_number = None;
+
+                    // Also clear replay mode at end of resumed turn
+                    // This handles the case where all intra-turn choices have been replayed
+                    // but we haven't yet reached the next choice point (e.g., turn ended naturally)
+                    if self.replaying {
+                        if self.verbosity >= VerbosityLevel::Verbose {
+                            println!("✅ CLEARING REPLAY MODE at end of resumed turn");
+                        }
+                        self.replaying = false;
+                        self.replay_choices_remaining = 0;
+                    }
+                }
+
                 break;
             }
         }

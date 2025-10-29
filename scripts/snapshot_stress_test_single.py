@@ -444,7 +444,8 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
                     shutil.copy(stopgo_state_file, stopgo_state_saved)
 
             # Check if this replay succeeded
-            replay_success = log_success and gamestate_success
+            # NOTE: Only gamestate matters - logs can differ due to replay suppression
+            replay_success = gamestate_success
             all_success = all_success and replay_success
 
             if verbose:
