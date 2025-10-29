@@ -335,18 +335,39 @@ def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path, verbose
 
     return normal_json == stopgo_json
 
-def compare_game_logs(normal_log: str, stopgo_log: str, verbose: bool = False) -> Tuple[bool, List[str], List[str]]:
+def compare_game_logs(normal_log: str, stopgo_log: str, verbose: bool = False,
+                      save_logs: bool = False, log_dir: Optional[Path] = None,
+                      test_name: str = "") -> Tuple[bool, List[str], List[str], Optional[Path], Optional[Path]]:
     """Compare game action logs for exact match.
 
-    Returns: (match_success, normal_actions, stopgo_actions)
+    Returns: (match_success, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path)
     """
     normal_actions = filter_game_actions(normal_log)
     stopgo_actions = filter_game_actions(stopgo_log)
 
+    # Save logs if requested
+    normal_log_path = None
+    stopgo_log_path = None
+    if save_logs and log_dir:
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Sanitize test name for filename
+        safe_name = test_name.replace(" ", "_").replace("/", "_")
+
+        normal_log_path = log_dir / f"{safe_name}_normal.log"
+        stopgo_log_path = log_dir / f"{safe_name}_stopgo.log"
+
+        # Write filtered actions to files
+        with open(normal_log_path, 'w') as f:
+            f.write('\n'.join(normal_actions))
+
+        with open(stopgo_log_path, 'w') as f:
+            f.write('\n'.join(stopgo_actions))
+
     if len(normal_actions) == 0 or len(stopgo_actions) == 0:
         if verbose:
             print_color(RED, f"  Empty action logs: normal={len(normal_actions)}, stopgo={len(stopgo_actions)}")
-        return False, normal_actions, stopgo_actions
+        return False, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path
 
     # Compare action by action
     match = True
@@ -380,11 +401,12 @@ def compare_game_logs(normal_log: str, stopgo_log: str, verbose: bool = False) -
             for i in range(shorter, min(shorter + 10, len(stopgo_actions))):
                 print(f"    [{i+1}] {stopgo_actions[i]}")
 
-    return match, normal_actions, stopgo_actions
+    return match, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path
 
 def run_test_for_deck(mtg_bin: Path, deck_path: str,
                       p1_controller: str, p2_controller: str, seed: int,
-                      num_replays: int = 3, verbose: bool = False) -> bool:
+                      num_replays: int = 3, verbose: bool = False,
+                      keep_logs: bool = False, log_dir: Optional[Path] = None) -> bool:
     """Run complete test for a specific deck with multiple replay runs."""
     # Create temp files for gamestates
     import tempfile
@@ -395,6 +417,9 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
         mtg_bin, deck_path, deck_path, p1_controller, p2_controller, seed,
         save_gamestate=normal_state_file
     )
+
+    # Extract deck name for test naming
+    deck_name = Path(deck_path).stem
 
     # Run multiple stop-and-go games with different random stop points
     all_success = True
@@ -420,7 +445,11 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
             continue
 
         # Compare logs for exact match
-        log_success, normal_actions, stopgo_actions = compare_game_logs(normal_log, stopgo_log, verbose=verbose)
+        test_name = f"{deck_name}_{p1_controller}v{p2_controller}_seed{seed}_replay{replay_num+1}"
+        log_success, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path = compare_game_logs(
+            normal_log, stopgo_log, verbose=verbose,
+            save_logs=keep_logs, log_dir=log_dir, test_name=test_name
+        )
 
         # Compare final gamestates
         gamestate_success = True
@@ -440,6 +469,19 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
                     print_color(RED, "    - Log comparison failed")
                 if not gamestate_success:
                     print_color(RED, "    - GameState comparison failed")
+
+        # Report log file paths if logs were saved
+        if keep_logs and normal_log_path and stopgo_log_path:
+            if not verbose and not replay_success:
+                # Always show log paths for failures, even without verbose
+                print_color(CYAN, f"  Saved logs for replay {replay_num+1}:")
+                print(f"    Normal:  {normal_log_path}")
+                print(f"    Stop-go: {stopgo_log_path}")
+            elif verbose:
+                # In verbose mode, show paths for all replays
+                print_color(CYAN, f"  Saved logs for replay {replay_num+1}:")
+                print(f"    Normal:  {normal_log_path}")
+                print(f"    Stop-go: {stopgo_log_path}")
 
         # Cleanup this replay's gamestate file
         if stopgo_state_file.exists():
@@ -504,6 +546,19 @@ def parse_args():
         help='Show detailed comparison output including log differences'
     )
 
+    parser.add_argument(
+        '--keep-logs',
+        action='store_true',
+        help='Save filtered game action logs for inspection (default: logs are not saved)'
+    )
+
+    parser.add_argument(
+        '--log-dir',
+        type=str,
+        default='test_logs',
+        help='Directory to save logs when --keep-logs is used (default: test_logs/)'
+    )
+
     return parser.parse_args()
 
 
@@ -533,7 +588,8 @@ def main():
     # Run test
     passed = run_test_for_deck(
         mtg_bin, args.deck_path, args.p1_controller, args.p2_controller,
-        args.seed, num_replays=args.replays, verbose=args.verbose
+        args.seed, num_replays=args.replays, verbose=args.verbose,
+        keep_logs=args.keep_logs, log_dir=Path(args.log_dir) if args.keep_logs else None
     )
 
     if passed:
