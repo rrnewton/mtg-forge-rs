@@ -54,34 +54,20 @@ impl<'a> GameInitializer<'a> {
         // Now load decks sequentially - cards will come from cache, ensuring deterministic order
         // Deck 1: card1, card2, card3, ...
         // Deck 2: card1, card2, card3, ...
-        self.load_deck_into_game(&mut game, player1_id, player1_deck)
-            .await?;
+        self.load_deck_into_game(&mut game, player1_id, player1_deck).await?;
 
-        self.load_deck_into_game(&mut game, player2_id, player2_deck)
-            .await?;
+        self.load_deck_into_game(&mut game, player2_id, player2_deck).await?;
 
         Ok(game)
     }
 
     /// Load a deck into a player's library
-    async fn load_deck_into_game(
-        &self,
-        game: &mut GameState,
-        player_id: PlayerId,
-        deck: &DeckList,
-    ) -> Result<()> {
+    async fn load_deck_into_game(&self, game: &mut GameState, player_id: PlayerId, deck: &DeckList) -> Result<()> {
         for entry in &deck.main_deck {
             // Look up the card definition
-            let card_def = self
-                .card_db
-                .get_card(&entry.card_name)
-                .await?
-                .ok_or_else(|| {
-                    MtgError::InvalidCardFormat(format!(
-                        "Card not found in database: {}",
-                        entry.card_name
-                    ))
-                })?;
+            let card_def = self.card_db.get_card(&entry.card_name).await?.ok_or_else(|| {
+                MtgError::InvalidCardFormat(format!("Card not found in database: {}", entry.card_name))
+            })?;
 
             // Create the requested number of copies
             for _ in 0..entry.count {

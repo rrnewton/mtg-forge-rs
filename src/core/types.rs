@@ -521,11 +521,7 @@ impl CounterType {
     /// rather than `Result<Self, Error>`, which is more convenient for our use case.
     pub fn parse(s: &str) -> Option<Self> {
         // Replace special characters for power/toughness counters
-        let normalized = s
-            .replace('/', "")
-            .replace('+', "P")
-            .replace('-', "M")
-            .to_uppercase();
+        let normalized = s.replace('/', "").replace('+', "P").replace('-', "M").to_uppercase();
 
         match normalized.as_str() {
             "M1M1" => Some(CounterType::M1M1),

@@ -64,11 +64,7 @@ impl ReplayController {
     /// * `player_id` - The player ID this controller manages
     /// * `inner` - The controller to delegate to after replay is exhausted
     /// * `replay_choices` - Sequence of choices to replay before delegating
-    pub fn new(
-        player_id: PlayerId,
-        inner: Box<dyn PlayerController>,
-        replay_choices: Vec<ReplayChoice>,
-    ) -> Self {
+    pub fn new(player_id: PlayerId, inner: Box<dyn PlayerController>, replay_choices: Vec<ReplayChoice>) -> Self {
         ReplayController {
             player_id,
             inner,
@@ -172,15 +168,10 @@ impl PlayerController for ReplayController {
         }
 
         // No replay choice available, delegate to inner controller
-        self.inner
-            .choose_mana_sources_to_pay(view, cost, available_sources)
+        self.inner.choose_mana_sources_to_pay(view, cost, available_sources)
     }
 
-    fn choose_attackers(
-        &mut self,
-        view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         // Try to consume a replay choice first
         if let Some(attackers) = self.consume_replay_choice(|c| {
             if let ReplayChoice::Attackers(a) = c {
@@ -214,8 +205,7 @@ impl PlayerController for ReplayController {
         }
 
         // No replay choice available, delegate to inner controller
-        self.inner
-            .choose_blockers(view, available_blockers, attackers)
+        self.inner.choose_blockers(view, available_blockers, attackers)
     }
 
     fn choose_damage_assignment_order(
@@ -236,8 +226,7 @@ impl PlayerController for ReplayController {
         }
 
         // No replay choice available, delegate to inner controller
-        self.inner
-            .choose_damage_assignment_order(view, attacker, blockers)
+        self.inner.choose_damage_assignment_order(view, attacker, blockers)
     }
 
     fn choose_cards_to_discard(
@@ -299,11 +288,7 @@ mod tests {
         let mut replay = ReplayController::new(player_id, inner, replay_choices);
 
         // Create a minimal game state for testing
-        let game = crate::game::GameState::new_two_player(
-            "Player 1".to_string(),
-            "Player 2".to_string(),
-            20,
-        );
+        let game = crate::game::GameState::new_two_player("Player 1".to_string(), "Player 2".to_string(), 20);
         let view = crate::game::GameStateView::new(&game, player_id);
 
         // First call should return the replayed choice

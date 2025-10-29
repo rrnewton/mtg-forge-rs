@@ -189,8 +189,7 @@ impl ManaPool {
         }
 
         // Check if we have enough mana for generic cost
-        let available =
-            self.white + self.blue + self.black + self.red + self.green + self.colorless;
+        let available = self.white + self.blue + self.black + self.red + self.green + self.colorless;
         let required = cost.cmc();
         available >= required
     }

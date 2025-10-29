@@ -114,8 +114,7 @@
 
 use crate::core::{CardId, ManaCost, PlayerId};
 use crate::game::mana_payment::{
-    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource,
-    SimpleManaResolver,
+    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource, SimpleManaResolver,
 };
 use crate::game::GameState;
 
@@ -256,8 +255,7 @@ impl ManaEngine {
                     // Determine if this source has summoning sickness (for creatures with mana abilities)
                     let has_summoning_sickness = if card.is_creature() {
                         if let Some(entered_turn) = card.turn_entered_battlefield {
-                            entered_turn == game.turn.turn_number
-                                && !card.has_keyword(&crate::core::Keyword::Haste)
+                            entered_turn == game.turn.turn_number && !card.has_keyword(&crate::core::Keyword::Haste)
                         } else {
                             false
                         }

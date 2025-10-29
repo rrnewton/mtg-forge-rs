@@ -4,9 +4,7 @@
 //! This validates that non-creature permanents are properly supported.
 
 use mtg_forge_rs::core::PlayerId;
-use mtg_forge_rs::loader::{
-    prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer,
-};
+use mtg_forge_rs::loader::{prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -47,11 +45,7 @@ async fn main() {
         .await
         .expect("Failed to prefetch cards");
     let elapsed = start.elapsed();
-    println!(
-        "Loaded {} unique cards in {:.2} ms\n",
-        count,
-        elapsed.as_millis()
-    );
+    println!("Loaded {} unique cards in {:.2} ms\n", count, elapsed.as_millis());
 
     // Initialize the game
     let initializer = GameInitializer::new(&card_db);
@@ -65,10 +59,7 @@ async fn main() {
     let bob = PlayerId::new(1);
 
     println!("\n=== Initial Game State ===");
-    println!(
-        "  Alice: {} life",
-        game.players[alice.as_u32() as usize].life
-    );
+    println!("  Alice: {} life", game.players[alice.as_u32() as usize].life);
     println!("  Bob: {} life", game.players[bob.as_u32() as usize].life);
 
     // Count card types in deck to verify loading
@@ -127,8 +118,7 @@ async fn main() {
 
         // Play the mountain (special action, no casting)
         println!("\n=== Alice plays Mountain (special action) ===");
-        game.play_land(alice, mountain)
-            .expect("Failed to play land");
+        game.play_land(alice, mountain).expect("Failed to play land");
         println!("  ✓ Mountain entered the battlefield");
 
         // Check battlefield
@@ -148,8 +138,7 @@ async fn main() {
 
         // Tap the mountain for mana
         println!("\n=== Alice taps Mountain for mana ===");
-        game.tap_for_mana(alice, mountain)
-            .expect("Failed to tap for mana");
+        game.tap_for_mana(alice, mountain).expect("Failed to tap for mana");
         let mana = &game.players[alice.as_u32() as usize].mana_pool;
         println!("  Alice's mana pool: R={}", mana.red);
 
@@ -175,8 +164,7 @@ async fn main() {
 
                 // Resolve the spell
                 println!("\n=== Resolving Sol Ring ===");
-                game.resolve_spell(sol_ring, &[])
-                    .expect("Failed to resolve");
+                game.resolve_spell(sol_ring, &[]).expect("Failed to resolve");
                 println!("  ✓ Sol Ring resolved");
 
                 // Check battlefield

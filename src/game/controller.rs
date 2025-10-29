@@ -140,20 +140,12 @@ impl<'a> GameStateView<'a> {
 
     /// Get a card's name
     pub fn card_name(&self, card_id: CardId) -> Option<String> {
-        self.game
-            .cards
-            .get(card_id)
-            .ok()
-            .map(|c| c.name.to_string())
+        self.game.cards.get(card_id).ok().map(|c| c.name.to_string())
     }
 
     /// Check if a card is a land
     pub fn is_land(&self, card_id: CardId) -> bool {
-        self.game
-            .cards
-            .get(card_id)
-            .map(|c| c.is_land())
-            .unwrap_or(false)
+        self.game.cards.get(card_id).map(|c| c.is_land()).unwrap_or(false)
     }
 
     /// Get the current step
@@ -180,11 +172,7 @@ impl<'a> GameStateView<'a> {
 
     /// Check if a card is tapped
     pub fn is_tapped(&self, card_id: CardId) -> bool {
-        self.game
-            .cards
-            .get(card_id)
-            .map(|c| c.tapped)
-            .unwrap_or(false)
+        self.game.cards.get(card_id).map(|c| c.tapped).unwrap_or(false)
     }
 
     /// Get access to the game logger
@@ -197,11 +185,7 @@ impl<'a> GameStateView<'a> {
 
     /// Get player's current life total
     pub fn life(&self) -> i32 {
-        self.game
-            .get_player(self.player_id)
-            .ok()
-            .map(|p| p.life)
-            .unwrap_or(0)
+        self.game.get_player(self.player_id).ok().map(|p| p.life).unwrap_or(0)
     }
 
     /// Get player's name
@@ -219,11 +203,7 @@ impl<'a> GameStateView<'a> {
 
     /// Get a specific player's life total
     pub fn player_life(&self, player_id: PlayerId) -> i32 {
-        self.game
-            .get_player(player_id)
-            .ok()
-            .map(|p| p.life)
-            .unwrap_or(0)
+        self.game.get_player(player_id).ok().map(|p| p.life).unwrap_or(0)
     }
 
     /// Get all opponent player IDs
@@ -356,11 +336,7 @@ pub trait PlayerController {
     ///
     /// Called during the declare attackers step.
     /// Returns a list of creature card IDs that should attack.
-    fn choose_attackers(
-        &mut self,
-        view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]>;
+    fn choose_attackers(&mut self, view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]>;
 
     /// Choose how to block attacking creatures
     ///
@@ -391,12 +367,8 @@ pub trait PlayerController {
     /// Choose cards to discard to maximum hand size
     ///
     /// Called during cleanup step if hand size exceeds maximum.
-    fn choose_cards_to_discard(
-        &mut self,
-        view: &GameStateView,
-        hand: &[CardId],
-        count: usize,
-    ) -> SmallVec<[CardId; 7]>;
+    fn choose_cards_to_discard(&mut self, view: &GameStateView, hand: &[CardId], count: usize)
+        -> SmallVec<[CardId; 7]>;
 
     /// Notification that priority was passed
     ///

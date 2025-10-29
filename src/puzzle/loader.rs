@@ -16,10 +16,7 @@ use std::collections::HashMap;
 ///
 /// This creates a game with the exact state specified in the puzzle file,
 /// including player life, zones, card states, etc.
-pub async fn load_puzzle_into_game(
-    puzzle: &PuzzleFile,
-    card_db: &AsyncCardDatabase,
-) -> Result<GameState> {
+pub async fn load_puzzle_into_game(puzzle: &PuzzleFile, card_db: &AsyncCardDatabase) -> Result<GameState> {
     let state_def = &puzzle.state;
 
     // Create players
@@ -65,8 +62,7 @@ pub async fn load_puzzle_into_game(
         // Load cards into hand
         for card_def in &player_state.hand {
             let card_id = {
-                let card =
-                    create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
+                let card = create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
                 card.id
             };
             if let Some(id) = card_def.id {
@@ -81,8 +77,7 @@ pub async fn load_puzzle_into_game(
         // Load cards into battlefield
         for card_def in &player_state.battlefield {
             let card_id = {
-                let card =
-                    create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
+                let card = create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
                 card.id
             };
             if let Some(id) = card_def.id {
@@ -94,8 +89,7 @@ pub async fn load_puzzle_into_game(
         // Load cards into graveyard
         for card_def in &player_state.graveyard {
             let card_id = {
-                let card =
-                    create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
+                let card = create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
                 card.id
             };
             if let Some(id) = card_def.id {
@@ -110,8 +104,7 @@ pub async fn load_puzzle_into_game(
         // Load cards into library
         for card_def in &player_state.library {
             let card_id = {
-                let card =
-                    create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
+                let card = create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
                 card.id
             };
             if let Some(id) = card_def.id {
@@ -126,8 +119,7 @@ pub async fn load_puzzle_into_game(
         // Load cards into exile
         for card_def in &player_state.exile {
             let card_id = {
-                let card =
-                    create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
+                let card = create_card_from_definition(card_def, player_id, &mut game, card_db).await?;
                 card.id
             };
             if let Some(id) = card_def.id {
@@ -157,9 +149,7 @@ async fn create_card_from_definition<'a>(
 ) -> Result<&'a mut Card> {
     // Check if it's a token
     if card_def.is_token() {
-        return Err(MtgError::InvalidAction(
-            "Token support not yet implemented".to_string(),
-        ));
+        return Err(MtgError::InvalidAction("Token support not yet implemented".to_string()));
     }
 
     // Load card from database
@@ -221,11 +211,7 @@ fn apply_card_modifiers(
                             .chain(p.exile.iter())
                     })
                     .find(|def| def.name == card.name.as_str())
-                    .map(|def| {
-                        def.modifiers
-                            .iter()
-                            .any(|m| matches!(m, CardModifier::SummonSick))
-                    })
+                    .map(|def| def.modifiers.iter().any(|m| matches!(m, CardModifier::SummonSick)))
                     .unwrap_or(false);
 
                 // If SummonSick modifier is present, set entered this turn

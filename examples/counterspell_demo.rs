@@ -56,9 +56,7 @@ fn main() -> Result<()> {
     counterspell.types.push(CardType::Instant);
     counterspell.mana_cost = ManaCost::from_string("UU");
     // Target Lightning Bolt
-    counterspell
-        .effects
-        .push(Effect::CounterSpell { target: bolt_id });
+    counterspell.effects.push(Effect::CounterSpell { target: bolt_id });
     game.cards.insert(counter_id, counterspell);
 
     // Put Counterspell on the stack (on top of Lightning Bolt)
@@ -86,11 +84,7 @@ fn main() -> Result<()> {
 
     // Check stack
     println!("Stack: {} spell(s)", game.stack.cards.len());
-    assert_eq!(
-        game.stack.cards.len(),
-        0,
-        "Stack should be empty after resolution"
-    );
+    assert_eq!(game.stack.cards.len(), 0, "Stack should be empty after resolution");
 
     // Check Bob's life
     let bob = game.get_player(bob_id)?;

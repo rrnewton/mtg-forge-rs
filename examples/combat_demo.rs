@@ -10,9 +10,7 @@
 //!
 //! Uses classic cards from Limited/Alpha/Beta/4th Edition
 
-use mtg_forge_rs::core::{
-    Card, CardId, CardType, EntityId, ManaCost, Player, PlayerId, SpellAbility,
-};
+use mtg_forge_rs::core::{Card, CardId, CardType, EntityId, ManaCost, Player, PlayerId, SpellAbility};
 use mtg_forge_rs::game::controller::PlayerController;
 use mtg_forge_rs::game::{GameLoop, GameState, GameStateView, Step};
 use smallvec::SmallVec;
@@ -67,19 +65,14 @@ impl PlayerController for AliceController {
         SmallVec::new() // Alice doesn't tap for mana in this demo
     }
 
-    fn choose_attackers(
-        &mut self,
-        view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         // Attack with all our creatures that are in the list
         let mut attackers = SmallVec::new();
         for &creature_id in available_creatures {
             if self.creatures_to_attack.contains(&creature_id) {
                 println!(
                     "  Alice declares {} as attacker",
-                    view.get_card_name(creature_id)
-                        .unwrap_or_else(|| "Unknown".to_string())
+                    view.get_card_name(creature_id).unwrap_or_else(|| "Unknown".to_string())
                 );
                 attackers.push(creature_id);
             }
@@ -174,11 +167,7 @@ impl PlayerController for BobController {
         SmallVec::new() // Bob doesn't tap for mana in this demo
     }
 
-    fn choose_attackers(
-        &mut self,
-        _view: &GameStateView,
-        _available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, _view: &GameStateView, _available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         SmallVec::new() // Bob doesn't attack in this demo
     }
 
@@ -195,8 +184,7 @@ impl PlayerController for BobController {
             if available_blockers.contains(blocker_id) {
                 println!(
                     "  Bob: {} blocks {}",
-                    view.get_card_name(*blocker_id)
-                        .unwrap_or_else(|| "Unknown".to_string()),
+                    view.get_card_name(*blocker_id).unwrap_or_else(|| "Unknown".to_string()),
                     view.get_card_name(*attacker_id)
                         .unwrap_or_else(|| "Unknown".to_string())
                 );
@@ -257,40 +245,12 @@ fn main() {
     println!("=== Creating Creatures ===");
 
     // Alice gets a Grizzly Bears (2/2) and a Gray Ogre (2/2)
-    let bears_id = create_creature(
-        &mut game,
-        alice,
-        "Grizzly Bears",
-        2,
-        2,
-        "Alice's 2/2 creature [4ED]",
-    );
-    let ogre_id = create_creature(
-        &mut game,
-        alice,
-        "Gray Ogre",
-        2,
-        2,
-        "Alice's 2/2 creature [4ED]",
-    );
+    let bears_id = create_creature(&mut game, alice, "Grizzly Bears", 2, 2, "Alice's 2/2 creature [4ED]");
+    let ogre_id = create_creature(&mut game, alice, "Gray Ogre", 2, 2, "Alice's 2/2 creature [4ED]");
 
     // Bob gets a Wall of Stone (0/8) and a Hill Giant (3/3)
-    let wall_id = create_creature(
-        &mut game,
-        bob,
-        "Wall of Stone",
-        0,
-        8,
-        "Bob's 0/8 defender [4ED]",
-    );
-    let giant_id = create_creature(
-        &mut game,
-        bob,
-        "Hill Giant",
-        3,
-        3,
-        "Bob's 3/3 creature [4ED]",
-    );
+    let wall_id = create_creature(&mut game, bob, "Wall of Stone", 0, 8, "Bob's 0/8 defender [4ED]");
+    let giant_id = create_creature(&mut game, bob, "Hill Giant", 3, 3, "Bob's 3/3 creature [4ED]");
 
     println!();
     print_battlefield(&game, alice, bob);

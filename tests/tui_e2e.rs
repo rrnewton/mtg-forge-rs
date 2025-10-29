@@ -55,10 +55,7 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
 
     // Verify game completed successfully
     assert!(result.winner.is_some(), "Game should have a winner");
-    assert!(
-        result.turns_played > 0,
-        "Game should have played some turns"
-    );
+    assert!(result.turns_played > 0, "Game should have played some turns");
 
     // Note: Winner with seed 42 is not checked here because it changes whenever
     // game initialization logic changes (e.g., drawing opening hands).
@@ -67,10 +64,7 @@ async fn test_tui_zero_vs_zero_simple_bolt() -> Result<()> {
     // Verify the game ended due to player death (Lightning Bolts dealing damage)
     // With the correct spell casting implementation, players cast bolts and deal damage
     assert!(
-        matches!(
-            result.end_reason,
-            mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
-        ),
+        matches!(result.end_reason, mtg_forge_rs::game::GameEndReason::PlayerDeath(_)),
         "Game should end by player death with Lightning Bolts being cast: {:?}",
         result.end_reason
     );
@@ -108,13 +102,7 @@ async fn test_tui_deterministic_with_seed() -> Result<()> {
     for _ in 0..2 {
         let game_init = GameInitializer::new(&card_db);
         let mut game = game_init
-            .init_game(
-                "Player 1".to_string(),
-                &deck,
-                "Player 2".to_string(),
-                &deck,
-                20,
-            )
+            .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
             .await?;
         game.seed_rng(12345);
 
@@ -158,13 +146,7 @@ async fn test_tui_runs_to_completion() -> Result<()> {
     // Run a game and verify it completes
     let game_init = GameInitializer::new(&card_db);
     let mut game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &deck,
-            "Player 2".to_string(),
-            &deck,
-            20,
-        )
+        .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
         .await?;
     game.seed_rng(54321);
 
@@ -211,13 +193,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     // Run a game with random controllers
     let game_init = GameInitializer::new(&card_db);
     let mut game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &deck,
-            "Player 2".to_string(),
-            &deck,
-            20,
-        )
+        .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
         .await?;
     game.seed_rng(42);
 
@@ -253,10 +229,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     // With the simple bolt deck and random controllers, someone should die
     // (not just deck out)
     assert!(
-        matches!(
-            result.end_reason,
-            mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
-        ),
+        matches!(result.end_reason, mtg_forge_rs::game::GameEndReason::PlayerDeath(_)),
         "Game should end by player death with random controllers casting bolts: {:?}",
         result.end_reason
     );
@@ -265,10 +238,7 @@ async fn test_tui_random_vs_random_deals_damage() -> Result<()> {
     let winner = result.winner.unwrap();
     let loser = if winner == p1_id { p2_id } else { p1_id };
     let loser_life = game.get_player(loser)?.life;
-    assert!(
-        loser_life <= 0,
-        "Loser should have <= 0 life, got {loser_life}"
-    );
+    assert!(loser_life <= 0, "Loser should have <= 0 life, got {loser_life}");
 
     // Note: Winner may also have negative life if both players dealt lethal
     // damage in the same priority round. The game picks the first dead player
@@ -297,13 +267,7 @@ async fn test_discard_to_hand_size() -> Result<()> {
     // Initialize game
     let game_init = GameInitializer::new(&card_db);
     let mut game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &deck,
-            "Player 2".to_string(),
-            &deck,
-            20,
-        )
+        .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
         .await?;
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -323,14 +287,8 @@ async fn test_discard_to_hand_size() -> Result<()> {
     }
 
     // Verify Player 1 has 10 cards in hand
-    let hand_size_before = game
-        .get_player_zones(p1_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
-    assert_eq!(
-        hand_size_before, 10,
-        "Player 1 should start with 10 cards in hand"
-    );
+    let hand_size_before = game.get_player_zones(p1_id).map(|z| z.hand.cards.len()).unwrap_or(0);
+    assert_eq!(hand_size_before, 10, "Player 1 should start with 10 cards in hand");
 
     // Create controllers and run cleanup step
     let mut controller1 = mtg_forge_rs::game::zero_controller::ZeroController::new(p1_id);
@@ -352,10 +310,7 @@ async fn test_discard_to_hand_size() -> Result<()> {
         .get_player_zones(p1_id)
         .map(|z| z.hand.cards.len())
         .unwrap_or(0);
-    assert_eq!(
-        hand_size_after, 7,
-        "Player 1 should have discarded down to 7 cards"
-    );
+    assert_eq!(hand_size_after, 7, "Player 1 should have discarded down to 7 cards");
 
     // Verify 3 cards were discarded to graveyard
     let graveyard_size = game_loop
@@ -422,10 +377,7 @@ async fn test_creature_combat_game() -> Result<()> {
 
     // Verify game completed
     assert!(result.winner.is_some(), "Game should have a winner");
-    assert!(
-        result.turns_played > 0,
-        "Game should have played some turns"
-    );
+    assert!(result.turns_played > 0, "Game should have played some turns");
 
     // Verify that combat happened (at least one player should have taken damage)
     let p1_life = game.get_player(p1_id)?.life;
@@ -438,10 +390,7 @@ async fn test_creature_combat_game() -> Result<()> {
 
     // Game should end by player death (not deck out) with creature combat
     assert!(
-        matches!(
-            result.end_reason,
-            mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
-        ),
+        matches!(result.end_reason, mtg_forge_rs::game::GameEndReason::PlayerDeath(_)),
         "Game should end by player death with creatures attacking: {:?}",
         result.end_reason
     );
@@ -450,16 +399,13 @@ async fn test_creature_combat_game() -> Result<()> {
     let winner = result.winner.unwrap();
     let loser = if winner == p1_id { p2_id } else { p1_id };
     let loser_life = game.get_player(loser)?.life;
-    assert!(
-        loser_life <= 0,
-        "Loser should have <= 0 life, got {loser_life}"
-    );
+    assert!(loser_life <= 0, "Loser should have <= 0 life, got {loser_life}");
 
     // Verify that creatures were summoned (check graveyard has creatures)
     // At minimum, the winner should have creatures in graveyard (died during combat)
-    let winner_zones = game.get_player_zones(winner).ok_or_else(|| {
-        mtg_forge_rs::MtgError::InvalidAction("Winner zones not found".to_string())
-    })?;
+    let winner_zones = game
+        .get_player_zones(winner)
+        .ok_or_else(|| mtg_forge_rs::MtgError::InvalidAction("Winner zones not found".to_string()))?;
 
     // Count creatures on battlefield (owned by winner)
     let battlefield_creatures = game
@@ -538,10 +484,7 @@ async fn test_different_deck_matchup() -> Result<()> {
         let result = game_loop.run_game(&mut controller1, &mut controller2)?;
 
         // Verify game completed successfully
-        assert!(
-            result.winner.is_some(),
-            "Game with seed {seed} should have a winner"
-        );
+        assert!(result.winner.is_some(), "Game with seed {seed} should have a winner");
         assert!(
             result.turns_played > 0 && result.turns_played <= 200,
             "Game with seed {} should play reasonable number of turns, got {}",
@@ -553,8 +496,7 @@ async fn test_different_deck_matchup() -> Result<()> {
         assert!(
             matches!(
                 result.end_reason,
-                mtg_forge_rs::game::GameEndReason::PlayerDeath(_)
-                    | mtg_forge_rs::game::GameEndReason::Decking(_)
+                mtg_forge_rs::game::GameEndReason::PlayerDeath(_) | mtg_forge_rs::game::GameEndReason::Decking(_)
             ),
             "Game should end by player death or decking: {:?}",
             result.end_reason
@@ -579,20 +521,16 @@ async fn test_different_deck_matchup() -> Result<()> {
         );
 
         // Verify cards are in valid zones (not lost or duplicated)
-        let p1_zones = game.get_player_zones(p1_id).ok_or_else(|| {
-            mtg_forge_rs::MtgError::InvalidAction("P1 zones not found".to_string())
-        })?;
-        let p2_zones = game.get_player_zones(p2_id).ok_or_else(|| {
-            mtg_forge_rs::MtgError::InvalidAction("P2 zones not found".to_string())
-        })?;
+        let p1_zones = game
+            .get_player_zones(p1_id)
+            .ok_or_else(|| mtg_forge_rs::MtgError::InvalidAction("P1 zones not found".to_string()))?;
+        let p2_zones = game
+            .get_player_zones(p2_id)
+            .ok_or_else(|| mtg_forge_rs::MtgError::InvalidAction("P2 zones not found".to_string()))?;
 
-        let p1_total = p1_zones.hand.cards.len()
-            + p1_zones.library.cards.len()
-            + p1_zones.graveyard.cards.len();
+        let p1_total = p1_zones.hand.cards.len() + p1_zones.library.cards.len() + p1_zones.graveyard.cards.len();
 
-        let p2_total = p2_zones.hand.cards.len()
-            + p2_zones.library.cards.len()
-            + p2_zones.graveyard.cards.len();
+        let p2_total = p2_zones.hand.cards.len() + p2_zones.library.cards.len() + p2_zones.graveyard.cards.len();
 
         // Also count battlefield creatures (not lands which are shared)
         let p1_battlefield = game

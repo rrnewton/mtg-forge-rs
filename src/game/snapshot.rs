@@ -64,11 +64,7 @@ pub struct GameSnapshot {
 
 impl GameSnapshot {
     /// Create a new snapshot from a game state, turn number, and choice history
-    pub fn new(
-        game_state: GameState,
-        turn_number: u32,
-        intra_turn_choices: Vec<GameAction>,
-    ) -> Self {
+    pub fn new(game_state: GameState, turn_number: u32, intra_turn_choices: Vec<GameAction>) -> Self {
         GameSnapshot {
             game_state,
             turn_number,
@@ -97,8 +93,7 @@ impl GameSnapshot {
 
     /// Save this snapshot to a JSON file
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), SnapshotError> {
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| SnapshotError::Serialization(e.to_string()))?;
+        let json = serde_json::to_string_pretty(self).map_err(|e| SnapshotError::Serialization(e.to_string()))?;
 
         std::fs::write(path.as_ref(), json).map_err(|e| SnapshotError::Io(e.to_string()))?;
 
@@ -107,11 +102,9 @@ impl GameSnapshot {
 
     /// Load a snapshot from a JSON file
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, SnapshotError> {
-        let json =
-            std::fs::read_to_string(path.as_ref()).map_err(|e| SnapshotError::Io(e.to_string()))?;
+        let json = std::fs::read_to_string(path.as_ref()).map_err(|e| SnapshotError::Io(e.to_string()))?;
 
-        let snapshot = serde_json::from_str(&json)
-            .map_err(|e| SnapshotError::Deserialization(e.to_string()))?;
+        let snapshot = serde_json::from_str(&json).map_err(|e| SnapshotError::Deserialization(e.to_string()))?;
 
         Ok(snapshot)
     }

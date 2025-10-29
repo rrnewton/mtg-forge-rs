@@ -69,16 +69,12 @@ fn bench_parse_single(c: &mut Criterion) {
         let size = contents.len();
         group.throughput(Throughput::Bytes(size as u64));
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(filename),
-            &contents,
-            |b, contents| {
-                b.iter(|| {
-                    let result = PuzzleFile::parse(black_box(contents));
-                    black_box(result)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(filename), &contents, |b, contents| {
+            b.iter(|| {
+                let result = PuzzleFile::parse(black_box(contents));
+                black_box(result)
+            });
+        });
     }
 
     group.finish();
@@ -121,13 +117,12 @@ p0life=20
 p1life=10
 "#;
 
-    c.benchmark_group("parse_components")
-        .bench_function("full_parse", |b| {
-            b.iter(|| {
-                let result = PuzzleFile::parse(black_box(simple_puzzle));
-                black_box(result)
-            });
+    c.benchmark_group("parse_components").bench_function("full_parse", |b| {
+        b.iter(|| {
+            let result = PuzzleFile::parse(black_box(simple_puzzle));
+            black_box(result)
         });
+    });
 }
 
 criterion_group!(

@@ -49,10 +49,7 @@ impl CombatState {
 
         // Update attacker -> blockers reverse mapping
         for attacker in &attackers {
-            self.attacker_blockers
-                .entry(*attacker)
-                .or_default()
-                .push(blocker);
+            self.attacker_blockers.entry(*attacker).or_default().push(blocker);
         }
     }
 
@@ -75,10 +72,7 @@ impl CombatState {
 
     /// Get the blockers for a given attacker
     pub fn get_blockers(&self, attacker: CardId) -> SmallVec<[CardId; 4]> {
-        self.attacker_blockers
-            .get(&attacker)
-            .cloned()
-            .unwrap_or_default()
+        self.attacker_blockers.get(&attacker).cloned().unwrap_or_default()
     }
 
     /// Get the player being attacked by a creature

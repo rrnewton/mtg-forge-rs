@@ -5,9 +5,7 @@
 
 use mtg_forge_rs::core::{Card, CardType, Color, Effect, ManaCost, TargetRef};
 use mtg_forge_rs::game::{GameLoop, GameState};
-use mtg_forge_rs::loader::{
-    prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer,
-};
+use mtg_forge_rs::loader::{prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -62,22 +60,12 @@ async fn main() {
     // Initialize game
     let initializer = GameInitializer::new(&card_db);
     let mut game = initializer
-        .init_game(
-            "Alice (AI)".to_string(),
-            &deck,
-            "Bob (AI)".to_string(),
-            &deck,
-            20,
-        )
+        .init_game("Alice (AI)".to_string(), &deck, "Bob (AI)".to_string(), &deck, 20)
         .await
         .expect("Failed to initialize game");
 
     println!("Game initialized!");
-    let players: Vec<_> = game
-        .players
-        .iter()
-        .map(|p| (p.id, p.name.to_string()))
-        .collect();
+    let players: Vec<_> = game.players.iter().map(|p| (p.id, p.name.to_string())).collect();
     println!("  - {}: 20 life", players[0].1);
     println!("  - {}: 20 life\n", players[1].1);
 
@@ -89,10 +77,8 @@ async fn main() {
     game.seed_rng(42);
 
     // Create AI controllers
-    let mut alice_ai =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[0].0, 42);
-    let mut bob_ai =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[1].0, 42);
+    let mut alice_ai = mtg_forge_rs::game::random_controller::RandomController::with_seed(players[0].0, 42);
+    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::with_seed(players[1].0, 42);
 
     println!("=== Starting Game Loop ===\n");
 
@@ -108,10 +94,7 @@ async fn main() {
     println!("End reason: {:?}", result.end_reason);
 
     if let Some(winner_id) = result.winner {
-        let winner_name = game
-            .get_player(winner_id)
-            .map(|p| p.name.as_str())
-            .unwrap_or("Unknown");
+        let winner_name = game.get_player(winner_id).map(|p| p.name.as_str()).unwrap_or("Unknown");
         println!("Winner: {winner_name}");
     } else {
         println!("Game ended in a draw");
@@ -130,10 +113,7 @@ async fn main() {
 
 /// Set up Lightning Bolt effects for all Lightning Bolts in the game
 /// In a real implementation, this would be done by the ability parser
-fn setup_lightning_bolt_effects(
-    game: &mut GameState,
-    players: &[(mtg_forge_rs::core::PlayerId, String)],
-) {
+fn setup_lightning_bolt_effects(game: &mut GameState, players: &[(mtg_forge_rs::core::PlayerId, String)]) {
     // Get opponent mapping
     let opponent_of = |player_id: mtg_forge_rs::core::PlayerId| {
         if player_id == players[0].0 {
@@ -229,14 +209,8 @@ fn run_simplified_game() {
         }
     }
 
-    let alice_hand = game
-        .get_player_zones(alice)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
-    let bob_hand = game
-        .get_player_zones(bob)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
+    let alice_hand = game.get_player_zones(alice).map(|z| z.hand.cards.len()).unwrap_or(0);
+    let bob_hand = game.get_player_zones(bob).map(|z| z.hand.cards.len()).unwrap_or(0);
     println!("Starting hands drawn:");
     println!("  - Alice: {alice_hand} cards");
     println!("  - Bob: {bob_hand} cards\n");
@@ -245,8 +219,7 @@ fn run_simplified_game() {
     game.seed_rng(42);
 
     // Create AI controllers
-    let mut alice_ai =
-        mtg_forge_rs::game::random_controller::RandomController::with_seed(alice, 42);
+    let mut alice_ai = mtg_forge_rs::game::random_controller::RandomController::with_seed(alice, 42);
     let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::with_seed(bob, 42);
 
     println!("=== Starting Game Loop ===\n");
@@ -263,10 +236,7 @@ fn run_simplified_game() {
     println!("End reason: {:?}", result.end_reason);
 
     if let Some(winner_id) = result.winner {
-        let winner_name = game
-            .get_player(winner_id)
-            .map(|p| p.name.as_str())
-            .unwrap_or("Unknown");
+        let winner_name = game.get_player(winner_id).map(|p| p.name.as_str()).unwrap_or("Unknown");
         println!("Winner: {winner_name}");
     } else {
         println!("Game ended in a draw");

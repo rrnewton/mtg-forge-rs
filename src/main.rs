@@ -5,9 +5,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{
-        random_controller::RandomController, zero_controller::ZeroController, GameLoop,
-        GameSnapshot, HeuristicController, InteractiveController, RichInputController,
-        StopCondition, VerbosityLevel,
+        random_controller::RandomController, zero_controller::ZeroController, GameLoop, GameSnapshot,
+        HeuristicController, InteractiveController, RichInputController, StopCondition, VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
@@ -465,9 +464,8 @@ async fn run_tui(
 
     // Parse stop condition if provided
     let stop_condition = if let Some(ref stop_str) = stop_every {
-        let condition = StopCondition::parse(stop_str).map_err(|e| {
-            mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e))
-        })?;
+        let condition = StopCondition::parse(stop_str)
+            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e)))?;
         if !suppress_output {
             println!("Stop condition: {:?}", condition);
             println!("Snapshot output: {}\n", snapshot_output.display());
@@ -478,9 +476,7 @@ async fn run_tui(
     };
 
     // Check for conflicting options
-    if start_from.is_some()
-        && (deck1_path.is_some() || deck2_path.is_some() || puzzle_path.is_some())
-    {
+    if start_from.is_some() && (deck1_path.is_some() || deck2_path.is_some() || puzzle_path.is_some()) {
         return Err(mtg_forge_rs::MtgError::InvalidAction(
             "Cannot specify both --start-from and deck/puzzle files".to_string(),
         ));
@@ -492,9 +488,8 @@ async fn run_tui(
 
     // Load snapshot early if resuming, so we can extract both game state and player-specific choices
     let loaded_snapshot: Option<GameSnapshot> = if let Some(ref snapshot_file) = start_from {
-        let snapshot = GameSnapshot::load_from_file(snapshot_file).map_err(|e| {
-            mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
-        })?;
+        let snapshot = GameSnapshot::load_from_file(snapshot_file)
+            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e)))?;
         Some(snapshot)
     } else {
         None
@@ -505,15 +500,9 @@ async fn run_tui(
     let mut game = if let Some(ref snapshot) = loaded_snapshot {
         // Load game from snapshot
         if should_print(verbosity, VerbosityLevel::Minimal, suppress_output) {
-            println!(
-                "Loading snapshot from: {}",
-                start_from.as_ref().unwrap().display()
-            );
+            println!("Loading snapshot from: {}", start_from.as_ref().unwrap().display());
             println!("  Turn number: {}", snapshot.turn_number);
-            println!(
-                "  Intra-turn choices to replay: {}",
-                snapshot.choice_count()
-            );
+            println!("  Intra-turn choices to replay: {}", snapshot.choice_count());
             println!("Game loaded from snapshot!\n");
         }
 
@@ -552,9 +541,7 @@ async fn run_tui(
                     card_names.insert(card_def.name.clone());
                 }
             }
-            card_db
-                .load_cards(&card_names.into_iter().collect::<Vec<_>>())
-                .await?
+            card_db.load_cards(&card_names.into_iter().collect::<Vec<_>>()).await?
         };
         if !suppress_output {
             println!("  Loaded {count} cards");
@@ -577,10 +564,7 @@ async fn run_tui(
 
         if !suppress_output {
             if deck2_path == &deck1_path {
-                println!(
-                    "  Using same deck for both players: {} cards",
-                    deck1.total_cards()
-                );
+                println!("  Using same deck for both players: {} cards", deck1.total_cards());
             } else {
                 println!("  Player 1: {} cards", deck1.total_cards());
                 println!("  Player 2: {} cards", deck2.total_cards());
@@ -679,14 +663,11 @@ async fn run_tui(
     // Derive controller seeds from master seed using salt constants
     // Priority: explicit --seed-p1/--seed-p2 > derived from --seed > from_entropy (with warning)
     // This ensures P1 and P2 get independent random streams from the same master seed
-    let p1_controller_seed =
-        seed_p1_resolved.or_else(|| seed_resolved.map(|s| s.wrapping_add(0x1234_5678_9ABC_DEF0)));
-    let p2_controller_seed =
-        seed_p2_resolved.or_else(|| seed_resolved.map(|s| s.wrapping_add(0xFEDC_BA98_7654_3210)));
+    let p1_controller_seed = seed_p1_resolved.or_else(|| seed_resolved.map(|s| s.wrapping_add(0x1234_5678_9ABC_DEF0)));
+    let p2_controller_seed = seed_p2_resolved.or_else(|| seed_resolved.map(|s| s.wrapping_add(0xFEDC_BA98_7654_3210)));
 
     // Create base controllers
-    let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type
-    {
+    let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
         ControllerType::Random => {
             // Check if we're resuming from snapshot with saved RandomController state
@@ -728,20 +709,14 @@ async fn run_tui(
                 Box::new(RandomController::with_seed(p1_id, entropy_seed))
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
-            p1_id,
-            numeric_choices,
-        )),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(p1_id, numeric_choices)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
         ControllerType::Fixed => {
             // Priority: CLI --p1-fixed-inputs > snapshot state > error
             if let Some(input) = &p1_fixed_inputs {
                 // CLI override - use provided script
                 let script = parse_fixed_inputs(input).map_err(|e| {
-                    mtg_forge_rs::MtgError::InvalidAction(format!(
-                        "Error parsing --p1-fixed-inputs: {}",
-                        e
-                    ))
+                    mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --p1-fixed-inputs: {}", e))
                 })?;
                 Box::new(RichInputController::new(p1_id, script))
             } else if let Some(ref snapshot) = loaded_snapshot {
@@ -769,8 +744,7 @@ async fn run_tui(
         }
     };
 
-    let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type
-    {
+    let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
         ControllerType::Random => {
             // Check if we're resuming from snapshot with saved RandomController state
@@ -812,20 +786,14 @@ async fn run_tui(
                 Box::new(RandomController::with_seed(p2_id, entropy_seed))
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
-            p2_id,
-            numeric_choices,
-        )),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(p2_id, numeric_choices)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
         ControllerType::Fixed => {
             // Priority: CLI --p2-fixed-inputs > snapshot state > error
             if let Some(input) = &p2_fixed_inputs {
                 // CLI override - use provided script
                 let script = parse_fixed_inputs(input).map_err(|e| {
-                    mtg_forge_rs::MtgError::InvalidAction(format!(
-                        "Error parsing --p2-fixed-inputs: {}",
-                        e
-                    ))
+                    mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --p2-fixed-inputs: {}", e))
                 })?;
                 Box::new(RichInputController::new(p2_id, script))
             } else if let Some(ref snapshot) = loaded_snapshot {
@@ -871,10 +839,7 @@ async fn run_tui(
             } else {
                 let p1_replay_choices = snapshot.extract_replay_choices_for_player(p1_id);
                 if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
-                    println!(
-                        "Player 1 will replay {} intra-turn choices",
-                        p1_replay_choices.len()
-                    );
+                    println!("Player 1 will replay {} intra-turn choices", p1_replay_choices.len());
                 }
                 Box::new(mtg_forge_rs::game::ReplayController::new(
                     p1_id,
@@ -898,10 +863,7 @@ async fn run_tui(
             } else {
                 let p2_replay_choices = snapshot.extract_replay_choices_for_player(p2_id);
                 if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
-                    println!(
-                        "Player 2 will replay {} intra-turn choices",
-                        p2_replay_choices.len()
-                    );
+                    println!("Player 2 will replay {} intra-turn choices", p2_replay_choices.len());
                 }
                 Box::new(mtg_forge_rs::game::ReplayController::new(
                     p2_id,
@@ -965,10 +927,7 @@ async fn run_tui(
         game_loop = game_loop.with_replay_mode(replay_choice_count);
 
         if verbosity >= VerbosityLevel::Verbose {
-            println!(
-                "Replay mode enabled: {} choices to replay",
-                replay_choice_count
-            );
+            println!("Replay mode enabled: {} choices to replay", replay_choice_count);
         }
     }
 
@@ -1045,10 +1004,7 @@ async fn run_tui(
                 });
 
                 if let Err(e) = snapshot.save_to_file(&snapshot_output) {
-                    eprintln!(
-                        "Warning: Failed to update snapshot with controller state: {}",
-                        e
-                    );
+                    eprintln!("Warning: Failed to update snapshot with controller state: {}", e);
                 } else if verbosity >= VerbosityLevel::Verbose {
                     println!("Snapshot updated with controller state");
                 }
@@ -1090,18 +1046,10 @@ async fn run_tui(
 
             final_snapshot
                 .save_to_file(&final_state_path)
-                .map_err(|e| {
-                    mtg_forge_rs::MtgError::InvalidAction(format!(
-                        "Failed to save final gamestate: {}",
-                        e
-                    ))
-                })?;
+                .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Failed to save final gamestate: {}", e)))?;
 
             if verbosity >= VerbosityLevel::Verbose {
-                println!(
-                    "\nFinal game state saved to: {}",
-                    final_state_path.display()
-                );
+                println!("\nFinal game state saved to: {}", final_state_path.display());
             }
         }
     }
@@ -1127,10 +1075,7 @@ async fn run_profile(iterations: usize, seed: u64, deck_path: PathBuf) -> Result
     let unique_names = deck.unique_card_names();
     let (count, _) = card_db.load_cards(&unique_names).await?;
     let duration = start.elapsed();
-    println!(
-        "  Loaded {count} cards in {:.2}ms\n",
-        duration.as_secs_f64() * 1000.0
-    );
+    println!("  Loaded {count} cards in {:.2}ms\n", duration.as_secs_f64() * 1000.0);
 
     println!("Profiling game execution...");
     println!("Running {iterations} games with seed {seed}");
@@ -1141,13 +1086,7 @@ async fn run_profile(iterations: usize, seed: u64, deck_path: PathBuf) -> Result
         // Initialize game
         let game_init = GameInitializer::new(&card_db);
         let mut game = game_init
-            .init_game(
-                "Player 1".to_string(),
-                &deck,
-                "Player 2".to_string(),
-                &deck,
-                20,
-            )
+            .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
             .await?;
         game.seed_rng(seed);
 
@@ -1224,9 +1163,8 @@ async fn run_resume(
 
     // Parse stop condition if provided
     let stop_condition = if let Some(ref stop_str) = stop_every {
-        let condition = StopCondition::parse(stop_str).map_err(|e| {
-            mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e))
-        })?;
+        let condition = StopCondition::parse(stop_str)
+            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e)))?;
         if !suppress_output {
             println!("Stop condition: {:?}", condition);
             println!("Snapshot output: {}\n", snapshot_output.display());
@@ -1241,16 +1179,12 @@ async fn run_resume(
         println!("Loading snapshot from: {}", snapshot_file.display());
     }
 
-    let snapshot = GameSnapshot::load_from_file(&snapshot_file).map_err(|e| {
-        mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e))
-    })?;
+    let snapshot = GameSnapshot::load_from_file(&snapshot_file)
+        .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Failed to load snapshot: {}", e)))?;
 
     if should_print(verbosity, VerbosityLevel::Minimal, suppress_output) {
         println!("  Turn number: {}", snapshot.turn_number);
-        println!(
-            "  Intra-turn choices to replay: {}",
-            snapshot.choice_count()
-        );
+        println!("  Intra-turn choices to replay: {}", snapshot.choice_count());
     }
 
     // Determine controller types (restore from snapshot or use overrides)
@@ -1277,26 +1211,17 @@ async fn run_resume(
         if override_p1.is_some() {
             println!("Player 1 controller: OVERRIDDEN to {:?}", p1_type);
         } else {
-            println!(
-                "Player 1 controller: restored from snapshot ({:?})",
-                p1_type
-            );
+            println!("Player 1 controller: restored from snapshot ({:?})", p1_type);
         }
 
         if override_p2.is_some() {
             println!("Player 2 controller: OVERRIDDEN to {:?}", p2_type);
         } else {
-            println!(
-                "Player 2 controller: restored from snapshot ({:?})",
-                p2_type
-            );
+            println!("Player 2 controller: restored from snapshot ({:?})", p2_type);
         }
 
         if override_seed.is_some() {
-            println!(
-                "Game engine seed: OVERRIDDEN to {}",
-                override_seed_resolved.unwrap()
-            );
+            println!("Game engine seed: OVERRIDDEN to {}", override_seed_resolved.unwrap());
         } else {
             println!("Game engine seed: restored from snapshot");
         }
@@ -1351,8 +1276,7 @@ async fn run_resume(
     // If overriding with no explicit seed and controller needs one, use master seed derivation
     let p1_controller_seed = if override_p1.is_some() {
         // We're overriding P1 controller - use explicit override seed or derive from master seed
-        override_seed_p1_resolved
-            .or_else(|| override_seed_resolved.map(|s| s.wrapping_add(0x1234_5678_9ABC_DEF0)))
+        override_seed_p1_resolved.or_else(|| override_seed_resolved.map(|s| s.wrapping_add(0x1234_5678_9ABC_DEF0)))
     } else {
         // Restoring P1 controller - override seed takes precedence, otherwise None (use snapshot state)
         override_seed_p1_resolved
@@ -1360,16 +1284,14 @@ async fn run_resume(
 
     let p2_controller_seed = if override_p2.is_some() {
         // We're overriding P2 controller - use explicit override seed or derive from master seed
-        override_seed_p2_resolved
-            .or_else(|| override_seed_resolved.map(|s| s.wrapping_add(0xFEDC_BA98_7654_3210)))
+        override_seed_p2_resolved.or_else(|| override_seed_resolved.map(|s| s.wrapping_add(0xFEDC_BA98_7654_3210)))
     } else {
         // Restoring P2 controller - override seed takes precedence, otherwise None (use snapshot state)
         override_seed_p2_resolved
     };
 
     // Create base controllers
-    let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type
-    {
+    let base_controller1: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p1_type {
         ControllerType::Zero => Box::new(ZeroController::new(p1_id)),
         ControllerType::Random => {
             // If overriding or if override seed provided, create fresh controller
@@ -1407,26 +1329,17 @@ async fn run_resume(
                 }
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
-            p1_id,
-            numeric_choices,
-        )),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(p1_id, numeric_choices)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
         ControllerType::Fixed => {
             // Priority: CLI --p1-fixed-inputs > snapshot state > error
             if let Some(input) = &p1_fixed_inputs {
                 // CLI override - use provided script
                 let script = parse_fixed_inputs(input).map_err(|e| {
-                    mtg_forge_rs::MtgError::InvalidAction(format!(
-                        "Error parsing --p1-fixed-inputs: {}",
-                        e
-                    ))
+                    mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --p1-fixed-inputs: {}", e))
                 })?;
                 if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
-                    println!(
-                        "Player 1 Fixed controller: fresh with {} commands",
-                        script.len()
-                    );
+                    println!("Player 1 Fixed controller: fresh with {} commands", script.len());
                 }
                 Box::new(RichInputController::new(p1_id, script))
             } else if let Some(mtg_forge_rs::game::ControllerState::Fixed(fixed_controller)) =
@@ -1448,8 +1361,7 @@ async fn run_resume(
         }
     };
 
-    let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type
-    {
+    let base_controller2: Box<dyn mtg_forge_rs::game::controller::PlayerController> = match p2_type {
         ControllerType::Zero => Box::new(ZeroController::new(p2_id)),
         ControllerType::Random => {
             // If overriding or if override seed provided, create fresh controller
@@ -1487,26 +1399,17 @@ async fn run_resume(
                 }
             }
         }
-        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(
-            p2_id,
-            numeric_choices,
-        )),
+        ControllerType::Tui => Box::new(InteractiveController::with_numeric_choices(p2_id, numeric_choices)),
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
         ControllerType::Fixed => {
             // Priority: CLI --p2-fixed-inputs > snapshot state > error
             if let Some(input) = &p2_fixed_inputs {
                 // CLI override - use provided script
                 let script = parse_fixed_inputs(input).map_err(|e| {
-                    mtg_forge_rs::MtgError::InvalidAction(format!(
-                        "Error parsing --p2-fixed-inputs: {}",
-                        e
-                    ))
+                    mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --p2-fixed-inputs: {}", e))
                 })?;
                 if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
-                    println!(
-                        "Player 2 Fixed controller: fresh with {} commands",
-                        script.len()
-                    );
+                    println!("Player 2 Fixed controller: fresh with {} commands", script.len());
                 }
                 Box::new(RichInputController::new(p2_id, script))
             } else if let Some(mtg_forge_rs::game::ControllerState::Fixed(fixed_controller)) =
@@ -1542,10 +1445,7 @@ async fn run_resume(
         } else {
             let p1_replay_choices = snapshot.extract_replay_choices_for_player(p1_id);
             if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
-                println!(
-                    "Player 1 will replay {} intra-turn choices",
-                    p1_replay_choices.len()
-                );
+                println!("Player 1 will replay {} intra-turn choices", p1_replay_choices.len());
             }
             Box::new(mtg_forge_rs::game::ReplayController::new(
                 p1_id,
@@ -1565,10 +1465,7 @@ async fn run_resume(
         } else {
             let p2_replay_choices = snapshot.extract_replay_choices_for_player(p2_id);
             if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
-                println!(
-                    "Player 2 will replay {} intra-turn choices",
-                    p2_replay_choices.len()
-                );
+                println!("Player 2 will replay {} intra-turn choices", p2_replay_choices.len());
             }
             Box::new(mtg_forge_rs::game::ReplayController::new(
                 p2_id,
@@ -1623,10 +1520,7 @@ async fn run_resume(
         game_loop = game_loop.with_replay_mode(replay_choice_count);
 
         if verbosity >= VerbosityLevel::Verbose {
-            println!(
-                "Replay mode enabled: {} choices to replay",
-                replay_choice_count
-            );
+            println!("Replay mode enabled: {} choices to replay", replay_choice_count);
         }
     }
 
@@ -1702,10 +1596,7 @@ async fn run_resume(
                 });
 
                 if let Err(e) = snapshot.save_to_file(&snapshot_output) {
-                    eprintln!(
-                        "Warning: Failed to update snapshot with controller state: {}",
-                        e
-                    );
+                    eprintln!("Warning: Failed to update snapshot with controller state: {}", e);
                 } else if verbosity >= VerbosityLevel::Verbose {
                     println!("Snapshot updated with controller state");
                 }
@@ -1747,18 +1638,10 @@ async fn run_resume(
 
             final_snapshot
                 .save_to_file(&final_state_path)
-                .map_err(|e| {
-                    mtg_forge_rs::MtgError::InvalidAction(format!(
-                        "Failed to save final gamestate: {}",
-                        e
-                    ))
-                })?;
+                .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Failed to save final gamestate: {}", e)))?;
 
             if verbosity >= VerbosityLevel::Verbose {
-                println!(
-                    "\nFinal game state saved to: {}",
-                    final_state_path.display()
-                );
+                println!("\nFinal game state saved to: {}", final_state_path.display());
             }
         }
     }

@@ -1,8 +1,7 @@
 //! Card types and definitions
 
 use crate::core::{
-    CardId, CardName, Color, CounterType, Effect, GameEntity, Keyword, ManaCost, PlayerId, Subtype,
-    Trigger,
+    CardId, CardName, Color, CounterType, Effect, GameEntity, Keyword, ManaCost, PlayerId, Subtype, Trigger,
 };
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -230,11 +229,7 @@ impl Card {
             let to_remove = p1p1_count.min(m1m1_count);
 
             // Remove from +1/+1 counters
-            if let Some((_, count)) = self
-                .counters
-                .iter_mut()
-                .find(|(t, _)| t == &CounterType::P1P1)
-            {
+            if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &CounterType::P1P1) {
                 *count -= to_remove;
                 if *count == 0 {
                     self.counters.retain(|(t, _)| t != &CounterType::P1P1);
@@ -242,11 +237,7 @@ impl Card {
             }
 
             // Remove from -1/-1 counters
-            if let Some((_, count)) = self
-                .counters
-                .iter_mut()
-                .find(|(t, _)| t == &CounterType::M1M1)
-            {
+            if let Some((_, count)) = self.counters.iter_mut().find(|(t, _)| t == &CounterType::M1M1) {
                 *count -= to_remove;
                 if *count == 0 {
                     self.counters.retain(|(t, _)| t != &CounterType::M1M1);

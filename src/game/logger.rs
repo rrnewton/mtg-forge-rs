@@ -564,11 +564,7 @@ mod tests {
         }
 
         // Iterate without copying
-        let count = logger
-            .logs()
-            .iter()
-            .filter(|log| log.message.contains("5"))
-            .count();
+        let count = logger.logs().iter().filter(|log| log.message.contains("5")).count();
 
         // Should match: 5, 15, 25, ..., 95, 50-59
         assert!(count > 10);

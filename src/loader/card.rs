@@ -2,9 +2,7 @@
 //!
 //! Loads card definitions from Forge's cardsfolder format
 
-use crate::core::{
-    Card, CardName, CardType, Color, Keyword, ManaCost, Subtype, Trigger, TriggerEvent,
-};
+use crate::core::{Card, CardName, CardType, Color, Keyword, ManaCost, Subtype, Trigger, TriggerEvent};
 use crate::{MtgError, Result};
 use smallvec::SmallVec;
 use std::fs;
@@ -19,11 +17,7 @@ impl CardLoader {
         let content = fs::read_to_string(path).map_err(MtgError::IoError)?;
         Self::parse(&content).map_err(|e| {
             // Enhance error message with file path for easier debugging
-            MtgError::InvalidCardFormat(format!(
-                "Failed to parse card file '{}': {}",
-                path.display(),
-                e
-            ))
+            MtgError::InvalidCardFormat(format!("Failed to parse card file '{}': {}", path.display(), e))
         })
     }
 
@@ -124,8 +118,7 @@ impl CardLoader {
 
         let name = name.ok_or_else(|| {
             MtgError::InvalidCardFormat(
-                "Missing required 'Name:' field (add 'Name: <card name>' to the card file)"
-                    .to_string(),
+                "Missing required 'Name:' field (add 'Name: <card name>' to the card file)".to_string(),
             )
         })?;
 
@@ -548,13 +541,7 @@ impl CardDefinition {
                             .trim()
                             .split(['|', ' ', '\n'])
                             .next()
-                            .and_then(|s| {
-                                s.trim()
-                                    .strip_prefix('+')
-                                    .unwrap_or(s.trim())
-                                    .parse::<i32>()
-                                    .ok()
-                            })
+                            .and_then(|s| s.trim().strip_prefix('+').unwrap_or(s.trim()).parse::<i32>().ok())
                             .unwrap_or(0)
                     } else {
                         0
@@ -565,13 +552,7 @@ impl CardDefinition {
                             .trim()
                             .split(['|', ' ', '\n'])
                             .next()
-                            .and_then(|s| {
-                                s.trim()
-                                    .strip_prefix('+')
-                                    .unwrap_or(s.trim())
-                                    .parse::<i32>()
-                                    .ok()
-                            })
+                            .and_then(|s| s.trim().strip_prefix('+').unwrap_or(s.trim()).parse::<i32>().ok())
                             .unwrap_or(0)
                     } else {
                         0
@@ -589,18 +570,13 @@ impl CardDefinition {
 
                 if !effects.is_empty() {
                     // Extract description from TriggerDescription$ if available
-                    let description =
-                        if let Some(desc_str) = ability.split("TriggerDescription$").nth(1) {
-                            desc_str.trim().to_string()
-                        } else {
-                            "When this enters the battlefield".to_string()
-                        };
+                    let description = if let Some(desc_str) = ability.split("TriggerDescription$").nth(1) {
+                        desc_str.trim().to_string()
+                    } else {
+                        "When this enters the battlefield".to_string()
+                    };
 
-                    triggers.push(Trigger::new(
-                        TriggerEvent::EntersBattlefield,
-                        effects,
-                        description,
-                    ));
+                    triggers.push(Trigger::new(TriggerEvent::EntersBattlefield, effects, description));
                 }
             }
         }
@@ -690,8 +666,7 @@ impl CardDefinition {
                 }
 
                 // Extract description
-                let description = if let Some(desc_str) = ability.split("SpellDescription$").nth(1)
-                {
+                let description = if let Some(desc_str) = ability.split("SpellDescription$").nth(1) {
                     desc_str.trim().to_string()
                 } else {
                     "Add mana".to_string()
@@ -861,10 +836,7 @@ Oracle:Lightning Bolt deals 3 damage to any target.
         match &effects[0] {
             Effect::DealDamage { target, amount } => {
                 assert_eq!(*amount, 3, "Should deal 3 damage");
-                assert!(
-                    matches!(target, TargetRef::None),
-                    "Target should be None initially"
-                );
+                assert!(matches!(target, TargetRef::None), "Target should be None initially");
             }
             _ => panic!("Expected DealDamage effect"),
         }
@@ -1036,11 +1008,7 @@ Oracle:{T}: Prodigal Sorcerer deals 1 damage to any target.
 
         // Check that the activated ability is parsed
         let abilities = def.parse_activated_abilities();
-        assert_eq!(
-            abilities.len(),
-            1,
-            "Prodigal Sorcerer should have 1 activated ability"
-        );
+        assert_eq!(abilities.len(), 1, "Prodigal Sorcerer should have 1 activated ability");
 
         let ability = &abilities[0];
         assert!(ability.cost.includes_tap(), "Should have tap cost");

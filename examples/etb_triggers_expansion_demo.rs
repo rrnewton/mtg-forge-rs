@@ -82,19 +82,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "When Elvish Visionary enters, draw a card.".to_string(),
     ));
 
-    let hand_before = game
-        .get_player_zones(alice_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
+    let hand_before = game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0);
 
     game.cards.insert(visionary_id, visionary);
     game.stack.add(visionary_id);
     game.resolve_spell(visionary_id, &[])?;
 
-    let hand_after = game
-        .get_player_zones(alice_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
+    let hand_after = game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0);
 
     println!("Elvish Visionary (1/1) enters the battlefield");
     println!("✓ ETB trigger: Alice draws a card (hand: {hand_before} → {hand_after})");
@@ -136,13 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .battlefield
         .cards
         .iter()
-        .filter(|&&id| {
-            game.cards
-                .get(id)
-                .ok()
-                .map(|c| c.owner == bob_id)
-                .unwrap_or(false)
-        })
+        .filter(|&&id| game.cards.get(id).ok().map(|c| c.owner == bob_id).unwrap_or(false))
         .count();
 
     game.cards.insert(kavu_id, kavu);
@@ -153,13 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .battlefield
         .cards
         .iter()
-        .filter(|&&id| {
-            game.cards
-                .get(id)
-                .ok()
-                .map(|c| c.owner == bob_id)
-                .unwrap_or(false)
-        })
+        .filter(|&&id| game.cards.get(id).ok().map(|c| c.owner == bob_id).unwrap_or(false))
         .count();
 
     println!("Flametongue Kavu (4/2) enters the battlefield");
@@ -195,10 +177,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let alice_hand_size = game
-        .get_player_zones(alice_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
+    let alice_hand_size = game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0);
     println!("  Hand: {alice_hand_size} cards");
 
     println!("\nBob (20 life):");
@@ -206,13 +185,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .battlefield
         .cards
         .iter()
-        .filter(|&&id| {
-            game.cards
-                .get(id)
-                .ok()
-                .map(|c| c.owner == bob_id)
-                .unwrap_or(false)
-        })
+        .filter(|&&id| game.cards.get(id).ok().map(|c| c.owner == bob_id).unwrap_or(false))
         .count();
     println!("  Battlefield: {bob_battlefield_count} creatures");
 

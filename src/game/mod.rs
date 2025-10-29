@@ -37,8 +37,7 @@ pub use interactive_controller::InteractiveController;
 pub use logger::{GameLogger, LogEntry, OutputFormat, OutputMode};
 pub use mana_engine::{ManaCapacity, ManaEngine};
 pub use mana_payment::{
-    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource,
-    SimpleManaResolver,
+    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource, SimpleManaResolver,
 };
 pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;

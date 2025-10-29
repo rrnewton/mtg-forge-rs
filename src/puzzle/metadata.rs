@@ -71,11 +71,9 @@ impl GoalType {
             "destroy specified creatures" => GoalType::DestroySpecifiedPermanents {
                 targets: targets.unwrap_or("Creature.OppCtrl").to_string(),
             },
-            "remove specified permanents from the battlefield" => {
-                GoalType::RemoveSpecifiedPermanents {
-                    targets: targets.unwrap_or("Creature.OppCtrl").to_string(),
-                }
-            }
+            "remove specified permanents from the battlefield" => GoalType::RemoveSpecifiedPermanents {
+                targets: targets.unwrap_or("Creature.OppCtrl").to_string(),
+            },
             "kill specified creatures" => GoalType::KillSpecifiedCreatures {
                 targets: targets.unwrap_or("Creature.OppCtrl").to_string(),
             },
@@ -83,26 +81,17 @@ impl GoalType {
                 GoalType::PlaySpecifiedPermanent {
                     targets: targets
                         .ok_or_else(|| {
-                            MtgError::ParseError(
-                                "PlaySpecifiedPermanent goal requires Targets field".to_string(),
-                            )
+                            MtgError::ParseError("PlaySpecifiedPermanent goal requires Targets field".to_string())
                         })?
                         .to_string(),
                     count: target_count,
                 }
             }
             "gain control of specified permanents" => GoalType::GainControlOfPermanents {
-                targets: targets
-                    .unwrap_or("Card.inZoneBattlefield+OppCtrl")
-                    .to_string(),
+                targets: targets.unwrap_or("Card.inZoneBattlefield+OppCtrl").to_string(),
             },
             "win before opponent's next turn" => GoalType::WinBeforeOpponentTurn,
-            _ => {
-                return Err(MtgError::ParseError(format!(
-                    "Unknown goal type: {}",
-                    goal_str
-                )))
-            }
+            _ => return Err(MtgError::ParseError(format!("Unknown goal type: {}", goal_str))),
         })
     }
 }
@@ -161,9 +150,9 @@ impl PuzzleMetadata {
                         // Will be parsed in finalize()
                     }
                     "turns" => {
-                        meta.turns = value.parse().map_err(|_| {
-                            MtgError::ParseError(format!("Invalid turns value: {}", value))
-                        })?;
+                        meta.turns = value
+                            .parse()
+                            .map_err(|_| MtgError::ParseError(format!("Invalid turns value: {}", value)))?;
                     }
                     "difficulty" => {
                         meta.difficulty = value.parse()?;
@@ -171,9 +160,9 @@ impl PuzzleMetadata {
                     "description" => meta.description = Some(value.to_string()),
                     "targets" => meta.targets = Some(value.to_string()),
                     "targetcount" => {
-                        meta.target_count = value.parse().map_err(|_| {
-                            MtgError::ParseError(format!("Invalid target count: {}", value))
-                        })?;
+                        meta.target_count = value
+                            .parse()
+                            .map_err(|_| MtgError::ParseError(format!("Invalid target count: {}", value)))?;
                     }
                     "humancontrol" => {
                         meta.human_control = value.trim().to_lowercase() == "true";
@@ -189,8 +178,7 @@ impl PuzzleMetadata {
         for line in lines {
             if let Some((key, value)) = line.split_once(':') {
                 if key.trim().to_lowercase() == "goal" {
-                    meta.goal =
-                        GoalType::parse(value.trim(), meta.targets.as_deref(), meta.target_count)?;
+                    meta.goal = GoalType::parse(value.trim(), meta.targets.as_deref(), meta.target_count)?;
                     break;
                 }
             }

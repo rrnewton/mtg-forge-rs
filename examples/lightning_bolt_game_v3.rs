@@ -4,9 +4,7 @@
 //! Uses the AsyncCardDatabase and GameInitializer to set up a game state.
 
 use mtg_forge_rs::core::PlayerId;
-use mtg_forge_rs::loader::{
-    prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer,
-};
+use mtg_forge_rs::loader::{prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -93,8 +91,7 @@ async fn main() {
                     game.cards
                         .get(card_id)
                         .map(|c| {
-                            c.name.as_str().eq_ignore_ascii_case("mountain")
-                                || c.name.as_str().starts_with("Mountain")
+                            c.name.as_str().eq_ignore_ascii_case("mountain") || c.name.as_str().starts_with("Mountain")
                         })
                         .unwrap_or(false)
                 })
@@ -219,10 +216,7 @@ async fn main() {
     }
 
     println!("\n=== Final Game State ===");
-    println!(
-        "  Alice: {} life",
-        game.players[alice.as_u32() as usize].life
-    );
+    println!("  Alice: {} life", game.players[alice.as_u32() as usize].life);
     println!("  Bob: {} life", game.players[bob.as_u32() as usize].life);
     println!("  Battlefield: {} cards", game.battlefield.cards.len());
     println!("  Stack: {} cards", game.stack.cards.len());

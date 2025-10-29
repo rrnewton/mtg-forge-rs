@@ -35,10 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Loaded: {}", zuran_orb.name.as_str());
     println!("  Types: {:?}", zuran_orb.types);
-    println!(
-        "  Activated abilities: {}",
-        zuran_orb.activated_abilities.len()
-    );
+    println!("  Activated abilities: {}", zuran_orb.activated_abilities.len());
 
     if let Some(ability) = zuran_orb.activated_abilities.first() {
         println!("  Ability: {}", ability.description);

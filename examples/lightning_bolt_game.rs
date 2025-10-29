@@ -127,8 +127,7 @@ fn main() {
     println!("Alice plays Mountain 1");
 
     let mountain_id = game.get_player_zones(alice).unwrap().hand.cards[0];
-    game.play_land(alice, mountain_id)
-        .expect("Failed to play land");
+    game.play_land(alice, mountain_id).expect("Failed to play land");
 
     println!("  Battlefield: Mountain 1");
 
@@ -142,8 +141,7 @@ fn main() {
     println!("Alice plays Mountain 2");
 
     let mountain2_id = game.get_player_zones(alice).unwrap().hand.cards[0];
-    game.play_land(alice, mountain2_id)
-        .expect("Failed to play land");
+    game.play_land(alice, mountain2_id).expect("Failed to play land");
 
     println!("  Battlefield: Mountain 1, Mountain 2");
 
@@ -157,15 +155,13 @@ fn main() {
     println!("Alice plays Mountain 3");
 
     let mountain3_id = game.get_player_zones(alice).unwrap().hand.cards[0];
-    game.play_land(alice, mountain3_id)
-        .expect("Failed to play land");
+    game.play_land(alice, mountain3_id).expect("Failed to play land");
 
     println!("  Battlefield: Mountain 1, Mountain 2, Mountain 3");
 
     println!("\nAlice taps Mountain 1 for (R)");
     let mountains: Vec<_> = game.battlefield.cards.clone();
-    game.tap_for_mana(alice, mountains[0])
-        .expect("Failed to tap for mana");
+    game.tap_for_mana(alice, mountains[0]).expect("Failed to tap for mana");
 
     let alice_player = game.get_player(alice).unwrap();
     println!("  Mana pool: {} red", alice_player.mana_pool.red);
@@ -192,16 +188,12 @@ fn main() {
         .expect("Failed to cast Lightning Bolt");
 
     let alice_player = game.get_player(alice).unwrap();
-    println!(
-        "  Mana paid! Mana pool now: {}",
-        alice_player.mana_pool.total()
-    );
+    println!("  Mana paid! Mana pool now: {}", alice_player.mana_pool.total());
     println!("  Stack: Lightning Bolt (targeting Bob)");
 
     println!("\nLightning Bolt resolves:");
     // Resolve the spell (executes effects and moves to graveyard)
-    game.resolve_spell(bolt_id, &[])
-        .expect("Failed to resolve spell");
+    game.resolve_spell(bolt_id, &[]).expect("Failed to resolve spell");
 
     let bob_player = game.get_player(bob).unwrap();
     println!("  Bob takes 3 damage!");
@@ -253,11 +245,7 @@ fn main() {
             if undone {
                 print_game_state(
                     &game,
-                    &format!(
-                        "After undo #{} (actions remaining: {})",
-                        i + 1,
-                        game.undo_log.len()
-                    ),
+                    &format!("After undo #{} (actions remaining: {})", i + 1, game.undo_log.len()),
                 );
             } else {
                 break;

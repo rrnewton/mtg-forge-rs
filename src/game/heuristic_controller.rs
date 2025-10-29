@@ -21,15 +21,15 @@ use smallvec::SmallVec;
 /// This struct captures the essential combat math and board state evaluation
 /// needed to make intelligent attack decisions.
 struct CombatFactors {
-    can_be_killed: bool,        // Can attacker be killed by any blocker combination?
-    can_be_killed_by_one: bool, // Can a single blocker kill the attacker?
-    can_kill_all: bool,         // Can attacker kill all possible blockers one-on-one?
-    can_kill_all_dangerous: bool, // Can kill all dangerous blockers (lifelink/wither)?
+    can_be_killed: bool,                  // Can attacker be killed by any blocker combination?
+    can_be_killed_by_one: bool,           // Can a single blocker kill the attacker?
+    can_kill_all: bool,                   // Can attacker kill all possible blockers one-on-one?
+    can_kill_all_dangerous: bool,         // Can kill all dangerous blockers (lifelink/wither)?
     is_worth_less_than_all_killers: bool, // Is attacker worth less than all creatures that can kill it?
-    has_combat_effect: bool, // Does attacker gain value even if blocked? (lifelink, wither)
-    dangerous_blockers_present: bool, // Are there blockers with lifelink/wither?
-    can_be_blocked: bool,    // Can any blocker actually block this attacker?
-    number_of_blockers: usize, // Count of valid blockers
+    has_combat_effect: bool,              // Does attacker gain value even if blocked? (lifelink, wither)
+    dangerous_blockers_present: bool,     // Are there blockers with lifelink/wither?
+    can_be_blocked: bool,                 // Can any blocker actually block this attacker?
+    number_of_blockers: usize,            // Count of valid blockers
 }
 
 /// Heuristic AI controller that makes decisions using evaluation functions
@@ -129,7 +129,10 @@ impl HeuristicController {
         // Java: if (StaticAbilityCantAttackBlock.cantBlockBy(c, null)) { value += addValue(power * 10, "unblockable"); }
         // For now, we'll check for explicit Other keyword
         // TODO: Implement full static ability check
-        let is_unblockable = card.keywords.iter().any(|k| matches!(k, Keyword::Other(s) if s.contains("can't be blocked") || s.contains("unblockable")));
+        let is_unblockable = card
+            .keywords
+            .iter()
+            .any(|k| matches!(k, Keyword::Other(s) if s.contains("can't be blocked") || s.contains("unblockable")));
 
         if !is_unblockable {
             // Other evasion keywords - not yet in enum, check via Other variant
@@ -343,11 +346,7 @@ impl HeuristicController {
     /// 3. Cast creatures (best evaluation first)
     /// 4. Cast other spells (removal, pump, etc.)
     /// 5. Pass priority
-    fn choose_best_spell(
-        &mut self,
-        view: &GameStateView,
-        available: &[SpellAbility],
-    ) -> Option<SpellAbility> {
+    fn choose_best_spell(&mut self, view: &GameStateView, available: &[SpellAbility]) -> Option<SpellAbility> {
         if available.is_empty() {
             return None;
         }
@@ -435,21 +434,17 @@ impl HeuristicController {
 
         // Combat effect keywords (gain value even if blocked)
         let has_combat_effect = attacker.has_lifelink()
-            || attacker.keywords.iter().any(
-                |k| matches!(k, Keyword::Other(s) if s.contains("Wither") || s.contains("Afflict")),
-            );
+            || attacker
+                .keywords
+                .iter()
+                .any(|k| matches!(k, Keyword::Other(s) if s.contains("Wither") || s.contains("Afflict")));
 
         // Collect all potential blockers from opponents
         let potential_blockers: Vec<&Card> = view
             .battlefield()
             .iter()
             .filter_map(|&id| view.get_card(id))
-            .filter(|c| {
-                c.owner != self.player_id
-                    && c.is_creature()
-                    && !c.tapped
-                    && self.can_block(attacker, c)
-            })
+            .filter(|c| c.owner != self.player_id && c.is_creature() && !c.tapped && self.can_block(attacker, c))
             .collect();
 
         let number_of_blockers = potential_blockers.len();
@@ -650,8 +645,7 @@ impl HeuristicController {
         match self.aggression_level {
             6 => {
                 // Exalted (line 1516): attack expecting to at least kill a creature of equal value or not be blocked
-                (factors.can_kill_all && factors.is_worth_less_than_all_killers)
-                    || !factors.can_be_blocked
+                (factors.can_kill_all && factors.is_worth_less_than_all_killers) || !factors.can_be_blocked
             }
             5 => {
                 // All out attacking (line 1523): always attack with power > 0
@@ -689,14 +683,11 @@ impl HeuristicController {
             1 => {
                 // Very defensive (line 1552): unblockable creatures only, or can kill single blocker without dying
                 !factors.can_be_blocked
-                    || (factors.number_of_blockers == 1
-                        && factors.can_kill_all
-                        && !factors.can_be_killed_by_one)
+                    || (factors.number_of_blockers == 1 && factors.can_kill_all && !factors.can_be_killed_by_one)
             }
             _ => {
                 // Default to balanced if aggression is out of range
-                (factors.can_kill_all && factors.is_worth_less_than_all_killers)
-                    || !factors.can_be_blocked
+                (factors.can_kill_all && factors.is_worth_less_than_all_killers) || !factors.can_be_blocked
             }
         }
     }
@@ -788,10 +779,7 @@ impl PlayerController for HeuristicController {
             let player_name = view.player_name();
             view.logger().controller_choice(
                 "HEURISTIC",
-                &format!(
-                    "{} chose to pass priority (no available actions)",
-                    player_name
-                ),
+                &format!("{} chose to pass priority (no available actions)", player_name),
             );
             return None;
         }
@@ -806,31 +794,19 @@ impl PlayerController for HeuristicController {
             // Format the choice description
             let choice_description = match spell {
                 SpellAbility::PlayLand { card_id } => {
-                    format!(
-                        "Play land: {}",
-                        view.card_name(*card_id).unwrap_or_default()
-                    )
+                    format!("Play land: {}", view.card_name(*card_id).unwrap_or_default())
                 }
                 SpellAbility::CastSpell { card_id } => {
-                    format!(
-                        "Cast spell: {}",
-                        view.card_name(*card_id).unwrap_or_default()
-                    )
+                    format!("Cast spell: {}", view.card_name(*card_id).unwrap_or_default())
                 }
                 SpellAbility::ActivateAbility { card_id, .. } => {
-                    format!(
-                        "Activate ability: {}",
-                        view.card_name(*card_id).unwrap_or_default()
-                    )
+                    format!("Activate ability: {}", view.card_name(*card_id).unwrap_or_default())
                 }
             };
 
             view.logger().controller_choice(
                 "HEURISTIC",
-                &format!(
-                    "{} chose {} - {}",
-                    player_name, ability_index, choice_description
-                ),
+                &format!("{} chose {} - {}", player_name, ability_index, choice_description),
             );
         } else {
             view.logger().controller_choice(
@@ -864,15 +840,10 @@ impl PlayerController for HeuristicController {
 
         // Get the spell card to determine its type
         let spell_card = view.get_card(spell);
-        let is_our_spell = spell_card
-            .map(|c| c.owner == self.player_id)
-            .unwrap_or(false);
+        let is_our_spell = spell_card.map(|c| c.owner == self.player_id).unwrap_or(false);
 
         // Collect target cards
-        let mut target_cards: Vec<&Card> = valid_targets
-            .iter()
-            .filter_map(|&id| view.get_card(id))
-            .collect();
+        let mut target_cards: Vec<&Card> = valid_targets.iter().filter_map(|&id| view.get_card(id)).collect();
 
         if target_cards.is_empty() {
             // Fallback: just pick the first target
@@ -922,21 +893,14 @@ impl PlayerController for HeuristicController {
         sources
     }
 
-    fn choose_attackers(
-        &mut self,
-        view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         // Port of Java's AiAttackController.declareAttackers()
         // Reference: AiAttackController.java:818
 
         let mut attackers = SmallVec::new();
 
         // Get creature cards
-        let creatures: Vec<&Card> = available_creatures
-            .iter()
-            .filter_map(|&id| view.get_card(id))
-            .collect();
+        let creatures: Vec<&Card> = available_creatures.iter().filter_map(|&id| view.get_card(id)).collect();
 
         // Evaluate each creature for attacking
         for creature in creatures {
@@ -985,15 +949,9 @@ impl PlayerController for HeuristicController {
         }
 
         // Get card references
-        let mut attacker_cards: Vec<&Card> = attackers
-            .iter()
-            .filter_map(|&id| view.get_card(id))
-            .collect();
+        let mut attacker_cards: Vec<&Card> = attackers.iter().filter_map(|&id| view.get_card(id)).collect();
 
-        let blocker_cards: Vec<&Card> = available_blockers
-            .iter()
-            .filter_map(|&id| view.get_card(id))
-            .collect();
+        let blocker_cards: Vec<&Card> = available_blockers.iter().filter_map(|&id| view.get_card(id)).collect();
 
         // Sort attackers by threat level (evaluation score descending)
         // Block the most threatening creatures first
@@ -1053,11 +1011,7 @@ impl PlayerController for HeuristicController {
         if !blocks.is_empty() {
             view.logger().controller_choice(
                 "HEURISTIC",
-                &format!(
-                    "chose {} blockers for {} attackers",
-                    blocks.len(),
-                    attackers.len()
-                ),
+                &format!("chose {} blockers for {} attackers", blocks.len(), attackers.len()),
             );
         } else if !attackers.is_empty() && !available_blockers.is_empty() {
             view.logger().controller_choice(

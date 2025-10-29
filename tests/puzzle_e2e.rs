@@ -4,10 +4,7 @@
 //! that controllers make expected decisions and actions.
 
 use mtg_forge_rs::{
-    game::{
-        zero_controller::ZeroController, FixedScriptController, GameLoop, HeuristicController,
-        VerbosityLevel,
-    },
+    game::{zero_controller::ZeroController, FixedScriptController, GameLoop, HeuristicController, VerbosityLevel},
     loader::AsyncCardDatabase as CardDatabase,
     puzzle::{loader::load_puzzle_into_game, PuzzleFile},
     Result,
@@ -194,18 +191,8 @@ async fn test_royal_assassin_with_log_capture() -> Result<()> {
     // Print ALL logs for the 3 turns (so we can see everything with --no-capture)
     println!("\n=== ALL CAPTURED LOGS ({} total) ===", logs.len());
     for (i, log) in logs.iter().enumerate() {
-        let category = log
-            .category
-            .as_ref()
-            .map(|c| format!("[{}]", c))
-            .unwrap_or_default();
-        println!(
-            "  {:3}. [L{}] {} {}",
-            i + 1,
-            log.level as u8,
-            category,
-            log.message
-        );
+        let category = log.category.as_ref().map(|c| format!("[{}]", c)).unwrap_or_default();
+        println!("  {:3}. [L{}] {} {}", i + 1, log.level as u8, category, log.message);
     }
     println!("=== END OF LOGS ===\n");
 
@@ -327,11 +314,7 @@ async fn test_serra_angel_flying_attack() -> Result<()> {
         p2_life_after < p2_life_before,
         "Serra Angel should attack when opponent has no flyers"
     );
-    assert_eq!(
-        p2_life_after,
-        p2_life_before - 4,
-        "Serra Angel should deal 4 damage"
-    );
+    assert_eq!(p2_life_after, p2_life_before - 4, "Serra Angel should deal 4 damage");
 
     Ok(())
 }
@@ -604,10 +587,7 @@ async fn test_multi_blocker_optimization() -> Result<()> {
     // The AI should make a reasonable decision - either block to trade
     // creatures or take damage to preserve board state
     // This test verifies the game runs without errors with complex blocking
-    assert!(
-        p1_life_after <= p1_life_before,
-        "Game should progress normally"
-    );
+    assert!(p1_life_after <= p1_life_before, "Game should progress normally");
 
     Ok(())
 }
@@ -835,10 +815,7 @@ async fn test_reach_blocks_flyer() -> Result<()> {
     // This test verifies reach blocking works correctly
     // If Giant Spider (reach) blocks Serra Angel (flying), both should survive
     // or combat should happen correctly
-    assert!(
-        p2_life_after <= p2_life_before,
-        "Game should progress normally"
-    );
+    assert!(p2_life_after <= p2_life_before, "Game should progress normally");
 
     Ok(())
 }
@@ -885,10 +862,7 @@ async fn test_pump_spell_combat_trick() -> Result<()> {
     // This test verifies that pump spells can be cast
     // The AI may or may not use Giant Growth optimally, but the game should run
     // TODO: Add stronger assertions once pump spell timing is improved
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1058,10 +1032,7 @@ async fn test_trample_damage_assignment() -> Result<()> {
 
     // This test verifies trample damage assignment works correctly
     // The exact outcome depends on whether AI casts Giant Growth and combat decisions
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1163,10 +1134,7 @@ async fn test_favorable_trade_blocking() -> Result<()> {
 
     // This test verifies that blocking decisions consider value trades
     // The AI should be willing to trade when it's favorable
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1210,13 +1178,7 @@ async fn test_etb_trigger_evaluation() -> Result<()> {
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
     let result = game_loop.run_turns(&mut controller1, &mut controller2, 3)?;
 
-    let p1_hand_after = game_loop
-        .game
-        .get_player_zones(p1_id)
-        .unwrap()
-        .hand
-        .cards
-        .len();
+    let p1_hand_after = game_loop.game.get_player_zones(p1_id).unwrap().hand.cards.len();
 
     println!("=== ETB Trigger Evaluation Test ===");
     println!("Turns played: {}", result.turns_played);
@@ -1225,10 +1187,7 @@ async fn test_etb_trigger_evaluation() -> Result<()> {
 
     // This test verifies that ETB triggers work
     // AI should value creatures with beneficial ETB effects
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1335,10 +1294,7 @@ async fn test_multiple_threats_priority() -> Result<()> {
 
     // This test verifies that the AI makes reasonable blocking decisions
     // when facing multiple threats - should prioritize blocking the biggest threat
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1384,10 +1340,7 @@ async fn test_regeneration_evaluation() -> Result<()> {
 
     // This test verifies that regeneration mechanics work correctly
     // The AI should consider regeneration when making combat decisions
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1539,13 +1492,7 @@ async fn test_mana_efficiency() -> Result<()> {
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
     let result = game_loop.run_turns(&mut controller1, &mut controller2, 3)?;
 
-    let p1_hand_after = game_loop
-        .game
-        .get_player_zones(p1_id)
-        .unwrap()
-        .hand
-        .cards
-        .len();
+    let p1_hand_after = game_loop.game.get_player_zones(p1_id).unwrap().hand.cards.len();
 
     println!("=== Mana Efficiency Test ===");
     println!("Turns played: {}", result.turns_played);
@@ -1554,10 +1501,7 @@ async fn test_mana_efficiency() -> Result<()> {
 
     // AI should spend mana efficiently and play creatures
     // Hand size should decrease as creatures are cast
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1602,10 +1546,7 @@ async fn test_card_advantage_value() -> Result<()> {
     println!("Turns played: {}", result.turns_played);
 
     // AI should value ETB card draw from Elvish Visionary
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1682,10 +1623,7 @@ async fn test_activated_ability_timing() -> Result<()> {
 
     // AI should activate Prodigal Sorcerer to ping Llanowar Elves
     // This test verifies that activated abilities are considered
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1731,10 +1669,7 @@ async fn test_combat_trick_instant() -> Result<()> {
 
     // This test verifies that instant-speed combat tricks work
     // AI should consider casting Giant Growth during combat
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1788,10 +1723,7 @@ async fn test_damage_ordering_decision() -> Result<()> {
 
     // Craw Wurm should assign minimal lethal to blockers and trample over
     // With 6 damage and 2x 1/1 blockers, should deal 2 to blockers and 4 to player
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1838,10 +1770,7 @@ async fn test_sacrifice_for_value() -> Result<()> {
 
     // This test verifies that sacrifice mechanics work correctly
     // AI should recognize when sacrifice provides value
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1887,10 +1816,7 @@ async fn test_multi_color_mana_decision() -> Result<()> {
 
     // This test verifies that multi-color mana decisions work correctly
     // AI should tap the right lands for the right spells
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -1967,10 +1893,7 @@ async fn test_removal_timing_decision() -> Result<()> {
 
     // This test verifies that removal timing decisions work
     // AI should consider when to use removal for maximum value
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -2103,10 +2026,7 @@ async fn test_board_wipe_vs_spot_removal() -> Result<()> {
 
     // AI should recognize that Wrath of God provides good value against multiple creatures
     // This test verifies mass removal evaluation works correctly
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -2159,10 +2079,7 @@ async fn test_x_spell_mana_allocation() -> Result<()> {
 
     // AI should recognize it can cast Fireball for lethal (X=7 for 8 damage)
     // or make other strategic decisions with the mana
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -2216,10 +2133,7 @@ async fn test_blocking_optimization_complex() -> Result<()> {
 
     // AI should make optimal blocking decisions to minimize damage
     // and maximize favorable trades based on creature size
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -2272,10 +2186,7 @@ async fn test_first_strike_combat_math() -> Result<()> {
 
     // White Knight should recognize first strike advantage in combat
     // This tests combat math evaluation with first strike
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -2329,10 +2240,7 @@ async fn test_direct_damage_targeting() -> Result<()> {
 
     // AI should evaluate targeting priority correctly
     // With P2 at 3 life, Lightning Bolt could be lethal
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }
@@ -2410,10 +2318,7 @@ async fn test_activated_ability_usage() -> Result<()> {
 
     // AI should recognize using Prodigal Sorcerer to ping Llanowar Elves
     // This tests activated ability timing and mana allocation decisions
-    assert!(
-        result.turns_played > 0,
-        "Game should progress for multiple turns"
-    );
+    assert!(result.turns_played > 0, "Game should progress for multiple turns");
 
     Ok(())
 }

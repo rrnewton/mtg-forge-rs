@@ -203,12 +203,7 @@ pub struct ActivatedAbility {
 
 impl ActivatedAbility {
     /// Create a new activated ability
-    pub fn new(
-        cost: crate::core::Cost,
-        effects: Vec<Effect>,
-        description: String,
-        is_mana_ability: bool,
-    ) -> Self {
+    pub fn new(cost: crate::core::Cost, effects: Vec<Effect>, description: String, is_mana_ability: bool) -> Self {
         ActivatedAbility {
             cost,
             effects,

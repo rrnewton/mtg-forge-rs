@@ -84,18 +84,12 @@ fn test_different_seeds_consistency() {
     // Verify seed 42 is consistent
     let seed42_run1 = run_game_with_seed(deck_path, 42, verbosity);
     let seed42_run2 = run_game_with_seed(deck_path, 42, verbosity);
-    assert_eq!(
-        seed42_run1, seed42_run2,
-        "Seed 42 produced inconsistent output"
-    );
+    assert_eq!(seed42_run1, seed42_run2, "Seed 42 produced inconsistent output");
 
     // Verify seed 100 is consistent
     let seed100_run1 = run_game_with_seed(deck_path, 100, verbosity);
     let seed100_run2 = run_game_with_seed(deck_path, 100, verbosity);
-    assert_eq!(
-        seed100_run1, seed100_run2,
-        "Seed 100 produced inconsistent output"
-    );
+    assert_eq!(seed100_run1, seed100_run2, "Seed 100 produced inconsistent output");
 
     // Verify different seeds produce different output
     assert_ne!(

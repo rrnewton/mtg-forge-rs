@@ -76,30 +76,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("Alice casts Elvish Visionary (1G)");
         println!("Mana cost: {}", creature.mana_cost);
-        println!(
-            "P/T: {}/{}",
-            creature.power.unwrap(),
-            creature.toughness.unwrap()
-        );
+        println!("P/T: {}/{}", creature.power.unwrap(), creature.toughness.unwrap());
         println!("Triggers: {}", creature.triggers.len());
 
         if !creature.triggers.is_empty() {
             println!("  - When it enters: {}", creature.triggers[0].description);
         }
 
-        let hand_before = game
-            .get_player_zones(alice_id)
-            .map(|z| z.hand.cards.len())
-            .unwrap_or(0);
+        let hand_before = game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0);
 
         game.cards.insert(creature_id, creature);
         game.stack.add(creature_id);
         game.resolve_spell(creature_id, &[])?;
 
-        let hand_after = game
-            .get_player_zones(alice_id)
-            .map(|z| z.hand.cards.len())
-            .unwrap_or(0);
+        let hand_after = game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0);
 
         println!("✓ Elvish Visionary entered the battlefield");
         println!(
@@ -128,19 +118,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "When Elvish Visionary enters, draw a card.".to_string(),
         ));
 
-        let hand_before = game
-            .get_player_zones(alice_id)
-            .map(|z| z.hand.cards.len())
-            .unwrap_or(0);
+        let hand_before = game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0);
 
         game.cards.insert(creature_id, creature);
         game.stack.add(creature_id);
         game.resolve_spell(creature_id, &[])?;
 
-        let hand_after = game
-            .get_player_zones(alice_id)
-            .map(|z| z.hand.cards.len())
-            .unwrap_or(0);
+        let hand_after = game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0);
 
         println!("Alice casts Elvish Visionary (1G)");
         println!("✓ Elvish Visionary entered the battlefield");
@@ -158,12 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check if Grizzly Bears is still alive
     let bears_alive_before = game.battlefield.contains(target_id);
-    let bears_toughness_before = game
-        .cards
-        .get(target_id)
-        .ok()
-        .and_then(|c| c.toughness)
-        .unwrap_or(0);
+    let bears_toughness_before = game.cards.get(target_id).ok().and_then(|c| c.toughness).unwrap_or(0);
 
     println!(
         "Before: Bob's Grizzly Bears (2/{}) - {}",
@@ -220,18 +199,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "Alice: {} life, {} cards in hand, {} creatures on battlefield",
         game.get_player(alice_id)?.life,
-        game.get_player_zones(alice_id)
-            .map(|z| z.hand.cards.len())
-            .unwrap_or(0),
+        game.get_player_zones(alice_id).map(|z| z.hand.cards.len()).unwrap_or(0),
         game.battlefield
             .cards
             .iter()
-            .filter(|&&id| game
-                .cards
-                .get(id)
-                .ok()
-                .map(|c| c.owner == alice_id)
-                .unwrap_or(false))
+            .filter(|&&id| game.cards.get(id).ok().map(|c| c.owner == alice_id).unwrap_or(false))
             .count()
     );
     println!(
@@ -240,21 +212,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         game.battlefield
             .cards
             .iter()
-            .filter(|&&id| game
-                .cards
-                .get(id)
-                .ok()
-                .map(|c| c.owner == bob_id)
-                .unwrap_or(false))
+            .filter(|&&id| game.cards.get(id).ok().map(|c| c.owner == bob_id).unwrap_or(false))
             .count()
     );
 
     println!("\n=== ETB Triggers Demo Complete ===");
     println!("\nKey Takeaways:");
     println!("• ETB triggers execute automatically when permanents enter the battlefield");
-    println!(
-        "• Common ETB effects include: draw cards, deal damage, destroy permanents, gain life"
-    );
+    println!("• Common ETB effects include: draw cards, deal damage, destroy permanents, gain life");
     println!("• ~4000 cards in Magic use ETB triggers (13% of all cards)");
     println!("• Triggers are parsed from card files (T: lines) and executed by the game engine");
 

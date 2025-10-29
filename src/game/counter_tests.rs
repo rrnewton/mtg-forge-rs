@@ -78,8 +78,7 @@ fn test_counter_undo() {
     game.battlefield.add(creature_id);
 
     // Add counters using game state method (which logs for undo)
-    game.add_counters(creature_id, CounterType::P1P1, 3)
-        .unwrap();
+    game.add_counters(creature_id, CounterType::P1P1, 3).unwrap();
 
     // Verify counters were added
     {
@@ -148,12 +147,9 @@ fn test_multiple_counter_types() {
     game.battlefield.add(permanent_id);
 
     // Add different types of counters
-    game.add_counters(permanent_id, CounterType::Charge, 3)
-        .unwrap();
-    game.add_counters(permanent_id, CounterType::P1P1, 2)
-        .unwrap();
-    game.add_counters(permanent_id, CounterType::Age, 1)
-        .unwrap();
+    game.add_counters(permanent_id, CounterType::Charge, 3).unwrap();
+    game.add_counters(permanent_id, CounterType::P1P1, 2).unwrap();
+    game.add_counters(permanent_id, CounterType::Age, 1).unwrap();
 
     // Verify all counters exist
     let card = game.cards.get(permanent_id).unwrap();
@@ -176,8 +172,7 @@ fn test_remove_counter_undo() {
     game.battlefield.add(creature_id);
 
     // Remove counters using game state method
-    game.remove_counters(creature_id, CounterType::P1P1, 2)
-        .unwrap();
+    game.remove_counters(creature_id, CounterType::P1P1, 2).unwrap();
 
     // Verify counters were removed
     {

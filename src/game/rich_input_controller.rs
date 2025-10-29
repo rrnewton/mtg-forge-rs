@@ -188,11 +188,7 @@ impl PlayerController for RichInputController {
         sources
     }
 
-    fn choose_attackers(
-        &mut self,
-        view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         if available_creatures.is_empty() {
             return SmallVec::new();
         }
@@ -203,11 +199,7 @@ impl PlayerController for RichInputController {
             // Handle numeric choice (legacy format)
             if let Ok(num) = cmd.parse::<usize>() {
                 let num_attackers = num.min(available_creatures.len());
-                return available_creatures
-                    .iter()
-                    .take(num_attackers)
-                    .copied()
-                    .collect();
+                return available_creatures.iter().take(num_attackers).copied().collect();
             }
 
             // Parse "attack X" commands
@@ -217,9 +209,7 @@ impl PlayerController for RichInputController {
                 if let Some(card_pattern) = clause.strip_prefix("attack ") {
                     for &creature_id in available_creatures {
                         if let Some(card_name) = view.card_name(creature_id) {
-                            if Self::card_matches(&card_name, card_pattern)
-                                && !attackers.contains(&creature_id)
-                            {
+                            if Self::card_matches(&card_name, card_pattern) && !attackers.contains(&creature_id) {
                                 attackers.push(creature_id);
                             }
                         }
@@ -389,15 +379,9 @@ mod tests {
 
     #[test]
     fn test_normalize() {
-        assert_eq!(
-            RichInputController::normalize("Black Knight"),
-            "blackknight"
-        );
+        assert_eq!(RichInputController::normalize("Black Knight"), "blackknight");
         assert_eq!(RichInputController::normalize("Serra_Angel"), "serraangel");
-        assert_eq!(
-            RichInputController::normalize("Royal  Assassin"),
-            "royalassassin"
-        );
+        assert_eq!(RichInputController::normalize("Royal  Assassin"), "royalassassin");
     }
 
     #[test]

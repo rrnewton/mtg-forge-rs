@@ -138,10 +138,7 @@ impl GameStateEvaluator {
                 // If the creature is summon sick and it's before MAIN2, treat it as having 0 value
                 // for the summon_sick_score to encourage AI to hold creatures until Main2
                 let mut summon_sick_value = value;
-                if current_step < crate::game::Step::Main2
-                    && card.is_creature()
-                    && card.owner == ai_player
-                {
+                if current_step < crate::game::Step::Main2 && card.is_creature() && card.owner == ai_player {
                     // Check if card entered battlefield this turn (is "sick")
                     if let Some(turn_entered) = card.turn_entered_battlefield {
                         if turn_entered == current_turn {
@@ -344,21 +341,19 @@ impl GameStateEvaluator {
             // Check if it has a tap cost
             let has_tap_cost = match &ability.cost {
                 crate::core::Cost::Tap | crate::core::Cost::TapAndMana(_) => true,
-                crate::core::Cost::Composite(costs) => costs.iter().any(|c| {
-                    matches!(c, crate::core::Cost::Tap | crate::core::Cost::TapAndMana(_))
-                }),
+                crate::core::Cost::Composite(costs) => costs
+                    .iter()
+                    .any(|c| matches!(c, crate::core::Cost::Tap | crate::core::Cost::TapAndMana(_))),
                 _ => false,
             };
 
             // Check if it has a sacrifice cost
             let has_sac_cost = match &ability.cost {
-                crate::core::Cost::Sacrifice { .. }
-                | crate::core::Cost::SacrificePattern { .. } => true,
+                crate::core::Cost::Sacrifice { .. } | crate::core::Cost::SacrificePattern { .. } => true,
                 crate::core::Cost::Composite(costs) => costs.iter().any(|c| {
                     matches!(
                         c,
-                        crate::core::Cost::Sacrifice { .. }
-                            | crate::core::Cost::SacrificePattern { .. }
+                        crate::core::Cost::Sacrifice { .. } | crate::core::Cost::SacrificePattern { .. }
                     )
                 }),
                 _ => false,
@@ -446,9 +441,7 @@ mod tests {
 
     #[test]
     fn test_land_evaluation() {
-        use crate::core::{
-            ActivatedAbility, Card, CardId, CardType, Cost, Effect, ManaCost, PlayerId,
-        };
+        use crate::core::{ActivatedAbility, Card, CardId, CardType, Cost, Effect, ManaCost, PlayerId};
 
         let player_id = PlayerId::new(0);
 

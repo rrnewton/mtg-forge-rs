@@ -79,9 +79,7 @@ fn strip_metadata(value: serde_json::Value) -> serde_json::Value {
 
             serde_json::Value::Object(map)
         }
-        serde_json::Value::Array(arr) => {
-            serde_json::Value::Array(arr.into_iter().map(strip_metadata).collect())
-        }
+        serde_json::Value::Array(arr) => serde_json::Value::Array(arr.into_iter().map(strip_metadata).collect()),
         other => other,
     }
 }

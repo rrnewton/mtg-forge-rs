@@ -55,10 +55,7 @@ impl DeckLoader {
             return Err(MtgError::InvalidDeckFormat("Empty deck".to_string()));
         }
 
-        Ok(DeckList {
-            main_deck,
-            sideboard,
-        })
+        Ok(DeckList { main_deck, sideboard })
     }
 }
 

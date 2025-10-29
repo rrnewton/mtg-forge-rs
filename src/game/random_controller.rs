@@ -72,10 +72,8 @@ impl PlayerController for RandomController {
         if available.is_empty() || self.rng.gen_bool(0.3) {
             // Pass priority = choice 0
             let player_name = view.player_name();
-            view.logger().controller_choice(
-                "RANDOM",
-                &format!("{} chose 'p' (pass priority)", player_name),
-            );
+            view.logger()
+                .controller_choice("RANDOM", &format!("{} chose 'p' (pass priority)", player_name));
             return None;
         }
 
@@ -85,32 +83,20 @@ impl PlayerController for RandomController {
         // Display which choice was made
         let choice_description = match &available[ability_index] {
             SpellAbility::PlayLand { card_id } => {
-                format!(
-                    "Play land: {}",
-                    view.card_name(*card_id).unwrap_or_default()
-                )
+                format!("Play land: {}", view.card_name(*card_id).unwrap_or_default())
             }
             SpellAbility::CastSpell { card_id } => {
-                format!(
-                    "Cast spell: {}",
-                    view.card_name(*card_id).unwrap_or_default()
-                )
+                format!("Cast spell: {}", view.card_name(*card_id).unwrap_or_default())
             }
             SpellAbility::ActivateAbility { card_id, .. } => {
-                format!(
-                    "Activate ability: {}",
-                    view.card_name(*card_id).unwrap_or_default()
-                )
+                format!("Activate ability: {}", view.card_name(*card_id).unwrap_or_default())
             }
         };
 
         let player_name = view.player_name();
         view.logger().controller_choice(
             "RANDOM",
-            &format!(
-                "{} chose {} - {}",
-                player_name, ability_index, choice_description
-            ),
+            &format!("{} chose {} - {}", player_name, ability_index, choice_description),
         );
         Some(available[ability_index].clone())
     }
@@ -138,11 +124,7 @@ impl PlayerController for RandomController {
             let index = self.rng.gen_range(0..valid_targets.len());
             view.logger().controller_choice(
                 "RANDOM",
-                &format!(
-                    "chose target {} out of choices 0-{}",
-                    index,
-                    valid_targets.len() - 1
-                ),
+                &format!("chose target {} out of choices 0-{}", index, valid_targets.len() - 1),
             );
             let mut targets = SmallVec::new();
             targets.push(valid_targets[index]);
@@ -184,11 +166,7 @@ impl PlayerController for RandomController {
         sources
     }
 
-    fn choose_attackers(
-        &mut self,
-        view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         // Randomly decide whether each creature attacks
         let mut attackers = SmallVec::new();
 
@@ -256,10 +234,7 @@ impl PlayerController for RandomController {
         if blocks.is_empty() && !available_blockers.is_empty() {
             view.logger().controller_choice(
                 "RANDOM",
-                &format!(
-                    "chose no blockers from {} available blockers",
-                    available_blockers.len()
-                ),
+                &format!("chose no blockers from {} available blockers", available_blockers.len()),
             );
         }
 
@@ -280,10 +255,7 @@ impl PlayerController for RandomController {
         if blockers.len() >= 2 {
             view.logger().controller_choice(
                 "RANDOM",
-                &format!(
-                    "chose damage assignment order (shuffled {} blockers)",
-                    blockers.len()
-                ),
+                &format!("chose damage assignment order (shuffled {} blockers)", blockers.len()),
             );
         }
 

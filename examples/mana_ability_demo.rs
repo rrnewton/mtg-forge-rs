@@ -162,14 +162,8 @@ fn main() -> Result<()> {
     // Verify the results
     assert_eq!(alice.mana_pool.green, 1, "Should have 1 green mana");
     assert_eq!(alice.mana_pool.colorless, 2, "Should have 2 colorless mana");
-    assert!(
-        game.cards.get(elves_id)?.tapped,
-        "Llanowar Elves should be tapped"
-    );
-    assert!(
-        game.cards.get(sol_ring_id)?.tapped,
-        "Sol Ring should be tapped"
-    );
+    assert!(game.cards.get(elves_id)?.tapped, "Llanowar Elves should be tapped");
+    assert!(game.cards.get(sol_ring_id)?.tapped, "Sol Ring should be tapped");
 
     println!("\n✅ Mana abilities demo completed successfully!");
     println!("   - Sol Ring added {{C}}{{C}} (2 colorless mana)");

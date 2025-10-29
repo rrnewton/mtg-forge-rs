@@ -234,10 +234,7 @@ impl ManaPaymentResolver for SimpleManaResolver {
                 if tapped >= amount {
                     break;
                 }
-                if source.is_tapped
-                    || source.has_summoning_sickness
-                    || tap_order.contains(&source.card_id)
-                {
+                if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                     continue;
                 }
                 if let ManaProduction::Fixed(c) = source.production {
@@ -271,10 +268,7 @@ impl ManaPaymentResolver for SimpleManaResolver {
             if tapped_colorless >= remaining_cost.colorless {
                 break;
             }
-            if source.is_tapped
-                || source.has_summoning_sickness
-                || tap_order.contains(&source.card_id)
-            {
+            if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                 continue;
             }
             if source.production == ManaProduction::Colorless {
@@ -290,10 +284,7 @@ impl ManaPaymentResolver for SimpleManaResolver {
             if tapped_generic >= remaining_cost.generic {
                 break;
             }
-            if source.is_tapped
-                || source.has_summoning_sickness
-                || tap_order.contains(&source.card_id)
-            {
+            if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                 continue;
             }
             // Can use any untapped source for generic
@@ -458,10 +449,7 @@ impl ManaPaymentResolver for GreedyManaResolver {
                 if tapped >= remaining_cost.colorless {
                     break;
                 }
-                if source.is_tapped
-                    || source.has_summoning_sickness
-                    || tap_order.contains(&source.card_id)
-                {
+                if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                     continue;
                 }
                 if source.production == ManaProduction::Colorless {
@@ -482,10 +470,7 @@ impl ManaPaymentResolver for GreedyManaResolver {
                 if tapped >= remaining_cost.generic {
                     break;
                 }
-                if source.is_tapped
-                    || source.has_summoning_sickness
-                    || tap_order.contains(&source.card_id)
-                {
+                if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                     continue;
                 }
                 tap_order.push(source.card_id);

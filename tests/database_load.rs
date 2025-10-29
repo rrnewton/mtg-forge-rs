@@ -22,36 +22,28 @@ async fn test_deck_directory(
     println!("\n=== Testing Deck Loading: {} ===", directory_name);
 
     if !directory.exists() {
-        println!(
-            "Skipping {} deck loading test - directory not present",
-            directory_name
-        );
+        println!("Skipping {} deck loading test - directory not present", directory_name);
         return Ok(());
     }
 
     println!("Discovering .dck files in {}...", directory.display());
 
     // Discover all .dck files using jwalk (parallel directory walking)
-    let deck_paths: Vec<PathBuf> =
-        jwalk::WalkDir::new(directory)
-            .skip_hidden(false)
-            .into_iter()
-            .filter_map(|entry| {
-                entry.ok().and_then(|e| {
-                    if e.file_type().is_file() {
-                        e.path().extension().and_then(|ext| {
-                            if ext == "dck" {
-                                Some(e.path())
-                            } else {
-                                None
-                            }
-                        })
-                    } else {
-                        None
-                    }
-                })
+    let deck_paths: Vec<PathBuf> = jwalk::WalkDir::new(directory)
+        .skip_hidden(false)
+        .into_iter()
+        .filter_map(|entry| {
+            entry.ok().and_then(|e| {
+                if e.file_type().is_file() {
+                    e.path()
+                        .extension()
+                        .and_then(|ext| if ext == "dck" { Some(e.path()) } else { None })
+                } else {
+                    None
+                }
             })
-            .collect();
+        })
+        .collect();
 
     let deck_count = deck_paths.len();
     println!("Found {} .dck files", deck_count);
@@ -224,17 +216,11 @@ async fn test_load_cards_and_decks() -> Result<()> {
     assert_eq!(mountain.unwrap().name.as_str(), "Mountain");
 
     let lightning_bolt = card_db.get_card("Lightning Bolt").await?;
-    assert!(
-        lightning_bolt.is_some(),
-        "Lightning Bolt should be in database"
-    );
+    assert!(lightning_bolt.is_some(), "Lightning Bolt should be in database");
     assert_eq!(lightning_bolt.unwrap().name.as_str(), "Lightning Bolt");
 
     let grizzly_bears = card_db.get_card("Grizzly Bears").await?;
-    assert!(
-        grizzly_bears.is_some(),
-        "Grizzly Bears should be in database"
-    );
+    assert!(grizzly_bears.is_some(), "Grizzly Bears should be in database");
     assert_eq!(grizzly_bears.unwrap().name.as_str(), "Grizzly Bears");
 
     // Test loading decks from forge-java

@@ -42,10 +42,7 @@ pub enum SpellAbility {
     /// to deal damage.
     ///
     /// The ability_index distinguishes multiple abilities on the same card.
-    ActivateAbility {
-        card_id: CardId,
-        ability_index: usize,
-    },
+    ActivateAbility { card_id: CardId, ability_index: usize },
 }
 
 impl SpellAbility {

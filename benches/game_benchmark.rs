@@ -13,10 +13,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use mtg_forge_rs::{
     game::{random_controller::RandomController, GameLoop, GameState, VerbosityLevel},
-    loader::{
-        prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckList, DeckLoader,
-        GameInitializer,
-    },
+    loader::{prefetch_deck_cards, AsyncCardDatabase as CardDatabase, DeckList, DeckLoader, GameInitializer},
     Result,
 };
 use stats_alloc::{Region, StatsAlloc, INSTRUMENTED_SYSTEM};
@@ -136,11 +133,7 @@ impl BenchmarkSetup {
         // Prefetch deck cards
         runtime.block_on(async { prefetch_deck_cards(&card_db, &deck).await })?;
 
-        Ok(BenchmarkSetup {
-            card_db,
-            deck,
-            runtime,
-        })
+        Ok(BenchmarkSetup { card_db, deck, runtime })
     }
 }
 
@@ -336,12 +329,7 @@ where
 /// Note: The "Avg duration/game" shown here is a naive average (total_time / iterations).
 /// For accurate per-iteration timing, refer to Criterion's statistical estimate shown above,
 /// which accounts for outliers, warmup effects, and provides confidence intervals.
-fn print_aggregated_metrics(
-    mode: &str,
-    seed: u64,
-    aggregated: &GameMetrics,
-    iteration_count: usize,
-) {
+fn print_aggregated_metrics(mode: &str, seed: u64, aggregated: &GameMetrics, iteration_count: usize) {
     eprintln!("\n=== Aggregated Metrics - {mode} Mode (seed {seed}, {iteration_count} games) ===");
     eprintln!("  Total turns: {}", aggregated.turns);
     eprintln!("  Total actions: {}", aggregated.actions);
@@ -358,18 +346,12 @@ fn print_aggregated_metrics(
         "  Avg duration/game (naive): {:.2?}",
         aggregated.duration / iteration_count as u32
     );
-    eprintln!(
-        "  Games/sec: {:.2}",
-        aggregated.avg_games_per_sec(iteration_count)
-    );
+    eprintln!("  Games/sec: {:.2}", aggregated.avg_games_per_sec(iteration_count));
     eprintln!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
     eprintln!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
     eprintln!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
     eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
-    eprintln!(
-        "  Total bytes deallocated: {}",
-        aggregated.bytes_deallocated
-    );
+    eprintln!("  Total bytes deallocated: {}", aggregated.bytes_deallocated);
     eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
     eprintln!(
         "  Avg bytes/game: {:.2}",
@@ -426,8 +408,8 @@ fn bench_game_fresh(c: &mut Criterion) {
                 })
             };
 
-            let metrics = run_game_with_metrics(black_box(seed), game_init_fn)
-                .expect("Game should complete successfully");
+            let metrics =
+                run_game_with_metrics(black_box(seed), game_init_fn).expect("Game should complete successfully");
             aggregated += metrics.clone();
             iteration_count += 1;
         });
@@ -487,8 +469,8 @@ fn bench_game_fresh_with_logging(c: &mut Criterion) {
                 })
             };
 
-            let metrics = run_game_with_logging(black_box(seed), game_init_fn)
-                .expect("Game should complete successfully");
+            let metrics =
+                run_game_with_logging(black_box(seed), game_init_fn).expect("Game should complete successfully");
             aggregated += metrics.clone();
             iteration_count += 1;
         });
@@ -548,15 +530,17 @@ fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
                 })
             };
 
-            let metrics = run_game_with_stdout_logging(black_box(seed), game_init_fn)
-                .expect("Game should complete successfully");
+            let metrics =
+                run_game_with_stdout_logging(black_box(seed), game_init_fn).expect("Game should complete successfully");
             aggregated += metrics.clone();
             iteration_count += 1;
         });
     });
 
     if iteration_count > 0 {
-        eprintln!("\n=== Aggregated Metrics - Fresh with Stdout Logging Mode (seed {seed}, {iteration_count} games) ===");
+        eprintln!(
+            "\n=== Aggregated Metrics - Fresh with Stdout Logging Mode (seed {seed}, {iteration_count} games) ==="
+        );
         eprintln!("  Total turns: {}", aggregated.turns);
         eprintln!("  Total actions: {}", aggregated.actions);
         eprintln!("  Total duration: {:?}", aggregated.duration);
@@ -572,18 +556,12 @@ fn bench_game_fresh_with_stdout_logging(c: &mut Criterion) {
             "  Avg duration/game: {:.2?}",
             aggregated.duration / iteration_count as u32
         );
-        eprintln!(
-            "  Games/sec: {:.2}",
-            aggregated.avg_games_per_sec(iteration_count)
-        );
+        eprintln!("  Games/sec: {:.2}", aggregated.avg_games_per_sec(iteration_count));
         eprintln!("  Actions/sec: {:.2}", aggregated.actions_per_sec());
         eprintln!("  Turns/sec: {:.2}", aggregated.turns_per_sec());
         eprintln!("  Actions/turn: {:.2}", aggregated.actions_per_turn());
         eprintln!("  Total bytes allocated: {}", aggregated.bytes_allocated);
-        eprintln!(
-            "  Total bytes deallocated: {}",
-            aggregated.bytes_deallocated
-        );
+        eprintln!("  Total bytes deallocated: {}", aggregated.bytes_deallocated);
         eprintln!("  Net bytes: {}", aggregated.net_bytes_allocated());
         eprintln!(
             "  Avg bytes/game: {:.2}",
@@ -656,8 +634,7 @@ fn bench_game_snapshot(c: &mut Criterion) {
 
             let game_template = initial_game.as_ref().unwrap();
             let game_init_fn = || Ok(game_template.clone());
-            let metrics = run_game_with_metrics(seed, game_init_fn)
-                .expect("Game should complete successfully");
+            let metrics = run_game_with_metrics(seed, game_init_fn).expect("Game should complete successfully");
             aggregated += metrics.clone();
             iteration_count += 1;
         });
@@ -736,8 +713,7 @@ fn bench_game_rewind(c: &mut Criterion) {
                     let mut controller1 = RandomController::with_seed(p1_id, 42);
                     let mut controller2 = RandomController::with_seed(p2_id, 42);
 
-                    let mut game_loop =
-                        GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
+                    let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
                     let _ = game_loop
                         .run_game(&mut controller1, &mut controller2)
                         .expect("Initial game should complete");
@@ -745,10 +721,7 @@ fn bench_game_rewind(c: &mut Criterion) {
 
                 let actions_count = game.undo_log.len();
                 eprintln!("\nRewind mode (seed {seed}):");
-                eprintln!(
-                    "  Game completed with {} actions in undo log",
-                    actions_count
-                );
+                eprintln!("  Game completed with {} actions in undo log", actions_count);
                 eprintln!("  Will rewind to start for each iteration...");
 
                 initial_game = Some(game);

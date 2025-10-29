@@ -73,11 +73,7 @@ impl PlayerController for ZeroController {
         available_sources.iter().take(needed).copied().collect()
     }
 
-    fn choose_attackers(
-        &mut self,
-        _view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, _view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         // Attack with all available creatures
         available_creatures.iter().copied().collect()
     }

@@ -62,11 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let has_mana_ability = card.activated_abilities.iter().any(|ab| ab.is_mana_ability);
         println!("  Has mana ability: {has_mana_ability}");
 
-        if let Some(mana_ability) = card
-            .activated_abilities
-            .iter()
-            .find(|ab| ab.is_mana_ability)
-        {
+        if let Some(mana_ability) = card.activated_abilities.iter().find(|ab| ab.is_mana_ability) {
             println!("  Description: {}", mana_ability.description);
         }
 

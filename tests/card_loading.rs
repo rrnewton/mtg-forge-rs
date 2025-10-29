@@ -24,9 +24,7 @@ fn test_load_abbey_gargoyles() -> Result<()> {
     // Check keywords
     assert_eq!(def.raw_keywords.len(), 2);
     assert!(def.raw_keywords.contains(&"Flying".to_string()));
-    assert!(def
-        .raw_keywords
-        .contains(&"Protection from red".to_string()));
+    assert!(def.raw_keywords.contains(&"Protection from red".to_string()));
 
     Ok(())
 }

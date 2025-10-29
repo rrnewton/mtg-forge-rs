@@ -71,10 +71,7 @@ impl GameState {
 
         let players = vec![player1, player2];
 
-        let player_zones = vec![
-            (p1_id, PlayerZones::new(p1_id)),
-            (p2_id, PlayerZones::new(p2_id)),
-        ];
+        let player_zones = vec![(p1_id, PlayerZones::new(p1_id)), (p2_id, PlayerZones::new(p2_id))];
 
         // Use a unified PlayerId for shared zones (battlefield, stack)
         // These don't belong to a specific player, but we need an ID for the zone
@@ -210,23 +207,14 @@ impl GameState {
     /// For 2-player games, get the other player's ID
     pub fn get_other_player_id(&self, player_id: PlayerId) -> Option<PlayerId> {
         if self.players.len() == 2 {
-            self.players
-                .iter()
-                .find(|p| p.id != player_id)
-                .map(|p| p.id)
+            self.players.iter().find(|p| p.id != player_id).map(|p| p.id)
         } else {
             None
         }
     }
 
     /// Move a card from one zone to another
-    pub fn move_card(
-        &mut self,
-        card_id: CardId,
-        from: Zone,
-        to: Zone,
-        owner: PlayerId,
-    ) -> Result<()> {
+    pub fn move_card(&mut self, card_id: CardId, from: Zone, to: Zone, owner: PlayerId) -> Result<()> {
         // Remove from source zone
         let removed = match from {
             Zone::Battlefield => self.battlefield.remove(card_id),
@@ -390,12 +378,7 @@ impl GameState {
     }
 
     /// Add counters to a card and log for undo
-    pub fn add_counters(
-        &mut self,
-        card_id: CardId,
-        counter_type: crate::core::CounterType,
-        amount: u8,
-    ) -> Result<()> {
+    pub fn add_counters(&mut self, card_id: CardId, counter_type: crate::core::CounterType, amount: u8) -> Result<()> {
         if let Ok(card) = self.cards.get_mut(card_id) {
             card.add_counter(counter_type, amount);
 
@@ -452,9 +435,7 @@ impl GameState {
         let from_step = self.turn.current_step;
 
         // If entering cleanup step, clean up temporary effects
-        if from_step == crate::game::Step::End
-            && self.turn.current_step.next() == Some(crate::game::Step::Cleanup)
-        {
+        if from_step == crate::game::Step::End && self.turn.current_step.next() == Some(crate::game::Step::Cleanup) {
             self.cleanup_temporary_effects();
         }
 
@@ -672,10 +653,7 @@ impl GameState {
                         card.add_counter(counter_type, amount);
                     }
                 }
-                crate::undo::GameAction::AdvanceStep {
-                    from_step,
-                    to_step: _,
-                } => {
+                crate::undo::GameAction::AdvanceStep { from_step, to_step: _ } => {
                     // Revert to previous step
                     self.turn.current_step = from_step;
                 }
@@ -802,10 +780,7 @@ mod tests {
         // Play the land - should log MoveCard
         game.play_land(p1_id, card_id).unwrap();
         assert_eq!(game.undo_log.len(), 1);
-        matches!(
-            game.undo_log.peek().unwrap(),
-            crate::undo::GameAction::MoveCard { .. }
-        );
+        matches!(game.undo_log.peek().unwrap(), crate::undo::GameAction::MoveCard { .. });
 
         // Tap for mana - should log TapCard and AddMana
         game.tap_for_mana(p1_id, card_id).unwrap();
@@ -817,18 +792,12 @@ mod tests {
 
         // Verify all actions are logged
         let actions = game.undo_log.actions();
-        assert!(matches!(
-            actions[0],
-            crate::undo::GameAction::MoveCard { .. }
-        ));
+        assert!(matches!(actions[0], crate::undo::GameAction::MoveCard { .. }));
         assert!(matches!(
             actions[1],
             crate::undo::GameAction::TapCard { tapped: true, .. }
         ));
-        assert!(matches!(
-            actions[2],
-            crate::undo::GameAction::AddMana { .. }
-        ));
+        assert!(matches!(actions[2], crate::undo::GameAction::AddMana { .. }));
         assert!(matches!(
             actions[3],
             crate::undo::GameAction::TapCard { tapped: false, .. }

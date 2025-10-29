@@ -27,10 +27,7 @@ pub struct StopCondition {
 impl StopCondition {
     /// Create a new stop condition
     pub fn new(player: StopPlayer, choice_count: usize) -> Self {
-        StopCondition {
-            player,
-            choice_count,
-        }
+        StopCondition { player, choice_count }
     }
 
     /// Parse a stop condition from a string
@@ -40,39 +37,25 @@ impl StopCondition {
     pub fn parse(s: &str) -> Result<Self, String> {
         let parts: Vec<&str> = s.split(':').collect();
         if parts.len() != 3 {
-            return Err(format!(
-                "invalid format '{}' (expected: [p1|p2|both]:choice:<NUM>)",
-                s
-            ));
+            return Err(format!("invalid format '{}' (expected: [p1|p2|both]:choice:<NUM>)", s));
         }
 
         let player = match parts[0] {
             "p1" => StopPlayer::P1,
             "p2" => StopPlayer::P2,
             "both" => StopPlayer::Both,
-            _ => {
-                return Err(format!(
-                    "invalid player '{}' (expected: p1, p2, or both)",
-                    parts[0]
-                ))
-            }
+            _ => return Err(format!("invalid player '{}' (expected: p1, p2, or both)", parts[0])),
         };
 
         if parts[1] != "choice" {
-            return Err(format!(
-                "invalid condition type '{}' (expected: 'choice')",
-                parts[1]
-            ));
+            return Err(format!("invalid condition type '{}' (expected: 'choice')", parts[1]));
         }
 
         let choice_count = parts[2]
             .parse::<usize>()
             .map_err(|_| format!("invalid choice count '{}'", parts[2]))?;
 
-        Ok(StopCondition {
-            player,
-            choice_count,
-        })
+        Ok(StopCondition { player, choice_count })
     }
 
     /// Check if this condition applies to a given player's choice

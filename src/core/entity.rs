@@ -190,21 +190,14 @@ where
                         }
                     }
                 }
-                let entities =
-                    entities.ok_or_else(|| serde::de::Error::missing_field("entities"))?;
+                let entities = entities.ok_or_else(|| serde::de::Error::missing_field("entities"))?;
                 let next_id = next_id.ok_or_else(|| serde::de::Error::missing_field("next_id"))?;
                 Ok(EntityStore { entities, next_id })
             }
         }
 
         const FIELDS: &[&str] = &["entities", "next_id"];
-        deserializer.deserialize_struct(
-            "EntityStore",
-            FIELDS,
-            EntityStoreVisitor {
-                marker: PhantomData,
-            },
-        )
+        deserializer.deserialize_struct("EntityStore", FIELDS, EntityStoreVisitor { marker: PhantomData })
     }
 }
 
@@ -233,16 +226,12 @@ where
 
     /// Get an entity by ID
     pub fn get(&self, id: EntityId<T>) -> Result<&T> {
-        self.entities
-            .get(&id)
-            .ok_or(MtgError::EntityNotFound(id.as_u32()))
+        self.entities.get(&id).ok_or(MtgError::EntityNotFound(id.as_u32()))
     }
 
     /// Get a mutable reference to an entity
     pub fn get_mut(&mut self, id: EntityId<T>) -> Result<&mut T> {
-        self.entities
-            .get_mut(&id)
-            .ok_or(MtgError::EntityNotFound(id.as_u32()))
+        self.entities.get_mut(&id).ok_or(MtgError::EntityNotFound(id.as_u32()))
     }
 
     /// Check if an entity exists

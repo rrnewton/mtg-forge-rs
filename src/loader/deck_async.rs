@@ -11,10 +11,7 @@ use std::time::Duration;
 /// Prefetch unique cards from a deck in parallel
 /// This is a hint to load cards ahead of time - cards will still load on-demand if not prefetched
 /// Returns (cards_loaded, duration)
-pub async fn prefetch_deck_cards(
-    db: &AsyncCardDatabase,
-    deck: &DeckList,
-) -> Result<(usize, Duration)> {
+pub async fn prefetch_deck_cards(db: &AsyncCardDatabase, deck: &DeckList) -> Result<(usize, Duration)> {
     // Collect unique card names
     let mut unique_names = HashSet::new();
     for entry in &deck.main_deck {

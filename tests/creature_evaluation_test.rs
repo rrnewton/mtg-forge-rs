@@ -112,10 +112,7 @@ fn test_llanowar_elves_evaluation() {
 
     // For now, without mana ability tracking: 130
     // With mana ability: 140
-    assert_eq!(
-        score, 130,
-        "Llanowar Elves should score 130 (140 with mana ability)"
-    );
+    assert_eq!(score, 130, "Llanowar Elves should score 130 (140 with mana ability)");
 }
 
 #[test]
@@ -233,10 +230,7 @@ fn test_first_strike_creature() {
     let controller = HeuristicController::new(PlayerId::new(1));
     let score = controller.evaluate_creature(&card);
 
-    assert_eq!(
-        score, 165,
-        "Elite Vanguard with First Strike should score 165"
-    );
+    assert_eq!(score, 165, "Elite Vanguard with First Strike should score 165");
 }
 
 #[test]

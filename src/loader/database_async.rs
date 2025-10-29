@@ -108,10 +108,7 @@ impl CardDatabase {
             let name = name.clone();
             let db = self.clone_handle();
             let task_name = name.clone(); // Keep name for error reporting
-            tasks.push((
-                task_name,
-                tokio::spawn(async move { db.get_card(&name).await }),
-            ));
+            tasks.push((task_name, tokio::spawn(async move { db.get_card(&name).await })));
         }
 
         // Wait for all to complete - fail fast on any error
@@ -151,15 +148,11 @@ impl CardDatabase {
         let cardsfolder = self.cardsfolder.clone();
 
         let (path_tx, mut path_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (result_tx, mut result_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Result<CardDefinition>>();
+        let (result_tx, mut result_rx) = tokio::sync::mpsc::unbounded_channel::<Result<CardDefinition>>();
 
         // Spawn directory walking in a blocking task (jwalk uses rayon internally)
         tokio::task::spawn_blocking(move || {
-            for entry in jwalk::WalkDir::new(&cardsfolder)
-                .skip_hidden(false)
-                .into_iter()
-            {
+            for entry in jwalk::WalkDir::new(&cardsfolder).skip_hidden(false).into_iter() {
                 match entry {
                     Ok(entry) => {
                         if entry.file_type().is_file() {
@@ -221,17 +214,11 @@ impl CardDatabase {
 
     /// Load a card from a file asynchronously
     async fn load_card_async(path: PathBuf) -> Result<CardDefinition> {
-        let contents = tokio::fs::read_to_string(&path)
-            .await
-            .map_err(MtgError::IoError)?;
+        let contents = tokio::fs::read_to_string(&path).await.map_err(MtgError::IoError)?;
 
         CardLoader::parse(&contents).map_err(|e| {
             // Enhance error message with file path for easier debugging
-            MtgError::InvalidCardFormat(format!(
-                "Failed to parse card file '{}': {}",
-                path.display(),
-                e
-            ))
+            MtgError::InvalidCardFormat(format!("Failed to parse card file '{}': {}", path.display(), e))
         })
     }
 

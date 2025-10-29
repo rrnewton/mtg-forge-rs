@@ -56,11 +56,7 @@ impl Cost {
             || trimmed.starts_with("Tap ");
 
         // If we have multiple cost components, parse as composite
-        if (has_sac || has_pay_life)
-            && (has_tap
-                || trimmed
-                    .chars()
-                    .any(|c| c.is_ascii_digit() || "WUBRG".contains(c)))
+        if (has_sac || has_pay_life) && (has_tap || trimmed.chars().any(|c| c.is_ascii_digit() || "WUBRG".contains(c)))
         {
             // Parse each component separately
             let mut components = Vec::new();
@@ -104,10 +100,7 @@ impl Cost {
                     }
                 } else {
                     // Might be mana symbol
-                    if comp
-                        .chars()
-                        .any(|c| c.is_ascii_digit() || "WUBRG".contains(c))
-                    {
+                    if comp.chars().any(|c| c.is_ascii_digit() || "WUBRG".contains(c)) {
                         mana_parts.push(comp);
                     }
                 }
@@ -157,10 +150,7 @@ impl Cost {
 
         // Sacrifice cost (e.g., "Sac<1/Land>", "Sac<1/Creature.Other>", "Sac<1/CARDNAME>")
         if trimmed.starts_with("Sac<") && trimmed.ends_with('>') {
-            if let Some(sac_spec) = trimmed
-                .strip_prefix("Sac<")
-                .and_then(|s| s.strip_suffix('>'))
-            {
+            if let Some(sac_spec) = trimmed.strip_prefix("Sac<").and_then(|s| s.strip_suffix('>')) {
                 // Parse format: "N/Type" or "N/Type/description"
                 let parts: Vec<&str> = sac_spec.split('/').collect();
                 if parts.len() >= 2 {
@@ -174,10 +164,7 @@ impl Cost {
 
         // PayLife cost (e.g., "PayLife<2>") - check before mana parsing
         if trimmed.starts_with("PayLife<") && trimmed.ends_with('>') {
-            if let Some(amount_str) = trimmed
-                .strip_prefix("PayLife<")
-                .and_then(|s| s.strip_suffix('>'))
-            {
+            if let Some(amount_str) = trimmed.strip_prefix("PayLife<").and_then(|s| s.strip_suffix('>')) {
                 if let Ok(amount) = amount_str.parse::<i32>() {
                     return Some(Cost::PayLife { amount });
                 }
@@ -188,11 +175,7 @@ impl Cost {
         if trimmed.contains(" T") || trimmed.contains(" Tap") {
             // Split and parse the mana part
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
-            let mana_parts: Vec<&str> = parts
-                .iter()
-                .filter(|&&p| p != "T" && p != "Tap")
-                .copied()
-                .collect();
+            let mana_parts: Vec<&str> = parts.iter().filter(|&&p| p != "T" && p != "Tap").copied().collect();
 
             if !mana_parts.is_empty() {
                 let mana_str = mana_parts.join(" ");
@@ -203,10 +186,7 @@ impl Cost {
 
         // Pure mana cost (no tap)
         // Try to parse as mana cost if it contains numbers or color letters
-        if trimmed
-            .chars()
-            .any(|c| c.is_ascii_digit() || "WUBRG".contains(c))
-        {
+        if trimmed.chars().any(|c| c.is_ascii_digit() || "WUBRG".contains(c)) {
             let mana_cost = ManaCost::from_string(trimmed);
             // Only treat as mana cost if it's not empty
             if mana_cost.cmc() > 0 {
@@ -333,14 +313,8 @@ mod tests {
         match cost {
             Cost::Composite(costs) => {
                 assert_eq!(costs.len(), 2);
-                assert!(
-                    matches!(costs[0], Cost::SacrificePattern { .. })
-                        || matches!(costs[0], Cost::Tap)
-                );
-                assert!(
-                    matches!(costs[1], Cost::SacrificePattern { .. })
-                        || matches!(costs[1], Cost::Tap)
-                );
+                assert!(matches!(costs[0], Cost::SacrificePattern { .. }) || matches!(costs[0], Cost::Tap));
+                assert!(matches!(costs[1], Cost::SacrificePattern { .. }) || matches!(costs[1], Cost::Tap));
             }
             _ => panic!("Expected Composite cost, got {cost:?}"),
         }

@@ -36,13 +36,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
     let game_init = GameInitializer::new(&card_db);
     let mut game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &deck,
-            "Player 2".to_string(),
-            &deck,
-            20,
-        )
+        .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
         .await?;
     game.seed_rng(42424);
 
@@ -105,10 +99,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     let total_actions = game_loop.game.undo_log.len();
 
     // Verify game completed
-    assert!(
-        initial_winner.is_some(),
-        "Initial game should have a winner"
-    );
+    assert!(initial_winner.is_some(), "Initial game should have a winner");
     assert!(initial_turns > 0, "Initial game should have played turns");
     assert!(total_actions > 0, "Undo log should have recorded actions");
 
@@ -120,12 +111,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
     for i in 0..rewind_count {
         let undone = game_loop.game.undo()?;
-        assert!(
-            undone,
-            "Should be able to undo action {} of {}",
-            i + 1,
-            rewind_count
-        );
+        assert!(undone, "Should be able to undo action {} of {}", i + 1, rewind_count);
     }
 
     let actions_at_halfway = game_loop.game.undo_log.len();
@@ -147,10 +133,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     println!("  Winner: {:?}", phase2_result.winner);
     println!("  Turns played: {}", phase2_result.turns_played);
     println!("  End reason: {:?}", phase2_result.end_reason);
-    println!(
-        "  Total actions in undo log: {}",
-        game_loop.game.undo_log.len()
-    );
+    println!("  Total actions in undo log: {}", game_loop.game.undo_log.len());
 
     assert!(
         phase2_result.winner.is_some(),
@@ -162,10 +145,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
     let remaining_actions = game_loop.game.undo_log.len();
     println!("Rewinding all {remaining_actions} remaining actions");
-    println!(
-        "Turn number before full rewind: {}",
-        game_loop.game.turn.turn_number
-    );
+    println!("Turn number before full rewind: {}", game_loop.game.turn.turn_number);
 
     // Debug: Count action types in the undo log
     let mut change_turn_count = 0;
@@ -180,9 +160,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
         match action {
             mtg_forge_rs::undo::GameAction::ChangeTurn { .. } => change_turn_count += 1,
             mtg_forge_rs::undo::GameAction::AdvanceStep { .. } => advance_step_count += 1,
-            mtg_forge_rs::undo::GameAction::MoveCard {
-                from_zone, to_zone, ..
-            } => {
+            mtg_forge_rs::undo::GameAction::MoveCard { from_zone, to_zone, .. } => {
                 move_card_count += 1;
                 use mtg_forge_rs::zones::Zone;
                 match (from_zone, to_zone) {
@@ -212,15 +190,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
     // Before undoing, print last few actions in undo log for debugging
     println!("\nLast 5 actions in undo log (will be undone first):");
-    for (idx, action) in game_loop
-        .game
-        .undo_log
-        .actions()
-        .iter()
-        .rev()
-        .take(5)
-        .enumerate()
-    {
+    for (idx, action) in game_loop.game.undo_log.actions().iter().rev().take(5).enumerate() {
         println!("  -{}: {:?}", idx + 1, action);
     }
 
@@ -255,10 +225,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
         }
     }
 
-    println!(
-        "After full rewind, undo log size: {}",
-        game_loop.game.undo_log.len()
-    );
+    println!("After full rewind, undo log size: {}", game_loop.game.undo_log.len());
     assert_eq!(
         game_loop.game.undo_log.len(),
         0,
@@ -340,14 +307,8 @@ async fn test_full_game_undo_replay() -> Result<()> {
     // Life totals should match
     let snapshot_p1_life = initial_snapshot.get_player(p1_id)?.life;
     let snapshot_p2_life = initial_snapshot.get_player(p2_id)?.life;
-    assert_eq!(
-        p1_life_after_rewind, snapshot_p1_life,
-        "P1 life should match snapshot"
-    );
-    assert_eq!(
-        p2_life_after_rewind, snapshot_p2_life,
-        "P2 life should match snapshot"
-    );
+    assert_eq!(p1_life_after_rewind, snapshot_p1_life, "P1 life should match snapshot");
+    assert_eq!(p2_life_after_rewind, snapshot_p2_life, "P2 life should match snapshot");
     println!("  ✓ Life totals match snapshot");
 
     // Turn number should match
@@ -405,10 +366,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
     // - Game reached a valid end state
     // - Life totals are reasonable
 
-    assert!(
-        replay_result.winner.is_some(),
-        "Replay should complete with a winner"
-    );
+    assert!(replay_result.winner.is_some(), "Replay should complete with a winner");
 
     // Note: The replay may complete quickly or differently than the original game
     // because:
@@ -448,9 +406,7 @@ async fn test_full_game_undo_replay() -> Result<()> {
 
     println!("\n=== Undo/Replay Test Complete ===");
     println!("Successfully demonstrated rewind/replay cycle:");
-    println!(
-        "  ✓ Phase 1: Played initial game ({initial_turns} turns, {total_actions} actions logged)"
-    );
+    println!("  ✓ Phase 1: Played initial game ({initial_turns} turns, {total_actions} actions logged)");
     println!(
         "  ✓ Phase 2: Rewound 50% → played forward ({} turns)",
         phase2_result.turns_played
@@ -491,13 +447,7 @@ async fn test_action_undo() -> Result<()> {
 
     let game_init = GameInitializer::new(&card_db);
     let mut game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &deck,
-            "Player 2".to_string(),
-            &deck,
-            20,
-        )
+        .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
         .await?;
 
     let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
@@ -526,43 +476,21 @@ async fn test_action_undo() -> Result<()> {
         zones.hand.add(card_id);
     }
 
-    let hand_size_before = game
-        .get_player_zones(p1_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
+    let hand_size_before = game.get_player_zones(p1_id).map(|z| z.hand.cards.len()).unwrap_or(0);
 
     // Play the card (moves from hand to battlefield)
     game.play_land(p1_id, card_id)?;
 
-    let hand_size_after = game
-        .get_player_zones(p1_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
-    assert_eq!(
-        hand_size_after,
-        hand_size_before - 1,
-        "Card should leave hand"
-    );
-    assert!(
-        game.battlefield.contains(card_id),
-        "Card should be on battlefield"
-    );
+    let hand_size_after = game.get_player_zones(p1_id).map(|z| z.hand.cards.len()).unwrap_or(0);
+    assert_eq!(hand_size_after, hand_size_before - 1, "Card should leave hand");
+    assert!(game.battlefield.contains(card_id), "Card should be on battlefield");
 
     // Undo the play
     game.undo()?;
 
-    let hand_size_restored = game
-        .get_player_zones(p1_id)
-        .map(|z| z.hand.cards.len())
-        .unwrap_or(0);
-    assert_eq!(
-        hand_size_restored, hand_size_before,
-        "Card should be back in hand"
-    );
-    assert!(
-        !game.battlefield.contains(card_id),
-        "Card should not be on battlefield"
-    );
+    let hand_size_restored = game.get_player_zones(p1_id).map(|z| z.hand.cards.len()).unwrap_or(0);
+    assert_eq!(hand_size_restored, hand_size_before, "Card should be back in hand");
+    assert!(!game.battlefield.contains(card_id), "Card should not be on battlefield");
 
     println!("✓ Individual action undo works correctly");
 
@@ -597,13 +525,7 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
     // Initialize game
     let game_init = GameInitializer::new(&card_db);
     let mut game = game_init
-        .init_game(
-            "Player 1".to_string(),
-            &deck,
-            "Player 2".to_string(),
-            &deck,
-            20,
-        )
+        .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
         .await?;
     game.seed_rng(12345);
 
@@ -637,18 +559,8 @@ async fn test_aggressive_undo_snapshots() -> Result<()> {
         // Check if game is over - if so, we need to rewind to an earlier point
         let game_over = game_loop.game.get_player(p1_id)?.life <= 0
             || game_loop.game.get_player(p2_id)?.life <= 0
-            || game_loop
-                .game
-                .get_player_zones(p1_id)
-                .unwrap()
-                .library
-                .is_empty()
-            || game_loop
-                .game
-                .get_player_zones(p2_id)
-                .unwrap()
-                .library
-                .is_empty();
+            || game_loop.game.get_player_zones(p1_id).unwrap().library.is_empty()
+            || game_loop.game.get_player_zones(p2_id).unwrap().library.is_empty();
 
         if game_over || snapshots.len() > 20 {
             // Too many snapshots or game ended - rewind to an earlier snapshot
@@ -842,12 +754,12 @@ fn verify_state_equivalence(
     );
 
     // Verify zone sizes
-    let current_p1_zones = current.get_player_zones(p1_id).ok_or_else(|| {
-        MtgError::InvalidAction(format!("[Iter {}] No current P1 zones", iteration))
-    })?;
-    let snapshot_p1_zones = snapshot.get_player_zones(p1_id).ok_or_else(|| {
-        MtgError::InvalidAction(format!("[Iter {}] No snapshot P1 zones", iteration))
-    })?;
+    let current_p1_zones = current
+        .get_player_zones(p1_id)
+        .ok_or_else(|| MtgError::InvalidAction(format!("[Iter {}] No current P1 zones", iteration)))?;
+    let snapshot_p1_zones = snapshot
+        .get_player_zones(p1_id)
+        .ok_or_else(|| MtgError::InvalidAction(format!("[Iter {}] No snapshot P1 zones", iteration)))?;
 
     assert_eq!(
         current_p1_zones.library.cards.len(),
@@ -868,12 +780,12 @@ fn verify_state_equivalence(
         iteration
     );
 
-    let current_p2_zones = current.get_player_zones(p2_id).ok_or_else(|| {
-        MtgError::InvalidAction(format!("[Iter {}] No current P2 zones", iteration))
-    })?;
-    let snapshot_p2_zones = snapshot.get_player_zones(p2_id).ok_or_else(|| {
-        MtgError::InvalidAction(format!("[Iter {}] No snapshot P2 zones", iteration))
-    })?;
+    let current_p2_zones = current
+        .get_player_zones(p2_id)
+        .ok_or_else(|| MtgError::InvalidAction(format!("[Iter {}] No current P2 zones", iteration)))?;
+    let snapshot_p2_zones = snapshot
+        .get_player_zones(p2_id)
+        .ok_or_else(|| MtgError::InvalidAction(format!("[Iter {}] No snapshot P2 zones", iteration)))?;
 
     assert_eq!(
         current_p2_zones.library.cards.len(),

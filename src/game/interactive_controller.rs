@@ -173,14 +173,8 @@ impl InteractiveController {
             println!("  (empty)");
         } else {
             for &card_id in battlefield {
-                let name = view
-                    .card_name(card_id)
-                    .unwrap_or_else(|| format!("Card {card_id:?}"));
-                let tapped = if view.is_tapped(card_id) {
-                    " (tapped)"
-                } else {
-                    ""
-                };
+                let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+                let tapped = if view.is_tapped(card_id) { " (tapped)" } else { "" };
 
                 // Try to get more info about the card
                 if let Some(card) = view.get_card(card_id) {
@@ -190,11 +184,7 @@ impl InteractiveController {
                         "Opponent"
                     };
                     let pt = if card.is_creature() {
-                        format!(
-                            " {}/{}",
-                            card.power.unwrap_or(0),
-                            card.toughness.unwrap_or(0)
-                        )
+                        format!(" {}/{}", card.power.unwrap_or(0), card.toughness.unwrap_or(0))
                     } else {
                         String::new()
                     };
@@ -218,9 +208,7 @@ impl InteractiveController {
             println!("  (empty)");
         } else {
             for &card_id in graveyard {
-                let name = view
-                    .card_name(card_id)
-                    .unwrap_or_else(|| format!("Card {card_id:?}"));
+                let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
                 println!("  {}", name);
             }
         }
@@ -233,9 +221,7 @@ impl InteractiveController {
                 println!("  (empty)");
             } else {
                 for &card_id in opp_graveyard {
-                    let name = view
-                        .card_name(card_id)
-                        .unwrap_or_else(|| format!("Card {card_id:?}"));
+                    let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
                     println!("  {}", name);
                 }
             }
@@ -247,14 +233,8 @@ impl InteractiveController {
     /// Helper: display a list of cards with indices
     fn display_cards(&self, view: &GameStateView, cards: &[CardId], _prefix: &str) {
         for (idx, &card_id) in cards.iter().enumerate() {
-            let name = view
-                .card_name(card_id)
-                .unwrap_or_else(|| format!("Card {card_id:?}"));
-            let tapped = if view.is_tapped(card_id) {
-                " (tapped)"
-            } else {
-                ""
-            };
+            let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+            let tapped = if view.is_tapped(card_id) { " (tapped)" } else { "" };
             println!("  [{}] {}{}", idx, name, tapped);
         }
     }
@@ -387,8 +367,7 @@ impl PlayerController for InteractiveController {
                 }
 
                 // Try rich command parsing first
-                let rich_result =
-                    RichInputController::parse_spell_ability_choice(trimmed, view, available);
+                let rich_result = RichInputController::parse_spell_ability_choice(trimmed, view, available);
 
                 // Check if it was a valid command (pass or ability selection)
                 if trimmed == "p"
@@ -477,14 +456,8 @@ impl PlayerController for InteractiveController {
             println!("Valid targets:");
             println!("  [0] No target");
             for (idx, &card_id) in valid_targets.iter().enumerate() {
-                let name = view
-                    .card_name(card_id)
-                    .unwrap_or_else(|| format!("Card {card_id:?}"));
-                let tapped = if view.is_tapped(card_id) {
-                    " (tapped)"
-                } else {
-                    ""
-                };
+                let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+                let tapped = if view.is_tapped(card_id) { " (tapped)" } else { "" };
                 println!("  [{}] {}{}", idx + 1, name, tapped);
             }
 
@@ -559,11 +532,7 @@ impl PlayerController for InteractiveController {
         sources
     }
 
-    fn choose_attackers(
-        &mut self,
-        view: &GameStateView,
-        available_creatures: &[CardId],
-    ) -> SmallVec<[CardId; 8]> {
+    fn choose_attackers(&mut self, view: &GameStateView, available_creatures: &[CardId]) -> SmallVec<[CardId; 8]> {
         if available_creatures.is_empty() {
             return SmallVec::new();
         }
@@ -578,14 +547,8 @@ impl PlayerController for InteractiveController {
                 println!("Available creatures:");
                 println!("  [0] Done selecting attackers");
                 for (idx, &card_id) in available_creatures.iter().enumerate() {
-                    let name = view
-                        .card_name(card_id)
-                        .unwrap_or_else(|| format!("Card {card_id:?}"));
-                    let tapped = if view.is_tapped(card_id) {
-                        " (tapped)"
-                    } else {
-                        ""
-                    };
+                    let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+                    let tapped = if view.is_tapped(card_id) { " (tapped)" } else { "" };
                     let selected = if attackers.contains(&card_id) {
                         " [SELECTED]"
                     } else {
@@ -621,9 +584,7 @@ impl PlayerController for InteractiveController {
                     cmd
                 } else {
                     // No buffered commands, read new input
-                    println!(
-                        "\nSelect attackers ('attack X', numeric indices, 'done', or press Enter):"
-                    );
+                    println!("\nSelect attackers ('attack X', numeric indices, 'done', or press Enter):");
                     if self.read_and_buffer_commands().is_err() {
                         break;
                     }
@@ -680,10 +641,7 @@ impl PlayerController for InteractiveController {
                     continue;
                 }
 
-                eprintln!(
-                    "Invalid command: '{}'. Use 'attack <name>', index, or 'done'.",
-                    command
-                );
+                eprintln!("Invalid command: '{}'. Use 'attack <name>', index, or 'done'.", command);
             }
         }
 
@@ -804,10 +762,7 @@ impl PlayerController for InteractiveController {
                             let attacker_name = view.card_name(attacker).unwrap_or_default();
                             println!("  {} blocks {}", blocker_name, attacker_name);
                         } else {
-                            eprintln!(
-                                "Could not find matching blocker or attacker for '{}'",
-                                command
-                            );
+                            eprintln!("Could not find matching blocker or attacker for '{}'", command);
                         }
                     }
                     continue;
@@ -816,11 +771,9 @@ impl PlayerController for InteractiveController {
                 // Try parsing as numeric syntax (blocker_idx attacker_idx)
                 let parts: Vec<&str> = trimmed.split_whitespace().collect();
                 if parts.len() == 2 {
-                    if let (Ok(blocker_idx), Ok(attacker_idx)) =
-                        (parts[0].parse::<usize>(), parts[1].parse::<usize>())
+                    if let (Ok(blocker_idx), Ok(attacker_idx)) = (parts[0].parse::<usize>(), parts[1].parse::<usize>())
                     {
-                        if blocker_idx < available_blockers.len() && attacker_idx < attackers.len()
-                        {
+                        if blocker_idx < available_blockers.len() && attacker_idx < attackers.len() {
                             let blocker_id = available_blockers[blocker_idx];
                             let attacker_id = attackers[attacker_idx];
                             blocks.push((blocker_id, attacker_id));
@@ -947,12 +900,7 @@ impl PlayerController for InteractiveController {
             // Numeric mode: loop and ask one at a time
             for i in 0..count {
                 if let Some(choice) = self.get_user_choice(
-                    &format!(
-                        "Choose card to discard ({}/{}, 0-{}):",
-                        i + 1,
-                        count,
-                        hand.len() - 1
-                    ),
+                    &format!("Choose card to discard ({}/{}, 0-{}):", i + 1, count, hand.len() - 1),
                     hand.len(),
                     false,
                 ) {

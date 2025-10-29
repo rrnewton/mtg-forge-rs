@@ -100,33 +100,33 @@ pub fn parse_card_notation(notation: &str) -> Result<(String, Vec<CardModifier>)
 
             match key.as_str() {
                 "id" => {
-                    let id = value.parse().map_err(|_| {
-                        MtgError::ParseError(format!("Invalid Id value: {}", value))
-                    })?;
+                    let id = value
+                        .parse()
+                        .map_err(|_| MtgError::ParseError(format!("Invalid Id value: {}", value)))?;
                     modifiers.push(CardModifier::Id(id));
                 }
                 "set" => {
                     modifiers.push(CardModifier::Set(value.to_string()));
                 }
                 "art" => {
-                    let art = value.parse().map_err(|_| {
-                        MtgError::ParseError(format!("Invalid Art value: {}", value))
-                    })?;
+                    let art = value
+                        .parse()
+                        .map_err(|_| MtgError::ParseError(format!("Invalid Art value: {}", value)))?;
                     modifiers.push(CardModifier::Art(art));
                 }
                 "damage" => {
-                    let damage = value.parse().map_err(|_| {
-                        MtgError::ParseError(format!("Invalid Damage value: {}", value))
-                    })?;
+                    let damage = value
+                        .parse()
+                        .map_err(|_| MtgError::ParseError(format!("Invalid Damage value: {}", value)))?;
                     modifiers.push(CardModifier::Damage(damage));
                 }
                 "counters" => {
                     modifiers.push(CardModifier::Counters(parse_counters(value)?));
                 }
                 "attachedto" => {
-                    let id = value.parse().map_err(|_| {
-                        MtgError::ParseError(format!("Invalid AttachedTo value: {}", value))
-                    })?;
+                    let id = value
+                        .parse()
+                        .map_err(|_| MtgError::ParseError(format!("Invalid AttachedTo value: {}", value)))?;
                     modifiers.push(CardModifier::AttachedTo(id));
                 }
                 "enchantingplayer" => {
@@ -137,9 +137,11 @@ pub fn parse_card_notation(notation: &str) -> Result<(String, Vec<CardModifier>)
                     let target = if value.is_empty() {
                         None
                     } else {
-                        Some(value.parse().map_err(|_| {
-                            MtgError::ParseError(format!("Invalid Attacking value: {}", value))
-                        })?)
+                        Some(
+                            value
+                                .parse()
+                                .map_err(|_| MtgError::ParseError(format!("Invalid Attacking value: {}", value)))?,
+                        )
                     };
                     modifiers.push(CardModifier::Attacking(target));
                 }
@@ -167,9 +169,9 @@ pub fn parse_card_notation(notation: &str) -> Result<(String, Vec<CardModifier>)
                     modifiers.push(CardModifier::Imprinting(ids));
                 }
                 "exiledwith" => {
-                    let id = value.parse().map_err(|_| {
-                        MtgError::ParseError(format!("Invalid ExiledWith value: {}", value))
-                    })?;
+                    let id = value
+                        .parse()
+                        .map_err(|_| MtgError::ParseError(format!("Invalid ExiledWith value: {}", value)))?;
                     modifiers.push(CardModifier::ExiledWith(id));
                 }
                 _ => {
@@ -212,9 +214,10 @@ fn parse_counters(s: &str) -> Result<HashMap<CounterType, i32>> {
 
         if let Some((counter_name, count_str)) = part.split_once('=') {
             let counter_type = parse_counter_type(counter_name.trim())?;
-            let count = count_str.trim().parse().map_err(|_| {
-                MtgError::ParseError(format!("Invalid counter count: {}", count_str))
-            })?;
+            let count = count_str
+                .trim()
+                .parse()
+                .map_err(|_| MtgError::ParseError(format!("Invalid counter count: {}", count_str)))?;
             counters.insert(counter_type, count);
         }
     }
@@ -318,8 +321,7 @@ mod tests {
 
     #[test]
     fn test_parse_card_multiple_modifiers() {
-        let (name, mods) =
-            parse_card_notation("Serra Angel|Id:10|Tapped|Damage:3|SummonSick").unwrap();
+        let (name, mods) = parse_card_notation("Serra Angel|Id:10|Tapped|Damage:3|SummonSick").unwrap();
         assert_eq!(name, "Serra Angel");
         assert_eq!(mods.len(), 4);
     }

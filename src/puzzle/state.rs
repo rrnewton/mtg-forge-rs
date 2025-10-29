@@ -48,9 +48,7 @@ impl CardDefinition {
 
     /// Check if this is a token
     pub fn is_token(&self) -> bool {
-        self.modifiers
-            .iter()
-            .any(|m| matches!(m, CardModifier::Token(_)))
+        self.modifiers.iter().any(|m| matches!(m, CardModifier::Token(_)))
     }
 }
 
@@ -103,10 +101,7 @@ impl PlayerRef {
         match s.trim().to_lowercase().as_str() {
             "p0" | "human" => Ok(PlayerRef::Player0),
             "p1" | "ai" => Ok(PlayerRef::Player1),
-            _ => Err(MtgError::ParseError(format!(
-                "Invalid player reference: {}",
-                s
-            ))),
+            _ => Err(MtgError::ParseError(format!("Invalid player reference: {}", s))),
         }
     }
 
@@ -134,10 +129,7 @@ impl Default for GameStateDefinition {
             turn: 1,
             active_player: PlayerRef::Player0,
             active_phase: Step::Main1,
-            players: vec![
-                PlayerStateDefinition::default(),
-                PlayerStateDefinition::default(),
-            ],
+            players: vec![PlayerStateDefinition::default(), PlayerStateDefinition::default()],
         }
     }
 }
@@ -160,9 +152,9 @@ impl GameStateDefinition {
 
                 // Parse game-level fields
                 if key == "turn" {
-                    state.turn = value.parse().map_err(|_| {
-                        MtgError::ParseError(format!("Invalid turn value: {}", value))
-                    })?;
+                    state.turn = value
+                        .parse()
+                        .map_err(|_| MtgError::ParseError(format!("Invalid turn value: {}", value)))?;
                     continue;
                 }
 
@@ -179,10 +171,7 @@ impl GameStateDefinition {
                 // Parse player-specific fields
                 if let Some(player_idx) = extract_player_prefix(&key) {
                     if player_idx >= state.players.len() {
-                        return Err(MtgError::ParseError(format!(
-                            "Invalid player index: {}",
-                            player_idx
-                        )));
+                        return Err(MtgError::ParseError(format!("Invalid player index: {}", player_idx)));
                     }
 
                     let player = &mut state.players[player_idx];
@@ -190,24 +179,18 @@ impl GameStateDefinition {
 
                     match field {
                         "life" => {
-                            player.life = value.parse().map_err(|_| {
-                                MtgError::ParseError(format!("Invalid life value: {}", value))
-                            })?;
+                            player.life = value
+                                .parse()
+                                .map_err(|_| MtgError::ParseError(format!("Invalid life value: {}", value)))?;
                         }
                         "landsplayed" => {
-                            player.lands_played = value.parse().map_err(|_| {
-                                MtgError::ParseError(format!(
-                                    "Invalid lands played value: {}",
-                                    value
-                                ))
-                            })?;
+                            player.lands_played = value
+                                .parse()
+                                .map_err(|_| MtgError::ParseError(format!("Invalid lands played value: {}", value)))?;
                         }
                         "landsplayedlastturn" => {
                             player.lands_played_last_turn = value.parse().map_err(|_| {
-                                MtgError::ParseError(format!(
-                                    "Invalid lands played last turn value: {}",
-                                    value
-                                ))
+                                MtgError::ParseError(format!("Invalid lands played last turn value: {}", value))
                             })?;
                         }
                         "counters" => {
@@ -217,8 +200,7 @@ impl GameStateDefinition {
                             player.mana_pool = value.split_whitespace().map(String::from).collect();
                         }
                         "persistentmana" => {
-                            player.persistent_mana =
-                                value.split_whitespace().map(String::from).collect();
+                            player.persistent_mana = value.split_whitespace().map(String::from).collect();
                         }
                         "hand" => {
                             player.hand = parse_card_list(value)?;
@@ -292,9 +274,10 @@ fn parse_player_counters(s: &str) -> Result<HashMap<CounterType, i32>> {
 
         if let Some((counter_name, count_str)) = part.split_once('=') {
             let counter_type = parse_counter_type(counter_name.trim())?;
-            let count = count_str.trim().parse().map_err(|_| {
-                MtgError::ParseError(format!("Invalid counter count: {}", count_str))
-            })?;
+            let count = count_str
+                .trim()
+                .parse()
+                .map_err(|_| MtgError::ParseError(format!("Invalid counter count: {}", count_str)))?;
             counters.insert(counter_type, count);
         }
     }
@@ -365,10 +348,7 @@ mod tests {
     fn test_parse_card_definition() {
         let card = CardDefinition::parse("Mountain|Tapped").unwrap();
         assert_eq!(card.name, "Mountain");
-        assert!(card
-            .modifiers
-            .iter()
-            .any(|m| matches!(m, CardModifier::Tapped)));
+        assert!(card.modifiers.iter().any(|m| matches!(m, CardModifier::Tapped)));
     }
 
     #[test]

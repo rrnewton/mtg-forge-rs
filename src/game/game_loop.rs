@@ -31,16 +31,10 @@ use crate::{MtgError, Result};
 #[derive(Debug, Clone)]
 enum PlayerAction {
     PlayLand(CardId),
-    CastSpell {
-        card_id: CardId,
-        targets: Vec<CardId>,
-    },
+    CastSpell { card_id: CardId, targets: Vec<CardId> },
     TapForMana(CardId),
     DeclareAttacker(CardId),
-    DeclareBlocker {
-        blocker: CardId,
-        attackers: Vec<CardId>,
-    },
+    DeclareBlocker { blocker: CardId, attackers: Vec<CardId> },
     FinishDeclareAttackers,
     FinishDeclareBlockers,
     PassPriority,
@@ -48,18 +42,7 @@ enum PlayerAction {
 use smallvec::SmallVec;
 
 /// Verbosity level for game output
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
 pub enum VerbosityLevel {
     /// Silent - no output during game
     Silent = 0,
@@ -193,10 +176,7 @@ impl<'a> GameLoop<'a> {
     ///
     /// When enabled, the game will automatically save a snapshot and exit
     /// when a FixedScriptController runs out of predetermined choices.
-    pub fn with_stop_when_fixed_exhausted<P: AsRef<std::path::Path>>(
-        mut self,
-        snapshot_path: P,
-    ) -> Self {
+    pub fn with_stop_when_fixed_exhausted<P: AsRef<std::path::Path>>(mut self, snapshot_path: P) -> Self {
         self.stop_when_fixed_exhausted = true;
         self.snapshot_path_for_fixed = Some(snapshot_path.as_ref().to_path_buf());
         self
@@ -213,14 +193,11 @@ impl<'a> GameLoop<'a> {
         stop_condition: crate::game::StopCondition,
         snapshot_path: P,
     ) -> Self {
-        self.stop_condition_info =
-            Some((p1_id, stop_condition, snapshot_path.as_ref().to_path_buf()));
+        self.stop_condition_info = Some((p1_id, stop_condition, snapshot_path.as_ref().to_path_buf()));
         // Enable choice menu display when in stop/go mode
         self.game.logger.set_show_choice_menu(true);
         // Enable log buffering (Both mode: output to stdout AND capture to memory)
-        self.game
-            .logger
-            .set_output_mode(crate::game::OutputMode::Both);
+        self.game.logger.set_output_mode(crate::game::OutputMode::Both);
         self
     }
 
@@ -294,13 +271,11 @@ impl<'a> GameLoop<'a> {
     /// * `choice` - The actual choice made (for replay), or None if not available
     fn log_choice_point(&mut self, player_id: PlayerId, choice: Option<crate::game::ReplayChoice>) {
         self.choice_counter += 1;
-        self.game
-            .undo_log
-            .log(crate::undo::GameAction::ChoicePoint {
-                player_id,
-                choice_id: self.choice_counter,
-                choice,
-            });
+        self.game.undo_log.log(crate::undo::GameAction::ChoicePoint {
+            player_id,
+            choice_id: self.choice_counter,
+            choice,
+        });
 
         // If we're in replay mode, decrement counter
         // Note: We don't exit replay mode immediately when counter reaches 0,
@@ -315,9 +290,7 @@ impl<'a> GameLoop<'a> {
                     self.choice_counter, self.choice_counter, self.replay_choices_remaining
                 );
                 if self.replay_choices_remaining == 0 {
-                    println!(
-                        "  (Note: Replay mode stays active to suppress the action's execution)"
-                    );
+                    println!("  (Note: Replay mode stays active to suppress the action's execution)");
                 }
             }
         }
@@ -337,10 +310,7 @@ impl<'a> GameLoop<'a> {
         player_id: PlayerId,
     ) -> Result<Option<GameResult>> {
         // Check 1: Fixed controller exhaustion
-        if self.stop_when_fixed_exhausted
-            && !controller.has_more_choices()
-            && self.snapshot_path_for_fixed.is_some()
-        {
+        if self.stop_when_fixed_exhausted && !controller.has_more_choices() && self.snapshot_path_for_fixed.is_some() {
             // Just signal - snapshot will be saved at top level
             return Ok(Some(GameResult {
                 winner: None,
@@ -376,10 +346,7 @@ impl<'a> GameLoop<'a> {
     /// executing the action. This ensures we snapshot AT the choice, not after it executes.
     ///
     /// Returns Some(GameResult) if snapshot should be saved, None to continue.
-    fn check_stop_condition_after_choice(
-        &mut self,
-        player_id: PlayerId,
-    ) -> Result<Option<GameResult>> {
+    fn check_stop_condition_after_choice(&mut self, player_id: PlayerId) -> Result<Option<GameResult>> {
         // Only check stop condition (not fixed controller exhaustion, which is checked in PREAMBLE)
         if let Some((p1_id, ref stop_condition, ref _snapshot_path)) = self.stop_condition_info {
             // Only count this choice if it matches the stop condition filter
@@ -435,22 +402,11 @@ impl<'a> GameLoop<'a> {
                             return Ok(result);
                         };
 
-                    return self.save_snapshot_and_exit(
-                        choice_count,
-                        &snapshot_path,
-                        controller1,
-                        controller2,
-                    );
+                    return self.save_snapshot_and_exit(choice_count, &snapshot_path, controller1, controller2);
                 }
 
                 // Notify controllers of game end
-                self.notify_game_end(
-                    controller1,
-                    controller2,
-                    player1_id,
-                    player2_id,
-                    result.winner,
-                );
+                self.notify_game_end(controller1, controller2, player1_id, player2_id, result.winner);
                 return Ok(result);
             }
         }
@@ -486,11 +442,7 @@ impl<'a> GameLoop<'a> {
     }
 
     /// Count how many choices in the undo log match the stop condition filter
-    fn count_filtered_choices(
-        &self,
-        p1_id: PlayerId,
-        stop_condition: &crate::game::StopCondition,
-    ) -> usize {
+    fn count_filtered_choices(&self, p1_id: PlayerId, stop_condition: &crate::game::StopCondition) -> usize {
         let total_count = self
             .game
             .undo_log
@@ -529,12 +481,12 @@ impl<'a> GameLoop<'a> {
         // Verify controllers match players (extract exactly 2 player IDs without allocating)
         let (player1_id, player2_id) = {
             let mut players_iter = self.game.players.iter().map(|p| p.id);
-            let player1_id = players_iter.next().ok_or_else(|| {
-                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
-            })?;
-            let player2_id = players_iter.next().ok_or_else(|| {
-                MtgError::InvalidAction("Game loop requires exactly 2 players".to_string())
-            })?;
+            let player1_id = players_iter
+                .next()
+                .ok_or_else(|| MtgError::InvalidAction("Game loop requires exactly 2 players".to_string()))?;
+            let player2_id = players_iter
+                .next()
+                .ok_or_else(|| MtgError::InvalidAction("Game loop requires exactly 2 players".to_string()))?;
             if players_iter.next().is_some() {
                 return Err(MtgError::InvalidAction(
                     "Game loop requires exactly 2 players".to_string(),
@@ -673,8 +625,7 @@ impl<'a> GameLoop<'a> {
         let rewind_result = undo_log.rewind_to_turn_start(self.game);
         self.game.undo_log = undo_log;
 
-        let (turn_number, intra_turn_choices, actions_rewound) = if let Some(result) = rewind_result
-        {
+        let (turn_number, intra_turn_choices, actions_rewound) = if let Some(result) = rewind_result {
             result
         } else {
             // No ChangeTurn action found - we're still in turn 1!
@@ -840,10 +791,7 @@ impl<'a> GameLoop<'a> {
 
         // Suppress turn header ONLY if we're in the resumed turn (it was already printed before snapshot)
         if is_resumed_turn && self.verbosity >= VerbosityLevel::Verbose {
-            println!(
-                "🔄 RESUMING TURN {} (will suppress header)",
-                self.turns_elapsed + 1
-            );
+            println!("🔄 RESUMING TURN {} (will suppress header)", self.turns_elapsed + 1);
         }
 
         // Reset turn-based state
@@ -1039,8 +987,7 @@ impl<'a> GameLoop<'a> {
     /// Print step header lazily (only when first action happens in this step)
     /// Used for Normal verbosity level
     fn print_step_header_if_needed(&mut self) {
-        if self.verbosity == VerbosityLevel::Normal && !self.step_header_printed && !self.replaying
-        {
+        if self.verbosity == VerbosityLevel::Normal && !self.step_header_printed && !self.replaying {
             let step = self.game.turn.current_step;
             println!("--- {} ---", self.step_name(step));
             self.step_header_printed = true;
@@ -1092,9 +1039,7 @@ impl<'a> GameLoop<'a> {
             Effect::DealDamage { target, amount } => match target {
                 TargetRef::Player(target_player_id) => {
                     let target_name = self.get_player_name(*target_player_id);
-                    println!(
-                        "  {source_name} ({source_id}) deals {amount} damage to {target_name}"
-                    );
+                    println!("  {source_name} ({source_id}) deals {amount} damage to {target_name}");
                 }
                 TargetRef::Permanent(target_card_id) => {
                     let target_name = self
@@ -1103,37 +1048,23 @@ impl<'a> GameLoop<'a> {
                         .get(*target_card_id)
                         .map(|c| c.name.as_str())
                         .unwrap_or("Unknown");
-                    println!(
-                        "  {source_name} ({source_id}) deals {amount} damage to {target_name} ({target_card_id})"
-                    );
+                    println!("  {source_name} ({source_id}) deals {amount} damage to {target_name} ({target_card_id})");
                 }
                 TargetRef::None => {
                     // Target will be filled in by resolve_spell - log against opponent
-                    if let Some(opponent_id) = self
-                        .game
-                        .players
-                        .iter()
-                        .map(|p| p.id)
-                        .find(|id| *id != _source_owner)
-                    {
+                    if let Some(opponent_id) = self.game.players.iter().map(|p| p.id).find(|id| *id != _source_owner) {
                         let target_name = self.get_player_name(opponent_id);
-                        println!(
-                            "  {source_name} ({source_id}) deals {amount} damage to {target_name}"
-                        );
+                        println!("  {source_name} ({source_id}) deals {amount} damage to {target_name}");
                     }
                 }
             },
             Effect::DrawCards { player, count } => {
                 let player_name = self.get_player_name(*player);
-                println!(
-                    "  {source_name} ({source_id}) causes {player_name} to draw {count} card(s)"
-                );
+                println!("  {source_name} ({source_id}) causes {player_name} to draw {count} card(s)");
             }
             Effect::GainLife { player, amount } => {
                 let player_name = self.get_player_name(*player);
-                println!(
-                    "  {source_name} ({source_id}) causes {player_name} to gain {amount} life"
-                );
+                println!("  {source_name} ({source_id}) causes {player_name} to gain {amount} life");
             }
             Effect::DestroyPermanent { target } => {
                 let target_name = self
@@ -1179,9 +1110,7 @@ impl<'a> GameLoop<'a> {
             }
             Effect::Mill { player, count } => {
                 let player_name = self.get_player_name(*player);
-                println!(
-                    "  {source_name} ({source_id}) causes {player_name} to mill {count} card(s)"
-                );
+                println!("  {source_name} ({source_id}) causes {player_name} to mill {count} card(s)");
             }
             Effect::CounterSpell { target } => {
                 let target_name = self
@@ -1361,13 +1290,7 @@ impl<'a> GameLoop<'a> {
                 if let Some(zones) = self.game.get_player_zones(active_player) {
                     if let Some(&card_id) = zones.hand.cards.last() {
                         if let Ok(card) = self.game.cards.get(card_id) {
-                            log_if_verbose!(
-                                self,
-                                "{} draws {} ({})",
-                                player_name,
-                                card.name,
-                                card_id
-                            );
+                            log_if_verbose!(self, "{} draws {} ({})", player_name, card.name, card_id);
                         } else {
                             log_if_verbose!(self, "{} draws a card", player_name);
                         }
@@ -1589,8 +1512,7 @@ impl<'a> GameLoop<'a> {
                 println!("--- First Strike Combat Damage ---");
             }
             self.log_combat_damage(true)?;
-            self.game
-                .assign_combat_damage(controller1, controller2, true)?;
+            self.game.assign_combat_damage(controller1, controller2, true)?;
             if let Some(result) = self.priority_round(controller1, controller2)? {
                 return Ok(Some(result));
             }
@@ -1601,8 +1523,7 @@ impl<'a> GameLoop<'a> {
             println!("--- Normal Combat Damage ---");
         }
         self.log_combat_damage(false)?;
-        self.game
-            .assign_combat_damage(controller1, controller2, false)?;
+        self.game.assign_combat_damage(controller1, controller2, false)?;
 
         // After damage is dealt, players get priority
         if let Some(result) = self.priority_round(controller1, controller2)? {
@@ -1689,14 +1610,10 @@ impl<'a> GameLoop<'a> {
                     }
                 } else {
                     // Unblocked attacker
-                    if let Some(defending_player) =
-                        self.game.combat.get_defending_player(*attacker_id)
-                    {
+                    if let Some(defending_player) = self.game.combat.get_defending_player(*attacker_id) {
                         let defender_name = self.get_player_name(defending_player);
                         if power > 0 {
-                            println!(
-                                "  {attacker_name} ({attacker_id}) deals {power} damage to {defender_name}"
-                            );
+                            println!("  {attacker_name} ({attacker_id}) deals {power} damage to {defender_name}");
                         }
                     }
                 }
@@ -1769,8 +1686,7 @@ impl<'a> GameLoop<'a> {
                 );
 
                 // Get the appropriate controller
-                let controller: &mut dyn PlayerController = if player_id == controller1.player_id()
-                {
+                let controller: &mut dyn PlayerController = if player_id == controller1.player_id() {
                     controller1
                 } else {
                     controller2
@@ -1785,8 +1701,7 @@ impl<'a> GameLoop<'a> {
                 let view = GameStateView::new(self.game, player_id);
                 let hand = view.hand();
 
-                let cards_to_discard =
-                    controller.choose_cards_to_discard(&view, hand, discard_count);
+                let cards_to_discard = controller.choose_cards_to_discard(&view, hand, discard_count);
 
                 // POSTAMBLE: Log this choice point for snapshot/replay
                 let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
@@ -1866,8 +1781,7 @@ impl<'a> GameLoop<'a> {
             .unwrap_or_else(Vec::new);
 
         // Get card name and effects for logging (before resolution)
-        let (card_name, card_effects, card_owner) = if let Ok(card) = self.game.cards.get(spell_id)
-        {
+        let (card_name, card_effects, card_owner) = if let Ok(card) = self.game.cards.get(spell_id) {
             (card.name.to_string(), card.effects.clone(), card.owner)
         } else {
             return Err(crate::MtgError::EntityNotFound(spell_id.as_u32()));
@@ -1945,17 +1859,16 @@ impl<'a> GameLoop<'a> {
                 action_count += 1;
                 if action_count > MAX_ACTIONS_PER_PRIORITY {
                     return Err(crate::MtgError::InvalidAction(format!(
-                    "Priority round exceeded max actions ({MAX_ACTIONS_PER_PRIORITY}), possible infinite loop"
-                )));
+                        "Priority round exceeded max actions ({MAX_ACTIONS_PER_PRIORITY}), possible infinite loop"
+                    )));
                 }
 
                 // Get the appropriate controller
-                let controller: &mut dyn PlayerController =
-                    if current_priority == controller1.player_id() {
-                        controller1
-                    } else {
-                        controller2
-                    };
+                let controller: &mut dyn PlayerController = if current_priority == controller1.player_id() {
+                    controller1
+                } else {
+                    controller2
+                };
 
                 // Get all available spell abilities for this player
                 let available = self.get_available_spell_abilities(current_priority);
@@ -1967,9 +1880,7 @@ impl<'a> GameLoop<'a> {
                     None
                 } else {
                     // PREAMBLE: Check stop conditions before asking for choice
-                    if let Some(result) =
-                        self.check_stop_conditions(controller, current_priority)?
-                    {
+                    if let Some(result) = self.check_stop_conditions(controller, current_priority)? {
                         return Ok(Some(result));
                     }
 
@@ -1993,9 +1904,7 @@ impl<'a> GameLoop<'a> {
 
                     // POSTAMBLE: Check if we should snapshot after logging this choice
                     // This ensures we stop AT the choice, not after executing the action
-                    if let Some(result) =
-                        self.check_stop_condition_after_choice(current_priority)?
-                    {
+                    if let Some(result) = self.check_stop_condition_after_choice(current_priority)? {
                         return Ok(Some(result));
                     }
 
@@ -2130,12 +2039,10 @@ impl<'a> GameLoop<'a> {
                                     // Multiple valid targets - ask controller to choose
                                     let view = GameStateView::new(self.game, current_priority);
 
-                                    let chosen_targets =
-                                        controller.choose_targets(&view, card_id, &valid_targets);
+                                    let chosen_targets = controller.choose_targets(&view, card_id, &valid_targets);
 
                                     // Log this choice point for snapshot/replay
-                                    let replay_choice =
-                                        crate::game::ReplayChoice::Targets(chosen_targets.clone());
+                                    let replay_choice = crate::game::ReplayChoice::Targets(chosen_targets.clone());
                                     self.log_choice_point(current_priority, Some(replay_choice));
 
                                     chosen_targets.into_iter().collect()
@@ -2145,45 +2052,41 @@ impl<'a> GameLoop<'a> {
                                 let targets_for_callback = chosen_targets_vec.clone();
 
                                 // Create callbacks for targeting and mana payment
-                                let targeting_callback =
-                                    move |_game: &GameState, _spell_id: CardId| {
-                                        // Return the pre-selected targets
-                                        targets_for_callback.clone()
-                                    };
+                                let targeting_callback = move |_game: &GameState, _spell_id: CardId| {
+                                    // Return the pre-selected targets
+                                    targets_for_callback.clone()
+                                };
 
-                                let mana_callback =
-                                    |game: &GameState, cost: &crate::core::ManaCost| {
-                                        // For now, automatically choose mana sources
-                                        // TODO: Call controller.choose_mana_sources_to_pay()
-                                        let mut sources = Vec::new();
-                                        let mut tappable = game
-                                            .battlefield
-                                            .cards
-                                            .iter()
-                                            .filter(|&&card_id| {
-                                                if let Ok(card) = game.cards.get(card_id) {
-                                                    card.owner == current_priority
-                                                        && card.is_land()
-                                                        && !card.tapped
-                                                } else {
-                                                    false
-                                                }
-                                            })
-                                            .copied()
-                                            .collect::<Vec<_>>();
-
-                                        // Sort for deterministic ordering (critical for snapshot/resume)
-                                        tappable.sort();
-
-                                        // Simple greedy algorithm: tap lands until we have enough
-                                        for &land_id in &tappable {
-                                            sources.push(land_id);
-                                            if sources.len() >= cost.cmc() as usize {
-                                                break;
+                                let mana_callback = |game: &GameState, cost: &crate::core::ManaCost| {
+                                    // For now, automatically choose mana sources
+                                    // TODO: Call controller.choose_mana_sources_to_pay()
+                                    let mut sources = Vec::new();
+                                    let mut tappable = game
+                                        .battlefield
+                                        .cards
+                                        .iter()
+                                        .filter(|&&card_id| {
+                                            if let Ok(card) = game.cards.get(card_id) {
+                                                card.owner == current_priority && card.is_land() && !card.tapped
+                                            } else {
+                                                false
                                             }
+                                        })
+                                        .copied()
+                                        .collect::<Vec<_>>();
+
+                                    // Sort for deterministic ordering (critical for snapshot/resume)
+                                    tappable.sort();
+
+                                    // Simple greedy algorithm: tap lands until we have enough
+                                    for &land_id in &tappable {
+                                        sources.push(land_id);
+                                        if sources.len() >= cost.cmc() as usize {
+                                            break;
                                         }
-                                        sources
-                                    };
+                                    }
+                                    sources
+                                };
 
                                 // Cast using 8-step process
                                 if let Err(e) = self.game.cast_spell_8_step(
@@ -2203,30 +2106,23 @@ impl<'a> GameLoop<'a> {
                                     // when both players pass priority
                                 }
                             }
-                            crate::core::SpellAbility::ActivateAbility {
-                                card_id,
-                                ability_index,
-                            } => {
+                            crate::core::SpellAbility::ActivateAbility { card_id, ability_index } => {
                                 // Activate ability from a permanent
                                 // TODO(mtg-70): This should go on the stack for non-mana abilities
 
                                 // Get the card and ability
-                                let card_name =
-                                    self.game.cards.get(card_id).ok().map(|c| c.name.clone());
-                                let ability = self.game.cards.get(card_id).ok().and_then(|c| {
-                                    c.activated_abilities.get(ability_index).cloned()
-                                });
+                                let card_name = self.game.cards.get(card_id).ok().map(|c| c.name.clone());
+                                let ability = self
+                                    .game
+                                    .cards
+                                    .get(card_id)
+                                    .ok()
+                                    .and_then(|c| c.activated_abilities.get(ability_index).cloned());
 
                                 if let Some(ability) = ability {
                                     if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
-                                        let name = card_name
-                                            .as_ref()
-                                            .map(|n| n.as_str())
-                                            .unwrap_or("Unknown");
-                                        println!(
-                                            "  {} activates ability: {}",
-                                            name, ability.description
-                                        );
+                                        let name = card_name.as_ref().map(|n| n.as_str()).unwrap_or("Unknown");
+                                        println!("  {} activates ability: {}", name, ability.description);
                                     }
 
                                     // Get valid targets for the ability (before paying costs)
@@ -2236,9 +2132,7 @@ impl<'a> GameLoop<'a> {
                                         .unwrap_or_else(|_| SmallVec::new());
 
                                     // Ask controller to choose targets (only if there are valid targets)
-                                    let chosen_targets_vec: Vec<CardId> = if valid_targets
-                                        .is_empty()
-                                    {
+                                    let chosen_targets_vec: Vec<CardId> = if valid_targets.is_empty() {
                                         // No targets needed - ability has no targeting effects
                                         Vec::new()
                                     } else if valid_targets.len() == 1 {
@@ -2249,33 +2143,19 @@ impl<'a> GameLoop<'a> {
                                         // Multiple valid targets - ask controller to choose
                                         let view = GameStateView::new(self.game, current_priority);
 
-                                        let chosen_targets = controller.choose_targets(
-                                            &view,
-                                            card_id,
-                                            &valid_targets,
-                                        );
+                                        let chosen_targets = controller.choose_targets(&view, card_id, &valid_targets);
 
                                         // Log this choice point for snapshot/replay
-                                        let replay_choice = crate::game::ReplayChoice::Targets(
-                                            chosen_targets.clone(),
-                                        );
-                                        self.log_choice_point(
-                                            current_priority,
-                                            Some(replay_choice),
-                                        );
+                                        let replay_choice = crate::game::ReplayChoice::Targets(chosen_targets.clone());
+                                        self.log_choice_point(current_priority, Some(replay_choice));
 
                                         chosen_targets.into_iter().collect()
                                     };
 
                                     // Pay costs
-                                    if let Err(e) = self.game.pay_ability_cost(
-                                        current_priority,
-                                        card_id,
-                                        &ability.cost,
-                                    ) {
-                                        if self.verbosity >= VerbosityLevel::Normal
-                                            && !self.replaying
-                                        {
+                                    if let Err(e) = self.game.pay_ability_cost(current_priority, card_id, &ability.cost)
+                                    {
+                                        if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
                                             eprintln!("    Failed to pay cost: {e}");
                                         }
                                         continue;
@@ -2286,9 +2166,7 @@ impl<'a> GameLoop<'a> {
                                     for effect in &ability.effects {
                                         // Fix placeholder player IDs and targets for effects
                                         let fixed_effect = match effect {
-                                            crate::core::Effect::AddMana { player, mana }
-                                                if player.as_u32() == 0 =>
-                                            {
+                                            crate::core::Effect::AddMana { player, mana } if player.as_u32() == 0 => {
                                                 // Replace placeholder with current player
                                                 crate::core::Effect::AddMana {
                                                     player: current_priority,
@@ -2315,8 +2193,7 @@ impl<'a> GameLoop<'a> {
                                             }
                                             // Replace placeholder targets with chosen targets
                                             crate::core::Effect::DestroyPermanent { target }
-                                                if target.as_u32() == 0
-                                                    && !chosen_targets_vec.is_empty() =>
+                                                if target.as_u32() == 0 && !chosen_targets_vec.is_empty() =>
                                             {
                                                 // Use the first chosen target
                                                 crate::core::Effect::DestroyPermanent {
@@ -2324,16 +2201,14 @@ impl<'a> GameLoop<'a> {
                                                 }
                                             }
                                             crate::core::Effect::TapPermanent { target }
-                                                if target.as_u32() == 0
-                                                    && !chosen_targets_vec.is_empty() =>
+                                                if target.as_u32() == 0 && !chosen_targets_vec.is_empty() =>
                                             {
                                                 crate::core::Effect::TapPermanent {
                                                     target: chosen_targets_vec[0],
                                                 }
                                             }
                                             crate::core::Effect::UntapPermanent { target }
-                                                if target.as_u32() == 0
-                                                    && !chosen_targets_vec.is_empty() =>
+                                                if target.as_u32() == 0 && !chosen_targets_vec.is_empty() =>
                                             {
                                                 crate::core::Effect::UntapPermanent {
                                                     target: chosen_targets_vec[0],
@@ -2343,9 +2218,7 @@ impl<'a> GameLoop<'a> {
                                                 target,
                                                 power_bonus,
                                                 toughness_bonus,
-                                            } if target.as_u32() == 0
-                                                && !chosen_targets_vec.is_empty() =>
-                                            {
+                                            } if target.as_u32() == 0 && !chosen_targets_vec.is_empty() => {
                                                 crate::core::Effect::PumpCreature {
                                                     target: chosen_targets_vec[0],
                                                     power_bonus: *power_bonus,
@@ -2356,9 +2229,7 @@ impl<'a> GameLoop<'a> {
                                                 target,
                                                 counter_type,
                                                 amount,
-                                            } if target.as_u32() == 0
-                                                && !chosen_targets_vec.is_empty() =>
-                                            {
+                                            } if target.as_u32() == 0 && !chosen_targets_vec.is_empty() => {
                                                 crate::core::Effect::PutCounter {
                                                     target: chosen_targets_vec[0],
                                                     counter_type: *counter_type,
@@ -2369,9 +2240,7 @@ impl<'a> GameLoop<'a> {
                                                 target,
                                                 counter_type,
                                                 amount,
-                                            } if target.as_u32() == 0
-                                                && !chosen_targets_vec.is_empty() =>
-                                            {
+                                            } if target.as_u32() == 0 && !chosen_targets_vec.is_empty() => {
                                                 crate::core::Effect::RemoveCounter {
                                                     target: chosen_targets_vec[0],
                                                     counter_type: *counter_type,
@@ -2382,16 +2251,12 @@ impl<'a> GameLoop<'a> {
                                         };
 
                                         if let Err(e) = self.game.execute_effect(&fixed_effect) {
-                                            if self.verbosity >= VerbosityLevel::Normal
-                                                && !self.replaying
-                                            {
+                                            if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
                                                 eprintln!("    Failed to execute effect: {e}");
                                             }
                                         }
                                     }
-                                } else if self.verbosity >= VerbosityLevel::Normal
-                                    && !self.replaying
-                                {
+                                } else if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
                                     eprintln!("  Ability not found");
                                 }
                             }
@@ -2731,8 +2596,7 @@ impl<'a> GameLoop<'a> {
                         //
                         // We need to distinguish between these cases.
                         // For now, check if the ability description contains "target"
-                        let requires_targets =
-                            ability.description.to_lowercase().contains("target");
+                        let requires_targets = ability.description.to_lowercase().contains("target");
 
                         if requires_targets && valid_targets.is_empty() {
                             // Ability requires targets but none are available
@@ -2796,10 +2660,7 @@ impl<'a> GameLoop<'a> {
         // Add activated abilities
         let activatable = self.get_activatable_abilities(player_id);
         for (card_id, ability_index) in activatable {
-            abilities.push(SpellAbility::ActivateAbility {
-                card_id,
-                ability_index,
-            });
+            abilities.push(SpellAbility::ActivateAbility { card_id, ability_index });
         }
 
         // Sort by card ID to ensure deterministic ordering
@@ -2864,8 +2725,7 @@ impl<'a> GameLoop<'a> {
                 self.game.declare_attacker(player_id, *card_id)?;
             }
             PlayerAction::DeclareBlocker { blocker, attackers } => {
-                self.game
-                    .declare_blocker(player_id, *blocker, attackers.clone())?;
+                self.game.declare_blocker(player_id, *blocker, attackers.clone())?;
             }
             PlayerAction::FinishDeclareAttackers | PlayerAction::FinishDeclareBlockers => {
                 // Handled by the combat step logic, not here
@@ -2981,13 +2841,7 @@ mod tests {
     #[test]
     fn test_untap_step() {
         let mut game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
-        let alice = {
-            game.players
-                .iter()
-                .map(|p| p.id)
-                .next()
-                .expect("Should have player 1")
-        };
+        let alice = { game.players.iter().map(|p| p.id).next().expect("Should have player 1") };
 
         // Create a tapped land on battlefield
         let land_id = game.next_card_id();
@@ -3034,9 +2888,7 @@ mod tests {
 
         // Run draw step
         let mut game_loop = GameLoop::new(&mut game);
-        game_loop
-            .draw_step(&mut controller1, &mut controller2)
-            .unwrap();
+        game_loop.draw_step(&mut controller1, &mut controller2).unwrap();
 
         // Card should be in hand
         if let Some(zones) = game.get_player_zones(alice) {

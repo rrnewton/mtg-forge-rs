@@ -10,10 +10,7 @@ use smallvec::SmallVec;
 #[derive(Debug, Clone)]
 pub enum GameAction {
     /// Play a land from hand
-    PlayLand {
-        player_id: PlayerId,
-        card_id: CardId,
-    },
+    PlayLand { player_id: PlayerId, card_id: CardId },
 
     /// Cast a spell from hand
     CastSpell {
@@ -30,10 +27,7 @@ pub enum GameAction {
     },
 
     /// Tap a permanent for mana
-    TapForMana {
-        player_id: PlayerId,
-        card_id: CardId,
-    },
+    TapForMana { player_id: PlayerId, card_id: CardId },
 
     /// Declare attackers
     DeclareAttackers {
@@ -51,9 +45,7 @@ impl GameState {
         // Check if player can play a land
         let player = self.get_player(player_id)?;
         if !player.can_play_land() {
-            return Err(MtgError::InvalidAction(
-                "Cannot play more lands this turn".to_string(),
-            ));
+            return Err(MtgError::InvalidAction("Cannot play more lands this turn".to_string()));
         }
 
         // Check if card is a land and in hand
@@ -87,12 +79,7 @@ impl GameState {
     /// Cast a spell (put it on the stack)
     ///
     /// This validates mana payment and deducts the cost from the player's mana pool.
-    pub fn cast_spell(
-        &mut self,
-        player_id: PlayerId,
-        card_id: CardId,
-        _targets: Vec<CardId>,
-    ) -> Result<()> {
+    pub fn cast_spell(&mut self, player_id: PlayerId, card_id: CardId, _targets: Vec<CardId>) -> Result<()> {
         // Check if card is in hand
         if let Some(zones) = self.get_player_zones(player_id) {
             if !zones.hand.contains(card_id) {
@@ -108,10 +95,7 @@ impl GameState {
 
         // Pay the mana cost
         let player = self.get_player_mut(player_id)?;
-        player
-            .mana_pool
-            .pay_cost(&mana_cost)
-            .map_err(MtgError::InvalidAction)?;
+        player.mana_pool.pay_cost(&mana_cost).map_err(MtgError::InvalidAction)?;
 
         // Move card to stack
         self.move_card(card_id, Zone::Hand, Zone::Stack, player_id)?;
@@ -151,9 +135,7 @@ impl GameState {
                     };
                     target_index += 1;
                 }
-                Effect::DestroyPermanent { target }
-                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
-                {
+                Effect::DestroyPermanent { target } if target.as_u32() == 0 && target_index < chosen_targets.len() => {
                     // Use the chosen target
                     *effect = Effect::DestroyPermanent {
                         target: chosen_targets[target_index],
@@ -173,27 +155,21 @@ impl GameState {
                     };
                     target_index += 1;
                 }
-                Effect::TapPermanent { target }
-                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
-                {
+                Effect::TapPermanent { target } if target.as_u32() == 0 && target_index < chosen_targets.len() => {
                     // Use the chosen target
                     *effect = Effect::TapPermanent {
                         target: chosen_targets[target_index],
                     };
                     target_index += 1;
                 }
-                Effect::UntapPermanent { target }
-                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
-                {
+                Effect::UntapPermanent { target } if target.as_u32() == 0 && target_index < chosen_targets.len() => {
                     // Use the chosen target
                     *effect = Effect::UntapPermanent {
                         target: chosen_targets[target_index],
                     };
                     target_index += 1;
                 }
-                Effect::CounterSpell { target }
-                    if target.as_u32() == 0 && target_index < chosen_targets.len() =>
-                {
+                Effect::CounterSpell { target } if target.as_u32() == 0 && target_index < chosen_targets.len() => {
                     // Use the chosen target
                     *effect = Effect::CounterSpell {
                         target: chosen_targets[target_index],
@@ -238,12 +214,7 @@ impl GameState {
                 } => {
                     // If no target was chosen, default to opponent for damage
                     // This handles untargeted damage like "deals 1 damage to each opponent"
-                    if let Some(opponent_id) = self
-                        .players
-                        .iter()
-                        .map(|p| p.id)
-                        .find(|id| *id != card_owner)
-                    {
+                    if let Some(opponent_id) = self.players.iter().map(|p| p.id).find(|id| *id != card_owner) {
                         *effect = Effect::DealDamage {
                             target: TargetRef::Player(opponent_id),
                             amount: *amount,
@@ -328,10 +299,7 @@ impl GameState {
     ///
     /// Returns a vector of valid target CardIds that can be chosen by the controller.
     /// For effects that target players, use TargetRef::Player instead.
-    pub fn get_valid_targets_for_spell(
-        &self,
-        spell_card_id: CardId,
-    ) -> Result<SmallVec<[CardId; 8]>> {
+    pub fn get_valid_targets_for_spell(&self, spell_card_id: CardId) -> Result<SmallVec<[CardId; 8]>> {
         let mut valid_targets = SmallVec::new();
 
         // Get the spell's owner and effects
@@ -455,15 +423,12 @@ impl GameState {
         let source_card = self.cards.get(source_card_id)?;
         let ability_controller = source_card.controller;
 
-        let ability = source_card
-            .activated_abilities
-            .get(ability_index)
-            .ok_or_else(|| {
-                MtgError::InvalidAction(format!(
-                    "Ability index {} out of bounds for card {}",
-                    ability_index, source_card_id
-                ))
-            })?;
+        let ability = source_card.activated_abilities.get(ability_index).ok_or_else(|| {
+            MtgError::InvalidAction(format!(
+                "Ability index {} out of bounds for card {}",
+                ability_index, source_card_id
+            ))
+        })?;
 
         // Check for targeting restrictions in the ability description
         // For Royal Assassin: "Destroy target tapped creature"
@@ -652,9 +617,7 @@ impl GameState {
             // If we can't pay, we need to unwind - move card back to hand
             // and untap mana sources
             // For now, just return error (TODO: proper unwinding)
-            return Err(MtgError::InvalidAction(format!(
-                "Failed to pay mana cost: {e}"
-            )));
+            return Err(MtgError::InvalidAction(format!("Failed to pay mana cost: {e}")));
         }
 
         // Step 8: Spell becomes cast
@@ -1023,9 +986,7 @@ impl GameState {
         }
 
         if card.tapped {
-            return Err(MtgError::InvalidAction(
-                "Land is already tapped".to_string(),
-            ));
+            return Err(MtgError::InvalidAction("Land is already tapped".to_string()));
         }
 
         // Get land name before tapping (to avoid borrow conflicts)
@@ -1035,10 +996,8 @@ impl GameState {
         card.tap();
 
         // Log the tap
-        self.undo_log.log(crate::undo::GameAction::TapCard {
-            card_id,
-            tapped: true,
-        });
+        self.undo_log
+            .log(crate::undo::GameAction::TapCard { card_id, tapped: true });
 
         // Add mana to player's pool based on land type
         // For now, simplified - just check land name
@@ -1070,8 +1029,7 @@ impl GameState {
                 crate::core::Color::Green => mana.green = 1,
                 crate::core::Color::Colorless => mana.colorless = 1,
             }
-            self.undo_log
-                .log(crate::undo::GameAction::AddMana { player_id, mana });
+            self.undo_log.log(crate::undo::GameAction::AddMana { player_id, mana });
         }
 
         Ok(())
@@ -1084,9 +1042,7 @@ impl GameState {
 
         // Must be a creature
         if !card.is_creature() {
-            return Err(MtgError::InvalidAction(
-                "Only creatures can attack".to_string(),
-            ));
+            return Err(MtgError::InvalidAction("Only creatures can attack".to_string()));
         }
 
         // Must be controlled by the attacking player
@@ -1146,30 +1102,21 @@ impl GameState {
             card.tap();
 
             // Log the action
-            self.undo_log.log(crate::undo::GameAction::TapCard {
-                card_id,
-                tapped: true,
-            });
+            self.undo_log
+                .log(crate::undo::GameAction::TapCard { card_id, tapped: true });
         }
 
         Ok(())
     }
 
     /// Declare a creature as a blocker
-    pub fn declare_blocker(
-        &mut self,
-        player_id: PlayerId,
-        blocker_id: CardId,
-        attackers: Vec<CardId>,
-    ) -> Result<()> {
+    pub fn declare_blocker(&mut self, player_id: PlayerId, blocker_id: CardId, attackers: Vec<CardId>) -> Result<()> {
         // Validate blocker can block
         let blocker = self.cards.get(blocker_id)?;
 
         // Must be a creature
         if !blocker.is_creature() {
-            return Err(MtgError::InvalidAction(
-                "Only creatures can block".to_string(),
-            ));
+            return Err(MtgError::InvalidAction("Only creatures can block".to_string()));
         }
 
         // Must be controlled by the defending player
@@ -1196,9 +1143,7 @@ impl GameState {
         // Validate all attackers are actually attacking
         for &attacker in &attackers {
             if !self.combat.is_attacking(attacker) {
-                return Err(MtgError::InvalidAction(format!(
-                    "Card {attacker:?} is not attacking"
-                )));
+                return Err(MtgError::InvalidAction(format!("Card {attacker:?} is not attacking")));
             }
         }
 
@@ -1213,8 +1158,7 @@ impl GameState {
 
             if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
                 return Err(MtgError::InvalidAction(
-                    "Creature cannot block attacker with flying (needs flying or reach)"
-                        .to_string(),
+                    "Creature cannot block attacker with flying (needs flying or reach)".to_string(),
                 ));
             }
 
@@ -1283,17 +1227,9 @@ impl GameState {
                     let view = GameStateView::new(self, attacker_owner);
 
                     let ordered_blockers = if attacker_owner == attacker_controller.player_id() {
-                        attacker_controller.choose_damage_assignment_order(
-                            &view,
-                            attacker_id,
-                            &blockers,
-                        )
+                        attacker_controller.choose_damage_assignment_order(&view, attacker_id, &blockers)
                     } else {
-                        blocker_controller.choose_damage_assignment_order(
-                            &view,
-                            attacker_id,
-                            &blockers,
-                        )
+                        blocker_controller.choose_damage_assignment_order(&view, attacker_id, &blockers)
                     };
 
                     damage_orders.insert(attacker_id, ordered_blockers);
@@ -1307,8 +1243,7 @@ impl GameState {
         // Track damage dealt by each creature for lifelink (creature_id -> total damage dealt)
         let mut damage_dealt_by_creature: HashMap<CardId, i32> = HashMap::new();
         // Track creatures dealt deathtouch damage (for state-based destruction)
-        let mut deathtouch_damaged_creatures: std::collections::HashSet<CardId> =
-            std::collections::HashSet::new();
+        let mut deathtouch_damaged_creatures: std::collections::HashSet<CardId> = std::collections::HashSet::new();
 
         // Use iterator again for second pass (zero allocation)
         for attacker_id in self.combat.attackers_iter() {
@@ -1386,11 +1321,9 @@ impl GameState {
                     };
 
                     if damage_to_assign > 0 {
-                        *damage_to_creatures.entry(*blocker_id).or_insert(0) +=
-                            damage_to_assign as i32;
+                        *damage_to_creatures.entry(*blocker_id).or_insert(0) += damage_to_assign as i32;
                         // Track damage for lifelink
-                        *damage_dealt_by_creature.entry(attacker_id).or_insert(0) +=
-                            damage_to_assign as i32;
+                        *damage_dealt_by_creature.entry(attacker_id).or_insert(0) += damage_to_assign as i32;
                         // Track deathtouch damage (MTG Rules 702.2b)
                         if has_deathtouch {
                             deathtouch_damaged_creatures.insert(*blocker_id);
@@ -1404,11 +1337,9 @@ impl GameState {
                 // MTG Rules 702.19
                 if attacker.has_trample() && remaining_power > 0 {
                     if let Some(defending_player) = self.combat.get_defending_player(attacker_id) {
-                        *damage_to_players.entry(defending_player).or_insert(0) +=
-                            remaining_power as i32;
+                        *damage_to_players.entry(defending_player).or_insert(0) += remaining_power as i32;
                         // Track damage for lifelink
-                        *damage_dealt_by_creature.entry(attacker_id).or_insert(0) +=
-                            remaining_power as i32;
+                        *damage_dealt_by_creature.entry(attacker_id).or_insert(0) += remaining_power as i32;
                     }
                 }
 
@@ -1435,11 +1366,9 @@ impl GameState {
 
                     let blocker_power = blocker.current_power();
                     if blocker_power > 0 {
-                        *damage_to_creatures.entry(attacker_id).or_insert(0) +=
-                            blocker_power as i32;
+                        *damage_to_creatures.entry(attacker_id).or_insert(0) += blocker_power as i32;
                         // Track damage for lifelink
-                        *damage_dealt_by_creature.entry(*blocker_id).or_insert(0) +=
-                            blocker_power as i32;
+                        *damage_dealt_by_creature.entry(*blocker_id).or_insert(0) += blocker_power as i32;
                         // Track deathtouch damage from blocker (MTG Rules 702.2b)
                         if blocker.has_deathtouch() {
                             deathtouch_damaged_creatures.insert(attacker_id);
@@ -1449,11 +1378,9 @@ impl GameState {
             } else {
                 // Unblocked attacker deals damage to defending player
                 if let Some(defending_player) = self.combat.get_defending_player(attacker_id) {
-                    *damage_to_players.entry(defending_player).or_insert(0) +=
-                        remaining_power as i32;
+                    *damage_to_players.entry(defending_player).or_insert(0) += remaining_power as i32;
                     // Track damage for lifelink
-                    *damage_dealt_by_creature.entry(attacker_id).or_insert(0) +=
-                        remaining_power as i32;
+                    *damage_dealt_by_creature.entry(attacker_id).or_insert(0) += remaining_power as i32;
                 }
             }
         }
@@ -1489,10 +1416,7 @@ impl GameState {
             if self.battlefield.contains(creature_id) {
                 if let Ok(creature) = self.cards.get(creature_id) {
                     // Only destroy if it has toughness > 0 and doesn't have indestructible
-                    if creature.is_creature()
-                        && creature.current_toughness() > 0
-                        && !creature.has_indestructible()
-                    {
+                    if creature.is_creature() && creature.current_toughness() > 0 && !creature.has_indestructible() {
                         let owner = creature.owner;
                         self.move_card(creature_id, Zone::Battlefield, Zone::Graveyard, owner)?;
                     }
@@ -1516,12 +1440,7 @@ impl GameState {
     /// - Support cost refund if payment fails midway
     /// - Handle cost ordering more comprehensively
     /// - Support all cost types (sacrifice, discard, pay life, etc.)
-    pub fn pay_ability_cost(
-        &mut self,
-        player_id: PlayerId,
-        card_id: CardId,
-        cost: &crate::core::Cost,
-    ) -> Result<()> {
+    pub fn pay_ability_cost(&mut self, player_id: PlayerId, card_id: CardId, cost: &crate::core::Cost) -> Result<()> {
         use crate::core::Cost;
 
         match cost {
@@ -1529,9 +1448,7 @@ impl GameState {
                 // Tap the permanent
                 let card = self.cards.get_mut(card_id)?;
                 if card.tapped {
-                    return Err(MtgError::InvalidAction(
-                        "Permanent is already tapped".to_string(),
-                    ));
+                    return Err(MtgError::InvalidAction("Permanent is already tapped".to_string()));
                 }
                 card.tap();
                 Ok(())
@@ -1543,10 +1460,7 @@ impl GameState {
                 if !player.mana_pool.can_pay(mana_cost) {
                     return Err(MtgError::InvalidAction("Cannot pay mana cost".to_string()));
                 }
-                player
-                    .mana_pool
-                    .pay_cost(mana_cost)
-                    .map_err(MtgError::InvalidAction)?;
+                player.mana_pool.pay_cost(mana_cost).map_err(MtgError::InvalidAction)?;
                 Ok(())
             }
 
@@ -1555,9 +1469,7 @@ impl GameState {
                 // Tap first (must happen before zone changes)
                 let card = self.cards.get_mut(card_id)?;
                 if card.tapped {
-                    return Err(MtgError::InvalidAction(
-                        "Permanent is already tapped".to_string(),
-                    ));
+                    return Err(MtgError::InvalidAction("Permanent is already tapped".to_string()));
                 }
                 card.tap();
 
@@ -1567,10 +1479,7 @@ impl GameState {
                     // TODO: Should refund the tap here
                     return Err(MtgError::InvalidAction("Cannot pay mana cost".to_string()));
                 }
-                player
-                    .mana_pool
-                    .pay_cost(mana_cost)
-                    .map_err(MtgError::InvalidAction)?;
+                player.mana_pool.pay_cost(mana_cost).map_err(MtgError::InvalidAction)?;
                 Ok(())
             }
 
@@ -1588,9 +1497,7 @@ impl GameState {
                 // Untap the permanent
                 let card = self.cards.get_mut(card_id)?;
                 if !card.tapped {
-                    return Err(MtgError::InvalidAction(
-                        "Permanent is not tapped".to_string(),
-                    ));
+                    return Err(MtgError::InvalidAction("Permanent is not tapped".to_string()));
                 }
                 card.untap();
                 Ok(())
@@ -1637,9 +1544,7 @@ impl GameState {
                             card.is_artifact()
                         } else {
                             // Generic type match - check if any type contains the string
-                            card.types
-                                .iter()
-                                .any(|t| format!("{t:?}").contains(card_type))
+                            card.types.iter().any(|t| format!("{t:?}").contains(card_type))
                         };
 
                         if matches {
@@ -1804,10 +1709,7 @@ mod tests {
         }
 
         // Check it moved
-        assert!(
-            !game.battlefield.contains(card_id),
-            "Card still on battlefield"
-        );
+        assert!(!game.battlefield.contains(card_id), "Card still on battlefield");
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert!(zones.graveyard.contains(card_id), "Card not in graveyard");
         }
@@ -1833,10 +1735,7 @@ mod tests {
         assert!(result.is_ok(), "deal_damage_to_creature failed: {result:?}");
 
         // Check it's in graveyard
-        assert!(
-            !game.battlefield.contains(card_id),
-            "Card still on battlefield"
-        );
+        assert!(!game.battlefield.contains(card_id), "Card still on battlefield");
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert!(zones.graveyard.contains(card_id), "Card not in graveyard");
         }
@@ -2041,16 +1940,8 @@ mod tests {
 
         // Check initial state
         if let Some(zones) = game.get_player_zones(p1_id) {
-            assert_eq!(
-                zones.hand.cards.len(),
-                0,
-                "Should start with 0 cards in hand"
-            );
-            assert_eq!(
-                zones.library.cards.len(),
-                5,
-                "Should have 5 cards in library"
-            );
+            assert_eq!(zones.hand.cards.len(), 0, "Should start with 0 cards in hand");
+            assert_eq!(zones.library.cards.len(), 5, "Should have 5 cards in library");
         }
 
         // Resolve the spell
@@ -2062,11 +1953,7 @@ mod tests {
         // Check cards were drawn
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert_eq!(zones.hand.cards.len(), 2, "Should have drawn 2 cards");
-            assert_eq!(
-                zones.library.cards.len(),
-                3,
-                "Should have 3 cards left in library"
-            );
+            assert_eq!(zones.library.cards.len(), 3, "Should have 3 cards left in library");
         }
 
         // Check spell went to graveyard
@@ -2103,9 +1990,9 @@ mod tests {
         destroy_spell.types.push(CardType::Instant);
         destroy_spell.mana_cost = ManaCost::from_string("1B");
         // Use placeholder card ID 0 which will be replaced with an opponent's creature
-        destroy_spell.effects.push(Effect::DestroyPermanent {
-            target: CardId::new(0),
-        });
+        destroy_spell
+            .effects
+            .push(Effect::DestroyPermanent { target: CardId::new(0) });
         game.cards.insert(destroy_spell_id, destroy_spell);
 
         // Put it on the stack (simulating cast)
@@ -2119,8 +2006,7 @@ mod tests {
 
         // Resolve the spell with the target creature
         assert!(
-            game.resolve_spell(destroy_spell_id, &[target_creature_id])
-                .is_ok(),
+            game.resolve_spell(destroy_spell_id, &[target_creature_id]).is_ok(),
             "Failed to resolve destroy spell"
         );
 
@@ -2397,8 +2283,7 @@ mod tests {
         // Declare attacker and both blockers
         game.combat.declare_attacker(attacker_id, p2_id);
         let blocker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
-        game.combat
-            .declare_blocker(blocker1_id, blocker_vec.clone());
+        game.combat.declare_blocker(blocker1_id, blocker_vec.clone());
         game.combat.declare_blocker(blocker2_id, blocker_vec);
 
         // Create controllers
@@ -2430,10 +2315,7 @@ mod tests {
 
         // Check attacker died (took 5 damage, toughness 5)
         if let Some(zones) = game.get_player_zones(p1_id) {
-            assert!(
-                zones.graveyard.contains(attacker_id),
-                "Attacker should be in graveyard"
-            );
+            assert!(zones.graveyard.contains(attacker_id), "Attacker should be in graveyard");
         }
     }
 
@@ -2460,10 +2342,7 @@ mod tests {
         // Try to declare it as an attacker - should fail due to summoning sickness
         let result = game.declare_attacker(p1_id, creature_id);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("summoning sickness"));
+        assert!(result.unwrap_err().to_string().contains("summoning sickness"));
     }
 
     #[test]
@@ -2543,10 +2422,7 @@ mod tests {
         // Try to declare it as an attacker - should fail because of defender
         let result = game.declare_attacker(p1_id, creature_id);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("defender can't attack"));
+        assert!(result.unwrap_err().to_string().contains("defender can't attack"));
         assert!(!game.combat.is_attacking(creature_id));
     }
 
@@ -2556,8 +2432,7 @@ mod tests {
         let p1_id = game.players[0].id;
 
         // Load Serra Angel (4/4 with Flying and Vigilance)
-        let creature_id =
-            load_test_card(&mut game, "Serra Angel", p1_id).expect("Failed to load Serra Angel");
+        let creature_id = load_test_card(&mut game, "Serra Angel", p1_id).expect("Failed to load Serra Angel");
 
         if let Ok(creature) = game.cards.get_mut(creature_id) {
             creature.controller = p1_id;
@@ -2622,8 +2497,7 @@ mod tests {
         let p2_id = game.players[1].id;
 
         // P1: Load Storm Crow (1/2 with Flying) as attacker
-        let attacker_id =
-            load_test_card(&mut game, "Storm Crow", p1_id).expect("Failed to load Storm Crow");
+        let attacker_id = load_test_card(&mut game, "Storm Crow", p1_id).expect("Failed to load Storm Crow");
 
         if let Ok(attacker) = game.cards.get_mut(attacker_id) {
             attacker.controller = p1_id;
@@ -2632,8 +2506,7 @@ mod tests {
         game.battlefield.add(attacker_id);
 
         // P2: Load Segovian Angel (1/1 with Flying and Vigilance) as blocker
-        let blocker_id = load_test_card(&mut game, "Segovian Angel", p2_id)
-            .expect("Failed to load Segovian Angel");
+        let blocker_id = load_test_card(&mut game, "Segovian Angel", p2_id).expect("Failed to load Segovian Angel");
 
         if let Ok(blocker) = game.cards.get_mut(blocker_id) {
             blocker.controller = p2_id;
@@ -2658,8 +2531,7 @@ mod tests {
         let p2_id = game.players[1].id;
 
         // P1: Load Storm Crow (1/2 with Flying) as attacker
-        let attacker_id =
-            load_test_card(&mut game, "Storm Crow", p1_id).expect("Failed to load Storm Crow");
+        let attacker_id = load_test_card(&mut game, "Storm Crow", p1_id).expect("Failed to load Storm Crow");
 
         if let Ok(attacker) = game.cards.get_mut(attacker_id) {
             attacker.controller = p1_id;
@@ -2668,8 +2540,7 @@ mod tests {
         game.battlefield.add(attacker_id);
 
         // P2: Load Giant Spider (2/4 with Reach) as blocker
-        let blocker_id =
-            load_test_card(&mut game, "Giant Spider", p2_id).expect("Failed to load Giant Spider");
+        let blocker_id = load_test_card(&mut game, "Giant Spider", p2_id).expect("Failed to load Giant Spider");
 
         if let Ok(blocker) = game.cards.get_mut(blocker_id) {
             blocker.controller = p2_id;
@@ -2816,8 +2687,7 @@ mod tests {
         let p2_id = game.players[1].id;
 
         // P1: Load Advance Scout (1/1 with First Strike) as attacker
-        let attacker_id = load_test_card(&mut game, "Advance Scout", p1_id)
-            .expect("Failed to load Advance Scout");
+        let attacker_id = load_test_card(&mut game, "Advance Scout", p1_id).expect("Failed to load Advance Scout");
 
         // Set attacker power/toughness to 2/2 so test works as before
         if let Ok(attacker) = game.cards.get_mut(attacker_id) {
@@ -2829,8 +2699,7 @@ mod tests {
         game.battlefield.add(attacker_id);
 
         // P2: Load Grizzly Bears (2/2 vanilla) as blocker
-        let blocker_id = load_test_card(&mut game, "Grizzly Bears", p2_id)
-            .expect("Failed to load Grizzly Bears");
+        let blocker_id = load_test_card(&mut game, "Grizzly Bears", p2_id).expect("Failed to load Grizzly Bears");
 
         if let Ok(blocker) = game.cards.get_mut(blocker_id) {
             blocker.controller = p2_id;
@@ -2848,10 +2717,7 @@ mod tests {
 
         // First strike damage step: attacker deals 2 damage, blocker takes none
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
-        assert!(
-            result.is_ok(),
-            "Failed to assign first strike damage: {result:?}"
-        );
+        assert!(result.is_ok(), "Failed to assign first strike damage: {result:?}");
 
         // Blocker should be dead (took 2 damage, toughness 2)
         if let Some(zones) = game.get_player_zones(p2_id) {
@@ -2866,18 +2732,11 @@ mod tests {
         assert!(result.is_ok(), "Failed to assign normal damage: {result:?}");
 
         // Attacker should still be alive (never took damage)
-        assert!(
-            game.battlefield.contains(attacker_id),
-            "Attacker should still be alive"
-        );
+        assert!(game.battlefield.contains(attacker_id), "Attacker should still be alive");
 
         // Check attacker is undamaged
         if let Ok(attacker) = game.cards.get(attacker_id) {
-            assert_eq!(
-                attacker.current_toughness(),
-                2,
-                "Attacker should be undamaged"
-            );
+            assert_eq!(attacker.current_toughness(), 2, "Attacker should be undamaged");
         }
     }
 
@@ -2888,8 +2747,7 @@ mod tests {
         let p2_id = game.players[1].id;
 
         // P1: Load Adorned Pouncer (1/1 with Double Strike) as attacker
-        let attacker_id = load_test_card(&mut game, "Adorned Pouncer", p1_id)
-            .expect("Failed to load Adorned Pouncer");
+        let attacker_id = load_test_card(&mut game, "Adorned Pouncer", p1_id).expect("Failed to load Adorned Pouncer");
 
         // Set power/toughness to 3/3 so test works as before
         if let Ok(attacker) = game.cards.get_mut(attacker_id) {
@@ -2909,17 +2767,11 @@ mod tests {
 
         // First strike damage step: attacker deals 3 damage to player
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
-        assert!(
-            result.is_ok(),
-            "Failed to assign first strike damage: {result:?}"
-        );
+        assert!(result.is_ok(), "Failed to assign first strike damage: {result:?}");
 
         // Check player took 3 damage
         let p2 = game.get_player(p2_id).unwrap();
-        assert_eq!(
-            p2.life, 17,
-            "Player should have taken 3 damage in first strike step"
-        );
+        assert_eq!(p2.life, 17, "Player should have taken 3 damage in first strike step");
 
         // Normal damage step: attacker deals another 3 damage to player
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
@@ -2973,10 +2825,7 @@ mod tests {
 
         // First strike damage step: both creatures deal damage simultaneously
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
-        assert!(
-            result.is_ok(),
-            "Failed to assign first strike damage: {result:?}"
-        );
+        assert!(result.is_ok(), "Failed to assign first strike damage: {result:?}");
 
         // Both creatures should be dead (both took 2 damage, both have 2 toughness)
         if let Some(zones) = game.get_player_zones(p1_id) {
@@ -3161,10 +3010,7 @@ mod tests {
 
         // First strike damage step: only blocker deals damage
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, true);
-        assert!(
-            result.is_ok(),
-            "Failed to assign first strike damage: {result:?}"
-        );
+        assert!(result.is_ok(), "Failed to assign first strike damage: {result:?}");
 
         // Attacker should have taken 2 damage but still be alive (3 toughness)
         assert!(
@@ -3173,10 +3019,7 @@ mod tests {
         );
 
         // Blocker should still be alive (hasn't taken damage yet)
-        assert!(
-            game.battlefield.contains(blocker_id),
-            "Blocker should still be alive"
-        );
+        assert!(game.battlefield.contains(blocker_id), "Blocker should still be alive");
 
         // Normal damage step: attacker deals damage, killing blocker
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
@@ -3191,10 +3034,7 @@ mod tests {
         }
 
         // Attacker should still be alive (took only 2 damage, has 3 toughness)
-        assert!(
-            game.battlefield.contains(attacker_id),
-            "Attacker should still be alive"
-        );
+        assert!(game.battlefield.contains(attacker_id), "Attacker should still be alive");
     }
 
     #[test]
@@ -3226,9 +3066,7 @@ mod tests {
         tap_spell.types.push(CardType::Instant);
         tap_spell.mana_cost = ManaCost::from_string("2U");
         // Target the specific creature
-        tap_spell.effects.push(Effect::TapPermanent {
-            target: creature_id,
-        });
+        tap_spell.effects.push(Effect::TapPermanent { target: creature_id });
         game.cards.insert(tap_spell_id, tap_spell);
 
         // Put spell on stack (simulating cast)
@@ -3242,10 +3080,7 @@ mod tests {
 
         // Check creature is tapped
         let creature_after = game.cards.get(creature_id).unwrap();
-        assert!(
-            creature_after.tapped,
-            "Creature should be tapped after spell"
-        );
+        assert!(creature_after.tapped, "Creature should be tapped after spell");
 
         // Check spell went to graveyard
         if let Some(zones) = game.get_player_zones(p1_id) {
@@ -3283,9 +3118,7 @@ mod tests {
         untap_spell.types.push(CardType::Instant);
         untap_spell.mana_cost = ManaCost::from_string("U");
         // Target the specific land
-        untap_spell
-            .effects
-            .push(Effect::UntapPermanent { target: land_id });
+        untap_spell.effects.push(Effect::UntapPermanent { target: land_id });
         game.cards.insert(untap_spell_id, untap_spell);
 
         // Put spell on stack (simulating cast)
@@ -3357,10 +3190,7 @@ mod tests {
 
         // Blocker should be dead (took 5 damage, toughness 2)
         if let Some(zones) = game.get_player_zones(p2_id) {
-            assert!(
-                zones.graveyard.contains(blocker_id),
-                "Blocker should be in graveyard"
-            );
+            assert!(zones.graveyard.contains(blocker_id), "Blocker should be in graveyard");
         }
 
         // P2 should have taken 3 trample damage (5 power - 2 to kill blocker)
@@ -3419,10 +3249,7 @@ mod tests {
 
         // Blocker should be dead (took 3 damage, toughness 3)
         if let Some(zones) = game.get_player_zones(p2_id) {
-            assert!(
-                zones.graveyard.contains(blocker_id),
-                "Blocker should be in graveyard"
-            );
+            assert!(zones.graveyard.contains(blocker_id), "Blocker should be in graveyard");
         }
 
         // P2 should NOT have taken any damage (exact lethal, no excess)
@@ -3480,10 +3307,7 @@ mod tests {
 
         // Blocker should be dead
         if let Some(zones) = game.get_player_zones(p2_id) {
-            assert!(
-                zones.graveyard.contains(blocker_id),
-                "Blocker should be in graveyard"
-            );
+            assert!(zones.graveyard.contains(blocker_id), "Blocker should be in graveyard");
         }
 
         // P2 should NOT have taken any damage (no trample, so excess is lost)
@@ -3537,8 +3361,7 @@ mod tests {
         // Declare combat
         game.combat.declare_attacker(attacker_id, p2_id);
         let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
-        game.combat
-            .declare_blocker(blocker1_id, attacker_vec.clone());
+        game.combat.declare_blocker(blocker1_id, attacker_vec.clone());
         game.combat.declare_blocker(blocker2_id, attacker_vec);
 
         // Record P2's life before combat
@@ -3626,10 +3449,7 @@ mod tests {
 
         // Blocker should be dead
         if let Some(zones) = game.get_player_zones(p2_id) {
-            assert!(
-                zones.graveyard.contains(blocker_id),
-                "Blocker should be in graveyard"
-            );
+            assert!(zones.graveyard.contains(blocker_id), "Blocker should be in graveyard");
         }
     }
 
@@ -3677,11 +3497,7 @@ mod tests {
 
         // P2 should have taken 4 damage
         let p2_life_after = game.players[1].life;
-        assert_eq!(
-            p2_life_after,
-            p2_life_before - 4,
-            "P2 should have taken 4 damage"
-        );
+        assert_eq!(p2_life_after, p2_life_before - 4, "P2 should have taken 4 damage");
     }
 
     #[test]
@@ -3822,10 +3638,7 @@ mod tests {
 
         // Blocker should be dead
         if let Some(zones) = game.get_player_zones(p2_id) {
-            assert!(
-                zones.graveyard.contains(blocker_id),
-                "Blocker should be in graveyard"
-            );
+            assert!(zones.graveyard.contains(blocker_id), "Blocker should be in graveyard");
         }
     }
 
@@ -4057,8 +3870,7 @@ mod tests {
         // Declare combat with both blockers
         game.combat.declare_attacker(attacker_id, p2_id);
         let attacker_vec = smallvec::SmallVec::from_vec(vec![attacker_id]);
-        game.combat
-            .declare_blocker(blocker1_id, attacker_vec.clone());
+        game.combat.declare_blocker(blocker1_id, attacker_vec.clone());
         game.combat.declare_blocker(blocker2_id, attacker_vec);
 
         // Assign combat damage (damage order determined internally)
@@ -4141,10 +3953,7 @@ mod tests {
         assert!(result1.is_ok(), "First blocker should succeed: {result1:?}");
 
         let result2 = game.declare_blocker(p2_id, blocker2_id, vec![attacker_id]);
-        assert!(
-            result2.is_ok(),
-            "Second blocker should succeed: {result2:?}"
-        );
+        assert!(result2.is_ok(), "Second blocker should succeed: {result2:?}");
 
         // Verify combat resolves correctly
         let mut controller1 = RandomController::with_seed(p1_id, 42);
@@ -4155,20 +3964,11 @@ mod tests {
         // Both blockers should be dead (took 3 damage total, both have <= 2 toughness)
         // Attacker should be dead (took 4 damage total from 2+2, has 3 toughness)
         if let Some(zones) = game.get_player_zones(p1_id) {
-            assert!(
-                zones.graveyard.contains(attacker_id),
-                "Attacker should be dead"
-            );
+            assert!(zones.graveyard.contains(attacker_id), "Attacker should be dead");
         }
         if let Some(zones) = game.get_player_zones(p2_id) {
-            assert!(
-                zones.graveyard.contains(blocker1_id),
-                "First blocker should be dead"
-            );
-            assert!(
-                zones.graveyard.contains(blocker2_id),
-                "Second blocker should be dead"
-            );
+            assert!(zones.graveyard.contains(blocker1_id), "First blocker should be dead");
+            assert!(zones.graveyard.contains(blocker2_id), "Second blocker should be dead");
         }
     }
 
@@ -4289,18 +4089,9 @@ mod tests {
             "Attacker should survive (took 3 damage, has 5 toughness)"
         );
         if let Some(zones) = game.get_player_zones(p2_id) {
-            assert!(
-                zones.graveyard.contains(blocker1_id),
-                "First blocker should be dead"
-            );
-            assert!(
-                zones.graveyard.contains(blocker2_id),
-                "Second blocker should be dead"
-            );
-            assert!(
-                zones.graveyard.contains(blocker3_id),
-                "Third blocker should be dead"
-            );
+            assert!(zones.graveyard.contains(blocker1_id), "First blocker should be dead");
+            assert!(zones.graveyard.contains(blocker2_id), "Second blocker should be dead");
+            assert!(zones.graveyard.contains(blocker3_id), "Third blocker should be dead");
         }
     }
 
@@ -4313,8 +4104,7 @@ mod tests {
 
         // P2: Create a hexproof creature
         let hexproof_creature_id = game.next_entity_id();
-        let mut hexproof_creature =
-            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
+        let mut hexproof_creature = Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
         hexproof_creature.types.push(CardType::Creature);
         hexproof_creature.power = Some(1);
         hexproof_creature.toughness = Some(1);
@@ -4337,9 +4127,9 @@ mod tests {
         destroy_spell.types.push(CardType::Instant);
         destroy_spell.mana_cost = ManaCost::from_string("1B");
         // Use placeholder card ID 0 which will be replaced with a targetable opponent's creature
-        destroy_spell.effects.push(Effect::DestroyPermanent {
-            target: CardId::new(0),
-        });
+        destroy_spell
+            .effects
+            .push(Effect::DestroyPermanent { target: CardId::new(0) });
         game.cards.insert(destroy_spell_id, destroy_spell);
 
         // Put it on the stack (simulating cast)
@@ -4374,8 +4164,7 @@ mod tests {
 
         // P2: Create a hexproof creature
         let hexproof_creature_id = game.next_entity_id();
-        let mut hexproof_creature =
-            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
+        let mut hexproof_creature = Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
         hexproof_creature.types.push(CardType::Creature);
         hexproof_creature.power = Some(1);
         hexproof_creature.toughness = Some(1);
@@ -4398,9 +4187,7 @@ mod tests {
         tap_spell.types.push(CardType::Instant);
         tap_spell.mana_cost = ManaCost::from_string("2U");
         // Use placeholder card ID 0 which will be replaced with a targetable opponent's creature
-        tap_spell.effects.push(Effect::TapPermanent {
-            target: CardId::new(0),
-        });
+        tap_spell.effects.push(Effect::TapPermanent { target: CardId::new(0) });
         game.cards.insert(tap_spell_id, tap_spell);
 
         // Put spell on stack (simulating cast)
@@ -4413,10 +4200,7 @@ mod tests {
 
         // Check that the hexproof creature is not tapped
         let hexproof_card = game.cards.get(hexproof_creature_id).unwrap();
-        assert!(
-            !hexproof_card.tapped,
-            "Hexproof creature should not be tapped"
-        );
+        assert!(!hexproof_card.tapped, "Hexproof creature should not be tapped");
 
         // Check that the normal creature was tapped
         let normal_card = game.cards.get(normal_creature_id).unwrap();
@@ -4432,8 +4216,7 @@ mod tests {
 
         // P1: Create a hexproof creature
         let hexproof_creature_id = game.next_entity_id();
-        let mut hexproof_creature =
-            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p1_id);
+        let mut hexproof_creature = Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p1_id);
         hexproof_creature.types.push(CardType::Creature);
         hexproof_creature.power = Some(1);
         hexproof_creature.toughness = Some(1);
@@ -4487,8 +4270,7 @@ mod tests {
 
         // P2: Create only a hexproof creature (no valid targets for opponent)
         let hexproof_creature_id = game.next_entity_id();
-        let mut hexproof_creature =
-            Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
+        let mut hexproof_creature = Card::new(hexproof_creature_id, "Slippery Bogle".to_string(), p2_id);
         hexproof_creature.types.push(CardType::Creature);
         hexproof_creature.power = Some(1);
         hexproof_creature.toughness = Some(1);
@@ -4502,9 +4284,9 @@ mod tests {
         destroy_spell.types.push(CardType::Instant);
         destroy_spell.mana_cost = ManaCost::from_string("1B");
         // Use placeholder card ID 0 which will fail to be replaced with a target
-        destroy_spell.effects.push(Effect::DestroyPermanent {
-            target: CardId::new(0),
-        });
+        destroy_spell
+            .effects
+            .push(Effect::DestroyPermanent { target: CardId::new(0) });
         game.cards.insert(destroy_spell_id, destroy_spell);
 
         // Put it on the stack (simulating cast)
@@ -4512,10 +4294,7 @@ mod tests {
 
         // Resolve the spell - should succeed but do nothing (no valid targets)
         let result = game.resolve_spell(destroy_spell_id, &[]);
-        assert!(
-            result.is_ok(),
-            "Spell with no valid targets should still resolve"
-        );
+        assert!(result.is_ok(), "Spell with no valid targets should still resolve");
 
         // Check that the hexproof creature is still alive
         assert!(
@@ -4579,10 +4358,7 @@ mod tests {
         );
 
         // Blocker should survive (took 2 damage, has 5 toughness)
-        assert!(
-            game.battlefield.contains(blocker_id),
-            "Blocker should survive 2 damage"
-        );
+        assert!(game.battlefield.contains(blocker_id), "Blocker should survive 2 damage");
     }
 
     #[test]
@@ -4650,8 +4426,7 @@ mod tests {
 
         // P2: Create a 5/5 indestructible creature (blocker)
         let indestructible_id = game.next_entity_id();
-        let mut indestructible =
-            Card::new(indestructible_id, "Darksteel Colossus".to_string(), p2_id);
+        let mut indestructible = Card::new(indestructible_id, "Darksteel Colossus".to_string(), p2_id);
         indestructible.types.push(CardType::Creature);
         indestructible.power = Some(5);
         indestructible.toughness = Some(5);
@@ -4764,8 +4539,7 @@ mod tests {
 
         // P2: Create a shroud creature
         let shroud_creature_id = game.next_entity_id();
-        let mut shroud_creature =
-            Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p2_id);
+        let mut shroud_creature = Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p2_id);
         shroud_creature.types.push(CardType::Creature);
         shroud_creature.power = Some(1);
         shroud_creature.toughness = Some(1);
@@ -4787,9 +4561,9 @@ mod tests {
         let mut destroy_spell = Card::new(destroy_spell_id, "Terror".to_string(), p1_id);
         destroy_spell.types.push(CardType::Instant);
         destroy_spell.mana_cost = ManaCost::from_string("1B");
-        destroy_spell.effects.push(Effect::DestroyPermanent {
-            target: CardId::new(0),
-        });
+        destroy_spell
+            .effects
+            .push(Effect::DestroyPermanent { target: CardId::new(0) });
         game.cards.insert(destroy_spell_id, destroy_spell);
         game.stack.add(destroy_spell_id);
 
@@ -4820,8 +4594,7 @@ mod tests {
 
         // P1: Create a shroud creature
         let shroud_creature_id = game.next_entity_id();
-        let mut shroud_creature =
-            Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p1_id);
+        let mut shroud_creature = Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p1_id);
         shroud_creature.types.push(CardType::Creature);
         shroud_creature.power = Some(1);
         shroud_creature.toughness = Some(1);
@@ -4880,8 +4653,7 @@ mod tests {
 
         // P2: Create a shroud creature
         let shroud_creature_id = game.next_entity_id();
-        let mut shroud_creature =
-            Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p2_id);
+        let mut shroud_creature = Card::new(shroud_creature_id, "Silhana Ledgewalker".to_string(), p2_id);
         shroud_creature.types.push(CardType::Creature);
         shroud_creature.power = Some(1);
         shroud_creature.toughness = Some(1);
@@ -4903,9 +4675,7 @@ mod tests {
         let mut tap_spell = Card::new(tap_spell_id, "Frost Breath".to_string(), p1_id);
         tap_spell.types.push(CardType::Instant);
         tap_spell.mana_cost = ManaCost::from_string("2U");
-        tap_spell.effects.push(Effect::TapPermanent {
-            target: CardId::new(0),
-        });
+        tap_spell.effects.push(Effect::TapPermanent { target: CardId::new(0) });
         game.cards.insert(tap_spell_id, tap_spell);
         game.stack.add(tap_spell_id);
 
@@ -4948,16 +4718,8 @@ mod tests {
 
         // Check cards were milled (library reduced, graveyard increased)
         if let Some(zones) = game.get_player_zones(p1_id) {
-            assert_eq!(
-                zones.library.cards.len(),
-                2,
-                "Should have 2 cards left in library"
-            );
-            assert_eq!(
-                zones.graveyard.cards.len(),
-                3,
-                "Should have 3 cards in graveyard"
-            );
+            assert_eq!(zones.library.cards.len(), 2, "Should have 2 cards left in library");
+            assert_eq!(zones.graveyard.cards.len(), 3, "Should have 3 cards in graveyard");
         }
     }
 
@@ -4989,11 +4751,7 @@ mod tests {
         // Check only 2 cards were milled (library is empty)
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert_eq!(zones.library.cards.len(), 0, "Library should be empty");
-            assert_eq!(
-                zones.graveyard.cards.len(),
-                2,
-                "Should have milled only 2 cards"
-            );
+            assert_eq!(zones.graveyard.cards.len(), 2, "Should have milled only 2 cards");
         }
     }
 
@@ -5023,9 +4781,7 @@ mod tests {
         let mut counterspell = Card::new(counter_id, "Counterspell".to_string(), p2_id);
         counterspell.types.push(CardType::Instant);
         counterspell.mana_cost = ManaCost::from_string("UU");
-        counterspell
-            .effects
-            .push(Effect::CounterSpell { target: bolt_id });
+        counterspell.effects.push(Effect::CounterSpell { target: bolt_id });
         game.cards.insert(counter_id, counterspell);
         game.stack.add(counter_id);
 
@@ -5150,11 +4906,7 @@ mod tests {
         // Verify the ETB trigger drew a card
         if let Some(zones) = game.get_player_zones(p1_id) {
             assert_eq!(zones.hand.cards.len(), 1, "Should have drawn 1 card");
-            assert_eq!(
-                zones.library.cards.len(),
-                4,
-                "Should have 4 cards left in library"
-            );
+            assert_eq!(zones.library.cards.len(), 4, "Should have 4 cards left in library");
         }
     }
 
@@ -5253,15 +5005,8 @@ mod tests {
         let creature = card_def.instantiate(creature_id, p1_id);
 
         // Verify it has an ETB trigger
-        assert!(
-            !creature.triggers.is_empty(),
-            "Elvish Visionary should have triggers"
-        );
-        assert_eq!(
-            creature.triggers.len(),
-            1,
-            "Elvish Visionary should have 1 trigger"
-        );
+        assert!(!creature.triggers.is_empty(), "Elvish Visionary should have triggers");
+        assert_eq!(creature.triggers.len(), 1, "Elvish Visionary should have 1 trigger");
 
         game.cards.insert(creature_id, creature);
 
@@ -5276,16 +5021,8 @@ mod tests {
 
         // Verify the ETB trigger drew a card
         if let Some(zones) = game.get_player_zones(p1_id) {
-            assert_eq!(
-                zones.hand.cards.len(),
-                1,
-                "Should have drawn 1 card from ETB trigger"
-            );
-            assert_eq!(
-                zones.library.cards.len(),
-                4,
-                "Should have 4 cards left in library"
-            );
+            assert_eq!(zones.hand.cards.len(), 1, "Should have drawn 1 card from ETB trigger");
+            assert_eq!(zones.library.cards.len(), 4, "Should have 4 cards left in library");
         }
     }
 
@@ -5335,10 +5072,7 @@ mod tests {
 
         // Verify both are on the stack
         assert!(game.stack.contains(bolt_id), "Bolt should be on stack");
-        assert!(
-            game.stack.contains(counter_id),
-            "Counterspell should be on stack"
-        );
+        assert!(game.stack.contains(counter_id), "Counterspell should be on stack");
 
         // Resolve Counterspell (should counter Lightning Bolt)
         assert!(
@@ -5355,10 +5089,7 @@ mod tests {
         }
 
         // Verify Lightning Bolt was countered (removed from stack, in graveyard)
-        assert!(
-            !game.stack.contains(bolt_id),
-            "Lightning Bolt should not be on stack"
-        );
+        assert!(!game.stack.contains(bolt_id), "Lightning Bolt should not be on stack");
         if let Some(zones) = game.get_player_zones(alice_id) {
             assert!(
                 zones.graveyard.contains(bolt_id),
@@ -5462,13 +5193,7 @@ mod tests {
 
         // Verify the target got pumped
         let pumped_card = game.cards.get(target_id).unwrap();
-        assert_eq!(
-            pumped_card.power_bonus, 2,
-            "Target should have +2 power bonus"
-        );
-        assert_eq!(
-            pumped_card.toughness_bonus, 2,
-            "Target should have +2 toughness bonus"
-        );
+        assert_eq!(pumped_card.power_bonus, 2, "Target should have +2 power bonus");
+        assert_eq!(pumped_card.toughness_bonus, 2, "Target should have +2 toughness bonus");
     }
 }
