@@ -209,11 +209,9 @@ if [ "$FORCE_SEQUENTIAL" = true ] || ! command -v parallel &> /dev/null; then
     if [ $FAILED -gt 0 ]; then
         echo ""
         echo "Failed tests:$FAILED_TESTS"
-        # TODO(mtg-109): Known failures - snapshot/resume has determinism issues
         echo ""
-        echo "⚠️  KNOWN FAILURES ($FAILED/$TOTAL) - mtg-109 investigation in progress"
-        echo "Snapshot/resume determinism issues being debugged - test runs but doesn't block CI"
-        exit 0  # Exit with success to allow validation to continue
+        echo "❌ $FAILED test(s) failed!"
+        exit 1  # Exit with failure - tests must pass
     fi
 
     echo ""
@@ -250,11 +248,7 @@ echo "========================================"
 if [ $FAILED -gt 0 ]; then
     echo ""
     echo "❌ $FAILED test(s) failed! (see detailed output above)"
-    # TODO(mtg-109): Known failures - snapshot/resume has determinism issues
-    echo ""
-    echo "⚠️  KNOWN FAILURES ($FAILED/$TOTAL) - mtg-109 investigation in progress"
-    echo "Snapshot/resume determinism issues being debugged - test runs but doesn't block CI"
-    exit 0  # Exit with success to allow validation to continue
+    exit 1  # Exit with failure - tests must pass
 fi
 
 echo ""

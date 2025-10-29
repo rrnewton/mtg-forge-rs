@@ -147,7 +147,8 @@ def run_normal_game(mtg_bin: Path, deck1: str, deck2: str,
         f"--p1={p1_controller}",
         f"--p2={p2_controller}",
         f"--seed={seed}",
-        "--verbosity=3"
+        "--verbosity=3",
+        "--debug-state-hash"
     ]
 
     if save_gamestate:
@@ -204,7 +205,8 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
             f"--p1={p1_controller}",
             f"--p2={p2_controller}",
             f"--seed={seed}",
-            "--verbosity=3"
+            "--verbosity=3",
+            "--debug-state-hash"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         return result.stdout
@@ -237,7 +239,8 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
                 f"--p1={p1_controller}",
                 f"--p2={p2_controller}",
                 f"--seed={seed}",
-                "--verbosity=3"
+                "--verbosity=3",
+                "--debug-state-hash"
             ]
 
             if stop_after > 0:
@@ -255,7 +258,8 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
             cmd = [
                 str(mtg_bin), "resume",
                 str(snapshot_file),
-                "--verbosity=3"
+                "--verbosity=3",
+                "--debug-state-hash"
             ]
 
             if stop_after > 0:
