@@ -5,8 +5,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use mtg_forge_rs::{
     game::{
-        random_controller::RandomController, zero_controller::ZeroController,
-        FixedScriptController, GameLoop, GameSnapshot, HeuristicController, InteractiveController,
+        random_controller::RandomController, zero_controller::ZeroController, GameLoop,
+        GameSnapshot, HeuristicController, InteractiveController, RichInputController,
         StopCondition, VerbosityLevel,
     },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
@@ -233,16 +233,23 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Parse fixed input string into a vector of choice indices
-fn parse_fixed_inputs(input: &str) -> std::result::Result<Vec<usize>, String> {
-    input
-        .split(|c: char| c.is_whitespace() || c == ',')
+/// Parse fixed input string into a vector of choice strings
+///
+/// Splits on semicolons to support rich text commands like "play swamp; cast bolt"
+/// Each command can be either a number (legacy) or a rich text command.
+fn parse_fixed_inputs(input: &str) -> std::result::Result<Vec<String>, String> {
+    Ok(input
+        .split(';')
+        .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .map(|s| {
-            s.parse::<usize>()
-                .map_err(|_| format!("invalid choice index: '{}'", s))
-        })
-        .collect()
+        .map(|s| s.to_string())
+        .collect())
+}
+
+/// Helper: check if we should print based on verbosity level and suppress flag
+#[inline]
+fn should_print(verbosity: VerbosityLevel, level: VerbosityLevel, suppress: bool) -> bool {
+    verbosity >= level && !suppress
 }
 
 // StopCondition is now imported from mtg_forge_rs::game module
@@ -273,15 +280,21 @@ async fn run_tui(
     log_tail: Option<usize>,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
-    println!("=== MTG Forge Rust - Text UI Mode ===\n");
+    let suppress_output = log_tail.is_some();
+
+    if !suppress_output {
+        println!("=== MTG Forge Rust - Text UI Mode ===\n");
+    }
 
     // Parse stop condition if provided
     let stop_condition = if let Some(ref stop_str) = stop_every {
         let condition = StopCondition::parse(stop_str).map_err(|e| {
             mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e))
         })?;
-        println!("Stop condition: {:?}", condition);
-        println!("Snapshot output: {}\n", snapshot_output.display());
+        if !suppress_output {
+            println!("Stop condition: {:?}", condition);
+            println!("Snapshot output: {}\n", snapshot_output.display());
+        }
         Some(condition)
     } else {
         None
@@ -314,7 +327,7 @@ async fn run_tui(
 
     let mut game = if let Some(ref snapshot) = loaded_snapshot {
         // Load game from snapshot
-        if verbosity >= VerbosityLevel::Minimal {
+        if should_print(verbosity, VerbosityLevel::Minimal, suppress_output) {
             println!(
                 "Loading snapshot from: {}",
                 start_from.as_ref().unwrap().display()
@@ -332,15 +345,19 @@ async fn run_tui(
         snapshot.game_state.clone()
     } else if let Some(puzzle_file) = puzzle_path {
         // Load game from puzzle file
-        println!("Loading puzzle file: {}", puzzle_file.display());
+        if !suppress_output {
+            println!("Loading puzzle file: {}", puzzle_file.display());
+        }
         let puzzle_contents = std::fs::read_to_string(&puzzle_file)?;
         let puzzle = PuzzleFile::parse(&puzzle_contents)?;
-        println!("  Puzzle: {}", puzzle.metadata.name);
-        println!("  Goal: {:?}", puzzle.metadata.goal);
-        println!("  Difficulty: {:?}\n", puzzle.metadata.difficulty);
+        if !suppress_output {
+            println!("  Puzzle: {}", puzzle.metadata.name);
+            println!("  Goal: {:?}", puzzle.metadata.goal);
+            println!("  Difficulty: {:?}\n", puzzle.metadata.difficulty);
 
-        // Load cards needed for puzzle
-        println!("Loading card database...");
+            // Load cards needed for puzzle
+            println!("Loading card database...");
+        }
         let (count, duration) = if load_all_cards {
             card_db.eager_load().await?
         } else {
@@ -362,10 +379,12 @@ async fn run_tui(
                 .load_cards(&card_names.into_iter().collect::<Vec<_>>())
                 .await?
         };
-        println!("  Loaded {count} cards");
-        eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
+        if !suppress_output {
+            println!("  Loaded {count} cards");
+            eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
 
-        println!("Initializing game from puzzle...");
+            println!("Initializing game from puzzle...");
+        }
         load_puzzle_into_game(&puzzle, &card_db).await?
     } else {
         // Load game from deck files
@@ -373,23 +392,27 @@ async fn run_tui(
         // If deck2 not provided, use deck1 for both players
         let deck2_path = deck2_path.as_ref().unwrap_or(&deck1_path);
 
-        println!("Loading deck files...");
+        if !suppress_output {
+            println!("Loading deck files...");
+        }
         let deck1 = DeckLoader::load_from_file(&deck1_path)?;
         let deck2 = DeckLoader::load_from_file(deck2_path)?;
 
-        if deck2_path == &deck1_path {
-            println!(
-                "  Using same deck for both players: {} cards",
-                deck1.total_cards()
-            );
-        } else {
-            println!("  Player 1: {} cards", deck1.total_cards());
-            println!("  Player 2: {} cards", deck2.total_cards());
-        }
-        println!();
+        if !suppress_output {
+            if deck2_path == &deck1_path {
+                println!(
+                    "  Using same deck for both players: {} cards",
+                    deck1.total_cards()
+                );
+            } else {
+                println!("  Player 1: {} cards", deck1.total_cards());
+                println!("  Player 2: {} cards", deck2.total_cards());
+            }
+            println!();
 
-        // Load cards based on mode
-        println!("Loading card database...");
+            // Load cards based on mode
+            println!("Loading card database...");
+        }
         let (count, duration) = if load_all_cards {
             // Load all cards from cardsfolder
             card_db.eager_load().await?
@@ -399,11 +422,13 @@ async fn run_tui(
             unique_names.extend(deck2.unique_card_names());
             card_db.load_cards(&unique_names).await?
         };
-        println!("  Loaded {count} cards");
-        eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
+        if !suppress_output {
+            println!("  Loaded {count} cards");
+            eprintln!("  (Loading time: {:.2}ms)", duration.as_secs_f64() * 1000.0);
 
-        // Initialize game
-        println!("Initializing game...");
+            // Initialize game
+            println!("Initializing game...");
+        }
         let game_init = GameInitializer::new(&card_db);
         game_init
             .init_game(
@@ -419,37 +444,45 @@ async fn run_tui(
     // Set random seed if provided
     if let Some(seed_value) = seed {
         game.seed_rng(seed_value);
-        println!("Using random seed: {seed_value}");
+        if !suppress_output {
+            println!("Using random seed: {seed_value}");
+        }
     }
 
     // Report controller seeds if set
-    if let Some(p1_seed_value) = seed_p1 {
-        println!("Using explicit P1 controller seed: {p1_seed_value}");
-    } else if let Some(seed_value) = seed {
-        println!(
-            "Using derived P1 controller seed: {} (from master seed)",
-            seed_value.wrapping_add(0x1234_5678_9ABC_DEF0)
-        );
-    }
+    if !suppress_output {
+        if let Some(p1_seed_value) = seed_p1 {
+            println!("Using explicit P1 controller seed: {p1_seed_value}");
+        } else if let Some(seed_value) = seed {
+            println!(
+                "Using derived P1 controller seed: {} (from master seed)",
+                seed_value.wrapping_add(0x1234_5678_9ABC_DEF0)
+            );
+        }
 
-    if let Some(p2_seed_value) = seed_p2 {
-        println!("Using explicit P2 controller seed: {p2_seed_value}");
-    } else if let Some(seed_value) = seed {
-        println!(
-            "Using derived P2 controller seed: {} (from master seed)",
-            seed_value.wrapping_add(0xFEDC_BA98_7654_3210)
-        );
+        if let Some(p2_seed_value) = seed_p2 {
+            println!("Using explicit P2 controller seed: {p2_seed_value}");
+        } else if let Some(seed_value) = seed {
+            println!(
+                "Using derived P2 controller seed: {} (from master seed)",
+                seed_value.wrapping_add(0xFEDC_BA98_7654_3210)
+            );
+        }
     }
 
     // Enable numeric choices mode if requested
     if numeric_choices {
         game.logger.set_numeric_choices(true);
-        println!("Numeric choices mode: enabled");
+        if !suppress_output {
+            println!("Numeric choices mode: enabled");
+        }
     }
 
-    println!("Game initialized!");
-    println!("  Player 1: {} ({p1_type:?})", p1_name);
-    println!("  Player 2: {} ({p2_type:?})\n", p2_name);
+    if !suppress_output {
+        println!("Game initialized!");
+        println!("  Player 1: {} ({p1_type:?})", p1_name);
+        println!("  Player 2: {} ({p2_type:?})\n", p2_name);
+    }
 
     // Create controllers based on agent types
     let (p1_id, p2_id) = {
@@ -476,7 +509,7 @@ async fn run_tui(
                 if let Some(mtg_forge_rs::game::ControllerState::Random(random_controller)) =
                     &snapshot.p1_controller_state
                 {
-                    if verbosity >= VerbosityLevel::Verbose {
+                    if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                         println!("Player 1 Random controller restored from snapshot");
                     }
                     Box::new(random_controller.clone())
@@ -499,7 +532,7 @@ async fn run_tui(
         ControllerType::Heuristic => Box::new(HeuristicController::new(p1_id)),
         ControllerType::Fixed => {
             // Priority: CLI --p1-fixed-inputs > snapshot state > error
-            let controller = if let Some(input) = &p1_fixed_inputs {
+            if let Some(input) = &p1_fixed_inputs {
                 // CLI override - use provided script
                 let script = parse_fixed_inputs(input).map_err(|e| {
                     mtg_forge_rs::MtgError::InvalidAction(format!(
@@ -507,19 +540,19 @@ async fn run_tui(
                         e
                     ))
                 })?;
-                FixedScriptController::new(p1_id, script)
+                Box::new(RichInputController::new(p1_id, script))
             } else if let Some(ref snapshot) = loaded_snapshot {
                 // Restore from snapshot if available
                 if let Some(mtg_forge_rs::game::ControllerState::Fixed(fixed_controller)) =
                     &snapshot.p1_controller_state
                 {
-                    if verbosity >= VerbosityLevel::Verbose {
+                    if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                         println!(
                             "Player 1 Fixed controller restored from snapshot (at index {})",
                             fixed_controller.current_index
                         );
                     }
-                    fixed_controller.clone()
+                    Box::new(fixed_controller.clone())
                 } else {
                     return Err(mtg_forge_rs::MtgError::InvalidAction(
                         "--p1-fixed-inputs is required when --p1=fixed (no snapshot state available or wrong controller type)".to_string(),
@@ -529,9 +562,7 @@ async fn run_tui(
                 return Err(mtg_forge_rs::MtgError::InvalidAction(
                     "--p1-fixed-inputs is required when --p1=fixed".to_string(),
                 ));
-            };
-
-            Box::new(controller)
+            }
         }
     };
 
@@ -544,7 +575,7 @@ async fn run_tui(
                 if let Some(mtg_forge_rs::game::ControllerState::Random(random_controller)) =
                     &snapshot.p2_controller_state
                 {
-                    if verbosity >= VerbosityLevel::Verbose {
+                    if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                         println!("Player 2 Random controller restored from snapshot");
                     }
                     Box::new(random_controller.clone())
@@ -567,7 +598,7 @@ async fn run_tui(
         ControllerType::Heuristic => Box::new(HeuristicController::new(p2_id)),
         ControllerType::Fixed => {
             // Priority: CLI --p2-fixed-inputs > snapshot state > error
-            let controller = if let Some(input) = &p2_fixed_inputs {
+            if let Some(input) = &p2_fixed_inputs {
                 // CLI override - use provided script
                 let script = parse_fixed_inputs(input).map_err(|e| {
                     mtg_forge_rs::MtgError::InvalidAction(format!(
@@ -575,19 +606,19 @@ async fn run_tui(
                         e
                     ))
                 })?;
-                FixedScriptController::new(p2_id, script)
+                Box::new(RichInputController::new(p2_id, script))
             } else if let Some(ref snapshot) = loaded_snapshot {
                 // Restore from snapshot if available
                 if let Some(mtg_forge_rs::game::ControllerState::Fixed(fixed_controller)) =
                     &snapshot.p2_controller_state
                 {
-                    if verbosity >= VerbosityLevel::Verbose {
+                    if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                         println!(
                             "Player 2 Fixed controller restored from snapshot (at index {})",
                             fixed_controller.current_index
                         );
                     }
-                    fixed_controller.clone()
+                    Box::new(fixed_controller.clone())
                 } else {
                     return Err(mtg_forge_rs::MtgError::InvalidAction(
                         "--p2-fixed-inputs is required when --p2=fixed (no snapshot state available or wrong controller type)".to_string(),
@@ -597,9 +628,7 @@ async fn run_tui(
                 return Err(mtg_forge_rs::MtgError::InvalidAction(
                     "--p2-fixed-inputs is required when --p2=fixed".to_string(),
                 ));
-            };
-
-            Box::new(controller)
+            }
         }
     };
 
@@ -614,13 +643,13 @@ async fn run_tui(
             // Check if base controller is Fixed - don't wrap if it is
             let is_fixed = matches!(p1_type, ControllerType::Fixed);
             if is_fixed {
-                if verbosity >= VerbosityLevel::Verbose {
+                if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                     println!("Player 1 using Fixed controller (skipping Replay wrapper)");
                 }
                 base_controller1
             } else {
                 let p1_replay_choices = snapshot.extract_replay_choices_for_player(p1_id);
-                if verbosity >= VerbosityLevel::Verbose {
+                if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                     println!(
                         "Player 1 will replay {} intra-turn choices",
                         p1_replay_choices.len()
@@ -641,13 +670,13 @@ async fn run_tui(
             // Check if base controller is Fixed - don't wrap if it is
             let is_fixed = matches!(p2_type, ControllerType::Fixed);
             if is_fixed {
-                if verbosity >= VerbosityLevel::Verbose {
+                if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                     println!("Player 2 using Fixed controller (skipping Replay wrapper)");
                 }
                 base_controller2
             } else {
                 let p2_replay_choices = snapshot.extract_replay_choices_for_player(p2_id);
-                if verbosity >= VerbosityLevel::Verbose {
+                if should_print(verbosity, VerbosityLevel::Verbose, suppress_output) {
                     println!(
                         "Player 2 will replay {} intra-turn choices",
                         p2_replay_choices.len()
@@ -663,7 +692,7 @@ async fn run_tui(
             base_controller2
         };
 
-    if verbosity >= VerbosityLevel::Minimal {
+    if should_print(verbosity, VerbosityLevel::Minimal, suppress_output) {
         if snapshot_turn_number.is_some() {
             println!("=== Continuing Game ===\n");
         } else {
