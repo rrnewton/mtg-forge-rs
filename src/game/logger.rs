@@ -20,6 +20,18 @@ pub enum OutputFormat {
     Json,
 }
 
+/// Output destination for log messages
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum OutputMode {
+    /// Output only to stdout (default)
+    #[default]
+    Stdout,
+    /// Capture only to in-memory buffer (no stdout)
+    Memory,
+    /// Both stdout and in-memory buffer
+    Both,
+}
+
 /// A log entry with owned strings (no lifetime parameters)
 #[derive(Debug, Clone)]
 pub struct LogEntry {
@@ -74,7 +86,7 @@ pub struct GameLogger {
     step_header_printed: bool,
     numeric_choices: bool,
     output_format: OutputFormat,
-    capture_logs: bool,
+    output_mode: OutputMode,
 
     /// Bump allocator for temporary string formatting
     /// Reset after each format operation to avoid growth
@@ -92,9 +104,9 @@ impl GameLogger {
             step_header_printed: false,
             numeric_choices: false,
             output_format: OutputFormat::default(),
+            output_mode: OutputMode::default(),
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
-            capture_logs: false,
         }
     }
 
@@ -105,25 +117,37 @@ impl GameLogger {
             step_header_printed: false,
             numeric_choices: false,
             output_format: OutputFormat::default(),
+            output_mode: OutputMode::default(),
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
-            capture_logs: false,
         }
     }
 
-    /// Enable log capture to in-memory buffer (suppresses stdout output)
+    /// Set output mode (Stdout, Memory, or Both)
+    pub fn set_output_mode(&mut self, mode: OutputMode) {
+        self.output_mode = mode;
+    }
+
+    /// Get current output mode
+    pub fn output_mode(&self) -> OutputMode {
+        self.output_mode
+    }
+
+    /// Enable log capture to in-memory buffer (compatibility method)
+    /// Sets output_mode to Memory (suppresses stdout output)
     pub fn enable_capture(&mut self) {
-        self.capture_logs = true;
+        self.output_mode = OutputMode::Memory;
     }
 
-    /// Disable log capture (re-enables stdout output)
+    /// Disable log capture (compatibility method)
+    /// Sets output_mode to Stdout
     pub fn disable_capture(&mut self) {
-        self.capture_logs = false;
+        self.output_mode = OutputMode::Stdout;
     }
 
-    /// Check if log capture is enabled
+    /// Check if log capture is enabled (compatibility method)
     pub fn is_capturing(&self) -> bool {
-        self.capture_logs
+        matches!(self.output_mode, OutputMode::Memory | OutputMode::Both)
     }
 
     /// Flush buffered logs to stdout, respecting verbosity and format settings
@@ -243,22 +267,25 @@ impl GameLogger {
     /// Log at Minimal level
     #[inline]
     pub fn minimal(&self, message: &str) {
-        if VerbosityLevel::Minimal > self.verbosity && !self.capture_logs {
+        let should_capture = matches!(self.output_mode, OutputMode::Memory | OutputMode::Both);
+        let should_output = matches!(self.output_mode, OutputMode::Stdout | OutputMode::Both);
+
+        // Early exit if message won't be used
+        if VerbosityLevel::Minimal > self.verbosity && !should_capture {
             return;
         }
 
-        // Capture if enabled
-        if self.capture_logs {
+        // Capture if mode requires it
+        if should_capture {
             self.log_buffer.borrow_mut().push(LogEntry {
                 level: VerbosityLevel::Minimal,
                 message: message.to_string(),
                 category: None,
             });
-            return; // Don't print to stdout when capturing
         }
 
-        // Output to stdout if verbosity allows and not capturing
-        if VerbosityLevel::Minimal <= self.verbosity {
+        // Output to stdout if mode requires it and verbosity allows
+        if should_output && VerbosityLevel::Minimal <= self.verbosity {
             self.log_to_stdout(VerbosityLevel::Minimal, message);
         }
     }
@@ -266,22 +293,25 @@ impl GameLogger {
     /// Log at Normal level
     #[inline]
     pub fn normal(&self, message: &str) {
-        if VerbosityLevel::Normal > self.verbosity && !self.capture_logs {
+        let should_capture = matches!(self.output_mode, OutputMode::Memory | OutputMode::Both);
+        let should_output = matches!(self.output_mode, OutputMode::Stdout | OutputMode::Both);
+
+        // Early exit if message won't be used
+        if VerbosityLevel::Normal > self.verbosity && !should_capture {
             return;
         }
 
-        // Capture if enabled
-        if self.capture_logs {
+        // Capture if mode requires it
+        if should_capture {
             self.log_buffer.borrow_mut().push(LogEntry {
                 level: VerbosityLevel::Normal,
                 message: message.to_string(),
                 category: None,
             });
-            return; // Don't print to stdout when capturing
         }
 
-        // Output to stdout if verbosity allows and not capturing
-        if VerbosityLevel::Normal <= self.verbosity {
+        // Output to stdout if mode requires it and verbosity allows
+        if should_output && VerbosityLevel::Normal <= self.verbosity {
             self.log_to_stdout(VerbosityLevel::Normal, message);
         }
     }
@@ -289,22 +319,25 @@ impl GameLogger {
     /// Log at Verbose level
     #[inline]
     pub fn verbose(&self, message: &str) {
-        if VerbosityLevel::Verbose > self.verbosity && !self.capture_logs {
+        let should_capture = matches!(self.output_mode, OutputMode::Memory | OutputMode::Both);
+        let should_output = matches!(self.output_mode, OutputMode::Stdout | OutputMode::Both);
+
+        // Early exit if message won't be used
+        if VerbosityLevel::Verbose > self.verbosity && !should_capture {
             return;
         }
 
-        // Capture if enabled
-        if self.capture_logs {
+        // Capture if mode requires it
+        if should_capture {
             self.log_buffer.borrow_mut().push(LogEntry {
                 level: VerbosityLevel::Verbose,
                 message: message.to_string(),
                 category: None,
             });
-            return; // Don't print to stdout when capturing
         }
 
-        // Output to stdout if verbosity allows and not capturing
-        if VerbosityLevel::Verbose <= self.verbosity {
+        // Output to stdout if mode requires it and verbosity allows
+        if should_output && VerbosityLevel::Verbose <= self.verbosity {
             self.log_to_stdout(VerbosityLevel::Verbose, message);
         }
     }
@@ -314,9 +347,12 @@ impl GameLogger {
     /// Uses bump allocator for temporary formatting to avoid intermediate allocations.
     #[inline]
     pub fn controller_choice(&self, controller_name: &str, message: &str) {
+        let should_capture = matches!(self.output_mode, OutputMode::Memory | OutputMode::Both);
+        let should_output = matches!(self.output_mode, OutputMode::Stdout | OutputMode::Both);
         let should_log = self.numeric_choices || self.verbosity >= VerbosityLevel::Normal;
 
-        if !should_log && !self.capture_logs {
+        // Early exit if message won't be used
+        if !should_log && !should_capture {
             return;
         }
 
@@ -331,18 +367,17 @@ impl GameLogger {
         // Reset bump to avoid growth
         self.format_bump.borrow_mut().reset();
 
-        // Capture if enabled
-        if self.capture_logs {
+        // Capture if mode requires it
+        if should_capture {
             self.log_buffer.borrow_mut().push(LogEntry {
                 level: VerbosityLevel::Normal,
-                message: formatted,
+                message: formatted.clone(),
                 category: Some("controller_choice".to_string()),
             });
-            return; // Don't print to stdout when capturing
         }
 
-        // Output to stdout if should_log and not capturing
-        if should_log {
+        // Output to stdout if mode requires it and should_log
+        if should_output && should_log {
             println!("  {}", formatted);
         }
     }
@@ -358,7 +393,7 @@ impl std::fmt::Debug for GameLogger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GameLogger")
             .field("verbosity", &self.verbosity)
-            .field("capture_logs", &self.capture_logs)
+            .field("output_mode", &self.output_mode)
             .field("log_count", &self.log_buffer.borrow().len())
             .finish()
     }
@@ -371,9 +406,9 @@ impl Clone for GameLogger {
             step_header_printed: self.step_header_printed,
             numeric_choices: self.numeric_choices,
             output_format: self.output_format,
+            output_mode: self.output_mode,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
-            capture_logs: self.capture_logs,
         }
     }
 }
@@ -388,7 +423,7 @@ impl Serialize for GameLogger {
         state.serialize_field("verbosity", &self.verbosity)?;
         state.serialize_field("numeric_choices", &self.numeric_choices)?;
         state.serialize_field("output_format", &self.output_format)?;
-        state.serialize_field("capture_logs", &self.capture_logs)?;
+        state.serialize_field("output_mode", &self.output_mode)?;
         state.end()
     }
 }
@@ -403,7 +438,7 @@ impl<'de> Deserialize<'de> for GameLogger {
             verbosity: VerbosityLevel,
             numeric_choices: bool,
             output_format: OutputFormat,
-            capture_logs: bool,
+            output_mode: OutputMode,
         }
 
         let data = GameLoggerData::deserialize(deserializer)?;
@@ -412,9 +447,9 @@ impl<'de> Deserialize<'de> for GameLogger {
             step_header_printed: false,
             numeric_choices: data.numeric_choices,
             output_format: data.output_format,
+            output_mode: data.output_mode,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
-            capture_logs: data.capture_logs,
         })
     }
 }

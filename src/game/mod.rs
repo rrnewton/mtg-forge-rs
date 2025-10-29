@@ -32,7 +32,7 @@ pub use game_loop::{GameEndReason, GameLoop, GameResult, VerbosityLevel};
 pub use game_state_evaluator::{GameStateEvaluator, Score};
 pub use heuristic_controller::HeuristicController;
 pub use interactive_controller::InteractiveController;
-pub use logger::{GameLogger, LogEntry, OutputFormat};
+pub use logger::{GameLogger, LogEntry, OutputFormat, OutputMode};
 pub use mana_engine::{ManaCapacity, ManaEngine};
 pub use mana_payment::{
     GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource,
