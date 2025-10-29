@@ -27,6 +27,28 @@ DECK_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        -h|--help)
+            echo "Run snapshot/resume stress tests in parallel using GNU parallel"
+            echo ""
+            echo "Usage:"
+            echo "  $0 [--sequential] [--keep] [deck_names...]"
+            echo ""
+            echo "Examples:"
+            echo "  $0                                  # Run all default decks"
+            echo "  $0 royal_assassin white_aggro_4ed  # Run specific decks"
+            echo "  $0 --sequential                     # Force sequential execution"
+            echo "  $0 --keep                           # Save all test artifacts"
+            echo "  $0 --keep --sequential grizzly_bears"
+            echo ""
+            echo "Flags:"
+            echo "  -h, --help      Show this help message"
+            echo "  --sequential    Force sequential execution (disable parallel)"
+            echo "  --keep          Save all artifacts (logs, gamestates, snapshots) to test_artifacts/"
+            echo ""
+            echo "If no deck names are provided, runs default set of decks."
+            echo "Deck names should be without .dck extension."
+            exit 0
+            ;;
         --sequential)
             FORCE_SEQUENTIAL=true
             shift
