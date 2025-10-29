@@ -280,11 +280,16 @@ def strip_metadata_fields(obj):
     if isinstance(obj, dict):
         result = {}
         for key, value in obj.items():
-            # Skip metadata fields:
+            # Skip metadata/presentation fields that differ between normal and stop/go modes:
             # - choice_id: unique ID for each choice (increments differently based on stop points)
             # - undo_log: snapshot/replay metadata, not actual game state
-            # - show_choice_menu: flag set true in stop/go mode, false in normal mode
-            if key in ("choice_id", "undo_log", "show_choice_menu"):
+            # - show_choice_menu: presentation flag (set true in stop/go mode)
+            # - output_mode: presentation setting (Stdout vs Both)
+            # - output_format: presentation setting (Text vs JSON)
+            # - numeric_choices: presentation setting
+            # - step_header_printed: transient UI state
+            if key in ("choice_id", "undo_log", "show_choice_menu", "output_mode",
+                      "output_format", "numeric_choices", "step_header_printed"):
                 continue
             result[key] = strip_metadata_fields(value)
         return result

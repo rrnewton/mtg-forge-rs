@@ -210,11 +210,8 @@ impl<'a> GameLoop<'a> {
         stop_condition: crate::game::StopCondition,
         snapshot_path: P,
     ) -> Self {
-        self.stop_condition_info = Some((
-            p1_id,
-            stop_condition,
-            snapshot_path.as_ref().to_path_buf(),
-        ));
+        self.stop_condition_info =
+            Some((p1_id, stop_condition, snapshot_path.as_ref().to_path_buf()));
         // Enable choice menu display when in stop/go mode
         self.game.logger.set_show_choice_menu(true);
         // Enable log buffering (Both mode: output to stdout AND capture to memory)
@@ -305,12 +302,14 @@ impl<'a> GameLoop<'a> {
         if self.replaying && self.replay_choices_remaining > 0 {
             self.replay_choices_remaining -= 1;
             if self.verbosity >= VerbosityLevel::Verbose {
-                println!("🔄 Replay choice {}/{} (remaining: {})",
-                    self.choice_counter,
-                    self.choice_counter,
-                    self.replay_choices_remaining);
+                println!(
+                    "🔄 Replay choice {}/{} (remaining: {})",
+                    self.choice_counter, self.choice_counter, self.replay_choices_remaining
+                );
                 if self.replay_choices_remaining == 0 {
-                    println!("  (Note: Replay mode stays active to suppress the action's execution)");
+                    println!(
+                        "  (Note: Replay mode stays active to suppress the action's execution)"
+                    );
                 }
             }
         }
@@ -345,6 +344,36 @@ impl<'a> GameLoop<'a> {
                 let filtered_count = self.count_filtered_choices(p1_id, stop_condition);
 
                 // If we've reached the limit, save snapshot and exit
+                if filtered_count >= stop_condition.choice_count {
+                    let snapshot_path = snapshot_path.clone();
+                    return self
+                        .save_snapshot_and_exit(stop_condition.choice_count, &snapshot_path)
+                        .map(Some);
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Check if we should save a snapshot after logging a choice
+    ///
+    /// This is the POSTAMBLE check that happens after logging a choice but BEFORE
+    /// executing the action. This ensures we snapshot AT the choice, not after it executes.
+    ///
+    /// Returns Some(GameResult) if snapshot should be saved, None to continue.
+    fn check_stop_condition_after_choice(
+        &mut self,
+        player_id: PlayerId,
+    ) -> Result<Option<GameResult>> {
+        // Only check stop condition (not fixed controller exhaustion, which is checked in PREAMBLE)
+        if let Some((p1_id, ref stop_condition, ref snapshot_path)) = self.stop_condition_info {
+            // Only count this choice if it matches the stop condition filter
+            if stop_condition.applies_to(p1_id, player_id) {
+                let filtered_count = self.count_filtered_choices(p1_id, stop_condition);
+
+                // If we've reached the limit, save snapshot and exit
+                // This check happens AFTER the choice was logged but BEFORE action executes
                 if filtered_count >= stop_condition.choice_count {
                     let snapshot_path = snapshot_path.clone();
                     return self
@@ -552,9 +581,12 @@ impl<'a> GameLoop<'a> {
 
             // Valid stopping points:
             // 1. Controller choice
-            if message.contains(">>> ") &&
-               (message.contains("chose") || message.contains("RANDOM") ||
-                message.contains("HEURISTIC") || message.contains("ZERO")) {
+            if message.contains(">>> ")
+                && (message.contains("chose")
+                    || message.contains("RANDOM")
+                    || message.contains("HEURISTIC")
+                    || message.contains("ZERO"))
+            {
                 return; // Valid: stopped after a controller choice
             }
 
@@ -613,14 +645,14 @@ impl<'a> GameLoop<'a> {
                 .save_to_file(&snapshot_path)
                 .map_err(|e| MtgError::InvalidAction(format!("Failed to save snapshot: {}", e)))?;
 
-            // Log snapshot info
+            // Log snapshot info to stderr (meta-information, not game output)
             if self.verbosity >= VerbosityLevel::Minimal {
-                println!("\n=== Snapshot Saved ===");
-                println!("  Choice limit reached: {} choices", choice_limit);
-                println!("  Snapshot saved to: {}", snapshot_path.as_ref().display());
-                println!("  Turn number: {}", turn_number);
-                println!("  Intra-turn choices: {}", snapshot.choice_count());
-                println!("  Actions rewound: {}", actions_rewound);
+                eprintln!("\n=== Snapshot Saved ===");
+                eprintln!("  Choice limit reached: {} choices", choice_limit);
+                eprintln!("  Snapshot saved to: {}", snapshot_path.as_ref().display());
+                eprintln!("  Turn number: {}", turn_number);
+                eprintln!("  Intra-turn choices: {}", snapshot.choice_count());
+                eprintln!("  Actions rewound: {}", actions_rewound);
             }
 
             // Return early with Snapshot end reason
@@ -715,7 +747,10 @@ impl<'a> GameLoop<'a> {
         let active_player = self.game.turn.active_player;
 
         // Skip turn header if we just resumed from snapshot (it was already printed before snapshot)
-        if self.verbosity >= VerbosityLevel::Normal && !self.replaying && !self.resumed_from_snapshot {
+        if self.verbosity >= VerbosityLevel::Normal
+            && !self.replaying
+            && !self.resumed_from_snapshot
+        {
             let player_name = self.get_player_name(active_player);
             println!("\n========================================");
             println!("Turn {} - {}'s turn", self.turns_elapsed + 1, player_name);
@@ -903,7 +938,8 @@ impl<'a> GameLoop<'a> {
     /// Print step header lazily (only when first action happens in this step)
     /// Used for Normal verbosity level
     fn print_step_header_if_needed(&mut self) {
-        if self.verbosity == VerbosityLevel::Normal && !self.step_header_printed && !self.replaying {
+        if self.verbosity == VerbosityLevel::Normal && !self.step_header_printed && !self.replaying
+        {
             let step = self.game.turn.current_step;
             println!("--- {} ---", self.step_name(step));
             self.step_header_printed = true;
@@ -1214,7 +1250,13 @@ impl<'a> GameLoop<'a> {
                 if let Some(zones) = self.game.get_player_zones(active_player) {
                     if let Some(&card_id) = zones.hand.cards.last() {
                         if let Ok(card) = self.game.cards.get(card_id) {
-                            log_if_verbose!(self, "{} draws {} ({})", player_name, card.name, card_id);
+                            log_if_verbose!(
+                                self,
+                                "{} draws {} ({})",
+                                player_name,
+                                card.name,
+                                card_id
+                            );
                         } else {
                             log_if_verbose!(self, "{} draws a card", player_name);
                         }
@@ -1290,6 +1332,12 @@ impl<'a> GameLoop<'a> {
             // Log this choice point for snapshot/replay
             let replay_choice = crate::game::ReplayChoice::Attackers(attackers.clone());
             self.log_choice_point(active_player, Some(replay_choice));
+
+            // POSTAMBLE: Check if we should snapshot after logging this choice
+            // This ensures we stop AT the choice, not after executing the action
+            if let Some(result) = self.check_stop_condition_after_choice(active_player)? {
+                return Ok(Some(result));
+            }
 
             // Declare each chosen attacker
             for attacker_id in attackers.iter() {
@@ -1371,6 +1419,12 @@ impl<'a> GameLoop<'a> {
             // Log this choice point for snapshot/replay
             let replay_choice = crate::game::ReplayChoice::Blockers(blocks.clone());
             self.log_choice_point(defending_player, Some(replay_choice));
+
+            // POSTAMBLE: Check if we should snapshot after logging this choice
+            // This ensures we stop AT the choice, not after executing the action
+            if let Some(result) = self.check_stop_condition_after_choice(defending_player)? {
+                return Ok(Some(result));
+            }
 
             // Declare each blocking assignment
             for (blocker_id, attacker_id) in blocks.iter() {
@@ -1627,6 +1681,12 @@ impl<'a> GameLoop<'a> {
                 let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
                 self.log_choice_point(player_id, Some(replay_choice));
 
+                // POSTAMBLE: Check if we should snapshot after logging this choice
+                // This ensures we stop AT the choice, not after executing the action
+                if let Some(result) = self.check_stop_condition_after_choice(player_id)? {
+                    return Ok(Some(result));
+                }
+
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
                     return Err(crate::MtgError::InvalidAction(format!(
@@ -1796,7 +1856,9 @@ impl<'a> GameLoop<'a> {
                     None
                 } else {
                     // PREAMBLE: Check stop conditions before asking for choice
-                    if let Some(result) = self.check_stop_conditions(controller, current_priority)? {
+                    if let Some(result) =
+                        self.check_stop_conditions(controller, current_priority)?
+                    {
                         return Ok(Some(result));
                     }
 
@@ -1817,6 +1879,14 @@ impl<'a> GameLoop<'a> {
                     // POSTAMBLE: Log this choice point for snapshot/replay
                     let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
                     self.log_choice_point(current_priority, Some(replay_choice));
+
+                    // POSTAMBLE: Check if we should snapshot after logging this choice
+                    // This ensures we stop AT the choice, not after executing the action
+                    if let Some(result) =
+                        self.check_stop_condition_after_choice(current_priority)?
+                    {
+                        return Ok(Some(result));
+                    }
 
                     choice
                 };
@@ -2064,7 +2134,9 @@ impl<'a> GameLoop<'a> {
                                         card_id,
                                         &ability.cost,
                                     ) {
-                                        if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
+                                        if self.verbosity >= VerbosityLevel::Normal
+                                            && !self.replaying
+                                        {
                                             eprintln!("    Failed to pay cost: {e}");
                                         }
                                         continue;
@@ -2171,12 +2243,16 @@ impl<'a> GameLoop<'a> {
                                         };
 
                                         if let Err(e) = self.game.execute_effect(&fixed_effect) {
-                                            if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
+                                            if self.verbosity >= VerbosityLevel::Normal
+                                                && !self.replaying
+                                            {
                                                 eprintln!("    Failed to execute effect: {e}");
                                             }
                                         }
                                     }
-                                } else if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
+                                } else if self.verbosity >= VerbosityLevel::Normal
+                                    && !self.replaying
+                                {
                                     eprintln!("  Ability not found");
                                 }
                             }
