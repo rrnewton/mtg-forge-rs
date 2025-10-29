@@ -2,13 +2,18 @@
 # Run snapshot/resume stress tests in parallel using GNU parallel
 #
 # Usage:
-#   ./run_stress_tests.sh [deck_names...]
-#   ./run_stress_tests.sh --sequential [deck_names...]
+#   ./run_stress_tests.sh [--sequential] [--keep] [deck_names...]
 #
 # Examples:
 #   ./run_stress_tests.sh                                  # Run all default decks
 #   ./run_stress_tests.sh royal_assassin white_aggro_4ed  # Run specific decks
 #   ./run_stress_tests.sh --sequential                     # Force sequential execution
+#   ./run_stress_tests.sh --keep                           # Save all test artifacts
+#   ./run_stress_tests.sh --keep --sequential grizzly_bears
+#
+# Flags:
+#   --sequential    Force sequential execution (disable parallel)
+#   --keep          Save all artifacts (logs, gamestates, snapshots) to test_artifacts/
 #
 # If no deck names are provided, runs default set of decks.
 # Deck names should be without .dck extension.
@@ -17,12 +22,17 @@ set -e  # Exit on error
 
 # Parse command line arguments
 FORCE_SEQUENTIAL=false
+KEEP_ARTIFACTS=false
 DECK_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --sequential)
             FORCE_SEQUENTIAL=true
+            shift
+            ;;
+        --keep|--keep-logs)
+            KEEP_ARTIFACTS=true
             shift
             ;;
         *)
@@ -101,9 +111,15 @@ run_test() {
     # Extract deck name for display
     deck_name=$(basename "$deck_path" .dck)
 
+    # Build command with optional --keep flag
+    local cmd="./scripts/snapshot_stress_test_single.py $deck_path $p1 $p2 --quiet"
+    if [ "$KEEP_ARTIFACTS" = true ]; then
+        cmd="$cmd --keep"
+    fi
+
     # Run the test and capture output
     local output
-    output=$(./scripts/snapshot_stress_test_single.py "$deck_path" "$p1" "$p2" --quiet 2>&1)
+    output=$($cmd 2>&1)
     local exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
@@ -119,7 +135,11 @@ run_test() {
             echo "=========================================="
             echo ""
             echo "Reproduce with:"
-            echo "  ./scripts/snapshot_stress_test_single.py $deck_path $p1 $p2 --verbose"
+            local repro_cmd="  ./scripts/snapshot_stress_test_single.py $deck_path $p1 $p2 --verbose"
+            if [ "$KEEP_ARTIFACTS" = true ]; then
+                repro_cmd="$repro_cmd --keep"
+            fi
+            echo "$repro_cmd"
             echo ""
             echo "Output:"
             echo "$output"
@@ -130,6 +150,7 @@ run_test() {
 }
 
 export -f run_test
+export KEEP_ARTIFACTS
 
 # Check if GNU parallel is available and not forcing sequential
 if [ "$FORCE_SEQUENTIAL" = true ] || ! command -v parallel &> /dev/null; then
