@@ -1300,7 +1300,7 @@ impl<'a> GameLoop<'a> {
         // Debug: Log state hash before draw (when not replaying)
         #[cfg(feature = "verbose-logging")]
         {
-            if !self.resumed_from_snapshot {
+            if !self.replaying {
                 let player_name = self.get_player_name(active_player);
                 let draw_msg = format!("{} draws", player_name);
                 self.game.debug_log_state_hash(&draw_msg);
@@ -1312,8 +1312,8 @@ impl<'a> GameLoop<'a> {
 
         #[cfg(feature = "verbose-logging")]
         {
-            // Skip draw logging if we just resumed from snapshot (draw was already logged before snapshot)
-            if !self.resumed_from_snapshot {
+            // Skip draw logging during replay mode (already logged in previous game segment)
+            if !self.replaying {
                 let player_name = self.get_player_name(active_player);
                 if let Some(zones) = self.game.get_player_zones(active_player) {
                     if let Some(&card_id) = zones.hand.cards.last() {
