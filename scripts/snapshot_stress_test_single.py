@@ -283,7 +283,8 @@ def strip_metadata_fields(obj):
             # Skip metadata fields:
             # - choice_id: unique ID for each choice (increments differently based on stop points)
             # - undo_log: snapshot/replay metadata, not actual game state
-            if key in ("choice_id", "undo_log"):
+            # - show_choice_menu: flag set true in stop/go mode, false in normal mode
+            if key in ("choice_id", "undo_log", "show_choice_menu"):
                 continue
             result[key] = strip_metadata_fields(value)
         return result
