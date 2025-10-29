@@ -788,7 +788,10 @@ impl PlayerController for HeuristicController {
             let player_name = view.player_name();
             view.logger().controller_choice(
                 "HEURISTIC",
-                &format!("{} chose to pass priority (no available actions)", player_name),
+                &format!(
+                    "{} chose to pass priority (no available actions)",
+                    player_name
+                ),
             );
             return None;
         }
@@ -824,7 +827,10 @@ impl PlayerController for HeuristicController {
 
             view.logger().controller_choice(
                 "HEURISTIC",
-                &format!("{} chose {} - {}", player_name, ability_index, choice_description),
+                &format!(
+                    "{} chose {} - {}",
+                    player_name, ability_index, choice_description
+                ),
             );
         } else {
             view.logger().controller_choice(

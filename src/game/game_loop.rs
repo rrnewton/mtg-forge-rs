@@ -330,25 +330,30 @@ impl<'a> GameLoop<'a> {
     ) -> Result<Option<GameResult>> {
         // Check 1: Fixed controller exhaustion
         if self.stop_when_fixed_exhausted && !controller.has_more_choices() {
-            if let Some(snapshot_path) = self.snapshot_path_for_fixed.clone() {
-                return self
-                    .save_snapshot_and_exit(self.choice_counter as usize, &snapshot_path)
-                    .map(Some);
+            if self.snapshot_path_for_fixed.is_some() {
+                // Just signal - snapshot will be saved at top level
+                return Ok(Some(GameResult {
+                    winner: None,
+                    turns_played: self.turns_elapsed,
+                    end_reason: GameEndReason::Snapshot,
+                }));
             }
         }
 
         // Check 2: Stop condition (--stop-every)
-        if let Some((p1_id, ref stop_condition, ref snapshot_path)) = self.stop_condition_info {
+        if let Some((p1_id, ref stop_condition, ref _snapshot_path)) = self.stop_condition_info {
             // Only count this choice if it matches the stop condition filter
             if stop_condition.applies_to(p1_id, player_id) {
                 let filtered_count = self.count_filtered_choices(p1_id, stop_condition);
 
-                // If we've reached the limit, save snapshot and exit
+                // If we've reached the limit, signal to unwind control flow
                 if filtered_count >= stop_condition.choice_count {
-                    let snapshot_path = snapshot_path.clone();
-                    return self
-                        .save_snapshot_and_exit(stop_condition.choice_count, &snapshot_path)
-                        .map(Some);
+                    // Just return a signal - don't save yet!
+                    return Ok(Some(GameResult {
+                        winner: None,
+                        turns_played: self.turns_elapsed,
+                        end_reason: GameEndReason::Snapshot,
+                    }));
                 }
             }
         }
@@ -367,18 +372,21 @@ impl<'a> GameLoop<'a> {
         player_id: PlayerId,
     ) -> Result<Option<GameResult>> {
         // Only check stop condition (not fixed controller exhaustion, which is checked in PREAMBLE)
-        if let Some((p1_id, ref stop_condition, ref snapshot_path)) = self.stop_condition_info {
+        if let Some((p1_id, ref stop_condition, ref _snapshot_path)) = self.stop_condition_info {
             // Only count this choice if it matches the stop condition filter
             if stop_condition.applies_to(p1_id, player_id) {
                 let filtered_count = self.count_filtered_choices(p1_id, stop_condition);
 
-                // If we've reached the limit, save snapshot and exit
-                // This check happens AFTER the choice was logged but BEFORE action executes
+                // If we've reached the limit, signal to unwind control flow
+                // The snapshot will be saved at the top level where we have access to controllers
                 if filtered_count >= stop_condition.choice_count {
-                    let snapshot_path = snapshot_path.clone();
-                    return self
-                        .save_snapshot_and_exit(stop_condition.choice_count, &snapshot_path)
-                        .map(Some);
+                    // Just return a signal - don't save yet!
+                    // Control flow will unwind back to run_game() where we can save
+                    return Ok(Some(GameResult {
+                        winner: None,
+                        turns_played: self.turns_elapsed,
+                        end_reason: GameEndReason::Snapshot,
+                    }));
                 }
             }
         }
@@ -401,6 +409,31 @@ impl<'a> GameLoop<'a> {
         loop {
             // Run one turn and check if game should end
             if let Some(result) = self.run_turn_once(controller1, controller2)? {
+                // Check if this is a snapshot request
+                if result.end_reason == GameEndReason::Snapshot {
+                    // We're at the top level - save snapshot with access to both controllers!
+
+                    // Determine which snapshot type and path to use
+                    let (choice_count, snapshot_path) =
+                        if let Some((_, ref stop_condition, ref path)) = self.stop_condition_info {
+                            // --stop-every snapshot
+                            (stop_condition.choice_count, path.clone())
+                        } else if let Some(ref path) = self.snapshot_path_for_fixed {
+                            // --stop-when-fixed-exhausted snapshot
+                            (self.choice_counter as usize, path.clone())
+                        } else {
+                            // Should never happen, but handle gracefully
+                            return Ok(result);
+                        };
+
+                    return self.save_snapshot_and_exit(
+                        choice_count,
+                        &snapshot_path,
+                        controller1,
+                        controller2,
+                    );
+                }
+
                 // Notify controllers of game end
                 self.notify_game_end(
                     controller1,
@@ -611,13 +644,15 @@ impl<'a> GameLoop<'a> {
     /// Save a snapshot when choice limit is reached and exit
     ///
     /// This rewinds the undo log to the most recent turn boundary, extracts
-    /// intra-turn choices, and saves a GameSnapshot to disk.
+    /// intra-turn choices, saves controller RNG state, and saves a GameSnapshot to disk.
     ///
     /// Returns a GameResult with `GameEndReason::Snapshot`.
     fn save_snapshot_and_exit<P: AsRef<std::path::Path>>(
         &mut self,
         choice_limit: usize,
         snapshot_path: P,
+        controller1: &dyn PlayerController,
+        controller2: &dyn PlayerController,
     ) -> Result<GameResult> {
         // Assert that we're stopping at a valid point (after a choice or game end)
         self.assert_valid_stopping_point();
@@ -633,11 +668,21 @@ impl<'a> GameLoop<'a> {
             // Clone the game state at the turn boundary
             let game_state_snapshot = self.game.clone();
 
-            // Create snapshot with state + choices
-            let snapshot = crate::game::GameSnapshot::new(
+            // Capture controller RNG states (no borrow conflicts at this level!)
+            let p1_controller_state = controller1
+                .get_snapshot_state()
+                .and_then(|v| serde_json::from_value(v).ok());
+            let p2_controller_state = controller2
+                .get_snapshot_state()
+                .and_then(|v| serde_json::from_value(v).ok());
+
+            // Create snapshot with state + choices + controller states
+            let snapshot = crate::game::GameSnapshot::with_controller_state(
                 game_state_snapshot,
                 turn_number,
                 intra_turn_choices,
+                p1_controller_state,
+                p2_controller_state,
             );
 
             // Save to file

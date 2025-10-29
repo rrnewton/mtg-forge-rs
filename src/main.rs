@@ -701,7 +701,10 @@ async fn run_tui(
         game_loop = game_loop.with_replay_mode(replay_choice_count);
 
         if verbosity >= VerbosityLevel::Verbose {
-            println!("Replay mode enabled: {} choices to replay", replay_choice_count);
+            println!(
+                "Replay mode enabled: {} choices to replay",
+                replay_choice_count
+            );
         }
     }
 

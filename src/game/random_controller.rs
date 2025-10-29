@@ -113,7 +113,10 @@ impl PlayerController for RandomController {
         let player_name = view.player_name();
         view.logger().controller_choice(
             "RANDOM",
-            &format!("{} chose {} - {}", player_name, ability_index, choice_description),
+            &format!(
+                "{} chose {} - {}",
+                player_name, ability_index, choice_description
+            ),
         );
         Some(available[ability_index].clone())
     }
