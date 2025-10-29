@@ -101,12 +101,30 @@ run_test() {
     # Extract deck name for display
     deck_name=$(basename "$deck_path" .dck)
 
-    # Run the test (quietly - only errors shown)
-    if ./scripts/snapshot_stress_test_single.py "$deck_path" "$p1" "$p2" --quiet 2>&1; then
+    # Run the test and capture output
+    local output
+    output=$(./scripts/snapshot_stress_test_single.py "$deck_path" "$p1" "$p2" --quiet 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
         echo "✓ $deck_name ($p1 vs $p2)"
         return 0
     else
         echo "✗ $deck_name ($p1 vs $p2)"
+        # Print detailed failure info to stderr for capturing
+        {
+            echo ""
+            echo "=========================================="
+            echo "FAILED: $deck_name ($p1 vs $p2)"
+            echo "=========================================="
+            echo ""
+            echo "Reproduce with:"
+            echo "  ./scripts/snapshot_stress_test_single.py $deck_path $p1 $p2 --verbose"
+            echo ""
+            echo "Output:"
+            echo "$output"
+            echo ""
+        } >&2
         return 1
     fi
 }
@@ -158,26 +176,36 @@ fi
 
 # Parallel execution using GNU parallel
 # Run with moderate parallelism (jobs=2) since each test spawns multiple game processes
-# --halt soon,fail=1: Stop as soon as one job fails
 # --line-buffer: Buffer output by line (prevents interleaving)
+# --joblog: Track which jobs passed/failed
 echo "Running $TOTAL tests in parallel..."
 echo ""
 
-if printf '%s\n' "${TEST_CASES[@]}" | parallel --jobs 2 --halt soon,fail=1 --line-buffer \
-    'run_test {}'; then
+JOBLOG=$(mktemp)
+trap "rm -f $JOBLOG" EXIT
 
+# Run all tests and capture exit codes in joblog
+# Temporarily disable exit-on-error so we can process results even if tests fail
+set +e
+printf '%s\n' "${TEST_CASES[@]}" | parallel --jobs 2 --line-buffer --joblog "$JOBLOG" \
+    'run_test {}'
+set -e
+
+# Count results from joblog (skip header line)
+PASSED=$(awk 'NR>1 && $7==0 {count++} END {print count+0}' "$JOBLOG")
+FAILED=$(awk 'NR>1 && $7!=0 {count++} END {print count+0}' "$JOBLOG")
+
+echo ""
+echo "========================================"
+echo "Summary: $PASSED/$TOTAL tests passed"
+echo "========================================"
+
+if [ $FAILED -gt 0 ]; then
     echo ""
-    echo "========================================"
-    echo "Summary: $TOTAL/$TOTAL tests passed"
-    echo "========================================"
-    echo ""
-    echo "✅ All stress tests passed!"
-    exit 0
-else
-    EXIT_CODE=$?
-    echo ""
-    echo "========================================"
-    echo "❌ Some stress tests failed!"
-    echo "========================================"
-    exit $EXIT_CODE
+    echo "❌ $FAILED test(s) failed! (see detailed output above)"
+    exit 1
 fi
+
+echo ""
+echo "✅ All stress tests passed!"
+exit 0
