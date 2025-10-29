@@ -177,15 +177,24 @@ impl GameLogger {
     ///
     /// This prints the tail of the log buffer (last K lines) and then clears the buffer.
     /// Useful with --log-tail to show constant-sized output at game exit.
+    /// Prints an elision message showing how many lines were skipped.
     pub fn flush_tail(&mut self, tail_lines: usize) {
         let buffer = self.log_buffer.borrow();
 
+        // Calculate how many lines we're eliding
+        let total_lines = buffer.len();
+        let elided_count = total_lines.saturating_sub(tail_lines);
+
+        // Print elision message if we're skipping lines
+        if elided_count > 0 {
+            println!(
+                ">>> {} LOG LINES ELIDED. PRINTING LAST {} LINES <<<",
+                elided_count, tail_lines
+            );
+        }
+
         // Calculate start index for the tail
-        let start_idx = if buffer.len() > tail_lines {
-            buffer.len() - tail_lines
-        } else {
-            0
-        };
+        let start_idx = total_lines.saturating_sub(tail_lines);
 
         // Print only the last K lines
         for entry in buffer.iter().skip(start_idx) {

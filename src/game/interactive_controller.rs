@@ -5,6 +5,7 @@
 use crate::core::{CardId, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
+use crate::game::RichInputController;
 use smallvec::SmallVec;
 use std::io::{self, Write};
 
@@ -124,6 +125,12 @@ impl InteractiveController {
         } else {
             println!("  Enter a number to choose an action");
             println!("  p  - Pass priority");
+            println!("\nRich text commands:");
+            println!("  play <card>     - Play a land (e.g., 'play swamp')");
+            println!("  cast <card>     - Cast a spell (e.g., 'cast bolt')");
+            println!("  activate <card> - Activate an ability");
+            println!("\nCard names are case-insensitive and support prefix matching");
+            println!("(e.g., 'cast black' matches 'Black Knight')");
         }
         println!();
     }
@@ -254,15 +261,15 @@ impl PlayerController for InteractiveController {
                 match ability {
                     SpellAbility::PlayLand { card_id } => {
                         let name = view.card_name(*card_id).unwrap_or_default();
-                        println!("  [{}] Play land: {}", idx + 1, name);
+                        println!("  [{}] Play {}", idx + 1, name);
                     }
                     SpellAbility::CastSpell { card_id } => {
                         let name = view.card_name(*card_id).unwrap_or_default();
-                        println!("  [{}] Cast spell: {}", idx + 1, name);
+                        println!("  [{}] Cast {}", idx + 1, name);
                     }
                     SpellAbility::ActivateAbility { card_id, .. } => {
                         let name = view.card_name(*card_id).unwrap_or_default();
-                        println!("  [{}] Activate ability: {}", idx + 1, name);
+                        println!("  [{}] Activate {}", idx + 1, name);
                     }
                 }
             }
@@ -297,60 +304,126 @@ impl PlayerController for InteractiveController {
 
             Some(available[choice - 1].clone())
         } else {
-            // Original mode: indices match array, 'p' to pass
+            // Original mode: indices match array, 'p' to pass, OR rich text commands
             println!("\nAvailable actions:");
             for (idx, ability) in available.iter().enumerate() {
                 match ability {
                     SpellAbility::PlayLand { card_id } => {
                         let name = view.card_name(*card_id).unwrap_or_default();
-                        println!("  [{}] Play land: {}", idx, name);
+                        println!("  [{}] Play {}", idx, name);
                     }
                     SpellAbility::CastSpell { card_id } => {
                         let name = view.card_name(*card_id).unwrap_or_default();
-                        println!("  [{}] Cast spell: {}", idx, name);
+                        println!("  [{}] Cast {}", idx, name);
                     }
                     SpellAbility::ActivateAbility { card_id, .. } => {
                         let name = view.card_name(*card_id).unwrap_or_default();
-                        println!("  [{}] Activate ability: {}", idx, name);
+                        println!("  [{}] Activate {}", idx, name);
                     }
                 }
             }
 
-            let choice = self.get_user_choice_with_view(
-                &format!(
-                    "Choose action (0-{}, 'p' to pass, or ? for help):",
+            // Read user input and try rich command parsing first
+            loop {
+                print!(
+                    "Choose action (0-{}, 'p' to pass, or ? for help): ",
                     available.len() - 1
-                ),
-                available.len(),
-                true,
-                Some(view),
-            );
+                );
+                io::stdout().flush().unwrap();
 
-            // Check if user passed priority
-            if choice.is_none() {
-                println!("  {} passed priority.", player_name);
-                return None;
+                let mut input = String::new();
+                if io::stdin().read_line(&mut input).is_err() {
+                    eprintln!("Error reading input");
+                    continue;
+                }
+
+                let trimmed = input.trim();
+
+                // Check for special informational commands
+                match trimmed {
+                    "?" => {
+                        self.display_help();
+                        continue; // Re-prompt
+                    }
+                    "v" => {
+                        self.display_battlefield_view(view);
+                        continue; // Re-prompt
+                    }
+                    "g" => {
+                        self.display_graveyard_view(view);
+                        continue; // Re-prompt
+                    }
+                    _ => {} // Not a special command, continue with parsing
+                }
+
+                // Try rich command parsing first
+                let rich_result =
+                    RichInputController::parse_spell_ability_choice(trimmed, view, available);
+
+                // Check if it was a valid command (pass or ability selection)
+                if trimmed == "p"
+                    || trimmed == "pass"
+                    || trimmed.starts_with("play ")
+                    || trimmed.starts_with("cast ")
+                    || trimmed.starts_with("activate ")
+                {
+                    // This is a rich command attempt
+                    if let Some(ability) = rich_result {
+                        // Found matching ability
+                        match &ability {
+                            SpellAbility::PlayLand { card_id } => {
+                                let name = view.card_name(*card_id).unwrap_or_default();
+                                println!("  {} played land: {}", player_name, name);
+                            }
+                            SpellAbility::CastSpell { card_id } => {
+                                let name = view.card_name(*card_id).unwrap_or_default();
+                                println!("  {} cast spell: {}", player_name, name);
+                            }
+                            SpellAbility::ActivateAbility { card_id, .. } => {
+                                let name = view.card_name(*card_id).unwrap_or_default();
+                                println!("  {} activated ability: {}", player_name, name);
+                            }
+                        }
+                        return Some(ability);
+                    } else if trimmed == "p" || trimmed == "pass" {
+                        // Explicit pass command
+                        println!("  {} passed priority.", player_name);
+                        return None;
+                    } else {
+                        // Rich command but no match found
+                        eprintln!("No matching action found for '{}'. Try again.", trimmed);
+                        continue;
+                    }
+                }
+
+                // Try numeric parsing
+                match trimmed.parse::<usize>() {
+                    Ok(choice) if choice < available.len() => {
+                        // Acknowledge the chosen action
+                        match &available[choice] {
+                            SpellAbility::PlayLand { card_id } => {
+                                let name = view.card_name(*card_id).unwrap_or_default();
+                                println!("  {} played land: {}", player_name, name);
+                            }
+                            SpellAbility::CastSpell { card_id } => {
+                                let name = view.card_name(*card_id).unwrap_or_default();
+                                println!("  {} cast spell: {}", player_name, name);
+                            }
+                            SpellAbility::ActivateAbility { card_id, .. } => {
+                                let name = view.card_name(*card_id).unwrap_or_default();
+                                println!("  {} activated ability: {}", player_name, name);
+                            }
+                        }
+                        return Some(available[choice].clone());
+                    }
+                    _ => {
+                        eprintln!(
+                            "Invalid choice. Enter 0-{}, 'play X', 'cast Y', or 'p' to pass.",
+                            available.len() - 1
+                        );
+                    }
+                }
             }
-
-            let choice = choice.unwrap();
-
-            // Acknowledge the chosen action
-            match &available[choice] {
-                SpellAbility::PlayLand { card_id } => {
-                    let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  {} played land: {}", player_name, name);
-                }
-                SpellAbility::CastSpell { card_id } => {
-                    let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  {} cast spell: {}", player_name, name);
-                }
-                SpellAbility::ActivateAbility { card_id, .. } => {
-                    let name = view.card_name(*card_id).unwrap_or_default();
-                    println!("  {} activated ability: {}", player_name, name);
-                }
-            }
-
-            Some(available[choice].clone())
         }
     }
 

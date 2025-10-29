@@ -14,6 +14,7 @@ pub mod mana_payment;
 pub mod phase;
 pub mod random_controller;
 pub mod replay_controller;
+pub mod rich_input_controller;
 pub mod snapshot;
 pub mod state;
 pub mod state_hash;
@@ -42,6 +43,7 @@ pub use mana_payment::{
 pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;
 pub use replay_controller::{ReplayChoice, ReplayController};
+pub use rich_input_controller::RichInputController;
 pub use snapshot::{ControllerState, GameSnapshot, SnapshotError};
 pub use state::GameState;
 pub use state_hash::{compute_state_hash, format_hash};
