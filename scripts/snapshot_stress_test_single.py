@@ -170,10 +170,18 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
                          p1_controller: str, p2_controller: str,
                          p1_choices: List[int], p2_choices: List[int],
                          seed: int, num_stops: int = 3,
-                         save_gamestate: Optional[Path] = None) -> str:
-    """Run a stop-and-go game with randomized stop points."""
+                         save_gamestate: Optional[Path] = None,
+                         keep_snapshots: bool = False,
+                         snapshot_dir: Optional[Path] = None,
+                         test_name: str = "") -> Tuple[str, List[Path]]:
+    """Run a stop-and-go game with randomized stop points.
+
+    Returns: (accumulated_log, list_of_snapshot_paths)
+    """
     import tempfile
     accumulated_log = ""
+    saved_snapshots = []
+
     # Use unique temp file to avoid conflicts when running in parallel
     snapshot_file = Path(tempfile.mktemp(suffix="_snapshot.json"))
 
@@ -261,19 +269,27 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
             print_color(RED, f"✗ Segment {i+1} failed with code {result.returncode}")
             print("STDOUT:", result.stdout[:2000])
             print("STDERR:", result.stderr[:2000])
-            return ""
+            return "", saved_snapshots
 
         accumulated_log += result.stdout
+
+        # Save snapshot if requested and it exists
+        if keep_snapshots and snapshot_file.exists() and snapshot_dir:
+            snapshot_dir.mkdir(parents=True, exist_ok=True)
+            saved_path = snapshot_dir / f"{test_name}_snapshot_{i+1}.json"
+            import shutil
+            shutil.copy(snapshot_file, saved_path)
+            saved_snapshots.append(saved_path)
 
         # Check if game ended
         if "Game Over" in result.stdout or "wins!" in result.stdout:
             break
 
-    # Cleanup
+    # Cleanup temp snapshot file
     if snapshot_file.exists():
         snapshot_file.unlink()
 
-    return accumulated_log
+    return accumulated_log, saved_snapshots
 
 def strip_metadata_fields(obj):
     """Recursively strip metadata fields from gamestate."""
@@ -412,7 +428,7 @@ def compare_game_logs(normal_log: str, stopgo_log: str, verbose: bool = False,
 def run_test_for_deck(mtg_bin: Path, deck_path: str,
                       p1_controller: str, p2_controller: str, seed: int,
                       num_replays: int = 3, verbose: bool = False,
-                      keep_logs: bool = False, log_dir: Optional[Path] = None) -> bool:
+                      keep_artifacts: bool = False, artifact_dir: Optional[Path] = None) -> bool:
     """Run complete test for a specific deck with multiple replay runs."""
     # Create temp files for gamestates
     import tempfile
@@ -435,13 +451,17 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
         random.seed(seed + replay_num + 1000)
 
         stopgo_state_file = Path(tempfile.mktemp(suffix=f"_stopgo_{replay_num}.gamestate"))
+        test_name = f"{deck_name}_{p1_controller}v{p2_controller}_seed{seed}_replay{replay_num+1}"
 
         # Run stop-and-go game with randomized stop points (5 stops)
-        stopgo_log = run_stop_and_go_game(
+        stopgo_log, saved_snapshots = run_stop_and_go_game(
             mtg_bin, deck_path, deck_path,
             p1_controller, p2_controller,
             p1_choices, p2_choices, seed, num_stops=5,
-            save_gamestate=stopgo_state_file
+            save_gamestate=stopgo_state_file,
+            keep_snapshots=keep_artifacts,
+            snapshot_dir=artifact_dir,
+            test_name=test_name
         )
 
         if not stopgo_log:
@@ -451,16 +471,27 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
             continue
 
         # Compare logs for exact match
-        test_name = f"{deck_name}_{p1_controller}v{p2_controller}_seed{seed}_replay{replay_num+1}"
         log_success, normal_actions, stopgo_actions, normal_log_path, stopgo_log_path = compare_game_logs(
             normal_log, stopgo_log, verbose=verbose,
-            save_logs=keep_logs, log_dir=log_dir, test_name=test_name
+            save_logs=keep_artifacts, log_dir=artifact_dir, test_name=test_name
         )
 
         # Compare final gamestates
         gamestate_success = True
+        normal_state_saved = None
+        stopgo_state_saved = None
         if normal_state_file.exists() and stopgo_state_file.exists():
             gamestate_success = compare_gamestates(normal_state_file, stopgo_state_file, verbose=verbose)
+
+            # Save gamestate files if requested
+            if keep_artifacts and artifact_dir:
+                artifact_dir.mkdir(parents=True, exist_ok=True)
+                normal_state_saved = artifact_dir / f"{test_name}_normal.gamestate"
+                stopgo_state_saved = artifact_dir / f"{test_name}_stopgo.gamestate"
+
+                import shutil
+                shutil.copy(normal_state_file, normal_state_saved)
+                shutil.copy(stopgo_state_file, stopgo_state_saved)
 
         # Check if this replay succeeded
         replay_success = log_success and gamestate_success
@@ -476,18 +507,29 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
                 if not gamestate_success:
                     print_color(RED, "    - GameState comparison failed")
 
-        # Report log file paths if logs were saved
-        if keep_logs and normal_log_path and stopgo_log_path:
+        # Report saved artifact paths
+        if keep_artifacts:
             if not verbose and not replay_success:
-                # Always show log paths for failures, even without verbose
-                print_color(CYAN, f"  Saved logs for replay {replay_num+1}:")
-                print(f"    Normal:  {normal_log_path}")
-                print(f"    Stop-go: {stopgo_log_path}")
+                # Always show paths for failures, even without verbose
+                print_color(CYAN, f"  Saved artifacts for replay {replay_num+1}:")
+                if normal_log_path and stopgo_log_path:
+                    print(f"    Logs:       {normal_log_path} / {stopgo_log_path}")
+                if normal_state_saved and stopgo_state_saved:
+                    print(f"    GameStates: {normal_state_saved} / {stopgo_state_saved}")
+                if saved_snapshots:
+                    print(f"    Snapshots:  {len(saved_snapshots)} files in {artifact_dir}")
             elif verbose:
                 # In verbose mode, show paths for all replays
-                print_color(CYAN, f"  Saved logs for replay {replay_num+1}:")
-                print(f"    Normal:  {normal_log_path}")
-                print(f"    Stop-go: {stopgo_log_path}")
+                print_color(CYAN, f"  Saved artifacts for replay {replay_num+1}:")
+                if normal_log_path and stopgo_log_path:
+                    print(f"    Normal log:  {normal_log_path}")
+                    print(f"    Stop-go log: {stopgo_log_path}")
+                if normal_state_saved and stopgo_state_saved:
+                    print(f"    Normal state:  {normal_state_saved}")
+                    print(f"    Stop-go state: {stopgo_state_saved}")
+                if saved_snapshots:
+                    for snap_path in saved_snapshots:
+                        print(f"    Snapshot: {snap_path}")
 
         # Cleanup this replay's gamestate file
         if stopgo_state_file.exists():
@@ -553,16 +595,17 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--keep-logs',
+        '--keep', '--keep-logs',
         action='store_true',
-        help='Save filtered game action logs for inspection (default: logs are not saved)'
+        dest='keep_artifacts',
+        help='Save all artifacts (logs, gamestates, snapshots) for inspection (default: artifacts are not saved)'
     )
 
     parser.add_argument(
-        '--log-dir',
+        '--artifact-dir',
         type=str,
-        default='test_logs',
-        help='Directory to save logs when --keep-logs is used (default: test_logs/)'
+        default='test_artifacts',
+        help='Directory to save artifacts when --keep is used (default: test_artifacts/)'
     )
 
     return parser.parse_args()
@@ -595,7 +638,8 @@ def main():
     passed = run_test_for_deck(
         mtg_bin, args.deck_path, args.p1_controller, args.p2_controller,
         args.seed, num_replays=args.replays, verbose=args.verbose,
-        keep_logs=args.keep_logs, log_dir=Path(args.log_dir) if args.keep_logs else None
+        keep_artifacts=args.keep_artifacts,
+        artifact_dir=Path(args.artifact_dir) if args.keep_artifacts else None
     )
 
     if passed:
