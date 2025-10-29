@@ -215,6 +215,8 @@ impl<'a> GameLoop<'a> {
             stop_condition,
             snapshot_path.as_ref().to_path_buf(),
         ));
+        // Enable choice menu display when in stop/go mode
+        self.game.logger.set_show_choice_menu(true);
         self
     }
 

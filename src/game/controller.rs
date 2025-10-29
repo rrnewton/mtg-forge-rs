@@ -19,6 +19,39 @@ use crate::game::{GameState, Step};
 use crate::zones::Zone;
 use smallvec::SmallVec;
 
+/// Format available spell/ability choices as a menu
+///
+/// This creates a standardized menu showing all available actions for a player.
+/// The format is: "<PLAYERNAME> available actions: [0] Play land: Swamp..."
+///
+/// All controllers should use this function when showing choices to maintain
+/// a consistent format across the codebase.
+pub fn format_choice_menu(view: &GameStateView, available: &[SpellAbility]) -> String {
+    let mut output = String::new();
+    let player_name = view.player_name();
+
+    output.push_str(&format!("\n{} available actions:\n", player_name));
+
+    for (idx, ability) in available.iter().enumerate() {
+        match ability {
+            SpellAbility::PlayLand { card_id } => {
+                let name = view.card_name(*card_id).unwrap_or_default();
+                output.push_str(&format!("  [{}] Play land: {}\n", idx, name));
+            }
+            SpellAbility::CastSpell { card_id } => {
+                let name = view.card_name(*card_id).unwrap_or_default();
+                output.push_str(&format!("  [{}] Cast spell: {}\n", idx, name));
+            }
+            SpellAbility::ActivateAbility { card_id, .. } => {
+                let name = view.card_name(*card_id).unwrap_or_default();
+                output.push_str(&format!("  [{}] Activate ability: {}\n", idx, name));
+            }
+        }
+    }
+
+    output
+}
+
 /// Read-only view of game state for controllers
 ///
 /// This provides access to game information without allowing mutation.

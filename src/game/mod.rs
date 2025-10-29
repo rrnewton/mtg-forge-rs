@@ -26,7 +26,7 @@ mod counter_tests;
 
 pub use actions::GameAction;
 pub use combat::CombatState;
-pub use controller::{GameStateView, PlayerController};
+pub use controller::{format_choice_menu, GameStateView, PlayerController};
 pub use fixed_script_controller::FixedScriptController;
 pub use game_loop::{GameEndReason, GameLoop, GameResult, VerbosityLevel};
 pub use game_state_evaluator::{GameStateEvaluator, Score};

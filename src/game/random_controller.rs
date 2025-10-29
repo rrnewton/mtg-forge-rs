@@ -6,37 +6,10 @@
 use crate::core::{CardId, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
+use crate::game::format_choice_menu;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use smallvec::SmallVec;
-
-/// Helper function to display available spell/ability choices
-/// Returns formatted string showing all available options
-fn display_available_choices(view: &GameStateView, available: &[SpellAbility]) -> String {
-    let mut output = String::new();
-    output.push_str("\nAvailable actions:\n");
-    for (idx, ability) in available.iter().enumerate() {
-        match ability {
-            SpellAbility::PlayLand { card_id } => {
-                let name = view.card_name(*card_id).unwrap_or_default();
-                output.push_str(&format!("  [{}] Play land: {}\n", idx, name));
-            }
-            SpellAbility::CastSpell { card_id } => {
-                let name = view.card_name(*card_id).unwrap_or_default();
-                output.push_str(&format!("  [{}] Cast spell: {}\n", idx, name));
-            }
-            SpellAbility::ActivateAbility { card_id, .. } => {
-                let name = view.card_name(*card_id).unwrap_or_default();
-                output.push_str(&format!("  [{}] Activate ability: {}\n", idx, name));
-            }
-        }
-    }
-    output.push_str(&format!(
-        "Choose action (0-{}, 'p' to pass, or ? for help):\n",
-        available.len() - 1
-    ));
-    output
-}
 
 /// A controller that makes random choices using its own independent RNG
 ///
@@ -95,16 +68,20 @@ impl PlayerController for RandomController {
         // INVARIANT: Choice 0 = pass priority (always available)
         //            Choice N (N > 0) = available[N-1]
 
-        // Display available choices (like TUI does)
-        if !available.is_empty() {
-            print!("{}", display_available_choices(view, available));
+        // Display available choices if flag is set (e.g., in stop/go mode)
+        if view.logger().should_show_choice_menu() && !available.is_empty() {
+            print!("{}", format_choice_menu(view, available));
         }
 
         // Random controller passes priority with 30% probability
         // This allows actions to be taken most of the time while still preventing infinite loops
         if available.is_empty() || self.rng.gen_bool(0.3) {
             // Pass priority = choice 0
-            println!("  >>> RANDOM: chose 'p' (pass priority)");
+            let player_name = view.player_name();
+            view.logger().controller_choice(
+                "RANDOM",
+                &format!("{} chose 'p' (pass priority)", player_name),
+            );
             return None;
         }
 
@@ -133,9 +110,10 @@ impl PlayerController for RandomController {
             }
         };
 
-        println!(
-            "  >>> RANDOM: chose {} - {}",
-            ability_index, choice_description
+        let player_name = view.player_name();
+        view.logger().controller_choice(
+            "RANDOM",
+            &format!("{} chose {} - {}", player_name, ability_index, choice_description),
         );
         Some(available[ability_index].clone())
     }

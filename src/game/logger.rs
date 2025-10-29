@@ -87,6 +87,8 @@ pub struct GameLogger {
     numeric_choices: bool,
     output_format: OutputFormat,
     output_mode: OutputMode,
+    /// Always show choice menus (set true in stop/go mode)
+    show_choice_menu: bool,
 
     /// Bump allocator for temporary string formatting
     /// Reset after each format operation to avoid growth
@@ -105,6 +107,7 @@ impl GameLogger {
             numeric_choices: false,
             output_format: OutputFormat::default(),
             output_mode: OutputMode::default(),
+            show_choice_menu: false,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         }
@@ -118,6 +121,7 @@ impl GameLogger {
             numeric_choices: false,
             output_format: OutputFormat::default(),
             output_mode: OutputMode::default(),
+            show_choice_menu: false,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         }
@@ -221,6 +225,16 @@ impl GameLogger {
     /// Check if numeric choices mode is enabled
     pub fn numeric_choices_enabled(&self) -> bool {
         self.numeric_choices
+    }
+
+    /// Enable showing choice menu (set true in stop/go mode)
+    pub fn set_show_choice_menu(&mut self, enabled: bool) {
+        self.show_choice_menu = enabled;
+    }
+
+    /// Check if choice menu should be shown
+    pub fn should_show_choice_menu(&self) -> bool {
+        self.show_choice_menu
     }
 
     /// Get current verbosity level
@@ -407,6 +421,7 @@ impl Clone for GameLogger {
             numeric_choices: self.numeric_choices,
             output_format: self.output_format,
             output_mode: self.output_mode,
+            show_choice_menu: self.show_choice_menu,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         }
@@ -419,11 +434,12 @@ impl Serialize for GameLogger {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("GameLogger", 4)?;
+        let mut state = serializer.serialize_struct("GameLogger", 5)?;
         state.serialize_field("verbosity", &self.verbosity)?;
         state.serialize_field("numeric_choices", &self.numeric_choices)?;
         state.serialize_field("output_format", &self.output_format)?;
         state.serialize_field("output_mode", &self.output_mode)?;
+        state.serialize_field("show_choice_menu", &self.show_choice_menu)?;
         state.end()
     }
 }
@@ -439,6 +455,8 @@ impl<'de> Deserialize<'de> for GameLogger {
             numeric_choices: bool,
             output_format: OutputFormat,
             output_mode: OutputMode,
+            #[serde(default)]
+            show_choice_menu: bool,
         }
 
         let data = GameLoggerData::deserialize(deserializer)?;
@@ -448,6 +466,7 @@ impl<'de> Deserialize<'de> for GameLogger {
             numeric_choices: data.numeric_choices,
             output_format: data.output_format,
             output_mode: data.output_mode,
+            show_choice_menu: data.show_choice_menu,
             format_bump: RefCell::new(Bump::new()),
             log_buffer: RefCell::new(Vec::new()),
         })

@@ -11,6 +11,7 @@
 
 use crate::core::{Card, CardId, Keyword, ManaCost, PlayerId, SpellAbility};
 use crate::game::controller::{GameStateView, PlayerController};
+use crate::game::format_choice_menu;
 use smallvec::SmallVec;
 
 /// Combat factors for attack decisions
@@ -778,24 +779,59 @@ impl PlayerController for HeuristicController {
         view: &GameStateView,
         available: &[SpellAbility],
     ) -> Option<SpellAbility> {
+        // Display available choices if flag is set (e.g., in stop/go mode)
+        if view.logger().should_show_choice_menu() && !available.is_empty() {
+            print!("{}", format_choice_menu(view, available));
+        }
+
         if available.is_empty() {
-            view.logger()
-                .controller_choice("HEURISTIC", "chose to pass priority (no available actions)");
+            let player_name = view.player_name();
+            view.logger().controller_choice(
+                "HEURISTIC",
+                &format!("{} chose to pass priority (no available actions)", player_name),
+            );
             return None;
         }
 
         let choice = self.choose_best_spell(view, available);
+        let player_name = view.player_name();
 
         if let Some(ref spell) = choice {
+            // Find the index of the chosen spell in the available list
+            let ability_index = available.iter().position(|a| a == spell).unwrap_or(0);
+
+            // Format the choice description
+            let choice_description = match spell {
+                SpellAbility::PlayLand { card_id } => {
+                    format!(
+                        "Play land: {}",
+                        view.card_name(*card_id).unwrap_or_default()
+                    )
+                }
+                SpellAbility::CastSpell { card_id } => {
+                    format!(
+                        "Cast spell: {}",
+                        view.card_name(*card_id).unwrap_or_default()
+                    )
+                }
+                SpellAbility::ActivateAbility { card_id, .. } => {
+                    format!(
+                        "Activate ability: {}",
+                        view.card_name(*card_id).unwrap_or_default()
+                    )
+                }
+            };
+
             view.logger().controller_choice(
                 "HEURISTIC",
-                &format!("chose to play spell/ability: {:?}", spell),
+                &format!("{} chose {} - {}", player_name, ability_index, choice_description),
             );
         } else {
             view.logger().controller_choice(
                 "HEURISTIC",
                 &format!(
-                    "chose to pass priority from {} available actions",
+                    "{} chose 'p' (pass priority from {} available actions)",
+                    player_name,
                     available.len()
                 ),
             );
