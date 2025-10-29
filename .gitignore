@@ -43,3 +43,4 @@ prompts/
 game.snapshot
 *.snapshot
 test_artifacts/
+__pycache__/
