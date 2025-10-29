@@ -686,9 +686,62 @@ async fn run_tui(
         game_loop = game_loop.with_stop_when_fixed_exhausted(&snapshot_output);
     }
 
+    // If resuming from snapshot, set replay action count to suppress logging during replay
+    // This must be done BEFORE enabling stop conditions, and applies regardless of stop_condition
+    if let Some(ref snapshot) = loaded_snapshot {
+        use mtg_forge_rs::undo::GameAction;
+
+        // Count only SpellAbility choices that actually execute actions (PlayLand or CastSpell)
+        // Exclude SpellAbility(None) which represents passing priority (no action logged)
+        let replay_action_count = snapshot
+            .intra_turn_choices
+            .iter()
+            .filter(|action| {
+                if let GameAction::ChoicePoint { choice, .. } = action {
+                    matches!(
+                        choice,
+                        Some(mtg_forge_rs::game::ReplayChoice::SpellAbility(Some(_)))
+                    )
+                } else {
+                    false
+                }
+            })
+            .count();
+        game_loop = game_loop.with_replay_action_count(replay_action_count);
+
+        if verbosity >= VerbosityLevel::Verbose {
+            println!("Replay action count (SpellAbility choices only): {}", replay_action_count);
+        }
+    }
+
     // Enable stop condition (--stop-every) if requested
     if let Some(ref stop_cond) = stop_condition {
         game_loop = game_loop.with_stop_condition(p1_id, stop_cond.clone(), &snapshot_output);
+
+        // If resuming from snapshot, set baseline choice count to avoid re-counting
+        // choices that were made before the snapshot was saved
+        if let Some(ref snapshot) = loaded_snapshot {
+            use mtg_forge_rs::undo::GameAction;
+            let baseline_count = snapshot
+                .game_state
+                .undo_log
+                .actions()
+                .iter()
+                .filter(|action| {
+                    if let GameAction::ChoicePoint { player_id, .. } = action {
+                        stop_cond.applies_to(p1_id, *player_id)
+                    } else {
+                        false
+                    }
+                })
+                .count();
+
+            game_loop = game_loop.with_baseline_choice_count(baseline_count);
+
+            if verbosity >= VerbosityLevel::Verbose {
+                println!("Baseline choice count (from snapshot): {}", baseline_count);
+            }
+        }
     }
 
     // Run the game (with mid-turn exits if stop conditions enabled)

@@ -126,6 +126,10 @@ pub struct GameLoop<'a> {
     snapshot_path_for_fixed: Option<std::path::PathBuf>,
     /// Stop condition tracking for --stop-every (p1_id, stop_condition, snapshot_path)
     stop_condition_info: Option<(PlayerId, crate::game::StopCondition, std::path::PathBuf)>,
+    /// Baseline choice count when resuming from snapshot (to avoid counting pre-snapshot choices)
+    baseline_choice_count: usize,
+    /// Number of replay actions remaining (suppresses action logging during snapshot resume replay)
+    replay_actions_remaining: usize,
 }
 
 impl<'a> GameLoop<'a> {
@@ -143,6 +147,8 @@ impl<'a> GameLoop<'a> {
             stop_when_fixed_exhausted: false,
             snapshot_path_for_fixed: None,
             stop_condition_info: None,
+            baseline_choice_count: 0,
+            replay_actions_remaining: 0,
         }
     }
 
@@ -200,6 +206,25 @@ impl<'a> GameLoop<'a> {
             stop_condition,
             snapshot_path.as_ref().to_path_buf(),
         ));
+        self
+    }
+
+    /// Set baseline choice count when resuming from snapshot
+    ///
+    /// This is needed so that count_filtered_choices() doesn't count choices
+    /// that were made before the snapshot was saved.
+    pub fn with_baseline_choice_count(mut self, count: usize) -> Self {
+        self.baseline_choice_count = count;
+        self
+    }
+
+    /// Set number of replay actions to suppress logging for
+    ///
+    /// When resuming from a snapshot, we replay intra-turn choices to restore game state.
+    /// During this replay, we should NOT log actions to stdout since they already happened.
+    /// This counter suppresses action logging for the first N actions after resume.
+    pub fn with_replay_action_count(mut self, count: usize) -> Self {
+        self.replay_actions_remaining = count;
         self
     }
 
@@ -350,7 +375,8 @@ impl<'a> GameLoop<'a> {
         p1_id: PlayerId,
         stop_condition: &crate::game::StopCondition,
     ) -> usize {
-        self.game
+        let total_count = self
+            .game
             .undo_log
             .actions()
             .iter()
@@ -365,7 +391,10 @@ impl<'a> GameLoop<'a> {
                     None
                 }
             })
-            .count()
+            .count();
+
+        // Subtract baseline to get choices made since snapshot resume
+        total_count.saturating_sub(self.baseline_choice_count)
     }
 
     /// Set up a game for two-player gameplay
@@ -584,7 +613,7 @@ impl<'a> GameLoop<'a> {
     ) -> Result<Option<GameResult>> {
         let active_player = self.game.turn.active_player;
 
-        if self.verbosity >= VerbosityLevel::Normal {
+        if self.verbosity >= VerbosityLevel::Normal && !self.game.turn.logged_turn_header {
             let player_name = self.get_player_name(active_player);
             println!("\n========================================");
             println!("Turn {} - {}'s turn", self.turns_elapsed + 1, player_name);
@@ -592,6 +621,9 @@ impl<'a> GameLoop<'a> {
 
             // Print detailed battlefield state for both players
             self.print_battlefield_state();
+
+            // Mark turn header as logged
+            self.game.turn.logged_turn_header = true;
         }
 
         // Reset turn-based state
@@ -1068,19 +1100,22 @@ impl<'a> GameLoop<'a> {
 
         #[cfg(feature = "verbose-logging")]
         {
-            let player_name = self.get_player_name(active_player);
-            if let Some(zones) = self.game.get_player_zones(active_player) {
-                if let Some(&card_id) = zones.hand.cards.last() {
-                    if let Ok(card) = self.game.cards.get(card_id) {
-                        log_if_verbose!(self, "{} draws {} ({})", player_name, card.name, card_id);
+            if !self.game.turn.logged_draw_step {
+                let player_name = self.get_player_name(active_player);
+                if let Some(zones) = self.game.get_player_zones(active_player) {
+                    if let Some(&card_id) = zones.hand.cards.last() {
+                        if let Ok(card) = self.game.cards.get(card_id) {
+                            log_if_verbose!(self, "{} draws {} ({})", player_name, card.name, card_id);
+                        } else {
+                            log_if_verbose!(self, "{} draws a card", player_name);
+                        }
                     } else {
                         log_if_verbose!(self, "{} draws a card", player_name);
                     }
                 } else {
                     log_if_verbose!(self, "{} draws a card", player_name);
                 }
-            } else {
-                log_if_verbose!(self, "{} draws a card", player_name);
+                self.game.turn.logged_draw_step = true;
             }
         }
 
@@ -1694,7 +1729,8 @@ impl<'a> GameLoop<'a> {
                                     if self.verbosity >= VerbosityLevel::Normal {
                                         eprintln!("  Error playing land: {e}");
                                     }
-                                } else if self.verbosity >= VerbosityLevel::Normal {
+                                } else if self.verbosity >= VerbosityLevel::Normal && self.replay_actions_remaining == 0 {
+                                    // Only log if not in replay mode
                                     let card_name = self
                                         .game
                                         .cards
@@ -1708,6 +1744,10 @@ impl<'a> GameLoop<'a> {
                                         card_id
                                     );
                                 }
+                                // Decrement replay counter if in replay mode
+                                if self.replay_actions_remaining > 0 {
+                                    self.replay_actions_remaining -= 1;
+                                }
                             }
                             crate::core::SpellAbility::CastSpell { card_id } => {
                                 // Cast spell using 8-step process
@@ -1720,7 +1760,8 @@ impl<'a> GameLoop<'a> {
                                     .map(|c| c.name.to_string())
                                     .unwrap_or_else(|_| "Unknown".to_string());
 
-                                if self.verbosity >= VerbosityLevel::Normal {
+                                if self.verbosity >= VerbosityLevel::Normal && self.replay_actions_remaining == 0 {
+                                    // Only log if not in replay mode
                                     println!(
                                         "  {} casts {} ({}) (putting on stack)",
                                         self.get_player_name(current_priority),
@@ -1819,6 +1860,10 @@ impl<'a> GameLoop<'a> {
 
                                     // Spell is now on the stack - it will resolve later
                                     // when both players pass priority
+                                }
+                                // Decrement replay counter if in replay mode
+                                if self.replay_actions_remaining > 0 {
+                                    self.replay_actions_remaining -= 1;
                                 }
                             }
                             crate::core::SpellAbility::ActivateAbility {

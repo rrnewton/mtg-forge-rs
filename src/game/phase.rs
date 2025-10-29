@@ -104,6 +104,14 @@ pub struct TurnStructure {
 
     /// Priority player (who currently has priority)
     pub priority_player: Option<crate::core::PlayerId>,
+
+    /// Track whether turn header has been logged (prevents duplicate logging after snapshot resume)
+    #[serde(default)]
+    pub logged_turn_header: bool,
+
+    /// Track whether draw step has been logged (prevents duplicate logging after snapshot resume)
+    #[serde(default)]
+    pub logged_draw_step: bool,
 }
 
 impl TurnStructure {
@@ -114,6 +122,8 @@ impl TurnStructure {
             active_player: starting_player,
             active_player_idx: 0, // Default to first player, should be set by GameState
             priority_player: None,
+            logged_turn_header: false,
+            logged_draw_step: false,
         }
     }
 
@@ -124,6 +134,8 @@ impl TurnStructure {
             active_player: starting_player,
             active_player_idx: starting_idx,
             priority_player: None,
+            logged_turn_header: false,
+            logged_draw_step: false,
         }
     }
 
@@ -147,6 +159,9 @@ impl TurnStructure {
         self.current_step = Step::Untap;
         self.active_player = next_player;
         self.priority_player = None;
+        // Clear logging flags for new turn
+        self.logged_turn_header = false;
+        self.logged_draw_step = false;
     }
 }
 
