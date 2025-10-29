@@ -173,17 +173,22 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
                          save_gamestate: Optional[Path] = None,
                          keep_snapshots: bool = False,
                          snapshot_dir: Optional[Path] = None,
-                         test_name: str = "") -> Tuple[str, List[Path]]:
+                         test_name: str = "",
+                         work_dir: Optional[Path] = None) -> Tuple[str, List[Path]]:
     """Run a stop-and-go game with randomized stop points.
 
     Returns: (accumulated_log, list_of_snapshot_paths)
     """
-    import tempfile
     accumulated_log = ""
     saved_snapshots = []
 
-    # Use unique temp file to avoid conflicts when running in parallel
-    snapshot_file = Path(tempfile.mktemp(suffix="_snapshot.json"))
+    # Use unique snapshot file within the work directory
+    if work_dir:
+        snapshot_file = work_dir / "snapshot.json"
+    else:
+        # Fallback to temp file if no work_dir provided
+        import tempfile
+        snapshot_file = Path(tempfile.mktemp(suffix="_snapshot.json"))
 
     # Calculate stop points
     all_player_choices = []
@@ -371,116 +376,119 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
                       num_replays: int = 3, verbose: bool = False,
                       keep_artifacts: bool = False, artifact_dir: Optional[Path] = None) -> bool:
     """Run complete test for a specific deck with multiple replay runs."""
-    # Create temp files for gamestates
     import tempfile
-    normal_state_file = Path(tempfile.mktemp(suffix="_normal.gamestate"))
+    import shutil
 
-    # Run normal game and extract choices
-    normal_log, p1_choices, p2_choices = run_normal_game(
-        mtg_bin, deck_path, deck_path, p1_controller, p2_controller, seed,
-        save_gamestate=normal_state_file
-    )
+    # Create a unique temp directory for this test run to avoid conflicts
+    work_dir = Path(tempfile.mkdtemp(prefix="mtg_test_", dir="/tmp"))
 
-    # Extract deck name for test naming
-    deck_name = Path(deck_path).stem
+    try:
+        # Create temp files for gamestates within the work directory
+        normal_state_file = work_dir / "normal.gamestate"
 
-    # Run multiple stop-and-go games with different random stop points
-    all_success = True
-
-    for replay_num in range(num_replays):
-        # Use different random seed for stop point generation each replay
-        random.seed(seed + replay_num + 1000)
-
-        stopgo_state_file = Path(tempfile.mktemp(suffix=f"_stopgo_{replay_num}.gamestate"))
-        test_name = f"{deck_name}_{p1_controller}v{p2_controller}_seed{seed}_replay{replay_num+1}"
-
-        # Run stop-and-go game with randomized stop points (5 stops)
-        stopgo_log, saved_snapshots = run_stop_and_go_game(
-            mtg_bin, deck_path, deck_path,
-            p1_controller, p2_controller,
-            p1_choices, p2_choices, seed, num_stops=5,
-            save_gamestate=stopgo_state_file,
-            keep_snapshots=keep_artifacts,
-            snapshot_dir=artifact_dir,
-            test_name=test_name
+        # Run normal game and extract choices
+        normal_log, p1_choices, p2_choices = run_normal_game(
+            mtg_bin, deck_path, deck_path, p1_controller, p2_controller, seed,
+            save_gamestate=normal_state_file
         )
 
-        if not stopgo_log:
-            all_success = False
-            if stopgo_state_file.exists():
-                stopgo_state_file.unlink()
-            continue
+        # Extract deck name for test naming
+        deck_name = Path(deck_path).stem
 
-        # Compare logs using diff_logs.py tool
-        log_success, normal_log_path, stopgo_log_path = compare_game_logs_via_tool(
-            normal_log, stopgo_log, verbose=verbose,
-            save_logs=keep_artifacts, log_dir=artifact_dir, test_name=test_name
-        )
+        # Run multiple stop-and-go games with different random stop points
+        all_success = True
 
-        # Compare final gamestates using diff_gamestate.py tool
-        gamestate_success = True
-        normal_state_saved = None
-        stopgo_state_saved = None
-        if normal_state_file.exists() and stopgo_state_file.exists():
-            gamestate_success = compare_gamestates_via_tool(normal_state_file, stopgo_state_file, verbose=verbose)
+        for replay_num in range(num_replays):
+            # Use different random seed for stop point generation each replay
+            random.seed(seed + replay_num + 1000)
 
-            # Save gamestate files if requested
-            if keep_artifacts and artifact_dir:
-                artifact_dir.mkdir(parents=True, exist_ok=True)
-                normal_state_saved = artifact_dir / f"{test_name}_normal.gamestate"
-                stopgo_state_saved = artifact_dir / f"{test_name}_stopgo.gamestate"
+            stopgo_state_file = work_dir / f"stopgo_{replay_num}.gamestate"
+            test_name = f"{deck_name}_{p1_controller}v{p2_controller}_seed{seed}_replay{replay_num+1}"
 
-                import shutil
-                shutil.copy(normal_state_file, normal_state_saved)
-                shutil.copy(stopgo_state_file, stopgo_state_saved)
+            # Run stop-and-go game with randomized stop points (5 stops)
+            stopgo_log, saved_snapshots = run_stop_and_go_game(
+                mtg_bin, deck_path, deck_path,
+                p1_controller, p2_controller,
+                p1_choices, p2_choices, seed, num_stops=5,
+                save_gamestate=stopgo_state_file,
+                keep_snapshots=keep_artifacts,
+                snapshot_dir=artifact_dir,
+                test_name=test_name,
+                work_dir=work_dir
+            )
 
-        # Check if this replay succeeded
-        replay_success = log_success and gamestate_success
-        all_success = all_success and replay_success
+            if not stopgo_log:
+                all_success = False
+                continue
 
-        if verbose:
-            if replay_success:
-                print_color(GREEN, f"  ✓ Replay {replay_num+1}/{num_replays} PASSED")
-            else:
-                print_color(RED, f"  ✗ Replay {replay_num+1}/{num_replays} FAILED")
-                if not log_success:
-                    print_color(RED, "    - Log comparison failed")
-                if not gamestate_success:
-                    print_color(RED, "    - GameState comparison failed")
+            # Compare logs using diff_logs.py tool
+            log_success, normal_log_path, stopgo_log_path = compare_game_logs_via_tool(
+                normal_log, stopgo_log, verbose=verbose,
+                save_logs=keep_artifacts, log_dir=artifact_dir, test_name=test_name
+            )
 
-        # Report saved artifact paths
-        if keep_artifacts:
-            if not verbose and not replay_success:
-                # Always show paths for failures, even without verbose
-                print_color(CYAN, f"  Saved artifacts for replay {replay_num+1}:")
-                if normal_log_path and stopgo_log_path:
-                    print(f"    Logs:       {normal_log_path} / {stopgo_log_path}")
-                if normal_state_saved and stopgo_state_saved:
-                    print(f"    GameStates: {normal_state_saved} / {stopgo_state_saved}")
-                if saved_snapshots:
-                    print(f"    Snapshots:  {len(saved_snapshots)} files in {artifact_dir}")
-            elif verbose:
-                # In verbose mode, show paths for all replays
-                print_color(CYAN, f"  Saved artifacts for replay {replay_num+1}:")
-                if normal_log_path and stopgo_log_path:
-                    print(f"    Normal log:  {normal_log_path}")
-                    print(f"    Stop-go log: {stopgo_log_path}")
-                if normal_state_saved and stopgo_state_saved:
-                    print(f"    Normal state:  {normal_state_saved}")
-                    print(f"    Stop-go state: {stopgo_state_saved}")
-                if saved_snapshots:
-                    for snap_path in saved_snapshots:
-                        print(f"    Snapshot: {snap_path}")
+            # Compare final gamestates using diff_gamestate.py tool
+            gamestate_success = True
+            normal_state_saved = None
+            stopgo_state_saved = None
+            if normal_state_file.exists() and stopgo_state_file.exists():
+                gamestate_success = compare_gamestates_via_tool(normal_state_file, stopgo_state_file, verbose=verbose)
 
-        # Cleanup this replay's gamestate file
-        if stopgo_state_file.exists():
-            stopgo_state_file.unlink()
+                # Save gamestate files if requested
+                if keep_artifacts and artifact_dir:
+                    artifact_dir.mkdir(parents=True, exist_ok=True)
+                    normal_state_saved = artifact_dir / f"{test_name}_normal.gamestate"
+                    stopgo_state_saved = artifact_dir / f"{test_name}_stopgo.gamestate"
 
-    # Cleanup normal gamestate file
-    if normal_state_file.exists():
-        normal_state_file.unlink()
+                    shutil.copy(normal_state_file, normal_state_saved)
+                    shutil.copy(stopgo_state_file, stopgo_state_saved)
 
-    return all_success
+            # Check if this replay succeeded
+            replay_success = log_success and gamestate_success
+            all_success = all_success and replay_success
+
+            if verbose:
+                if replay_success:
+                    print_color(GREEN, f"  ✓ Replay {replay_num+1}/{num_replays} PASSED")
+                else:
+                    print_color(RED, f"  ✗ Replay {replay_num+1}/{num_replays} FAILED")
+                    if not log_success:
+                        print_color(RED, "    - Log comparison failed")
+                    if not gamestate_success:
+                        print_color(RED, "    - GameState comparison failed")
+
+            # Report saved artifact paths
+            if keep_artifacts:
+                if not verbose and not replay_success:
+                    # Always show paths for failures, even without verbose
+                    print_color(CYAN, f"  Saved artifacts for replay {replay_num+1}:")
+                    if normal_log_path and stopgo_log_path:
+                        print(f"    Logs:       {normal_log_path} / {stopgo_log_path}")
+                    if normal_state_saved and stopgo_state_saved:
+                        print(f"    GameStates: {normal_state_saved} / {stopgo_state_saved}")
+                    if saved_snapshots:
+                        print(f"    Snapshots:  {len(saved_snapshots)} files in {artifact_dir}")
+                elif verbose:
+                    # In verbose mode, show paths for all replays
+                    print_color(CYAN, f"  Saved artifacts for replay {replay_num+1}:")
+                    if normal_log_path and stopgo_log_path:
+                        print(f"    Normal log:  {normal_log_path}")
+                        print(f"    Stop-go log: {stopgo_log_path}")
+                    if normal_state_saved and stopgo_state_saved:
+                        print(f"    Normal state:  {normal_state_saved}")
+                        print(f"    Stop-go state: {stopgo_state_saved}")
+                    if saved_snapshots:
+                        for snap_path in saved_snapshots:
+                            print(f"    Snapshot: {snap_path}")
+
+        return all_success
+
+    finally:
+        # Always cleanup the unique temp directory
+        if work_dir.exists():
+            if verbose:
+                print_color(CYAN, f"  Cleaning up work directory: {work_dir}")
+            shutil.rmtree(work_dir, ignore_errors=True)
 
 def parse_args():
     """Parse command line arguments"""
