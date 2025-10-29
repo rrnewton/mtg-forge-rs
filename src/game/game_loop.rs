@@ -1792,13 +1792,22 @@ impl<'a> GameLoop<'a> {
                                         .map(|c| c.name.as_str())
                                         .unwrap_or("Unknown");
 
-                                    if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
-                                        println!(
-                                            "  {} plays {} ({})",
-                                            self.get_player_name(current_priority),
-                                            card_name,
-                                            card_id
-                                        );
+                                    if self.verbosity >= VerbosityLevel::Normal {
+                                        if !self.replaying {
+                                            println!(
+                                                "  {} plays {} ({})",
+                                                self.get_player_name(current_priority),
+                                                card_name,
+                                                card_id
+                                            );
+                                        } else if self.verbosity >= VerbosityLevel::Verbose {
+                                            println!(
+                                                "  [SUPPRESSED] {} plays {} ({})",
+                                                self.get_player_name(current_priority),
+                                                card_name,
+                                                card_id
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -1813,13 +1822,22 @@ impl<'a> GameLoop<'a> {
                                     .map(|c| c.name.to_string())
                                     .unwrap_or_else(|_| "Unknown".to_string());
 
-                                if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
-                                    println!(
-                                        "  {} casts {} ({}) (putting on stack)",
-                                        self.get_player_name(current_priority),
-                                        card_name,
-                                        card_id
-                                    );
+                                if self.verbosity >= VerbosityLevel::Normal {
+                                    if !self.replaying {
+                                        println!(
+                                            "  {} casts {} ({}) (putting on stack)",
+                                            self.get_player_name(current_priority),
+                                            card_name,
+                                            card_id
+                                        );
+                                    } else if self.verbosity >= VerbosityLevel::Verbose {
+                                        println!(
+                                            "  [SUPPRESSED] {} casts {} ({}) (putting on stack)",
+                                            self.get_player_name(current_priority),
+                                            card_name,
+                                            card_id
+                                        );
+                                    }
                                 }
 
                                 // Get valid targets BEFORE calling cast_spell_8_step

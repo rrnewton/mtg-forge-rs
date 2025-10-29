@@ -110,6 +110,10 @@ def filter_game_actions(log: str) -> List[str]:
         if "Turn number:" in stripped:
             continue
 
+        # Skip diagnostic messages like [SUPPRESSED], emoji markers, etc.
+        if "[SUPPRESSED]" in stripped or "🔄" in stripped or "📸" in stripped or "✅" in stripped:
+            continue
+
         # Keep game actions: draws, plays, attacks, damage, etc.
         if any(keyword in stripped for keyword in [
             "draws ",
@@ -311,27 +315,39 @@ def compare_gamestates(normal_state_file: Path, stopgo_state_file: Path) -> bool
 
     return normal_json == stopgo_json
 
-def compare_game_logs(normal_log: str, stopgo_log: str) -> bool:
-    """Compare game action logs for exact match."""
+def compare_game_logs(normal_log: str, stopgo_log: str, verbose: bool = False) -> Tuple[bool, List[str], List[str]]:
+    """Compare game action logs for exact match.
+
+    Returns: (match_success, normal_actions, stopgo_actions)
+    """
     normal_actions = filter_game_actions(normal_log)
     stopgo_actions = filter_game_actions(stopgo_log)
 
     if len(normal_actions) == 0 or len(stopgo_actions) == 0:
-        return False
+        if verbose:
+            print_color(RED, f"  Empty action logs: normal={len(normal_actions)}, stopgo={len(stopgo_actions)}")
+        return False, normal_actions, stopgo_actions
 
     # Compare action by action
+    match = True
     if len(normal_actions) != len(stopgo_actions):
-        return False
+        match = False
+        if verbose:
+            print_color(RED, f"  Action count mismatch: normal={len(normal_actions)}, stopgo={len(stopgo_actions)}")
 
-    for i in range(len(normal_actions)):
+    for i in range(min(len(normal_actions), len(stopgo_actions))):
         if normal_actions[i] != stopgo_actions[i]:
-            return False
+            match = False
+            if verbose and i < 10:  # Show first 10 differences
+                print_color(RED, f"  Line {i+1} differs:")
+                print(f"    Normal:  {normal_actions[i]}")
+                print(f"    Stop-go: {stopgo_actions[i]}")
 
-    return True
+    return match, normal_actions, stopgo_actions
 
 def run_test_for_deck(mtg_bin: Path, deck_path: str,
                       p1_controller: str, p2_controller: str, seed: int,
-                      num_replays: int = 3) -> bool:
+                      num_replays: int = 3, verbose: bool = False) -> bool:
     """Run complete test for a specific deck with multiple replay runs."""
     # Create temp files for gamestates
     import tempfile
@@ -367,7 +383,7 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
             continue
 
         # Compare logs for exact match
-        log_success = compare_game_logs(normal_log, stopgo_log)
+        log_success, normal_actions, stopgo_actions = compare_game_logs(normal_log, stopgo_log, verbose=verbose)
 
         # Compare final gamestates
         gamestate_success = True
@@ -377,6 +393,16 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
         # Check if this replay succeeded
         replay_success = log_success and gamestate_success
         all_success = all_success and replay_success
+
+        if verbose:
+            if replay_success:
+                print_color(GREEN, f"  ✓ Replay {replay_num+1}/{num_replays} PASSED")
+            else:
+                print_color(RED, f"  ✗ Replay {replay_num+1}/{num_replays} FAILED")
+                if not log_success:
+                    print_color(RED, "    - Log comparison failed")
+                if not gamestate_success:
+                    print_color(RED, "    - GameState comparison failed")
 
         # Cleanup this replay's gamestate file
         if stopgo_state_file.exists():
@@ -435,6 +461,12 @@ def parse_args():
         help='Suppress output except for errors'
     )
 
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed comparison output including log differences'
+    )
+
     return parser.parse_args()
 
 
@@ -464,7 +496,7 @@ def main():
     # Run test
     passed = run_test_for_deck(
         mtg_bin, args.deck_path, args.p1_controller, args.p2_controller,
-        args.seed, num_replays=args.replays
+        args.seed, num_replays=args.replays, verbose=args.verbose
     )
 
     if passed:
