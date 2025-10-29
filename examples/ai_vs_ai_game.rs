@@ -89,8 +89,10 @@ async fn main() {
     game.seed_rng(42);
 
     // Create AI controllers
-    let mut alice_ai = mtg_forge_rs::game::random_controller::RandomController::new(players[0].0);
-    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::new(players[1].0);
+    let mut alice_ai =
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[0].0, 42);
+    let mut bob_ai =
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(players[1].0, 42);
 
     println!("=== Starting Game Loop ===\n");
 
@@ -243,8 +245,9 @@ fn run_simplified_game() {
     game.seed_rng(42);
 
     // Create AI controllers
-    let mut alice_ai = mtg_forge_rs::game::random_controller::RandomController::new(alice);
-    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::new(bob);
+    let mut alice_ai =
+        mtg_forge_rs::game::random_controller::RandomController::with_seed(alice, 42);
+    let mut bob_ai = mtg_forge_rs::game::random_controller::RandomController::with_seed(bob, 42);
 
     println!("=== Starting Game Loop ===\n");
 

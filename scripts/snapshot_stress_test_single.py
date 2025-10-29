@@ -246,16 +246,15 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
                     f"--snapshot-output={snapshot_file}",
                 ])
         else:
-            # Resume from snapshot
+            # Resume from snapshot using 'mtg resume' subcommand
+            # This restores controllers from snapshot (including RNG state) for proper determinism
             if not snapshot_file.exists():
                 print_color(RED, f"✗ Snapshot file missing at segment {i+1}")
                 return ""
 
             cmd = [
-                str(mtg_bin), "tui",
-                f"--start-from={snapshot_file}",
-                f"--p1={p1_controller}",
-                f"--p2={p2_controller}",
+                str(mtg_bin), "resume",
+                str(snapshot_file),
                 "--verbosity=3"
             ]
 

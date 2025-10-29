@@ -166,8 +166,8 @@ where
         )
     };
 
-    let mut controller1 = RandomController::new(p1_id);
-    let mut controller2 = RandomController::new(p2_id);
+    let mut controller1 = RandomController::with_seed(p1_id, 42);
+    let mut controller2 = RandomController::with_seed(p2_id, 42);
 
     // Run game (still within timing)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
@@ -228,8 +228,8 @@ where
         )
     };
 
-    let mut controller1 = RandomController::new(p1_id);
-    let mut controller2 = RandomController::new(p2_id);
+    let mut controller1 = RandomController::with_seed(p1_id, 42);
+    let mut controller2 = RandomController::with_seed(p2_id, 42);
 
     // Run game with Normal verbosity to capture logs
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
@@ -301,8 +301,8 @@ where
         )
     };
 
-    let mut controller1 = RandomController::new(p1_id);
-    let mut controller2 = RandomController::new(p2_id);
+    let mut controller1 = RandomController::with_seed(p1_id, 42);
+    let mut controller2 = RandomController::with_seed(p2_id, 42);
 
     // Run game with Normal verbosity (logs to stdout via reusable buffer)
     let mut game_loop = GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Normal);
@@ -733,8 +733,8 @@ fn bench_game_rewind(c: &mut Criterion) {
                         )
                     };
 
-                    let mut controller1 = RandomController::new(p1_id);
-                    let mut controller2 = RandomController::new(p2_id);
+                    let mut controller1 = RandomController::with_seed(p1_id, 42);
+                    let mut controller2 = RandomController::with_seed(p2_id, 42);
 
                     let mut game_loop =
                         GameLoop::new(&mut game).with_verbosity(VerbosityLevel::Silent);
@@ -791,8 +791,8 @@ fn bench_game_rewind(c: &mut Criterion) {
                     )
                 };
 
-                let mut controller1 = RandomController::new(p1_id);
-                let mut controller2 = RandomController::new(p2_id);
+                let mut controller1 = RandomController::with_seed(p1_id, 42);
+                let mut controller2 = RandomController::with_seed(p2_id, 42);
 
                 let mut game_loop = GameLoop::new(game).with_verbosity(VerbosityLevel::Silent);
                 let _ = game_loop

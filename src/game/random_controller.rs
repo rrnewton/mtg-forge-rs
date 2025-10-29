@@ -32,21 +32,15 @@ pub struct RandomController {
 }
 
 impl RandomController {
-    /// Create a new random controller with system entropy
-    ///
-    /// The controller maintains its own RNG, seeded independently from the game engine.
-    /// This ensures controller decisions don't interfere with game mechanics randomness.
-    pub fn new(player_id: PlayerId) -> Self {
-        RandomController {
-            player_id,
-            rng: rand_xoshiro::Xoshiro256PlusPlus::from_entropy(),
-        }
-    }
-
     /// Create a random controller with a specific seed
     ///
-    /// Use this when you want deterministic controller behavior (for testing or replay).
+    /// Use this for deterministic controller behavior (for testing, replay, or normal gameplay).
     /// The seed should be derived from a master seed with player-specific salt.
+    ///
+    /// IMPORTANT: This is the ONLY way to create a RandomController. There is no `new()`
+    /// method because we want to enforce explicit seed management throughout the codebase.
+    /// If you need non-deterministic behavior, use `--seed=from_entropy` in the CLI,
+    /// which is the single point where system entropy is accessed.
     pub fn with_seed(player_id: PlayerId, seed: u64) -> Self {
         RandomController {
             player_id,
@@ -349,21 +343,21 @@ mod tests {
     #[test]
     fn test_random_controller_creation() {
         let player_id = EntityId::new(1);
-        let controller = RandomController::new(player_id);
+        let controller = RandomController::with_seed(player_id, 42);
         assert_eq!(controller.player_id(), player_id);
     }
 
     #[test]
     fn test_seeded_controller() {
         let player_id = EntityId::new(1);
-        let controller = RandomController::new(player_id);
+        let controller = RandomController::with_seed(player_id, 12345);
         assert_eq!(controller.player_id(), player_id);
     }
 
     #[test]
     fn test_choose_spell_ability_empty() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::new(player_id);
+        let mut controller = RandomController::with_seed(player_id, 100);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
@@ -375,7 +369,7 @@ mod tests {
     #[test]
     fn test_choose_spell_ability() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::new(player_id);
+        let mut controller = RandomController::with_seed(player_id, 200);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
@@ -406,7 +400,7 @@ mod tests {
     #[test]
     fn test_choose_targets() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::new(player_id);
+        let mut controller = RandomController::with_seed(player_id, 300);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
@@ -423,7 +417,7 @@ mod tests {
     #[test]
     fn test_choose_mana_sources() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::new(player_id);
+        let mut controller = RandomController::with_seed(player_id, 400);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
@@ -449,7 +443,7 @@ mod tests {
     #[test]
     fn test_choose_attackers() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::new(player_id);
+        let mut controller = RandomController::with_seed(player_id, 500);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 
@@ -466,7 +460,7 @@ mod tests {
     #[test]
     fn test_choose_cards_to_discard() {
         let player_id = EntityId::new(1);
-        let mut controller = RandomController::new(player_id);
+        let mut controller = RandomController::with_seed(player_id, 600);
         let game = GameState::new_two_player("Alice".to_string(), "Bob".to_string(), 20);
         let view = GameStateView::new(&game, player_id);
 

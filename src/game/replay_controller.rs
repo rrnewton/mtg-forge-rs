@@ -42,7 +42,7 @@ pub enum ReplayChoice {
 ///     ReplayChoice::Targets(SmallVec::new()),
 /// ];
 ///
-/// let base_controller = RandomController::new(player_id);
+/// let base_controller = RandomController::with_seed(player_id, 42);
 /// let mut replay_controller = ReplayController::new(player_id, base_controller, replay_choices);
 ///
 /// // Use replay_controller normally - it will replay choices then delegate

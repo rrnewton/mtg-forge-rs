@@ -3350,7 +3350,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3412,7 +3412,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3473,7 +3473,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3545,7 +3545,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3611,7 +3611,7 @@ mod tests {
         let p1_life_before = game.players[0].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3662,7 +3662,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3724,7 +3724,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3799,7 +3799,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3866,7 +3866,7 @@ mod tests {
         game.combat.declare_blocker(blocker_id, attacker_vec);
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3924,7 +3924,7 @@ mod tests {
         game.combat.declare_blocker(blocker_id, attacker_vec);
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -3986,7 +3986,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -4062,7 +4062,7 @@ mod tests {
         game.combat.declare_blocker(blocker2_id, attacker_vec);
 
         // Assign combat damage (damage order determined internally)
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Failed to assign combat damage: {result:?}");
@@ -4147,7 +4147,7 @@ mod tests {
         );
 
         // Verify combat resolves correctly
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Combat damage should resolve: {result:?}");
@@ -4200,7 +4200,7 @@ mod tests {
         let p2_life_before = game.players[1].life;
 
         // Assign combat damage
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Combat damage should resolve: {result:?}");
@@ -4277,7 +4277,7 @@ mod tests {
         assert!(result3.is_ok(), "Third blocker should succeed");
 
         // Verify combat resolves correctly
-        let mut controller1 = RandomController::new(p1_id);
+        let mut controller1 = RandomController::with_seed(p1_id, 42);
         let mut controller2 = ZeroController::new(p2_id);
         let result = game.assign_combat_damage(&mut controller1, &mut controller2, false);
         assert!(result.is_ok(), "Combat damage should resolve: {result:?}");
