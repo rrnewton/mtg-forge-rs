@@ -217,6 +217,10 @@ impl<'a> GameLoop<'a> {
         ));
         // Enable choice menu display when in stop/go mode
         self.game.logger.set_show_choice_menu(true);
+        // Enable log buffering (Both mode: output to stdout AND capture to memory)
+        self.game
+            .logger
+            .set_output_mode(crate::game::OutputMode::Both);
         self
     }
 
@@ -519,6 +523,59 @@ impl<'a> GameLoop<'a> {
         Ok((player1_id, player2_id))
     }
 
+    /// Assert that we're stopping at a valid point in the game
+    ///
+    /// Valid stopping points are:
+    /// - After a controller choice (last log line contains ">>> CONTROLLER:")
+    /// - At game end (last log line contains "Game Over" or "wins!")
+    ///
+    /// This helps catch bugs where we might stop mid-action (e.g., in the middle
+    /// of combat damage resolution).
+    fn assert_valid_stopping_point(&self) {
+        // Get the buffered logs
+        let logs = self.game.logger.logs();
+
+        if logs.is_empty() {
+            // No logs yet - could be at the very start of the game
+            // This is acceptable (e.g., stopping before any actions)
+            return;
+        }
+
+        // Check the last few log entries for valid stopping contexts
+        // We check the last 5 entries to handle cases where there might be
+        // multiple logged items at the same stopping point
+        let check_count = logs.len().min(5);
+        let recent_logs = &logs[logs.len() - check_count..];
+
+        for log_entry in recent_logs.iter().rev() {
+            let message = &log_entry.message;
+
+            // Valid stopping points:
+            // 1. Controller choice
+            if message.contains(">>> ") &&
+               (message.contains("chose") || message.contains("RANDOM") ||
+                message.contains("HEURISTIC") || message.contains("ZERO")) {
+                return; // Valid: stopped after a controller choice
+            }
+
+            // 2. Game end
+            if message.contains("Game Over") || message.contains("wins!") {
+                return; // Valid: stopped at game end
+            }
+        }
+
+        // If we get here, we didn't find a valid stopping point
+        // Print the last few log entries for debugging
+        eprintln!("\n⚠️  WARNING: Stopping at potentially invalid point!");
+        eprintln!("Last {} log entries:", check_count);
+        for (i, log_entry) in recent_logs.iter().enumerate() {
+            eprintln!("  [{}] {}", logs.len() - check_count + i, log_entry.message);
+        }
+
+        // For now, we just warn - we can make this a panic later if needed
+        // panic!("Stopped at invalid point - see log entries above");
+    }
+
     /// Save a snapshot when choice limit is reached and exit
     ///
     /// This rewinds the undo log to the most recent turn boundary, extracts
@@ -530,6 +587,9 @@ impl<'a> GameLoop<'a> {
         choice_limit: usize,
         snapshot_path: P,
     ) -> Result<GameResult> {
+        // Assert that we're stopping at a valid point (after a choice or game end)
+        self.assert_valid_stopping_point();
+
         // Rewind to the most recent turn boundary and extract intra-turn choices
         // This actually undoes game state to the turn boundary
         // We need to temporarily take ownership of undo_log to avoid borrowing conflicts
