@@ -44,9 +44,7 @@ fn test_rng_serialize_deserialize_with_choices() {
     let mut rng1 = Xoshiro256PlusPlus::seed_from_u64(12345);
 
     // Make some "game choices"
-    let choices_before: Vec<usize> = (0..5)
-        .map(|_| rng1.gen_range(0..10))
-        .collect();
+    let choices_before: Vec<usize> = (0..5).map(|_| rng1.gen_range(0..10)).collect();
 
     // Serialize
     let json = serde_json::to_string(&rng1).expect("Failed to serialize");
@@ -55,13 +53,9 @@ fn test_rng_serialize_deserialize_with_choices() {
     let mut rng2: Xoshiro256PlusPlus = serde_json::from_str(&json).expect("Failed to deserialize");
 
     // Make more choices - should be identical
-    let choices_after1: Vec<usize> = (0..10)
-        .map(|_| rng1.gen_range(0..10))
-        .collect();
+    let choices_after1: Vec<usize> = (0..10).map(|_| rng1.gen_range(0..10)).collect();
 
-    let choices_after2: Vec<usize> = (0..10)
-        .map(|_| rng2.gen_range(0..10))
-        .collect();
+    let choices_after2: Vec<usize> = (0..10).map(|_| rng2.gen_range(0..10)).collect();
 
     println!("Before serialize: {:?}", choices_before);
     println!("After serialize (rng1): {:?}", choices_after1);
