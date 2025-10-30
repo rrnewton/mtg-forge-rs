@@ -52,6 +52,149 @@ pub fn format_choice_menu(view: &GameStateView, available: &[SpellAbility]) -> S
     output
 }
 
+/// Format attacker selection prompt
+///
+/// This creates a standardized prompt for the declare attackers step.
+/// Controllers don't need to print this themselves - it's printed by the game loop.
+pub fn format_attackers_prompt(view: &GameStateView, available_creatures: &[CardId]) -> String {
+    let mut output = String::new();
+    let player_name = view.player_name();
+
+    output.push_str(&format!("\n--- Declare Attackers ({}) ---\n", player_name));
+
+    if available_creatures.is_empty() {
+        output.push_str("  No creatures available to attack\n");
+    } else {
+        output.push_str(&format!("Available creatures ({}):\n", available_creatures.len()));
+        for (idx, &card_id) in available_creatures.iter().enumerate() {
+            let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+            let tapped = if view.is_tapped(card_id) { " (tapped)" } else { "" };
+
+            // Try to get power/toughness info
+            if let Some(card) = view.get_card(card_id) {
+                if card.is_creature() {
+                    let power = card.power.unwrap_or(0);
+                    let toughness = card.toughness.unwrap_or(0);
+                    output.push_str(&format!("  [{}] {} {}/{}{}\n", idx, name, power, toughness, tapped));
+                } else {
+                    output.push_str(&format!("  [{}] {}{}\n", idx, name, tapped));
+                }
+            } else {
+                output.push_str(&format!("  [{}] {}{}\n", idx, name, tapped));
+            }
+        }
+    }
+
+    output
+}
+
+/// Format blocker selection prompt
+///
+/// This creates a standardized prompt for the declare blockers step.
+/// Controllers don't need to print this themselves - it's printed by the game loop.
+pub fn format_blockers_prompt(view: &GameStateView, available_blockers: &[CardId], attackers: &[CardId]) -> String {
+    let mut output = String::new();
+    let player_name = view.player_name();
+
+    output.push_str(&format!("\n--- Declare Blockers ({}) ---\n", player_name));
+
+    output.push_str(&format!("Attacking creatures ({}):\n", attackers.len()));
+    for (idx, &card_id) in attackers.iter().enumerate() {
+        let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+        if let Some(card) = view.get_card(card_id) {
+            if card.is_creature() {
+                let power = card.power.unwrap_or(0);
+                let toughness = card.toughness.unwrap_or(0);
+                output.push_str(&format!("  [{}] {} {}/{}\n", idx, name, power, toughness));
+            } else {
+                output.push_str(&format!("  [{}] {}\n", idx, name));
+            }
+        } else {
+            output.push_str(&format!("  [{}] {}\n", idx, name));
+        }
+    }
+
+    if available_blockers.is_empty() {
+        output.push_str("\nNo creatures available to block\n");
+    } else {
+        output.push_str(&format!("\nAvailable blockers ({}):\n", available_blockers.len()));
+        for (idx, &card_id) in available_blockers.iter().enumerate() {
+            let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+            let tapped = if view.is_tapped(card_id) { " (tapped)" } else { "" };
+
+            if let Some(card) = view.get_card(card_id) {
+                if card.is_creature() {
+                    let power = card.power.unwrap_or(0);
+                    let toughness = card.toughness.unwrap_or(0);
+                    output.push_str(&format!("  [{}] {} {}/{}{}\n", idx, name, power, toughness, tapped));
+                } else {
+                    output.push_str(&format!("  [{}] {}{}\n", idx, name, tapped));
+                }
+            } else {
+                output.push_str(&format!("  [{}] {}{}\n", idx, name, tapped));
+            }
+        }
+    }
+
+    output
+}
+
+/// Format discard selection prompt
+///
+/// This creates a standardized prompt for discarding cards to hand size.
+/// Controllers don't need to print this themselves - it's printed by the game loop.
+pub fn format_discard_prompt(view: &GameStateView, hand: &[CardId], count: usize) -> String {
+    let mut output = String::new();
+    let player_name = view.player_name();
+
+    output.push_str(&format!("\n--- Discard to Hand Size ({}) ---\n", player_name));
+    output.push_str(&format!("Must discard {} card(s)\n", count));
+
+    output.push_str(&format!("\nYour hand ({} cards):\n", hand.len()));
+    for (idx, &card_id) in hand.iter().enumerate() {
+        let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+        output.push_str(&format!("  [{}] {}\n", idx, name));
+    }
+
+    output
+}
+
+/// Format target selection prompt
+///
+/// This creates a standardized prompt for choosing targets for a spell or ability.
+/// Controllers don't need to print this themselves - it's printed by the game loop.
+pub fn format_targets_prompt(view: &GameStateView, spell: CardId, valid_targets: &[CardId]) -> String {
+    let mut output = String::new();
+    let spell_name = view.card_name(spell).unwrap_or_else(|| format!("Card {spell:?}"));
+
+    output.push_str(&format!("\n--- Choose Targets for: {} ---\n", spell_name));
+
+    if valid_targets.is_empty() {
+        output.push_str("  No valid targets\n");
+    } else {
+        output.push_str(&format!("Valid targets ({}):\n", valid_targets.len()));
+        for (idx, &card_id) in valid_targets.iter().enumerate() {
+            let name = view.card_name(card_id).unwrap_or_else(|| format!("Card {card_id:?}"));
+            let tapped = if view.is_tapped(card_id) { " (tapped)" } else { "" };
+
+            // Try to get additional info
+            if let Some(card) = view.get_card(card_id) {
+                if card.is_creature() {
+                    let power = card.power.unwrap_or(0);
+                    let toughness = card.toughness.unwrap_or(0);
+                    output.push_str(&format!("  [{}] {} {}/{}{}\n", idx, name, power, toughness, tapped));
+                } else {
+                    output.push_str(&format!("  [{}] {}{}\n", idx, name, tapped));
+                }
+            } else {
+                output.push_str(&format!("  [{}] {}{}\n", idx, name, tapped));
+            }
+        }
+    }
+
+    output
+}
+
 /// Read-only view of game state for controllers
 ///
 /// This provides access to game information without allowing mutation.

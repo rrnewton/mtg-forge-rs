@@ -20,8 +20,10 @@ macro_rules! log_if_verbose {
 }
 
 use crate::core::{CardId, PlayerId};
-use crate::game::controller::GameStateView;
 use crate::game::controller::PlayerController;
+use crate::game::controller::{
+    format_attackers_prompt, format_blockers_prompt, format_choice_menu, format_discard_prompt, GameStateView,
+};
 use crate::game::phase::Step;
 use crate::game::GameState;
 use crate::{MtgError, Result};
@@ -194,6 +196,10 @@ impl<'a> GameLoop<'a> {
     pub fn with_stop_when_fixed_exhausted<P: AsRef<std::path::Path>>(mut self, snapshot_path: P) -> Self {
         self.stop_when_fixed_exhausted = true;
         self.snapshot_path_for_fixed = Some(snapshot_path.as_ref().to_path_buf());
+        // Enable choice menu display when in stop/go mode
+        self.game.logger.set_show_choice_menu(true);
+        // Enable log buffering (Both mode: output to stdout AND capture to memory)
+        self.game.logger.set_output_mode(crate::game::OutputMode::Both);
         self
     }
 
@@ -1388,6 +1394,16 @@ impl<'a> GameLoop<'a> {
                 );
             }
 
+            // Create view and print prompt BEFORE checking stop conditions
+            // so users see what choice was about to be made when using --stop-when-fixed-exhausted
+            {
+                let view = GameStateView::new(self.game, active_player);
+                // Print attacker selection prompt (controlled by show_choice_menu flag)
+                if view.logger().should_show_choice_menu() && !available_creatures.is_empty() {
+                    print!("{}", format_attackers_prompt(&view, &available_creatures));
+                }
+            } // Drop view before mutable borrow
+
             // PREAMBLE: Check stop conditions before asking for choice
             if let Some(result) = self.check_stop_conditions(controller, active_player)? {
                 return Ok(Some(result));
@@ -1395,7 +1411,6 @@ impl<'a> GameLoop<'a> {
 
             // Ask controller to choose all attackers at once (v2 interface)
             let view = GameStateView::new(self.game, active_player);
-
             let attackers = controller.choose_attackers(&view, &available_creatures);
 
             // Log this choice point for snapshot/replay
@@ -1498,6 +1513,16 @@ impl<'a> GameLoop<'a> {
                 );
             }
 
+            // Create view and print prompt BEFORE checking stop conditions
+            // so users see what choice was about to be made when using --stop-when-fixed-exhausted
+            {
+                let view = GameStateView::new(self.game, defending_player);
+                // Print blocker selection prompt (controlled by show_choice_menu flag)
+                if view.logger().should_show_choice_menu() {
+                    print!("{}", format_blockers_prompt(&view, &available_blockers, &attackers));
+                }
+            } // Drop view before mutable borrow
+
             // PREAMBLE: Check stop conditions before asking for choice
             if let Some(result) = self.check_stop_conditions(controller, defending_player)? {
                 return Ok(Some(result));
@@ -1505,7 +1530,6 @@ impl<'a> GameLoop<'a> {
 
             // Ask controller to choose all blocker assignments at once (v2 interface)
             let view = GameStateView::new(self.game, defending_player);
-
             let blocks = controller.choose_blockers(&view, &available_blockers, &attackers);
 
             // Log this choice point for snapshot/replay
@@ -1744,6 +1768,17 @@ impl<'a> GameLoop<'a> {
                     controller2
                 };
 
+                // Create view and print prompt BEFORE checking stop conditions
+                // so users see what choice was about to be made when using --stop-when-fixed-exhausted
+                {
+                    let view = GameStateView::new(self.game, player_id);
+                    let hand = view.hand();
+                    // Print discard selection prompt (controlled by show_choice_menu flag)
+                    if view.logger().should_show_choice_menu() {
+                        print!("{}", format_discard_prompt(&view, hand, discard_count));
+                    }
+                } // Drop view before mutable borrow
+
                 // PREAMBLE: Check stop conditions before asking for choice
                 if let Some(result) = self.check_stop_conditions(controller, player_id)? {
                     return Ok(Some(result));
@@ -1752,7 +1787,6 @@ impl<'a> GameLoop<'a> {
                 // Ask controller which cards to discard
                 let view = GameStateView::new(self.game, player_id);
                 let hand = view.hand();
-
                 let cards_to_discard = controller.choose_cards_to_discard(&view, hand, discard_count);
 
                 // Log this choice point for snapshot/replay
@@ -1953,6 +1987,16 @@ impl<'a> GameLoop<'a> {
                             self.choice_counter, self.baseline_choice_count, self.replay_choices_remaining
                         );
                     }
+
+                    // Create view and print prompt BEFORE checking stop conditions
+                    // so users see what choice was about to be made when using --stop-when-fixed-exhausted
+                    {
+                        let view = GameStateView::new(self.game, current_priority);
+                        // Print spell ability menu (controlled by show_choice_menu flag)
+                        if view.logger().should_show_choice_menu() && !available.is_empty() {
+                            print!("{}", format_choice_menu(&view, &available));
+                        }
+                    } // Drop view before mutable borrow
 
                     // PREAMBLE: Check stop conditions BEFORE asking for choice
                     // This ensures snapshots are taken BEFORE presenting the next choice to the controller.

@@ -537,8 +537,7 @@ impl PlayerController for InteractiveController {
             return SmallVec::new();
         }
 
-        println!("\n--- Declare Attackers ---");
-
+        // Note: Attacker selection prompt is now printed by game loop before this method is called
         let mut attackers = SmallVec::new();
 
         if self.numeric_choices {
@@ -658,14 +657,7 @@ impl PlayerController for InteractiveController {
             return SmallVec::new();
         }
 
-        println!("\n--- Declare Blockers ---");
-
-        println!("Attacking creatures:");
-        self.display_cards(view, attackers, "  ");
-
-        println!("\nYour blockers:");
-        self.display_cards(view, available_blockers, "  ");
-
+        // Note: Blocker selection prompt is now printed by game loop before this method is called
         let mut blocks = SmallVec::new();
 
         if self.numeric_choices {
@@ -884,16 +876,11 @@ impl PlayerController for InteractiveController {
 
     fn choose_cards_to_discard(
         &mut self,
-        view: &GameStateView,
+        _view: &GameStateView,
         hand: &[CardId],
         count: usize,
     ) -> SmallVec<[CardId; 7]> {
-        println!("\n--- Discard Down to Hand Size ---");
-        println!("You must discard {} card(s).", count);
-
-        println!("\nYour hand:");
-        self.display_cards(view, hand, "  ");
-
+        // Note: Discard selection prompt is now printed by game loop before this method is called
         let mut discards = SmallVec::new();
 
         if self.numeric_choices {
