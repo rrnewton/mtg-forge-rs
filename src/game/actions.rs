@@ -1021,17 +1021,36 @@ impl GameState {
             .log(crate::undo::GameAction::TapCard { card_id, tapped: true });
 
         // Add mana to player's pool based on land type
-        // For now, simplified - just check land name
+        // For basic lands and simple cases, check name
+        // For dual lands (e.g., Underground Sea = Island Swamp), we need smarter logic
+        // First, check subtypes before we borrow player_mut
+        let (has_swamp_subtype, has_mountain_subtype, has_island_subtype, has_forest_subtype, has_plains_subtype) = {
+            let card = self.cards.get(card_id)?;
+            (
+                card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("swamp")),
+                card.subtypes
+                    .iter()
+                    .any(|s| s.as_str().eq_ignore_ascii_case("mountain")),
+                card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("island")),
+                card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("forest")),
+                card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("plains")),
+            )
+        };
+
         let player = self.get_player_mut(player_id)?;
-        let color = if land_name.contains("mountain") {
-            Some(crate::core::Color::Red)
-        } else if land_name.contains("island") {
-            Some(crate::core::Color::Blue)
-        } else if land_name.contains("swamp") {
+
+        // For now, prioritize producing Black mana if we need it (crude heuristic)
+        // TODO(mtg-XXX): Make tap_for_mana color-aware - take desired color as parameter
+
+        let color = if has_swamp_subtype || land_name.contains("swamp") {
             Some(crate::core::Color::Black)
-        } else if land_name.contains("forest") {
+        } else if has_mountain_subtype || land_name.contains("mountain") {
+            Some(crate::core::Color::Red)
+        } else if has_island_subtype || land_name.contains("island") {
+            Some(crate::core::Color::Blue)
+        } else if has_forest_subtype || land_name.contains("forest") {
             Some(crate::core::Color::Green)
-        } else if land_name.contains("plains") {
+        } else if has_plains_subtype || land_name.contains("plains") {
             Some(crate::core::Color::White)
         } else {
             None
