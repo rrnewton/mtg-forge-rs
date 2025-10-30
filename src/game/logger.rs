@@ -407,6 +407,9 @@ impl GameLogger {
 
     /// Log a controller decision at Normal level
     ///
+    /// Outputs standardized "chose X" format to stdout for deterministic logging.
+    /// Controller-specific debug info goes to stderr when debug_state_hash is enabled.
+    ///
     /// Uses bump allocator for temporary formatting to avoid intermediate allocations.
     #[inline]
     pub fn controller_choice(&self, controller_name: &str, message: &str) {
@@ -419,16 +422,14 @@ impl GameLogger {
             return;
         }
 
-        // Use bump allocator for temporary formatting
-        let formatted = {
-            let bump = self.format_bump.borrow();
-            let mut temp = bumpalo::collections::String::new_in(&bump);
-            write!(&mut temp, ">>> {}: {}", controller_name, message).unwrap();
-            temp.to_string() // Convert to owned String
-        };
+        // Controller-specific debug to stderr (for debugging only, not part of deterministic log)
+        if self.debug_state_hash {
+            eprintln!("  >>> {}: {}", controller_name, message);
+        }
 
-        // Reset bump to avoid growth
-        self.format_bump.borrow_mut().reset();
+        // Standardized deterministic format for stdout: just the choice, not the controller type
+        // This ensures logs match regardless of which controller made the choice
+        let formatted = message.to_string();
 
         // Capture if mode requires it
         if should_capture {
