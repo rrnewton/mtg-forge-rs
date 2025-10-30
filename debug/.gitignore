@@ -1,0 +1,10 @@
+# Debug artifacts that shouldn't be committed
+artifacts/
+*.snapshot
+*.log
+*.prof
+*.flamegraph
+*.heaptrack
+
+# Keep reproducers in version control
+!reproducers/
