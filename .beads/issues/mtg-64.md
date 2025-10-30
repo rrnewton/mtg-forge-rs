@@ -3,8 +3,8 @@ title: 'Cross-cutting codebase issues: APIs, testing, architecture'
 status: closed
 priority: 1
 issue_type: epic
-created_at: "2025-10-30T05:28:25Z"
-updated_at: "2025-10-30T05:28:25Z"
+created_at: "2025-10-26T21:06:34Z"
+updated_at: "2025-10-26T21:06:34Z"
 closed_at: "2025-10-24T20:46:23-04:00"
 ---
 

@@ -3,8 +3,10 @@ title: Overall MTG Forge Rust development tracking
 status: closed
 priority: 0
 issue_type: epic
-created_at: "2025-10-30T05:28:25Z"
-updated_at: "2025-10-30T05:28:25Z"
+labels:
+  - tracking
+created_at: "2025-10-26T21:06:34Z"
+updated_at: "2025-10-26T21:06:34Z"
 closed_at: "2025-10-24T20:45:32-04:00"
 ---
 
