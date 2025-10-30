@@ -190,6 +190,10 @@ impl<'a> GameLoop<'a> {
     pub fn with_stop_when_fixed_exhausted<P: AsRef<std::path::Path>>(mut self, snapshot_path: P) -> Self {
         self.stop_when_fixed_exhausted = true;
         self.snapshot_path_for_fixed = Some(snapshot_path.as_ref().to_path_buf());
+        // Enable choice menu display when in stop/go mode
+        self.game.logger.set_show_choice_menu(true);
+        // Enable log buffering (Both mode: output to stdout AND capture to memory)
+        self.game.logger.set_output_mode(crate::game::OutputMode::Both);
         self
     }
 
