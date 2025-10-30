@@ -152,6 +152,8 @@ Except for purely internal fixes that don't directly affect MTG gameplay, in eve
 - Compare against the rules of MTG (and cite the rule numbers where applicable). Keep an eye out for for missing behaviors, contradictory information, or impossible events.
 - In the case of AI, consider whether the player actions make a basic level of sens.
 
+Runnable commands included in the message should refer to actual `.dck` files in the repository so that the user can indeed reproduce them and see the logs cited.
+
 See the file `ai_docs/HOWTO_AGENTPLAY+REPRODUCERS.md` for instructions on playing the game as an agent to observe engine behaviors without writing new code.
 
 
