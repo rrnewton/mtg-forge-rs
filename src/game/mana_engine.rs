@@ -247,11 +247,13 @@ impl ManaEngine {
         self.simple_capacity = ManaCapacity::new();
         self.mana_sources.clear();
 
-        // Scan battlefield for lands owned by this player
+        // Scan battlefield for mana-producing permanents owned by this player
+        // This includes lands and creatures with mana abilities (e.g., Llanowar Elves)
         for &card_id in &game.battlefield.cards {
             if let Ok(card) = game.cards.get(card_id) {
-                // Check if this is a land owned by this player
-                if card.owner == self.player_id && card.is_land() {
+                // Check if this is a mana-producing permanent owned by this player
+                let is_mana_source = card.is_land() || has_mana_ability(card);
+                if card.owner == self.player_id && is_mana_source {
                     // Determine if this source has summoning sickness (for creatures with mana abilities)
                     let has_summoning_sickness = if card.is_creature() {
                         if let Some(entered_turn) = card.turn_entered_battlefield {
@@ -306,6 +308,18 @@ impl ManaEngine {
                             is_tapped: card.tapped,
                             has_summoning_sickness,
                         });
+                    } else if card.is_creature() {
+                        // Check for creature mana abilities (Llanowar Elves, Birds of Paradise)
+                        if let Some(production) = get_creature_mana_production(card) {
+                            // Creatures with mana abilities are complex sources
+                            self.complex_sources.push(card_id);
+                            self.mana_sources.push(ManaSource {
+                                card_id,
+                                production,
+                                is_tapped: card.tapped,
+                                has_summoning_sickness,
+                            });
+                        }
                     } else if let Some(production) = get_complex_mana_production(card) {
                         // Complex source - dual land or any-color land
                         self.complex_sources.push(card_id);
@@ -370,6 +384,60 @@ fn get_simple_mana_color(land_name: &str) -> Option<char> {
         // Any other land is considered complex for now
         _ => None,
     }
+}
+
+/// Check if a creature has a mana-producing activated ability
+///
+/// Detects patterns like "{T}: Add {G}" or "Add one mana of any color" in oracle text.
+/// This is used to identify creatures like Llanowar Elves and Birds of Paradise.
+fn has_mana_ability(card: &crate::core::Card) -> bool {
+    use crate::core::CardType;
+
+    // Only creatures can have mana abilities (for Phase 4)
+    if !card.types.contains(&CardType::Creature) {
+        return false;
+    }
+
+    let text_lower = card.text.to_lowercase();
+    // Check for tap-to-add-mana patterns
+    // Examples: "{T}: Add {G}", "Add one mana of any color", "{T}: Add {C}"
+    text_lower.contains("{t}: add") || (text_lower.contains("add") && text_lower.contains("mana"))
+}
+
+/// Determine mana production for a creature with mana abilities
+///
+/// Analyzes oracle text to determine what mana a creature can produce.
+/// Examples: Llanowar Elves "{T}: Add {G}", Birds of Paradise "Add one mana of any color"
+fn get_creature_mana_production(card: &crate::core::Card) -> Option<ManaProduction> {
+    let text_lower = card.text.to_lowercase();
+
+    // Check for any-color production (Birds of Paradise pattern)
+    if text_lower.contains("any color") {
+        return Some(ManaProduction::AnyColor);
+    }
+
+    // Check for specific color production patterns
+    // Pattern: "{T}: Add {G}" or similar
+    if text_lower.contains("{t}: add {w}") || text_lower.contains("add {w}") {
+        return Some(ManaProduction::Fixed(ManaColor::White));
+    }
+    if text_lower.contains("{t}: add {u}") || text_lower.contains("add {u}") {
+        return Some(ManaProduction::Fixed(ManaColor::Blue));
+    }
+    if text_lower.contains("{t}: add {b}") || text_lower.contains("add {b}") {
+        return Some(ManaProduction::Fixed(ManaColor::Black));
+    }
+    if text_lower.contains("{t}: add {r}") || text_lower.contains("add {r}") {
+        return Some(ManaProduction::Fixed(ManaColor::Red));
+    }
+    if text_lower.contains("{t}: add {g}") || text_lower.contains("add {g}") {
+        return Some(ManaProduction::Fixed(ManaColor::Green));
+    }
+    if text_lower.contains("{t}: add {c}") || text_lower.contains("add {c}") {
+        return Some(ManaProduction::Colorless);
+    }
+
+    None
 }
 
 /// Determine mana production for complex lands
@@ -585,5 +653,118 @@ mod tests {
         // Should not be able to pay for 1U (requires blue)
         let blue_cost = ManaCost::from_string("1U");
         assert!(!engine.can_pay(&blue_cost));
+    }
+
+    #[test]
+    fn test_creature_mana_ability_detection() {
+        use crate::core::EntityId;
+
+        let p1_id = EntityId::new(0);
+
+        // Test Llanowar Elves pattern: "{T}: Add {G}"
+        let mut llanowar = Card::new(EntityId::new(1), "Llanowar Elves".to_string(), p1_id);
+        llanowar.types.push(CardType::Creature);
+        llanowar.text = "{T}: Add {G}.".to_string();
+        assert!(has_mana_ability(&llanowar));
+        assert_eq!(
+            get_creature_mana_production(&llanowar),
+            Some(ManaProduction::Fixed(ManaColor::Green))
+        );
+
+        // Test Birds of Paradise pattern: "Add one mana of any color"
+        let mut birds = Card::new(EntityId::new(2), "Birds of Paradise".to_string(), p1_id);
+        birds.types.push(CardType::Creature);
+        birds.text = "{T}: Add one mana of any color.".to_string();
+        assert!(has_mana_ability(&birds));
+        assert_eq!(get_creature_mana_production(&birds), Some(ManaProduction::AnyColor));
+
+        // Test non-mana creature
+        let mut bear = Card::new(EntityId::new(3), "Grizzly Bears".to_string(), p1_id);
+        bear.types.push(CardType::Creature);
+        bear.text = "".to_string();
+        assert!(!has_mana_ability(&bear));
+    }
+
+    #[test]
+    fn test_mana_engine_with_llanowar_elves() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Add a Forest and Llanowar Elves
+        let forest_id = game.next_card_id();
+        let mut forest = Card::new(forest_id, "Forest".to_string(), p1_id);
+        forest.types.push(CardType::Land);
+        forest.controller = p1_id;
+        game.cards.insert(forest_id, forest);
+        game.battlefield.add(forest_id);
+
+        let elf_id = game.next_card_id();
+        let mut elf = Card::new(elf_id, "Llanowar Elves".to_string(), p1_id);
+        elf.types.push(CardType::Creature);
+        elf.controller = p1_id;
+        elf.text = "{T}: Add {G}.".to_string();
+        elf.turn_entered_battlefield = Some(game.turn.turn_number - 1); // Not summoning sick
+        game.cards.insert(elf_id, elf);
+        game.battlefield.add(elf_id);
+
+        let mut engine = ManaEngine::new(p1_id);
+        engine.update(&game);
+
+        // Should have 1 simple source (Forest) and 1 complex source (Llanowar Elves)
+        assert_eq!(engine.simple_sources().len(), 1);
+        assert_eq!(engine.complex_sources().len(), 1);
+
+        // Should be able to pay for GG (2 green mana)
+        let gg_cost = ManaCost::from_string("GG");
+        assert!(engine.can_pay(&gg_cost));
+
+        // Should be able to pay for 1G (1 generic + 1 green)
+        let one_g_cost = ManaCost::from_string("1G");
+        assert!(engine.can_pay(&one_g_cost));
+    }
+
+    #[test]
+    fn test_mana_engine_summoning_sickness() {
+        let mut game = GameState::new_two_player("P1".to_string(), "P2".to_string(), 20);
+        let p1_id = game.players[0].id;
+
+        // Add a Forest
+        let forest_id = game.next_card_id();
+        let mut forest = Card::new(forest_id, "Forest".to_string(), p1_id);
+        forest.types.push(CardType::Land);
+        forest.controller = p1_id;
+        game.cards.insert(forest_id, forest);
+        game.battlefield.add(forest_id);
+
+        // Add Llanowar Elves with summoning sickness (entered this turn)
+        let elf_id = game.next_card_id();
+        let mut elf = Card::new(elf_id, "Llanowar Elves".to_string(), p1_id);
+        elf.types.push(CardType::Creature);
+        elf.controller = p1_id;
+        elf.text = "{T}: Add {G}.".to_string();
+        elf.turn_entered_battlefield = Some(game.turn.turn_number); // Summoning sick!
+        game.cards.insert(elf_id, elf);
+        game.battlefield.add(elf_id);
+
+        let mut engine = ManaEngine::new(p1_id);
+        engine.update(&game);
+
+        // Should detect the creature as complex source
+        assert_eq!(engine.complex_sources().len(), 1);
+
+        // The mana source should have summoning_sickness flag set
+        let creature_source = engine
+            .mana_sources
+            .iter()
+            .find(|s| s.card_id == elf_id)
+            .expect("Should find Llanowar Elves");
+        assert!(creature_source.has_summoning_sickness);
+
+        // Should only be able to pay for G (from Forest), not GG
+        let g_cost = ManaCost::from_string("G");
+        assert!(engine.can_pay(&g_cost));
+
+        let gg_cost = ManaCost::from_string("GG");
+        assert!(!engine.can_pay(&gg_cost)); // Can't use summoning-sick creature
     }
 }
