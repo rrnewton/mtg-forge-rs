@@ -608,7 +608,7 @@ impl GameState {
         // This is where mana gets tapped - AFTER the spell is on the stack
         let sources_to_tap = choose_mana_sources_fn(self, &mana_cost);
         for &source_id in &sources_to_tap {
-            self.tap_for_mana(player_id, source_id)?;
+            self.tap_for_mana_for_cost(player_id, source_id, &mana_cost)?;
         }
 
         // Step 7: Pay costs
@@ -997,8 +997,20 @@ impl GameState {
         Err(MtgError::InvalidAction("Invalid damage target".to_string()))
     }
 
-    /// Tap a land for mana
+    /// Tap a land for mana (without cost hint)
     pub fn tap_for_mana(&mut self, player_id: PlayerId, card_id: CardId) -> Result<()> {
+        // Create an empty cost hint
+        let empty_cost = crate::core::ManaCost::new();
+        self.tap_for_mana_for_cost(player_id, card_id, &empty_cost)
+    }
+
+    /// Tap a land for mana with a cost hint to guide color production for any-color lands
+    pub fn tap_for_mana_for_cost(
+        &mut self,
+        player_id: PlayerId,
+        card_id: CardId,
+        cost_hint: &crate::core::ManaCost,
+    ) -> Result<()> {
         let card = self.cards.get_mut(card_id)?;
 
         // Check if card is a land and untapped
@@ -1023,8 +1035,15 @@ impl GameState {
         // Add mana to player's pool based on land type
         // For basic lands and simple cases, check name
         // For dual lands (e.g., Underground Sea = Island Swamp), we need smarter logic
-        // First, check subtypes before we borrow player_mut
-        let (has_swamp_subtype, has_mountain_subtype, has_island_subtype, has_forest_subtype, has_plains_subtype) = {
+        // First, check subtypes and any-color before we borrow player_mut
+        let (
+            has_swamp_subtype,
+            has_mountain_subtype,
+            has_island_subtype,
+            has_forest_subtype,
+            has_plains_subtype,
+            is_any_color_land,
+        ) = {
             let card = self.cards.get(card_id)?;
             (
                 card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("swamp")),
@@ -1034,6 +1053,7 @@ impl GameState {
                 card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("island")),
                 card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("forest")),
                 card.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("plains")),
+                card.text.to_lowercase().contains("any color"),
             )
         };
 
@@ -1052,6 +1072,22 @@ impl GameState {
             Some(crate::core::Color::Green)
         } else if has_plains_subtype || land_name.contains("plains") {
             Some(crate::core::Color::White)
+        } else if is_any_color_land {
+            // For any-color lands, produce the first color needed by the cost
+            if cost_hint.white > 0 {
+                Some(crate::core::Color::White)
+            } else if cost_hint.blue > 0 {
+                Some(crate::core::Color::Blue)
+            } else if cost_hint.black > 0 {
+                Some(crate::core::Color::Black)
+            } else if cost_hint.red > 0 {
+                Some(crate::core::Color::Red)
+            } else if cost_hint.green > 0 {
+                Some(crate::core::Color::Green)
+            } else {
+                // Generic or colorless cost - produce white by default
+                Some(crate::core::Color::White)
+            }
         } else {
             None
         };
