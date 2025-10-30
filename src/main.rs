@@ -182,10 +182,10 @@ enum Commands {
         debug_state_hash: bool,
 
         /// Stop after N choices by specified player(s) and save snapshot
-        /// Format: [p1|p2|both]:choice:<NUM>
-        /// Examples: p1:choice:5, both:choice:10
+        /// Format: <NUM>[:[p1|p2]]
+        /// Examples: 3 (both players), 1:p1 (only p1), 5:p2 (only p2)
         #[arg(long, value_name = "CONDITION")]
-        stop_every: Option<String>,
+        stop_on_choice: Option<String>,
 
         /// Stop and save snapshot when fixed controller script is exhausted
         /// (useful for building reproducers incrementally)
@@ -205,7 +205,7 @@ enum Commands {
         save_final_gamestate: Option<PathBuf>,
 
         /// Only print the last K lines of log output at game exit
-        /// (useful with --stop-every to see constant-sized output)
+        /// (useful with --stop-on-choice to see constant-sized output)
         #[arg(long, value_name = "K")]
         log_tail: Option<usize>,
     },
@@ -279,10 +279,10 @@ enum Commands {
         debug_state_hash: bool,
 
         /// Stop after N choices by specified player(s) and save snapshot
-        /// Format: [p1|p2|both]:choice:<NUM>
-        /// Examples: p1:choice:5, both:choice:10
+        /// Format: <NUM>[:[p1|p2]]
+        /// Examples: 3 (both players), 1:p1 (only p1), 5:p2 (only p2)
         #[arg(long, value_name = "CONDITION")]
-        stop_every: Option<String>,
+        stop_on_choice: Option<String>,
 
         /// Stop and save snapshot when fixed controller script is exhausted
         /// (useful for building reproducers incrementally)
@@ -298,7 +298,7 @@ enum Commands {
         save_final_gamestate: Option<PathBuf>,
 
         /// Only print the last K lines of log output at game exit
-        /// (useful with --stop-every to see constant-sized output)
+        /// (useful with --stop-on-choice to see constant-sized output)
         #[arg(long, value_name = "K")]
         log_tail: Option<usize>,
     },
@@ -326,7 +326,7 @@ async fn main() -> Result<()> {
             verbosity,
             numeric_choices,
             debug_state_hash,
-            stop_every,
+            stop_on_choice,
             stop_when_fixed_exhausted,
             snapshot_output,
             start_from,
@@ -350,7 +350,7 @@ async fn main() -> Result<()> {
                 verbosity,
                 numeric_choices,
                 debug_state_hash,
-                stop_every,
+                stop_on_choice,
                 stop_when_fixed_exhausted,
                 snapshot_output,
                 start_from,
@@ -372,7 +372,7 @@ async fn main() -> Result<()> {
             verbosity,
             numeric_choices,
             debug_state_hash,
-            stop_every,
+            stop_on_choice,
             stop_when_fixed_exhausted,
             snapshot_output,
             save_final_gamestate,
@@ -390,7 +390,7 @@ async fn main() -> Result<()> {
                 verbosity,
                 numeric_choices,
                 debug_state_hash,
-                stop_every,
+                stop_on_choice,
                 stop_when_fixed_exhausted,
                 snapshot_output,
                 save_final_gamestate,
@@ -443,7 +443,7 @@ async fn run_tui(
     verbosity: VerbosityArg,
     numeric_choices: bool,
     debug_state_hash: bool,
-    stop_every: Option<String>,
+    stop_on_choice: Option<String>,
     stop_when_fixed_exhausted: bool,
     snapshot_output: PathBuf,
     start_from: Option<PathBuf>,
@@ -463,9 +463,9 @@ async fn run_tui(
     }
 
     // Parse stop condition if provided
-    let stop_condition = if let Some(ref stop_str) = stop_every {
+    let stop_condition = if let Some(ref stop_str) = stop_on_choice {
         let condition = StopCondition::parse(stop_str)
-            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e)))?;
+            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-on-choice: {}", e)))?;
         if !suppress_output {
             println!("Stop condition: {:?}", condition);
             println!("Snapshot output: {}\n", snapshot_output.display());
@@ -919,7 +919,7 @@ async fn run_tui(
 
     // If resuming from snapshot, set baseline choice count for replay mode
     // This is ALWAYS needed when resuming to determine when to stop suppressing logs,
-    // not just when using --stop-every
+    // not just when using --stop-on-choice
     if let Some(ref snapshot) = loaded_snapshot {
         use mtg_forge_rs::undo::GameAction;
 
@@ -976,7 +976,7 @@ async fn run_tui(
         }
     }
 
-    // Enable stop condition (--stop-every) if requested
+    // Enable stop condition (--stop-on-choice) if requested
     if let Some(ref stop_cond) = stop_condition {
         game_loop = game_loop.with_stop_condition(p1_id, stop_cond.clone(), &snapshot_output);
     }
@@ -1163,7 +1163,7 @@ async fn run_resume(
     verbosity: VerbosityArg,
     numeric_choices: bool,
     debug_state_hash: bool,
-    stop_every: Option<String>,
+    stop_on_choice: Option<String>,
     stop_when_fixed_exhausted: bool,
     snapshot_output: PathBuf,
     save_final_gamestate: Option<PathBuf>,
@@ -1182,9 +1182,9 @@ async fn run_resume(
     }
 
     // Parse stop condition if provided
-    let stop_condition = if let Some(ref stop_str) = stop_every {
+    let stop_condition = if let Some(ref stop_str) = stop_on_choice {
         let condition = StopCondition::parse(stop_str)
-            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-every: {}", e)))?;
+            .map_err(|e| mtg_forge_rs::MtgError::InvalidAction(format!("Error parsing --stop-on-choice: {}", e)))?;
         if !suppress_output {
             println!("Stop condition: {:?}", condition);
             println!("Snapshot output: {}\n", snapshot_output.display());
@@ -1590,7 +1590,7 @@ async fn run_resume(
         }
     }
 
-    // Enable stop condition (--stop-every) if requested
+    // Enable stop condition (--stop-on-choice) if requested
     if let Some(ref stop_cond) = stop_condition {
         game_loop = game_loop.with_stop_condition(p1_id, stop_cond.clone(), &snapshot_output);
     }

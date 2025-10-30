@@ -43,13 +43,8 @@ Documentation and Analysis
 
 When creating analysis documents, specifications, or other AI-generated documentation, place them in the `ai_docs/` directory. This keeps the top-level clean and makes it clear which documents are AI-generated analysis (and may become outdated) versus core project documentation.
 
-Workflow: Tasks and Commits
+Workflow: Task tracking
 ========================================
-
-Commit to git as described in the PROJECT_VISION.
-
-Task Tracking
-----------------------------------------
 
 We use "beads" to track our issues locally under version control. Review `bd quickstart` to learn how to use it. 
 
@@ -88,7 +83,6 @@ file a new duplicate issue with `bd create`.
 
 #### Mark transient information
 
-
 We often record transient information, like benchmark results, that quickly gets out of date. We want to label such information so we can tell how old it is. In addition to YYYY-MM-DD, our convention is to use:
   `git rev-list --count HEAD`
 which prints out the number of commits in the repo (or equivalently the ./gitdepth.sh script), and then format the timestamp as `YYYY-MM-DD_#DEPTH(387498cecf)` e.g. `2025-10-22_#161(387498cecf)`. That's our full timestamp
@@ -109,6 +103,12 @@ Then, the commit that fixes the issue both removes the comment and closes the is
 
 When creating or updating issues with `bd`, always put ALL content in the description field. Do NOT use the --notes field, as it creates duplication and confusion between what's in description vs notes. Keep all issue information consolidated in the description field only.
 
+
+Workflow: Commits and Version Control
+================================================================================
+
+Commit to git as described in the PROJECT_VISION.
+
 Clean Start: Before beginning work on a task
 --------------------------------------------
 
@@ -126,6 +126,15 @@ Also include a `Test Results Summary` section in every commit message that summa
 
 If you validate some changes with a new manual or temporary test, that test should be added to either the unit tests, examples, or e2e tests and it should be called consistently from both `make validate` and Github CI.
 
+NEVER add binary files or large serialized artifact to version control without explicit permission. Always carefully review what you are adding with `git add`, and update `.gitignore` as needed.
+
+Branches and pushing
+----------------------------------------
+
+You may push after validation and can check CI status with github MCP. Don't force push unless you're asked to or ask permission.
+
+We merge feature branches into main when they're completed and validating. ARCHIVE completed feature braches. Upon merging a feature branch X, archive it as tag `X.v1` or `X.(N+1)` if that tag is taken.
+
 Commit message documents relationship to original Java version
 --------------------------------------------------------------
 
@@ -137,3 +146,16 @@ Finally, also before committing reanalyze the relationship between (1) what you 
 - this Rust reimplementation does X
 - the upstream Java version does Y
 ```
+
+Commit message justifies game play logic with real games
+--------------------------------------------------------
+
+Except for purely internal fixes that don't directly affect MTG gameplay, in every commit you will need to justify changes with real gameplay logs. Add a section to the commit message which provides evidence for the correct behavior of the fix in the form of a log snippet from a real `mtg tui` CLI game, ideally with a runnable reproducer CLI command.
+
+- We will reason about the behavior of the game in terms of the log messages of game actions.
+- Compare against the rules of MTG (and cite the rule numbers where applicable). Keep an eye out for for missing behaviors, contradictory information, or impossible events.
+- In the case of AI, consider whether the player actions make a basic level of sens.
+
+See the file `ai_docs/HOWTO_AGENTPLAY+REPRODUCERS.md` for instructions on playing the game as an agent to observe engine behaviors without writing new code.
+
+

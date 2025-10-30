@@ -32,30 +32,38 @@ impl StopCondition {
 
     /// Parse a stop condition from a string
     ///
-    /// Format: [p1|p2|both]:choice:<NUM>
-    /// Examples: "p1:choice:5", "both:choice:10"
+    /// Format: <NUM>[:[p1|p2]]
+    /// Examples: "3" (both players), "1:p1" (only p1), "5:p2" (only p2)
     pub fn parse(s: &str) -> Result<Self, String> {
         let parts: Vec<&str> = s.split(':').collect();
-        if parts.len() != 3 {
-            return Err(format!("invalid format '{}' (expected: [p1|p2|both]:choice:<NUM>)", s));
+
+        match parts.len() {
+            1 => {
+                // Simple format: just a number means "both"
+                let choice_count = parts[0]
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid choice count '{}'", parts[0]))?;
+                Ok(StopCondition {
+                    player: StopPlayer::Both,
+                    choice_count,
+                })
+            }
+            2 => {
+                // Extended format: <NUM>:<player>
+                let choice_count = parts[0]
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid choice count '{}'", parts[0]))?;
+
+                let player = match parts[1] {
+                    "p1" => StopPlayer::P1,
+                    "p2" => StopPlayer::P2,
+                    _ => return Err(format!("invalid player '{}' (expected: p1 or p2)", parts[1])),
+                };
+
+                Ok(StopCondition { player, choice_count })
+            }
+            _ => Err(format!("invalid format '{}' (expected: <NUM> or <NUM>:[p1|p2])", s)),
         }
-
-        let player = match parts[0] {
-            "p1" => StopPlayer::P1,
-            "p2" => StopPlayer::P2,
-            "both" => StopPlayer::Both,
-            _ => return Err(format!("invalid player '{}' (expected: p1, p2, or both)", parts[0])),
-        };
-
-        if parts[1] != "choice" {
-            return Err(format!("invalid condition type '{}' (expected: 'choice')", parts[1]));
-        }
-
-        let choice_count = parts[2]
-            .parse::<usize>()
-            .map_err(|_| format!("invalid choice count '{}'", parts[2]))?;
-
-        Ok(StopCondition { player, choice_count })
     }
 
     /// Check if this condition applies to a given player's choice
@@ -82,25 +90,27 @@ mod tests {
 
     #[test]
     fn test_parse_stop_condition() {
-        let cond = StopCondition::parse("p1:choice:5").unwrap();
-        assert!(matches!(cond.player, StopPlayer::P1));
+        // Simple format - just a number means "both"
+        let cond = StopCondition::parse("5").unwrap();
+        assert!(matches!(cond.player, StopPlayer::Both));
         assert_eq!(cond.choice_count, 5);
 
-        let cond = StopCondition::parse("p2:choice:10").unwrap();
+        // Extended format - with player specification
+        let cond = StopCondition::parse("1:p1").unwrap();
+        assert!(matches!(cond.player, StopPlayer::P1));
+        assert_eq!(cond.choice_count, 1);
+
+        let cond = StopCondition::parse("10:p2").unwrap();
         assert!(matches!(cond.player, StopPlayer::P2));
         assert_eq!(cond.choice_count, 10);
-
-        let cond = StopCondition::parse("both:choice:15").unwrap();
-        assert!(matches!(cond.player, StopPlayer::Both));
-        assert_eq!(cond.choice_count, 15);
     }
 
     #[test]
     fn test_parse_invalid_format() {
         assert!(StopCondition::parse("invalid").is_err());
-        assert!(StopCondition::parse("p1:choice").is_err());
-        assert!(StopCondition::parse("p1:turn:5").is_err());
-        assert!(StopCondition::parse("p3:choice:5").is_err());
+        assert!(StopCondition::parse("5:both").is_err()); // "both" is not supported, use just "5"
+        assert!(StopCondition::parse("5:p3").is_err());
+        assert!(StopCondition::parse("5:p1:extra").is_err());
     }
 
     #[test]

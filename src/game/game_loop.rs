@@ -107,7 +107,7 @@ pub struct GameLoop<'a> {
     stop_when_fixed_exhausted: bool,
     /// Snapshot path for fixed-exhausted snapshots
     snapshot_path_for_fixed: Option<std::path::PathBuf>,
-    /// Stop condition tracking for --stop-every (p1_id, stop_condition, snapshot_path)
+    /// Stop condition tracking for --stop-on-choice (p1_id, stop_condition, snapshot_path)
     stop_condition_info: Option<(PlayerId, crate::game::StopCondition, std::path::PathBuf)>,
     /// Baseline choice count when resuming from snapshot (to avoid counting pre-snapshot choices)
     baseline_choice_count: usize,
@@ -191,7 +191,7 @@ impl<'a> GameLoop<'a> {
         self
     }
 
-    /// Enable stop condition for --stop-every (mid-turn exit at exact choice count)
+    /// Enable stop condition for --stop-on-choice (mid-turn exit at exact choice count)
     ///
     /// When enabled, the game will save a snapshot and exit as soon as the filtered
     /// choice count reaches the limit specified in the stop condition. This provides
@@ -339,7 +339,7 @@ impl<'a> GameLoop<'a> {
             }));
         }
 
-        // Check 2: Stop condition (--stop-every)
+        // Check 2: Stop condition (--stop-on-choice)
         if let Some((p1_id, ref stop_condition, ref _snapshot_path)) = self.stop_condition_info {
             // Only count this choice if it matches the stop condition filter
             if stop_condition.applies_to(p1_id, player_id) {
@@ -382,7 +382,7 @@ impl<'a> GameLoop<'a> {
                     // Determine which snapshot type and path to use
                     let (choice_count, snapshot_path) =
                         if let Some((_, ref stop_condition, ref path)) = self.stop_condition_info {
-                            // --stop-every snapshot
+                            // --stop-on-choice snapshot
                             (stop_condition.choice_count, path.clone())
                         } else if let Some(ref path) = self.snapshot_path_for_fixed {
                             // --stop-when-fixed-exhausted snapshot
