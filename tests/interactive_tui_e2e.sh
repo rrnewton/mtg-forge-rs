@@ -18,20 +18,7 @@ NC='\033[0m' # No Color
 echo "=== Interactive TUI E2E Test ==="
 echo
 
-# Check if binary exists
-if [[ ! -f "target/debug/mtg" ]] && [[ ! -f "target/release/mtg" ]]; then
-    echo -e "${RED}Error: mtg binary not found${NC}"
-    echo "Please build the project first with 'cargo build' or 'cargo build --release'"
-    exit 1
-fi
-
-# Use debug binary if it exists, otherwise release
-MTG_BIN="target/debug/mtg"
-if [[ ! -f "$MTG_BIN" ]]; then
-    MTG_BIN="target/release/mtg"
-fi
-
-echo "Using binary: $MTG_BIN"
+echo "Will use: cargo run --bin mtg"
 echo
 
 # Check if test deck exists
@@ -82,7 +69,8 @@ echo
 # P1 = tui (interactive with piped input)
 # P2 = zero (deterministic choices)
 # Redirect stderr to capture game output
-if echo -e "$INPUT_SEQUENCE" | timeout 30s "$MTG_BIN" tui \
+# Since we only call mtg once, use cargo run
+if echo -e "$INPUT_SEQUENCE" | timeout 30s cargo run --bin mtg -- tui \
     decks/simple_bolt.dck \
     decks/simple_bolt.dck \
     --p1 tui \

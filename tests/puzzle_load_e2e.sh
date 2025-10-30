@@ -19,20 +19,7 @@ NC='\033[0m' # No Color
 echo "=== Puzzle Loading E2E Test ==="
 echo
 
-# Check if binary exists
-if [[ ! -f "target/debug/mtg" ]] && [[ ! -f "target/release/mtg" ]]; then
-    echo -e "${RED}Error: mtg binary not found${NC}"
-    echo "Please build the project first with 'cargo build'"
-    exit 1
-fi
-
-# Use debug binary if it exists, otherwise release
-MTG_BIN="target/debug/mtg"
-if [[ ! -f "$MTG_BIN" ]]; then
-    MTG_BIN="target/release/mtg"
-fi
-
-echo "Using binary: $MTG_BIN"
+echo "Will use: cargo run --bin mtg"
 echo
 
 # Check if cardsfolder exists
@@ -61,7 +48,8 @@ echo "Controllers: Heuristic vs Heuristic"
 echo "Seed: 12345 (deterministic)"
 echo
 
-if timeout 30s "$MTG_BIN" tui \
+# Since we call mtg twice total in this script, use cargo run each time
+if timeout 30s cargo run --bin mtg -- tui \
     --start-state test_puzzles/grizzly_bears_should_attack.pzl \
     --p1 heuristic \
     --p2 heuristic \
@@ -123,7 +111,7 @@ echo "Controllers: Heuristic vs Heuristic"
 echo "Seed: 42 (deterministic)"
 echo
 
-if timeout 30s "$MTG_BIN" tui \
+if timeout 30s cargo run --bin mtg -- tui \
     --start-state test_puzzles/royal_assassin_kills_attacker.pzl \
     --p1 heuristic \
     --p2 heuristic \
