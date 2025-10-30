@@ -114,31 +114,25 @@ fi
 
 WIP_FILE="${LOG_FILE}.wip"
 
-# CACHING DISABLED: All cache checks are now skipped
-# The caching mechanism has been completely deactivated
-# To re-enable caching, restore the original validate.sh from git history
-
-if false; then
-    # Skip cache checks if --force is specified
-    if [ "$FORCE_VALIDATION" = false ]; then
-        # Simple cache hit: exact match for this commit
-        if [ -f "$LOG_FILE" ]; then
-            echo ""
-            echo "==================================="
-            echo -e "${GREEN}✓ Validation cache hit for commit ${COMMIT_HASH}${NC}"
-            echo -e "${GREEN}✓ Validation already passed!${NC}"
-            echo "==================================="
-            echo ""
-            echo "Log file: $LOG_FILE"
-            echo ""
-            exit 0
-        fi
+# Skip cache checks if --force is specified
+if [ "$FORCE_VALIDATION" = false ]; then
+    # Simple cache hit: exact match for this commit
+    if [ -f "$LOG_FILE" ]; then
+        echo ""
+        echo "==================================="
+        echo -e "${GREEN}✓ Validation cache hit for commit ${COMMIT_HASH}${NC}"
+        echo -e "${GREEN}✓ Validation already passed!${NC}"
+        echo "==================================="
+        echo ""
+        echo "Log file: $LOG_FILE"
+        echo ""
+        exit 0
     fi
 fi
 
 # Smart cache hit: check if only *.md files changed compared to latest validation
 # (also skipped if --force is specified)
-if false && [ "$FORCE_VALIDATION" = false ] && [ -L "$LATEST_SYMLINK" ]; then
+if [ "$FORCE_VALIDATION" = false ] && [ -L "$LATEST_SYMLINK" ]; then
     # Extract the hash from the latest symlink target
     LATEST_LOG=$(readlink "$LATEST_SYMLINK")
     # Extract hash from filename: validate_HASH[_dirty].log
