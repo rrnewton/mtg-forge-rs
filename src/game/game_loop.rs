@@ -1352,6 +1352,29 @@ impl<'a> GameLoop<'a> {
         let available_creatures = self.get_available_attacker_creatures(active_player);
 
         if !available_creatures.is_empty() {
+            // Clear replay mode if all choices have been replayed
+            // This happens BEFORE checking stop conditions, so a snapshot taken here will NOT
+            // include the upcoming choice (which hasn't been presented yet)
+            //
+            // We stay in replay mode until BOTH conditions are met:
+            // 1. All intra-turn choices have been replayed (replay_choices_remaining == 0)
+            // 2. We've passed the baseline choice count from the snapshot
+            //
+            // This ensures that automatic actions (like draws) that happen before the first
+            // NEW choice point are properly suppressed, avoiding duplicate logging.
+            if self.replaying && self.replay_choices_remaining == 0
+               && (self.choice_counter as usize) >= self.baseline_choice_count {
+                eprintln!("🔍 [REPLAY_CLEAR_ATTACKERS] choice_counter={}, baseline={}, CLEARING replay mode",
+                    self.choice_counter, self.baseline_choice_count);
+                self.replaying = false;
+                if self.verbosity >= VerbosityLevel::Verbose {
+                    println!("✅ REPLAY MODE COMPLETE - will present attacker choice to controller");
+                }
+            } else if self.replaying {
+                eprintln!("🔍 [REPLAY_STILL_ACTIVE_ATTACKERS] choice_counter={}, baseline={}, remaining={}",
+                    self.choice_counter, self.baseline_choice_count, self.replay_choices_remaining);
+            }
+
             // PREAMBLE: Check stop conditions before asking for choice
             if let Some(result) = self.check_stop_conditions(controller, active_player)? {
                 return Ok(Some(result));
@@ -1433,6 +1456,29 @@ impl<'a> GameLoop<'a> {
         let attackers = self.get_current_attackers();
 
         if !available_blockers.is_empty() && !attackers.is_empty() {
+            // Clear replay mode if all choices have been replayed
+            // This happens BEFORE checking stop conditions, so a snapshot taken here will NOT
+            // include the upcoming choice (which hasn't been presented yet)
+            //
+            // We stay in replay mode until BOTH conditions are met:
+            // 1. All intra-turn choices have been replayed (replay_choices_remaining == 0)
+            // 2. We've passed the baseline choice count from the snapshot
+            //
+            // This ensures that automatic actions (like draws) that happen before the first
+            // NEW choice point are properly suppressed, avoiding duplicate logging.
+            if self.replaying && self.replay_choices_remaining == 0
+               && (self.choice_counter as usize) >= self.baseline_choice_count {
+                eprintln!("🔍 [REPLAY_CLEAR_BLOCKERS] choice_counter={}, baseline={}, CLEARING replay mode",
+                    self.choice_counter, self.baseline_choice_count);
+                self.replaying = false;
+                if self.verbosity >= VerbosityLevel::Verbose {
+                    println!("✅ REPLAY MODE COMPLETE - will present blocker choice to controller");
+                }
+            } else if self.replaying {
+                eprintln!("🔍 [REPLAY_STILL_ACTIVE_BLOCKERS] choice_counter={}, baseline={}, remaining={}",
+                    self.choice_counter, self.baseline_choice_count, self.replay_choices_remaining);
+            }
+
             // PREAMBLE: Check stop conditions before asking for choice
             if let Some(result) = self.check_stop_conditions(controller, defending_player)? {
                 return Ok(Some(result));
