@@ -2639,7 +2639,27 @@ impl<'a> GameLoop<'a> {
                         if can_cast_now {
                             // Check if we can pay for this spell's mana cost
                             if mana_engine.can_pay(&card.mana_cost) {
-                                spells.push(card_id);
+                                // For Aura spells, check if there are valid targets
+                                // MTG Rule 303.4a: You can only cast an Aura spell if there's a legal object or player it could enchant
+                                if card.is_aura() {
+                                    // Check if there are valid enchantment targets on the battlefield
+                                    let has_valid_targets = self.game.battlefield.cards.iter().any(|&target_id| {
+                                        if let Ok(target_card) = self.game.cards.get(target_id) {
+                                            // Paralyze enchants creatures, so check for creatures
+                                            // TODO: Parse enchant restrictions from card data (e.g., "Enchant creature")
+                                            // For now, assume Auras enchant creatures
+                                            target_card.is_creature()
+                                        } else {
+                                            false
+                                        }
+                                    });
+
+                                    if has_valid_targets {
+                                        spells.push(card_id);
+                                    }
+                                } else {
+                                    spells.push(card_id);
+                                }
                             }
                         }
                     }

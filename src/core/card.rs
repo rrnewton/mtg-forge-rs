@@ -143,6 +143,10 @@ impl Card {
         self.is_type(&CardType::Enchantment)
     }
 
+    pub fn is_aura(&self) -> bool {
+        self.is_enchantment() && self.subtypes.iter().any(|s| s.as_str().eq_ignore_ascii_case("aura"))
+    }
+
     pub fn has_keyword(&self, keyword: &Keyword) -> bool {
         self.keywords.contains(keyword)
     }
