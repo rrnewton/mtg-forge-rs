@@ -260,6 +260,12 @@ impl PlayerController for ReplayController {
         self.inner.on_game_end(view, won);
     }
 
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType {
+        // Delegate to the inner controller to get its type
+        // ReplayController is just a wrapper, so we report the wrapped controller's type
+        self.inner.get_controller_type()
+    }
+
     fn get_snapshot_state(&self) -> Option<serde_json::Value> {
         // Delegate to inner controller for state serialization
         // This allows the wrapped controller (RandomController, FixedScriptController, etc.)

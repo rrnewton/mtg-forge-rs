@@ -10,6 +10,26 @@ use crate::undo::GameAction;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+/// Controller type identifier for snapshot persistence
+///
+/// This enum identifies which controller was used, separate from its state.
+/// Even stateless controllers (Heuristic, Zero, TUI) need their type preserved
+/// so they can be correctly restored from snapshots.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ControllerType {
+    Zero,
+    Random,
+    Tui,
+    Heuristic,
+    Fixed,
+}
+
+/// Default controller type for backward compatibility with old snapshots
+fn default_controller_type() -> ControllerType {
+    ControllerType::Zero
+}
+
 /// Controller state that can be preserved across snapshot/resume
 ///
 /// This enum allows us to serialize and restore the state of different controller types.
@@ -47,6 +67,20 @@ pub struct GameSnapshot {
     /// to restore the exact intra-turn state.
     pub intra_turn_choices: Vec<GameAction>,
 
+    /// Controller type for player 1
+    ///
+    /// Identifies which controller was used (Zero, Random, Heuristic, etc).
+    /// This is separate from controller_state - even stateless controllers need their type saved.
+    #[serde(default = "default_controller_type")]
+    pub p1_controller_type: ControllerType,
+
+    /// Controller type for player 2
+    ///
+    /// Identifies which controller was used (Zero, Random, Heuristic, etc).
+    /// This is separate from controller_state - even stateless controllers need their type saved.
+    #[serde(default = "default_controller_type")]
+    pub p2_controller_type: ControllerType,
+
     /// Optional controller state for player 1
     ///
     /// Preserves the full state of player 1's controller across snapshot/resume.
@@ -69,12 +103,36 @@ impl GameSnapshot {
             game_state,
             turn_number,
             intra_turn_choices,
+            p1_controller_type: default_controller_type(),
+            p2_controller_type: default_controller_type(),
             p1_controller_state: None,
             p2_controller_state: None,
         }
     }
 
-    /// Create a snapshot with controller state preserved
+    /// Create a snapshot with controller types and states preserved
+    pub fn with_controllers(
+        game_state: GameState,
+        turn_number: u32,
+        intra_turn_choices: Vec<GameAction>,
+        p1_controller_type: ControllerType,
+        p2_controller_type: ControllerType,
+        p1_controller_state: Option<ControllerState>,
+        p2_controller_state: Option<ControllerState>,
+    ) -> Self {
+        GameSnapshot {
+            game_state,
+            turn_number,
+            intra_turn_choices,
+            p1_controller_type,
+            p2_controller_type,
+            p1_controller_state,
+            p2_controller_state,
+        }
+    }
+
+    /// Create a snapshot with controller state preserved (deprecated, use with_controllers)
+    #[deprecated(since = "0.1.0", note = "Use with_controllers() instead to preserve controller types")]
     pub fn with_controller_state(
         game_state: GameState,
         turn_number: u32,
@@ -86,6 +144,8 @@ impl GameSnapshot {
             game_state,
             turn_number,
             intra_turn_choices,
+            p1_controller_type: default_controller_type(),
+            p2_controller_type: default_controller_type(),
             p1_controller_state,
             p2_controller_state,
         }

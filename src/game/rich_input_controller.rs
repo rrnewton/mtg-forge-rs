@@ -325,6 +325,10 @@ impl PlayerController for RichInputController {
         // No action needed
     }
 
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType {
+        crate::game::snapshot::ControllerType::Tui
+    }
+
     fn get_snapshot_state(&self) -> Option<serde_json::Value> {
         // Serialize the controller state
         serde_json::to_value(self).ok()

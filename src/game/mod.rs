@@ -43,7 +43,7 @@ pub use phase::{Phase, Step, TurnStructure};
 pub use random_controller::RandomController;
 pub use replay_controller::{ReplayChoice, ReplayController};
 pub use rich_input_controller::RichInputController;
-pub use snapshot::{ControllerState, GameSnapshot, SnapshotError};
+pub use snapshot::{ControllerState, ControllerType, GameSnapshot, SnapshotError};
 pub use state::GameState;
 pub use state_hash::{compute_state_hash, format_hash};
 pub use stop_condition::{StopCondition, StopPlayer};

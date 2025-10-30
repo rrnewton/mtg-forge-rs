@@ -651,7 +651,11 @@ impl<'a> GameLoop<'a> {
         // Clone the game state at the turn boundary (or game start if turn 1)
         let game_state_snapshot = self.game.clone();
 
-        // Capture controller RNG states (no borrow conflicts at this level!)
+        // Capture controller types (ALWAYS needed for resume)
+        let p1_controller_type = controller1.get_controller_type();
+        let p2_controller_type = controller2.get_controller_type();
+
+        // Capture controller RNG states (only for stateful controllers)
         let p1_controller_state = controller1
             .get_snapshot_state()
             .and_then(|v| serde_json::from_value(v).ok());
@@ -659,11 +663,13 @@ impl<'a> GameLoop<'a> {
             .get_snapshot_state()
             .and_then(|v| serde_json::from_value(v).ok());
 
-        // Create snapshot with state + choices + controller states
-        let snapshot = crate::game::GameSnapshot::with_controller_state(
+        // Create snapshot with state + choices + controller types + controller states
+        let snapshot = crate::game::GameSnapshot::with_controllers(
             game_state_snapshot,
             turn_number,
             intra_turn_choices,
+            p1_controller_type,
+            p2_controller_type,
             p1_controller_state,
             p2_controller_state,
         );

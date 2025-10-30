@@ -317,6 +317,10 @@ impl PlayerController for FixedScriptController {
     fn has_more_choices(&self) -> bool {
         self.current_index < self.script.len()
     }
+
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType {
+        crate::game::snapshot::ControllerType::Fixed
+    }
 }
 
 #[cfg(test)]

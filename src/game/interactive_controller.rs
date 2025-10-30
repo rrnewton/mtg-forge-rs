@@ -953,4 +953,8 @@ impl PlayerController for InteractiveController {
         println!("You {}", if won { "WON!" } else { "LOST!" });
         println!("Final life total: {}", view.life());
     }
+
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType {
+        crate::game::snapshot::ControllerType::Tui
+    }
 }

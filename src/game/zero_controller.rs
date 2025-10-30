@@ -126,6 +126,10 @@ impl PlayerController for ZeroController {
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {
         // Zero controller doesn't need to log
     }
+
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType {
+        crate::game::snapshot::ControllerType::Zero
+    }
 }
 
 #[cfg(test)]

@@ -1068,6 +1068,10 @@ impl PlayerController for HeuristicController {
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {
         // Could collect statistics here
     }
+
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType {
+        crate::game::snapshot::ControllerType::Heuristic
+    }
 }
 
 #[cfg(test)]

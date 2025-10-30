@@ -115,6 +115,10 @@ impl PlayerController for AliceController {
     fn on_priority_passed(&mut self, _view: &GameStateView) {}
 
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {}
+
+    fn get_controller_type(&self) -> mtg_forge_rs::game::ControllerType {
+        mtg_forge_rs::game::ControllerType::Zero
+    }
 }
 
 /// Bob's controller - blocks with specific assignments
@@ -220,6 +224,10 @@ impl PlayerController for BobController {
     fn on_priority_passed(&mut self, _view: &GameStateView) {}
 
     fn on_game_end(&mut self, _view: &GameStateView, _won: bool) {}
+
+    fn get_controller_type(&self) -> mtg_forge_rs::game::ControllerType {
+        mtg_forge_rs::game::ControllerType::Zero
+    }
 }
 
 fn main() {

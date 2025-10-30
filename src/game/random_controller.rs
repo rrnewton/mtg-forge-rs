@@ -304,6 +304,10 @@ impl PlayerController for RandomController {
         let state = crate::game::ControllerState::Random(self.clone());
         serde_json::to_value(state).ok()
     }
+
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType {
+        crate::game::snapshot::ControllerType::Random
+    }
 }
 
 #[cfg(test)]

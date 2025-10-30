@@ -402,6 +402,14 @@ pub trait PlayerController {
     fn has_more_choices(&self) -> bool {
         true
     }
+
+    /// Get the controller type for snapshot persistence
+    ///
+    /// Returns the controller type so snapshots can record which controller
+    /// was active, even for stateless controllers like Heuristic and Zero.
+    /// This is critical for snapshot/resume functionality - without this,
+    /// stateless controllers would be incorrectly restored as Zero controllers.
+    fn get_controller_type(&self) -> crate::game::snapshot::ControllerType;
 }
 
 #[cfg(test)]

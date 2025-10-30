@@ -1189,20 +1189,24 @@ async fn run_resume(
 
     // Determine controller types (restore from snapshot or use overrides)
     let p1_type = override_p1.unwrap_or({
-        // Infer from snapshot controller state
-        match &snapshot.p1_controller_state {
-            Some(mtg_forge_rs::game::ControllerState::Random(_)) => ControllerType::Random,
-            Some(mtg_forge_rs::game::ControllerState::Fixed(_)) => ControllerType::Fixed,
-            None => ControllerType::Zero, // Default fallback
+        // Use the saved controller type from snapshot
+        match snapshot.p1_controller_type {
+            mtg_forge_rs::game::ControllerType::Zero => ControllerType::Zero,
+            mtg_forge_rs::game::ControllerType::Random => ControllerType::Random,
+            mtg_forge_rs::game::ControllerType::Tui => ControllerType::Tui,
+            mtg_forge_rs::game::ControllerType::Heuristic => ControllerType::Heuristic,
+            mtg_forge_rs::game::ControllerType::Fixed => ControllerType::Fixed,
         }
     });
 
     let p2_type = override_p2.unwrap_or({
-        // Infer from snapshot controller state
-        match &snapshot.p2_controller_state {
-            Some(mtg_forge_rs::game::ControllerState::Random(_)) => ControllerType::Random,
-            Some(mtg_forge_rs::game::ControllerState::Fixed(_)) => ControllerType::Fixed,
-            None => ControllerType::Zero, // Default fallback
+        // Use the saved controller type from snapshot
+        match snapshot.p2_controller_type {
+            mtg_forge_rs::game::ControllerType::Zero => ControllerType::Zero,
+            mtg_forge_rs::game::ControllerType::Random => ControllerType::Random,
+            mtg_forge_rs::game::ControllerType::Tui => ControllerType::Tui,
+            mtg_forge_rs::game::ControllerType::Heuristic => ControllerType::Heuristic,
+            mtg_forge_rs::game::ControllerType::Fixed => ControllerType::Fixed,
         }
     });
 
