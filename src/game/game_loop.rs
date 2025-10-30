@@ -1871,13 +1871,62 @@ impl<'a> GameLoop<'a> {
             println!("  {} ({}) resolves", card_name, spell_id);
         }
 
-        // Resolve the spell
+        // Resolve the spell (this modifies effects with target replacement)
         self.game.resolve_spell(spell_id, &targets)?;
 
         // Log effects for instants/sorceries
+        // Note: We need to manually replace placeholder targets for logging
         if self.verbosity >= VerbosityLevel::Normal && !self.replaying {
+            use crate::core::Effect;
+            let mut target_index = 0;
             for effect in &card_effects {
-                self.log_effect_execution(&card_name, spell_id, effect, card_owner);
+                // Replace placeholder targets with chosen targets for logging
+                let effect_to_log = match effect {
+                    Effect::CounterSpell { target } if target.as_u32() == 0 && target_index < targets.len() => {
+                        let replaced = Effect::CounterSpell {
+                            target: targets[target_index],
+                        };
+                        target_index += 1;
+                        replaced
+                    }
+                    Effect::DestroyPermanent { target } if target.as_u32() == 0 && target_index < targets.len() => {
+                        let replaced = Effect::DestroyPermanent {
+                            target: targets[target_index],
+                        };
+                        target_index += 1;
+                        replaced
+                    }
+                    Effect::TapPermanent { target } if target.as_u32() == 0 && target_index < targets.len() => {
+                        let replaced = Effect::TapPermanent {
+                            target: targets[target_index],
+                        };
+                        target_index += 1;
+                        replaced
+                    }
+                    Effect::UntapPermanent { target } if target.as_u32() == 0 && target_index < targets.len() => {
+                        let replaced = Effect::UntapPermanent {
+                            target: targets[target_index],
+                        };
+                        target_index += 1;
+                        replaced
+                    }
+                    Effect::PumpCreature {
+                        target,
+                        power_bonus,
+                        toughness_bonus,
+                    } if target.as_u32() == 0 && target_index < targets.len() => {
+                        let replaced = Effect::PumpCreature {
+                            target: targets[target_index],
+                            power_bonus: *power_bonus,
+                            toughness_bonus: *toughness_bonus,
+                        };
+                        target_index += 1;
+                        replaced
+                    }
+                    _ => effect.clone(),
+                };
+
+                self.log_effect_execution(&card_name, spell_id, &effect_to_log, card_owner);
             }
 
             // Check if it's a permanent entering battlefield
@@ -2656,6 +2705,12 @@ impl<'a> GameLoop<'a> {
                                     if has_valid_targets {
                                         spells.push(card_id);
                                     }
+                                } else if Self::spell_requires_stack_target(card) {
+                                    // For counterspells and similar effects, check if stack has valid targets
+                                    // MTG Rule 608.2b: If a spell/ability targets, it's countered if all targets are illegal
+                                    if !self.game.stack.is_empty() {
+                                        spells.push(card_id);
+                                    }
                                 } else {
                                     spells.push(card_id);
                                 }
@@ -2958,6 +3013,20 @@ impl<'a> GameLoop<'a> {
         }
 
         None
+    }
+
+    /// Check if a spell requires a target on the stack (e.g., Counterspell)
+    ///
+    /// Returns true if the spell has effects that target spells on the stack,
+    /// meaning it can only be cast when there's a spell to target.
+    fn spell_requires_stack_target(card: &crate::core::Card) -> bool {
+        use crate::core::Effect;
+
+        // Check if any effect is CounterSpell with a placeholder target
+        // Placeholder target (CardId(0)) means the spell needs to choose a target when cast
+        card.effects
+            .iter()
+            .any(|effect| matches!(effect, Effect::CounterSpell { target } if target.as_u32() == 0))
     }
 
     /// Determine mana production for a land card
