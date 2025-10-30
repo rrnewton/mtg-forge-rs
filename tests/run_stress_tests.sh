@@ -83,9 +83,13 @@ else
 fi
 
 # Controller matchups to test
+# Format: "p1_controller:p2_controller[:flags]"
+# Flags can include "--switch-fixed"
 MATCHUPS=(
     "heuristic:heuristic"
     "random:heuristic"
+    "random:heuristic:--switch-fixed"
+    "heuristic:random:--switch-fixed"
 )
 
 echo "=== MTG Snapshot/Resume Stress Tests ==="
@@ -106,9 +110,9 @@ for deck in "${DECKS[@]}"; do
     fi
 
     for matchup in "${MATCHUPS[@]}"; do
-        # Split matchup into p1 and p2 controllers
-        IFS=':' read -r p1 p2 <<< "$matchup"
-        TEST_CASES+=("$deck_path:$p1:$p2")
+        # Split matchup into p1, p2, and optional flags
+        IFS=':' read -r p1 p2 flags <<< "$matchup"
+        TEST_CASES+=("$deck_path:$p1:$p2:$flags")
     done
 done
 
@@ -128,16 +132,25 @@ chmod +x scripts/snapshot_stress_test_single.py
 run_test() {
     local test_case="$1"
 
-    # Parse test case: deck_path:p1:p2
-    IFS=':' read -r deck_path p1 p2 <<< "$test_case"
+    # Parse test case: deck_path:p1:p2:flags
+    IFS=':' read -r deck_path p1 p2 flags <<< "$test_case"
 
     # Extract deck name for display
     deck_name=$(basename "$deck_path" .dck)
 
-    # Build command with optional --keep flag
+    # Build test description
+    local test_desc="$p1 vs $p2"
+    if [ -n "$flags" ]; then
+        test_desc="$test_desc $flags"
+    fi
+
+    # Build command with optional flags
     local cmd="./scripts/snapshot_stress_test_single.py $deck_path $p1 $p2 --quiet"
     if [ "$KEEP_ARTIFACTS" = true ]; then
         cmd="$cmd --keep"
+    fi
+    if [ -n "$flags" ]; then
+        cmd="$cmd $flags"
     fi
 
     # Run the test and capture output
@@ -146,21 +159,24 @@ run_test() {
     local exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
-        echo "✓ $deck_name ($p1 vs $p2)"
+        echo "✓ $deck_name ($test_desc)"
         return 0
     else
-        echo "✗ $deck_name ($p1 vs $p2)"
+        echo "✗ $deck_name ($test_desc)"
         # Print detailed failure info to stderr for capturing
         {
             echo ""
             echo "=========================================="
-            echo "FAILED: $deck_name ($p1 vs $p2)"
+            echo "FAILED: $deck_name ($test_desc)"
             echo "=========================================="
             echo ""
             echo "Reproduce with:"
             local repro_cmd="  ./scripts/snapshot_stress_test_single.py $deck_path $p1 $p2 --verbose"
             if [ "$KEEP_ARTIFACTS" = true ]; then
                 repro_cmd="$repro_cmd --keep"
+            fi
+            if [ -n "$flags" ]; then
+                repro_cmd="$repro_cmd $flags"
             fi
             echo "$repro_cmd"
             echo ""
@@ -196,9 +212,13 @@ if [ "$FORCE_SEQUENTIAL" = true ] || ! command -v parallel &> /dev/null; then
             PASSED=$((PASSED + 1))
         else
             FAILED=$((FAILED + 1))
-            IFS=':' read -r deck_path p1 p2 <<< "$test_case"
+            IFS=':' read -r deck_path p1 p2 flags <<< "$test_case"
             deck_name=$(basename "$deck_path" .dck)
-            FAILED_TESTS="$FAILED_TESTS\n  - $deck_name ($p1 vs $p2)"
+            local test_desc="$p1 vs $p2"
+            if [ -n "$flags" ]; then
+                test_desc="$test_desc $flags"
+            fi
+            FAILED_TESTS="$FAILED_TESTS\n  - $deck_name ($test_desc)"
         fi
     done
 
