@@ -5,7 +5,9 @@
 
 ## Summary
 
-Final gamestate comparison between normal and stop-and-go runs reveals **only harmless metadata differences**. The gameplay itself is **100% deterministic**.
+**OUTDATED**: This analysis from 2025-10-28 is NO LONGER ACCURATE. Recent fixes revealed that log differences are NOT cosmetic - they indicate real determinism bugs.
+
+**Current Status (2025-10-30)**: 4/6 stress tests passing. Remaining failures have log divergence indicating actual non-determinism, not just "metadata differences".
 
 ## Investigation
 
@@ -54,30 +56,29 @@ The `choice_id` is a **monotonic counter** in `GameState` that increments each t
 - Controller choices match (verified by stress tests)
 - Card draws, combat, damage all identical
 
-**Undo Log Metadata**: ⚠️ **Cosmetic difference only**
-- The `choice_id` field is just a tracking number in the undo log
-- It's not used for any gameplay logic or decision making
-- It's not used for snapshot/resume coordination
-- It's purely metadata for debugging/analysis purposes
+**Undo Log Metadata**: ⚠️ **ANALYSIS WAS WRONG**
+- Previous analysis claimed choice_id differences were "cosmetic"
+- This was incorrect - subsequent investigation found real determinism bugs
+- Log differences indicate actual execution divergence, not just metadata
+- The deterministic action log is the source of truth, not gamest state JSON
 
-### Conclusion
+### Conclusion (REVISED)
 
-The gamestate differences are **cosmetic metadata** in the undo log, not actual gameplay differences. The snapshot/resume mechanism is **fully deterministic** for gameplay purposes.
+**The original conclusion was WRONG**. Log differences are NOT "cosmetic" - they indicate broken determinism. The deterministic action log (stdout) is the canonical representation of game execution. Any log divergence means the games executed differently, even if gamestates happen to match by coincidence.
 
-## Recommendations
+## Recommendations (REVISED)
 
-### Option 1: Accept the Difference (RECOMMENDED)
+### REJECT Previous "Option 1" - It Was Wrong
 
-**Reasoning**:
-- The difference is harmless metadata, not gameplay state
-- Log comparison already validates true determinism
-- Fixing it would add complexity for zero gameplay benefit
-- The undo log is for debugging, not core functionality
+The previous recommendation to "accept the difference" was based on faulty analysis. DO NOT accept log differences as "cosmetic".
 
-**Action**:
-- Disable gamestate deep comparison in stress tests (current state)
-- Rely on log comparison for determinism validation
-- Document this finding in mtg-89
+### Current Approach (CORRECT)
+
+**Requirement**: Logs MUST match exactly for true determinism.
+- The deterministic action log (stdout) is the canonical game record
+- Any log divergence indicates broken determinism
+- Fix all log divergence issues before declaring determinism achieved
+- Gamestate JSON comparison is secondary to log comparison
 
 ### Option 2: Fix the Counter Offset
 
