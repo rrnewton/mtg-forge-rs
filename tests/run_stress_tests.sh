@@ -76,6 +76,7 @@ if [ ${#DECK_ARGS[@]} -eq 0 ]; then
         "royal_assassin"
         "white_aggro_4ed"
         "grizzly_bears"
+        "white_weenie"
     )
 else
     DECKS=("${DECK_ARGS[@]}")
