@@ -1645,6 +1645,12 @@ impl<'a> GameLoop<'a> {
         attackers.sort_by_key(|id| id.as_u32());
 
         for attacker_id in &attackers {
+            // Skip creatures that are no longer on the battlefield
+            // MTG Rule 510.1c: Only creatures still on the battlefield deal combat damage
+            if !self.game.battlefield.contains(*attacker_id) {
+                continue;
+            }
+
             if let Ok(attacker) = self.game.cards.get(*attacker_id) {
                 // Check if this attacker deals damage in this step
                 let deals_damage = if first_strike_step {
