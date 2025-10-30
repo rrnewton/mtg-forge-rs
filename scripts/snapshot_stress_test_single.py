@@ -213,7 +213,7 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
             "--debug-state-hash"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        return result.stdout
+        return result.stdout, []  # No snapshots in fallback case
 
     # Generate random stop points
     actual_num_stops = min(num_stops, max(1, total_choices - 1))
