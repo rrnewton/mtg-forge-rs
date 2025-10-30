@@ -830,7 +830,7 @@ impl<'a> GameLoop<'a> {
                     // Only clear if we've actually moved past the baseline (made new choices)
                     // If choice_counter is still at baseline, we didn't make any new choices this turn
                     // and should keep replaying mode active for the next turn
-                    if self.replaying && (self.choice_counter as usize) > self.baseline_choice_count {
+                    if self.replaying && (self.choice_counter as usize) >= self.baseline_choice_count {
                         if self.verbosity >= VerbosityLevel::Verbose {
                             println!("✅ CLEARING REPLAY MODE at end of resumed turn");
                         }
@@ -1871,7 +1871,7 @@ impl<'a> GameLoop<'a> {
                     // This ensures that automatic actions (like draws) that happen before the first
                     // NEW choice point are properly suppressed, avoiding duplicate logging.
                     if self.replaying && self.replay_choices_remaining == 0
-                       && (self.choice_counter as usize) > self.baseline_choice_count {
+                       && (self.choice_counter as usize) >= self.baseline_choice_count {
                         self.replaying = false;
                         if self.verbosity >= VerbosityLevel::Verbose {
                             println!("✅ REPLAY MODE COMPLETE - will present new choice to controller");
