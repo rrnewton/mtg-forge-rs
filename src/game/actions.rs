@@ -1088,36 +1088,51 @@ impl GameState {
 
         let player = self.get_player_mut(player_id)?;
 
-        // For now, prioritize producing Black mana if we need it (crude heuristic)
-        // TODO(mtg-XXX): Make tap_for_mana color-aware - take desired color as parameter
+        // Determine what colors this land can produce
+        let mut available_colors = Vec::new();
+        if has_plains_subtype || land_name.contains("plains") {
+            available_colors.push(crate::core::Color::White);
+        }
+        if has_island_subtype || land_name.contains("island") {
+            available_colors.push(crate::core::Color::Blue);
+        }
+        if has_swamp_subtype || land_name.contains("swamp") {
+            available_colors.push(crate::core::Color::Black);
+        }
+        if has_mountain_subtype || land_name.contains("mountain") {
+            available_colors.push(crate::core::Color::Red);
+        }
+        if has_forest_subtype || land_name.contains("forest") {
+            available_colors.push(crate::core::Color::Green);
+        }
 
-        let color = if has_swamp_subtype || land_name.contains("swamp") {
-            Some(crate::core::Color::Black)
-        } else if has_mountain_subtype || land_name.contains("mountain") {
-            Some(crate::core::Color::Red)
-        } else if has_island_subtype || land_name.contains("island") {
-            Some(crate::core::Color::Blue)
-        } else if has_forest_subtype || land_name.contains("forest") {
-            Some(crate::core::Color::Green)
-        } else if has_plains_subtype || land_name.contains("plains") {
-            Some(crate::core::Color::White)
-        } else if is_any_color_land {
-            // For any-color lands, produce the first color needed by the cost
-            if cost_hint.white > 0 {
+        let color = if is_any_color_land || available_colors.len() > 1 {
+            // Multi-color or any-color land: choose based on cost hint
+            // Produce the first color needed by the cost that this land can produce
+            if cost_hint.white > 0 && (is_any_color_land || available_colors.contains(&crate::core::Color::White)) {
                 Some(crate::core::Color::White)
-            } else if cost_hint.blue > 0 {
+            } else if cost_hint.blue > 0 && (is_any_color_land || available_colors.contains(&crate::core::Color::Blue))
+            {
                 Some(crate::core::Color::Blue)
-            } else if cost_hint.black > 0 {
+            } else if cost_hint.black > 0
+                && (is_any_color_land || available_colors.contains(&crate::core::Color::Black))
+            {
                 Some(crate::core::Color::Black)
-            } else if cost_hint.red > 0 {
+            } else if cost_hint.red > 0 && (is_any_color_land || available_colors.contains(&crate::core::Color::Red)) {
                 Some(crate::core::Color::Red)
-            } else if cost_hint.green > 0 {
+            } else if cost_hint.green > 0
+                && (is_any_color_land || available_colors.contains(&crate::core::Color::Green))
+            {
                 Some(crate::core::Color::Green)
             } else {
-                // Generic or colorless cost - produce white by default
-                Some(crate::core::Color::White)
+                // Cost doesn't need a specific color - produce the first available color
+                available_colors.first().copied().or(Some(crate::core::Color::White))
             }
+        } else if available_colors.len() == 1 {
+            // Single-color land
+            available_colors.first().copied()
         } else {
+            // Unknown land type
             None
         };
 
