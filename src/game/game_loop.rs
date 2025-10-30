@@ -213,9 +213,13 @@ impl<'a> GameLoop<'a> {
     /// Set replay mode for resuming from snapshot
     ///
     /// When resuming from a snapshot, we replay intra-turn choices to restore game state.
-    /// During this replay, logging is suppressed for all choices EXCEPT the last one.
-    /// The last choice was logged to the replay log but never executed (snapshots are taken
-    /// before execution), so it needs normal logging when it executes.
+    /// During this replay, ALL logging is suppressed because snapshots are taken BEFORE
+    /// presenting a choice to the controller. This means all choices in the snapshot were
+    /// already made, executed, and logged in previous segments.
+    ///
+    /// After all choices are replayed, replay mode is cleared and the NEXT choice is
+    /// presented fresh to the controller (this is where the snapshot paused).
+    ///
     /// This method enables replay mode and sets the number of choices to replay.
     /// Also sets resumed_from_snapshot flag to suppress turn header on first turn.
     pub fn with_replay_mode(mut self, choice_count: usize) -> Self {
@@ -280,20 +284,14 @@ impl<'a> GameLoop<'a> {
         });
 
         // If we're in replay mode, decrement counter
+        // Note: Replay mode stays active until ALL choices are replayed, then cleared before
+        // presenting the NEXT choice. This is because snapshots are taken BEFORE presenting
+        // a choice, so all choices in the snapshot were already made/executed/logged.
         if self.replaying && self.replay_choices_remaining > 0 {
             self.replay_choices_remaining -= 1;
-
-            // If this is the LAST replay choice (counter reached 1), clear replay mode
-            // so that its execution will be logged normally. The last choice was never
-            // executed (snapshot taken before execution), so it needs stdout logging.
-            if self.replay_choices_remaining == 0 {
-                self.replaying = false;
-                if self.verbosity >= VerbosityLevel::Verbose {
-                    println!("🔄 Replay choice complete: last choice will log normally (never executed before)");
-                }
-            } else if self.verbosity >= VerbosityLevel::Verbose {
+            if self.verbosity >= VerbosityLevel::Verbose {
                 println!(
-                    "🔄 Replay choice: {} remaining (suppressing execution logs)",
+                    "🔄 Replay choice: {} remaining (suppressing logs)",
                     self.replay_choices_remaining
                 );
             }
@@ -302,7 +300,10 @@ impl<'a> GameLoop<'a> {
 
     /// Check if we should save a snapshot before asking for next controller choice
     ///
-    /// This is the PREAMBLE check that happens before asking a controller for a choice.
+    /// This is the PREAMBLE check that happens BEFORE presenting a choice to the controller.
+    /// This ensures snapshots pause the game at a clean point where an external agent can
+    /// review the game state and make a decision when resuming.
+    ///
     /// It checks two conditions:
     /// 1. If stop_when_fixed_exhausted is enabled and controller is out of choices
     /// 2. If stop condition is set and filtered choice count reached limit
@@ -332,36 +333,6 @@ impl<'a> GameLoop<'a> {
                 // If we've reached the limit, signal to unwind control flow
                 if filtered_count >= stop_condition.choice_count {
                     // Just return a signal - don't save yet!
-                    return Ok(Some(GameResult {
-                        winner: None,
-                        turns_played: self.turns_elapsed,
-                        end_reason: GameEndReason::Snapshot,
-                    }));
-                }
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Check if we should save a snapshot after logging a choice
-    ///
-    /// This is the POSTAMBLE check that happens after logging a choice but BEFORE
-    /// executing the action. This ensures we snapshot AT the choice, not after it executes.
-    ///
-    /// Returns Some(GameResult) if snapshot should be saved, None to continue.
-    fn check_stop_condition_after_choice(&mut self, player_id: PlayerId) -> Result<Option<GameResult>> {
-        // Only check stop condition (not fixed controller exhaustion, which is checked in PREAMBLE)
-        if let Some((p1_id, ref stop_condition, ref _snapshot_path)) = self.stop_condition_info {
-            // Only count this choice if it matches the stop condition filter
-            if stop_condition.applies_to(p1_id, player_id) {
-                let filtered_count = self.count_filtered_choices(p1_id, stop_condition);
-
-                // If we've reached the limit, signal to unwind control flow
-                // The snapshot will be saved at the top level where we have access to controllers
-                if filtered_count >= stop_condition.choice_count {
-                    // Just return a signal - don't save yet!
-                    // Control flow will unwind back to run_game() where we can save
                     return Ok(Some(GameResult {
                         winner: None,
                         turns_played: self.turns_elapsed,
@@ -1375,12 +1346,6 @@ impl<'a> GameLoop<'a> {
             let replay_choice = crate::game::ReplayChoice::Attackers(attackers.clone());
             self.log_choice_point(active_player, Some(replay_choice));
 
-            // POSTAMBLE: Check if we should snapshot after logging this choice
-            // This ensures we stop AT the choice, not after executing the action
-            if let Some(result) = self.check_stop_condition_after_choice(active_player)? {
-                return Ok(Some(result));
-            }
-
             // Declare each chosen attacker
             for attacker_id in attackers.iter() {
                 // Use GameState::declare_attacker() which taps the creature (MTG Rules 508.1f)
@@ -1461,12 +1426,6 @@ impl<'a> GameLoop<'a> {
             // Log this choice point for snapshot/replay
             let replay_choice = crate::game::ReplayChoice::Blockers(blocks.clone());
             self.log_choice_point(defending_player, Some(replay_choice));
-
-            // POSTAMBLE: Check if we should snapshot after logging this choice
-            // This ensures we stop AT the choice, not after executing the action
-            if let Some(result) = self.check_stop_condition_after_choice(defending_player)? {
-                return Ok(Some(result));
-            }
 
             // Declare each blocking assignment
             for (blocker_id, attacker_id) in blocks.iter() {
@@ -1711,15 +1670,9 @@ impl<'a> GameLoop<'a> {
 
                 let cards_to_discard = controller.choose_cards_to_discard(&view, hand, discard_count);
 
-                // POSTAMBLE: Log this choice point for snapshot/replay
+                // Log this choice point for snapshot/replay
                 let replay_choice = crate::game::ReplayChoice::Discard(cards_to_discard.clone());
                 self.log_choice_point(player_id, Some(replay_choice));
-
-                // POSTAMBLE: Check if we should snapshot after logging this choice
-                // This ensures we stop AT the choice, not after executing the action
-                if let Some(result) = self.check_stop_condition_after_choice(player_id)? {
-                    return Ok(Some(result));
-                }
 
                 // Verify correct number of cards
                 if cards_to_discard.len() != discard_count {
@@ -1887,28 +1840,32 @@ impl<'a> GameLoop<'a> {
                     // No available actions - automatically pass priority
                     None
                 } else {
-                    // PREAMBLE: Check stop conditions before asking for choice
+                    // Clear replay mode if all choices have been replayed
+                    // This happens BEFORE checking stop conditions, so a snapshot taken here will NOT
+                    // include the upcoming choice (which hasn't been presented yet)
+                    if self.replaying && self.replay_choices_remaining == 0 {
+                        self.replaying = false;
+                        if self.verbosity >= VerbosityLevel::Verbose {
+                            println!("✅ REPLAY MODE COMPLETE - will present new choice to controller");
+                        }
+                    }
+
+                    // PREAMBLE: Check stop conditions BEFORE asking for choice
+                    // This ensures snapshots are taken BEFORE presenting the next choice to the controller.
+                    // The controller can then review the game state up to this point and make their decision
+                    // when the game is resumed.
                     if let Some(result) = self.check_stop_conditions(controller, current_priority)? {
                         return Ok(Some(result));
                     }
-
-                    // Note: Replay mode is cleared in log_choice_point() after the last choice,
-                    // allowing it to be logged normally when executed
 
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);
 
                     let choice = controller.choose_spell_ability_to_play(&view, &available);
 
-                    // POSTAMBLE: Log this choice point for snapshot/replay
+                    // Log this choice point for snapshot/replay
                     let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
                     self.log_choice_point(current_priority, Some(replay_choice));
-
-                    // POSTAMBLE: Check if we should snapshot after logging this choice
-                    // This ensures we stop AT the choice, not after executing the action
-                    if let Some(result) = self.check_stop_condition_after_choice(current_priority)? {
-                        return Ok(Some(result));
-                    }
 
                     choice
                 };
