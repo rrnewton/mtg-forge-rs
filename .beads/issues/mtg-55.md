@@ -3,8 +3,8 @@ title: Improve error messages in card loader
 status: closed
 priority: 0
 issue_type: task
-created_at: "2025-10-30T05:28:25Z"
-updated_at: "2025-10-30T05:28:25Z"
+created_at: "2025-10-26T21:06:34Z"
+updated_at: "2025-10-26T21:06:34Z"
 closed_at: "2025-10-24T10:15:17Z"
 ---
 

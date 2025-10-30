@@ -14,3 +14,6 @@ bd.sock.*
 # Keep markdown issues (source of truth for git)
 # !markdown.db/issues/*.md
 !markdown.db/*
+
+minibeads.lock
+command_history.log
