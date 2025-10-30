@@ -2999,7 +2999,7 @@
           "owner": 1,
           "controller": 1,
           "tapped": false,
-          "turn_entered_battlefield": null,
+          "turn_entered_battlefield": 2,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -5259,7 +5259,7 @@
           "colorless": 0
         },
         "has_lost": false,
-        "lands_played_this_turn": 1,
+        "lands_played_this_turn": 0,
         "max_lands_per_turn": 1,
         "max_hand_size": 7
       },
@@ -5276,7 +5276,7 @@
           "colorless": 0
         },
         "has_lost": false,
-        "lands_played_this_turn": 0,
+        "lands_played_this_turn": 1,
         "max_lands_per_turn": 1,
         "max_hand_size": 7
       }
@@ -5426,21 +5426,20 @@
               118,
               82,
               111,
-              119,
-              90
+              119
             ]
           },
           "hand": {
             "zone_type": "Hand",
             "owner": 1,
             "cards": [
-              68,
               104,
               83,
               92,
               89,
               76,
-              99
+              99,
+              90
             ]
           },
           "graveyard": {
@@ -5460,7 +5459,8 @@
       "zone_type": "Battlefield",
       "owner": 2,
       "cards": [
-        21
+        21,
+        68
       ]
     },
     "stack": {
@@ -5469,9 +5469,9 @@
       "cards": []
     },
     "turn": {
-      "turn_number": 2,
+      "turn_number": 3,
       "current_step": "Untap",
-      "active_player": 1,
+      "active_player": 0,
       "active_player_idx": 0,
       "priority_player": null
     },
@@ -5875,6 +5875,256 @@
               125
             ]
           }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Untap",
+            "to_step": "Upkeep"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Upkeep",
+            "to_step": "Draw"
+          }
+        },
+        {
+          "MoveCard": {
+            "card_id": 90,
+            "from_zone": "Library",
+            "to_zone": "Hand",
+            "owner": 1
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Draw",
+            "to_step": "Main1"
+          }
+        },
+        {
+          "ChoicePoint": {
+            "player_id": 1,
+            "choice_id": 2,
+            "choice": {
+              "SpellAbility": {
+                "PlayLand": {
+                  "card_id": 68
+                }
+              }
+            }
+          }
+        },
+        {
+          "MoveCard": {
+            "card_id": 68,
+            "from_zone": "Hand",
+            "to_zone": "Battlefield",
+            "owner": 1
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main1",
+            "to_step": "BeginCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "BeginCombat",
+            "to_step": "DeclareAttackers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareAttackers",
+            "to_step": "DeclareBlockers"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareBlockers",
+            "to_step": "CombatDamage"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "CombatDamage",
+            "to_step": "EndCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "EndCombat",
+            "to_step": "Main2"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main2",
+            "to_step": "End"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "End",
+            "to_step": "Cleanup"
+          }
+        },
+        {
+          "ChangeTurn": {
+            "from_player": 1,
+            "to_player": 0,
+            "turn_number": 3,
+            "rng_state": [
+              123,
+              34,
+              115,
+              101,
+              101,
+              100,
+              34,
+              58,
+              91,
+              49,
+              50,
+              54,
+              44,
+              57,
+              44,
+              57,
+              44,
+              50,
+              55,
+              44,
+              50,
+              49,
+              50,
+              44,
+              49,
+              53,
+              56,
+              44,
+              49,
+              54,
+              51,
+              44,
+              49,
+              54,
+              56,
+              44,
+              49,
+              51,
+              52,
+              44,
+              57,
+              55,
+              44,
+              51,
+              49,
+              44,
+              49,
+              48,
+              44,
+              53,
+              54,
+              44,
+              55,
+              56,
+              44,
+              50,
+              44,
+              49,
+              55,
+              53,
+              44,
+              49,
+              48,
+              55,
+              44,
+              50,
+              50,
+              54,
+              44,
+              49,
+              49,
+              49,
+              44,
+              50,
+              49,
+              54,
+              44,
+              49,
+              55,
+              56,
+              44,
+              50,
+              48,
+              55,
+              44,
+              56,
+              48,
+              44,
+              50,
+              51,
+              48,
+              44,
+              52,
+              53,
+              44,
+              57,
+              56,
+              44,
+              49,
+              53,
+              53,
+              44,
+              56,
+              55,
+              44,
+              50,
+              51,
+              55,
+              44,
+              49,
+              57,
+              49,
+              44,
+              54,
+              56,
+              44,
+              50,
+              50,
+              93,
+              44,
+              34,
+              115,
+              116,
+              114,
+              101,
+              97,
+              109,
+              34,
+              58,
+              48,
+              44,
+              34,
+              119,
+              111,
+              114,
+              100,
+              95,
+              112,
+              111,
+              115,
+              34,
+              58,
+              49,
+              54,
+              54,
+              125
+            ]
+          }
         }
       ],
       "enabled": true,
@@ -5888,22 +6138,8 @@
       "show_choice_menu": true
     }
   },
-  "turn_number": 2,
-  "intra_turn_choices": [
-    {
-      "ChoicePoint": {
-        "player_id": 1,
-        "choice_id": 2,
-        "choice": {
-          "SpellAbility": {
-            "PlayLand": {
-              "card_id": 68
-            }
-          }
-        }
-      }
-    }
-  ],
+  "turn_number": 3,
+  "intra_turn_choices": [],
   "p1_controller_type": "random",
   "p2_controller_type": "heuristic",
   "p1_controller_state": {

@@ -907,6 +907,11 @@ async fn run_tui(
         game_loop = game_loop.with_turn_counter(turns_elapsed);
     }
 
+    // Restore choice counter from snapshot if resuming
+    if let Some(ref snapshot) = loaded_snapshot {
+        game_loop = game_loop.with_choice_counter(snapshot.total_choice_count);
+    }
+
     // Enable stop-when-fixed-exhausted if requested
     if stop_when_fixed_exhausted {
         game_loop = game_loop.with_stop_when_fixed_exhausted(&snapshot_output);
@@ -1503,6 +1508,9 @@ async fn run_resume(
     }
     let turns_elapsed = turn_num - 1;
     game_loop = game_loop.with_turn_counter(turns_elapsed);
+
+    // Restore choice counter from snapshot
+    game_loop = game_loop.with_choice_counter(snapshot.total_choice_count);
 
     // Enable stop-when-fixed-exhausted if requested
     if stop_when_fixed_exhausted {

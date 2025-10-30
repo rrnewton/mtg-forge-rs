@@ -61,6 +61,13 @@ pub struct GameSnapshot {
     /// Turn number when this snapshot was created
     pub turn_number: u32,
 
+    /// Total number of choices made up to this point (cumulative across all turns)
+    ///
+    /// This must be restored when resuming to maintain consistent choice IDs.
+    /// Without this, choice IDs would restart from 0 on each resume, causing divergence.
+    #[serde(default)]
+    pub total_choice_count: u32,
+
     /// Sequence of choice points made during this turn up to the stop point
     ///
     /// These will be replayed (with buffered logging) when resuming
@@ -102,6 +109,7 @@ impl GameSnapshot {
         GameSnapshot {
             game_state,
             turn_number,
+            total_choice_count: 0,
             intra_turn_choices,
             p1_controller_type: default_controller_type(),
             p2_controller_type: default_controller_type(),
@@ -114,6 +122,7 @@ impl GameSnapshot {
     pub fn with_controllers(
         game_state: GameState,
         turn_number: u32,
+        total_choice_count: u32,
         intra_turn_choices: Vec<GameAction>,
         p1_controller_type: ControllerType,
         p2_controller_type: ControllerType,
@@ -123,6 +132,7 @@ impl GameSnapshot {
         GameSnapshot {
             game_state,
             turn_number,
+            total_choice_count,
             intra_turn_choices,
             p1_controller_type,
             p2_controller_type,
@@ -143,6 +153,7 @@ impl GameSnapshot {
         GameSnapshot {
             game_state,
             turn_number,
+            total_choice_count: 0,
             intra_turn_choices,
             p1_controller_type: default_controller_type(),
             p2_controller_type: default_controller_type(),

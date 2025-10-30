@@ -675,8 +675,8 @@
           "text": "",
           "owner": 0,
           "controller": 0,
-          "tapped": true,
-          "turn_entered_battlefield": 7,
+          "tapped": false,
+          "turn_entered_battlefield": null,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -888,8 +888,8 @@
           "text": "",
           "owner": 0,
           "controller": 0,
-          "tapped": false,
-          "turn_entered_battlefield": 15,
+          "tapped": true,
+          "turn_entered_battlefield": 11,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -1842,7 +1842,7 @@
           "owner": 0,
           "controller": 0,
           "tapped": false,
-          "turn_entered_battlefield": 13,
+          "turn_entered_battlefield": 7,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -2234,8 +2234,8 @@
           "text": "",
           "owner": 0,
           "controller": 0,
-          "tapped": true,
-          "turn_entered_battlefield": 9,
+          "tapped": false,
+          "turn_entered_battlefield": 15,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -2771,8 +2771,8 @@
           "text": "",
           "owner": 0,
           "controller": 0,
-          "tapped": false,
-          "turn_entered_battlefield": 11,
+          "tapped": true,
+          "turn_entered_battlefield": 9,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -4105,7 +4105,7 @@
           "owner": 0,
           "controller": 0,
           "tapped": false,
-          "turn_entered_battlefield": null,
+          "turn_entered_battlefield": 13,
           "counters": [],
           "keywords": [],
           "effects": [],
@@ -5266,7 +5266,7 @@
       {
         "id": 1,
         "name": "Bob",
-        "life": -6,
+        "life": 0,
         "mana_pool": {
           "white": 0,
           "blue": 0,
@@ -5341,8 +5341,8 @@
             "zone_type": "Hand",
             "owner": 0,
             "cards": [
+              26,
               36,
-              34,
               51,
               38
             ]
@@ -5447,20 +5447,20 @@
         83,
         33,
         89,
-        26,
+        47,
         90,
         82,
-        54,
         5,
-        92,
         37,
+        92,
+        57,
         99,
         75,
         104,
-        47,
+        34,
         111,
         115,
-        57
+        54
       ]
     },
     "stack": {
@@ -5905,7 +5905,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 1,
+            "choice_id": 2,
             "choice": {
               "SpellAbility": {
                 "PlayLand": {
@@ -6811,7 +6811,7 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 4,
+            "choice_id": 1,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -6892,19 +6892,12 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 5,
+            "choice_id": 2,
             "choice": {
               "Attackers": [
-                33,
-                40
+                33
               ]
             }
-          }
-        },
-        {
-          "TapCard": {
-            "card_id": 40,
-            "tapped": true
           }
         },
         {
@@ -6916,7 +6909,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 6,
+            "choice_id": 3,
             "choice": {
               "Blockers": []
             }
@@ -7142,7 +7135,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 7,
+            "choice_id": 4,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -7223,7 +7216,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 8,
+            "choice_id": 5,
             "choice": {
               "Attackers": []
             }
@@ -7449,11 +7442,95 @@
         {
           "ChoicePoint": {
             "player_id": 0,
+            "choice_id": 6,
+            "choice": {
+              "SpellAbility": null
+            }
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "Main1",
+            "to_step": "BeginCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "BeginCombat",
+            "to_step": "DeclareAttackers"
+          }
+        },
+        {
+          "ChoicePoint": {
+            "player_id": 0,
+            "choice_id": 7,
+            "choice": {
+              "Attackers": [
+                33,
+                40
+              ]
+            }
+          }
+        },
+        {
+          "TapCard": {
+            "card_id": 33,
+            "tapped": true
+          }
+        },
+        {
+          "TapCard": {
+            "card_id": 40,
+            "tapped": true
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareAttackers",
+            "to_step": "DeclareBlockers"
+          }
+        },
+        {
+          "ChoicePoint": {
+            "player_id": 1,
+            "choice_id": 8,
+            "choice": {
+              "Blockers": []
+            }
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "DeclareBlockers",
+            "to_step": "CombatDamage"
+          }
+        },
+        {
+          "ModifyLife": {
+            "player_id": 1,
+            "delta": -4
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "CombatDamage",
+            "to_step": "EndCombat"
+          }
+        },
+        {
+          "AdvanceStep": {
+            "from_step": "EndCombat",
+            "to_step": "Main2"
+          }
+        },
+        {
+          "ChoicePoint": {
+            "player_id": 0,
             "choice_id": 9,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
-                  "card_id": 26
+                  "card_id": 47
                 }
               }
             }
@@ -7461,7 +7538,7 @@
         },
         {
           "MoveCard": {
-            "card_id": 26,
+            "card_id": 47,
             "from_zone": "Hand",
             "to_zone": "Stack",
             "owner": 0
@@ -7509,86 +7586,10 @@
         },
         {
           "MoveCard": {
-            "card_id": 26,
+            "card_id": 47,
             "from_zone": "Stack",
             "to_zone": "Battlefield",
             "owner": 0
-          }
-        },
-        {
-          "AdvanceStep": {
-            "from_step": "Main1",
-            "to_step": "BeginCombat"
-          }
-        },
-        {
-          "AdvanceStep": {
-            "from_step": "BeginCombat",
-            "to_step": "DeclareAttackers"
-          }
-        },
-        {
-          "ChoicePoint": {
-            "player_id": 0,
-            "choice_id": 10,
-            "choice": {
-              "Attackers": [
-                26,
-                33,
-                40
-              ]
-            }
-          }
-        },
-        {
-          "TapCard": {
-            "card_id": 33,
-            "tapped": true
-          }
-        },
-        {
-          "TapCard": {
-            "card_id": 40,
-            "tapped": true
-          }
-        },
-        {
-          "AdvanceStep": {
-            "from_step": "DeclareAttackers",
-            "to_step": "DeclareBlockers"
-          }
-        },
-        {
-          "ChoicePoint": {
-            "player_id": 1,
-            "choice_id": 11,
-            "choice": {
-              "Blockers": []
-            }
-          }
-        },
-        {
-          "AdvanceStep": {
-            "from_step": "DeclareBlockers",
-            "to_step": "CombatDamage"
-          }
-        },
-        {
-          "ModifyLife": {
-            "player_id": 1,
-            "delta": -4
-          }
-        },
-        {
-          "AdvanceStep": {
-            "from_step": "CombatDamage",
-            "to_step": "EndCombat"
-          }
-        },
-        {
-          "AdvanceStep": {
-            "from_step": "EndCombat",
-            "to_step": "Main2"
           }
         },
         {
@@ -7787,7 +7788,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 12,
+            "choice_id": 10,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -7856,7 +7857,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 13,
+            "choice_id": 11,
             "choice": {
               "SpellAbility": {
                 "PlayLand": {
@@ -7889,7 +7890,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 14,
+            "choice_id": 12,
             "choice": {
               "Attackers": []
             }
@@ -8115,11 +8116,11 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 15,
+            "choice_id": 13,
             "choice": {
               "SpellAbility": {
-                "CastSpell": {
-                  "card_id": 54
+                "PlayLand": {
+                  "card_id": 5
                 }
               }
             }
@@ -8127,10 +8128,51 @@
         },
         {
           "MoveCard": {
-            "card_id": 54,
+            "card_id": 5,
+            "from_zone": "Hand",
+            "to_zone": "Battlefield",
+            "owner": 0
+          }
+        },
+        {
+          "ChoicePoint": {
+            "player_id": 0,
+            "choice_id": 14,
+            "choice": {
+              "SpellAbility": {
+                "CastSpell": {
+                  "card_id": 37
+                }
+              }
+            }
+          }
+        },
+        {
+          "MoveCard": {
+            "card_id": 37,
             "from_zone": "Hand",
             "to_zone": "Stack",
             "owner": 0
+          }
+        },
+        {
+          "TapCard": {
+            "card_id": 5,
+            "tapped": true
+          }
+        },
+        {
+          "AddMana": {
+            "player_id": 0,
+            "mana": {
+              "generic": 0,
+              "white": 0,
+              "blue": 0,
+              "black": 0,
+              "red": 0,
+              "green": 1,
+              "colorless": 0
+            }
           }
         },
         {
@@ -8154,40 +8196,11 @@
           }
         },
         {
-          "TapCard": {
-            "card_id": 21,
-            "tapped": true
-          }
-        },
-        {
-          "AddMana": {
-            "player_id": 0,
-            "mana": {
-              "generic": 0,
-              "white": 0,
-              "blue": 0,
-              "black": 0,
-              "red": 0,
-              "green": 1,
-              "colorless": 0
-            }
-          }
-        },
-        {
           "MoveCard": {
-            "card_id": 54,
+            "card_id": 37,
             "from_zone": "Stack",
             "to_zone": "Battlefield",
             "owner": 0
-          }
-        },
-        {
-          "ChoicePoint": {
-            "player_id": 0,
-            "choice_id": 16,
-            "choice": {
-              "SpellAbility": null
-            }
           }
         },
         {
@@ -8205,25 +8218,10 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 17,
+            "choice_id": 15,
             "choice": {
-              "Attackers": [
-                33,
-                40
-              ]
+              "Attackers": []
             }
-          }
-        },
-        {
-          "TapCard": {
-            "card_id": 33,
-            "tapped": true
-          }
-        },
-        {
-          "TapCard": {
-            "card_id": 40,
-            "tapped": true
           }
         },
         {
@@ -8233,24 +8231,9 @@
           }
         },
         {
-          "ChoicePoint": {
-            "player_id": 1,
-            "choice_id": 18,
-            "choice": {
-              "Blockers": []
-            }
-          }
-        },
-        {
           "AdvanceStep": {
             "from_step": "DeclareBlockers",
             "to_step": "CombatDamage"
-          }
-        },
-        {
-          "ModifyLife": {
-            "player_id": 1,
-            "delta": -4
           }
         },
         {
@@ -8263,27 +8246,6 @@
           "AdvanceStep": {
             "from_step": "EndCombat",
             "to_step": "Main2"
-          }
-        },
-        {
-          "ChoicePoint": {
-            "player_id": 0,
-            "choice_id": 19,
-            "choice": {
-              "SpellAbility": {
-                "PlayLand": {
-                  "card_id": 5
-                }
-              }
-            }
-          }
-        },
-        {
-          "MoveCard": {
-            "card_id": 5,
-            "from_zone": "Hand",
-            "to_zone": "Battlefield",
-            "owner": 0
           }
         },
         {
@@ -8482,7 +8444,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 20,
+            "choice_id": 16,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -8563,7 +8525,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 21,
+            "choice_id": 17,
             "choice": {
               "Attackers": []
             }
@@ -8789,11 +8751,11 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 22,
+            "choice_id": 18,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
-                  "card_id": 37
+                  "card_id": 57
                 }
               }
             }
@@ -8801,7 +8763,7 @@
         },
         {
           "MoveCard": {
-            "card_id": 37,
+            "card_id": 57,
             "from_zone": "Hand",
             "to_zone": "Stack",
             "owner": 0
@@ -8849,7 +8811,7 @@
         },
         {
           "MoveCard": {
-            "card_id": 37,
+            "card_id": 57,
             "from_zone": "Stack",
             "to_zone": "Battlefield",
             "owner": 0
@@ -8870,24 +8832,25 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 23,
+            "choice_id": 19,
             "choice": {
               "Attackers": [
-                26,
-                33
+                33,
+                47,
+                57
               ]
             }
           }
         },
         {
           "TapCard": {
-            "card_id": 26,
+            "card_id": 33,
             "tapped": true
           }
         },
         {
           "TapCard": {
-            "card_id": 33,
+            "card_id": 47,
             "tapped": true
           }
         },
@@ -8900,7 +8863,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 24,
+            "choice_id": 20,
             "choice": {
               "Blockers": []
             }
@@ -9126,7 +9089,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 25,
+            "choice_id": 21,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -9195,7 +9158,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 26,
+            "choice_id": 22,
             "choice": {
               "SpellAbility": {
                 "PlayLand": {
@@ -9216,7 +9179,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 27,
+            "choice_id": 23,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -9297,7 +9260,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 28,
+            "choice_id": 24,
             "choice": {
               "Attackers": []
             }
@@ -9523,11 +9486,11 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 29,
+            "choice_id": 25,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
-                  "card_id": 47
+                  "card_id": 34
                 }
               }
             }
@@ -9535,7 +9498,7 @@
         },
         {
           "MoveCard": {
-            "card_id": 47,
+            "card_id": 34,
             "from_zone": "Hand",
             "to_zone": "Stack",
             "owner": 0
@@ -9583,7 +9546,7 @@
         },
         {
           "MoveCard": {
-            "card_id": 47,
+            "card_id": 34,
             "from_zone": "Stack",
             "to_zone": "Battlefield",
             "owner": 0
@@ -9604,25 +9567,17 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 30,
+            "choice_id": 26,
             "choice": {
               "Attackers": [
-                37,
-                47,
-                54
+                33
               ]
             }
           }
         },
         {
           "TapCard": {
-            "card_id": 37,
-            "tapped": true
-          }
-        },
-        {
-          "TapCard": {
-            "card_id": 54,
+            "card_id": 33,
             "tapped": true
           }
         },
@@ -9635,7 +9590,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 31,
+            "choice_id": 27,
             "choice": {
               "Blockers": []
             }
@@ -9650,7 +9605,7 @@
         {
           "ModifyLife": {
             "player_id": 1,
-            "delta": -4
+            "delta": -2
           }
         },
         {
@@ -9861,7 +9816,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 32,
+            "choice_id": 28,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -9930,7 +9885,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 33,
+            "choice_id": 29,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
@@ -10011,7 +9966,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 34,
+            "choice_id": 30,
             "choice": {
               "Attackers": []
             }
@@ -10237,11 +10192,11 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 35,
+            "choice_id": 31,
             "choice": {
               "SpellAbility": {
                 "CastSpell": {
-                  "card_id": 57
+                  "card_id": 54
                 }
               }
             }
@@ -10249,7 +10204,7 @@
         },
         {
           "MoveCard": {
-            "card_id": 57,
+            "card_id": 54,
             "from_zone": "Hand",
             "to_zone": "Stack",
             "owner": 0
@@ -10297,7 +10252,7 @@
         },
         {
           "MoveCard": {
-            "card_id": 57,
+            "card_id": 54,
             "from_zone": "Stack",
             "to_zone": "Battlefield",
             "owner": 0
@@ -10318,26 +10273,26 @@
         {
           "ChoicePoint": {
             "player_id": 0,
-            "choice_id": 36,
+            "choice_id": 32,
             "choice": {
               "Attackers": [
-                26,
                 33,
+                37,
                 40,
-                54
+                57
               ]
             }
           }
         },
         {
           "TapCard": {
-            "card_id": 26,
+            "card_id": 33,
             "tapped": true
           }
         },
         {
           "TapCard": {
-            "card_id": 33,
+            "card_id": 37,
             "tapped": true
           }
         },
@@ -10349,7 +10304,7 @@
         },
         {
           "TapCard": {
-            "card_id": 54,
+            "card_id": 57,
             "tapped": true
           }
         },
@@ -10362,7 +10317,7 @@
         {
           "ChoicePoint": {
             "player_id": 1,
-            "choice_id": 37,
+            "choice_id": 33,
             "choice": {
               "Blockers": []
             }
