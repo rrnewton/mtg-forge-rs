@@ -7,7 +7,6 @@ use crate::game::VerbosityLevel;
 use bumpalo::Bump;
 use serde::{Deserialize, Serialize};
 use std::cell::{Ref, RefCell};
-use std::fmt::Write as FmtWrite;
 use std::ops::Deref;
 
 /// Output format for log messages

@@ -273,7 +273,8 @@ impl GameState {
             let hash = compute_state_hash(self);
             // Use the logger's normal() method to output to stdout instead of stderr
             // This makes state hashes part of the deterministic game output
-            self.logger.normal(&format!("[STATE:{}] {}", format_hash(hash), message));
+            self.logger
+                .normal(&format!("[STATE:{}] {}", format_hash(hash), message));
         }
     }
 

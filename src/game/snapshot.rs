@@ -119,6 +119,7 @@ impl GameSnapshot {
     }
 
     /// Create a snapshot with controller types and states preserved
+    #[allow(clippy::too_many_arguments)]
     pub fn with_controllers(
         game_state: GameState,
         turn_number: u32,
@@ -142,7 +143,10 @@ impl GameSnapshot {
     }
 
     /// Create a snapshot with controller state preserved (deprecated, use with_controllers)
-    #[deprecated(since = "0.1.0", note = "Use with_controllers() instead to preserve controller types")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use with_controllers() instead to preserve controller types"
+    )]
     pub fn with_controller_state(
         game_state: GameState,
         turn_number: u32,
