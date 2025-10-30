@@ -1,0 +1,19 @@
+Task: Find and fix missing MTG features by testing old_school decks
+
+Status: In progress
+
+Issue found: Mono black deck (05_mono_black_rogerbrand.dck) causes infinite loop error:
+"Priority round exceeded max actions (1000), possible infinite loop"
+
+This happens with seed 456 when playing heuristic vs random.
+
+Next steps:
+1. Debug the infinite loop - likely a priority system bug
+2. OR implement a simpler missing feature like upkeep triggers for Land Tax
+3. OR implement exile-based removal like Swords to Plowshares
+
+The infinite loop is the most critical issue but may be hard to debug without more context.
+Upkeep triggers would enable many cards but is complex (requires phase trigger system).
+Exile removal is simpler but still requires SubAbility chaining.
+
+Recommendation: Fix the infinite loop bug first as it blocks gameplay.
