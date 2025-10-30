@@ -630,10 +630,7 @@ async fn test_spell_casting_unwind_on_mana_failure() -> Result<()> {
         .get_player_zones(p1_id)
         .map(|z| z.hand.cards.clone())
         .unwrap_or_default();
-    assert!(
-        hand_before.contains(&spell_id),
-        "Spell should start in hand"
-    );
+    assert!(hand_before.contains(&spell_id), "Spell should start in hand");
 
     // Try to cast the spell without sufficient mana
     // This should fail and properly unwind
@@ -645,10 +642,7 @@ async fn test_spell_casting_unwind_on_mana_failure() -> Result<()> {
     );
 
     // The cast should fail with an error
-    assert!(
-        result.is_err(),
-        "Casting spell without mana should fail"
-    );
+    assert!(result.is_err(), "Casting spell without mana should fail");
 
     // Verify the error message indicates mana payment failure
     let error_message = format!("{:?}", result.unwrap_err());
@@ -685,18 +679,9 @@ async fn test_spell_casting_unwind_on_mana_failure() -> Result<()> {
 
     // Verify mana pool is empty (cleared during unwind)
     let player = game.get_player(p1_id)?;
-    assert_eq!(
-        player.mana_pool.white, 0,
-        "Mana pool should be cleared"
-    );
-    assert_eq!(
-        player.mana_pool.blue, 0,
-        "Mana pool should be cleared"
-    );
-    assert_eq!(
-        player.mana_pool.colorless, 0,
-        "Mana pool should be cleared"
-    );
+    assert_eq!(player.mana_pool.white, 0, "Mana pool should be cleared");
+    assert_eq!(player.mana_pool.blue, 0, "Mana pool should be cleared");
+    assert_eq!(player.mana_pool.colorless, 0, "Mana pool should be cleared");
 
     Ok(())
 }
