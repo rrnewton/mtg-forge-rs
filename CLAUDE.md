@@ -1,12 +1,8 @@
 
-
-
-An experiment in persistence
-========================================
+A performant Magic The Gathering engine for AI research
+=======================================================
 
 Read the PROJECT_VISION.md document.
-
-This project is an experiment in largely-unattended longer time-horizon development with Claude. That means you should be continuing to work toward the project vision, implementing new features iteratively, and not stopping for approval. 
 
 If you become stuck with an issue you cannot debug, you can file an issue for it and leave it to work on other topics. Of course, the tests should be always passing before each commit and achieve reasonably good code coverage as described below.
 

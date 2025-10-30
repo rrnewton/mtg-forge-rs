@@ -7,17 +7,22 @@ You're the agent and you can't directly play our MTG game through interactive te
 * Fixed input controllers
 * Stop/go snapshot and resume execution
 
-When using `--stop-when-fixed-exhausted` or `--stop-on-choice`, the game will automatically print choice prompts (attackers, blockers, discard, spell/ability selection) before saving the snapshot and exiting. This makes it easy to see exactly what choice was about to be made, helping you decide what input to provide when resuming.
+Your most basic tool is to run random games in a loo until their logs demonstrate the thing you want:
 
 ```
-cargo run --bin mtg -- tui DECK1.dck DECK2.dck \
-    --seed=100 \
-    --stop-when-fixed-exhausted \
-    --p1=fixed --p1-fixed-inputs="${P1_INPUTS}" \
-    --p2=fixed --p2-fixed-inputs="${P2_INPUTS}"
+cargo build --release
+./target/release/mtg tui DECK1.dck DECK2.dck --seed=100 --p1=random --p2=fixed
 ```
 
+But a more targetted approach is for you to play the game yourself turn by turn.
+To do that play with fixed inputs and have the game stop when they are exhausted:
 
+```
+./target/release/mtg tui DECK1.dck DECK2.dck \
+    --log-tail 50 --stop-when-fixed-exhausted \
+    --p1=fixed --p1-fixed-inputs="" \
+    --p2=fixed --p2-fixed-inputs=""
+```
 
 ## How to build a reproducer
 When I report a buggy behavior, or when you see it in the middle of a larger game or stress test, it helps to build a minimal reproducer. You can do this incrementally:
