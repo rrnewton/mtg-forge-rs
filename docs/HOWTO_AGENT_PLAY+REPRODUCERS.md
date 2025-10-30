@@ -37,8 +37,10 @@ Available actions:
 With this command you will see the last 100 lines of the game with the choice you need to make next. You can then add "1" to your `--p1-fixed-inputs` and advance to the next move.
 You can pass numbers separated by semi-colons, `--p1-fixed-inputs=1;1;1` OR if you know what action you want to do you can use the command syntax `--p1-fixed-inputs=Play Swamp;Play Swamp`, which is robust to option ordering.
 
+
 ## How to build a reproducer
-When I report a buggy behavior, or when you see it in the middle of a larger game or stress test, it helps to build a minimal reproducer. You can do this incrementally:
+
+When I report a buggy behavior, or when you see it in the middle of a larger game or stress test, it helps to be able to create a more minimal reproducer. Using the above method for playing the game, you can:
 
 1. Start with empty or minimal fixed inputs
 2. Run with `--stop-when-fixed-exhausted`
