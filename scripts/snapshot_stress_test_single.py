@@ -179,8 +179,12 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
                          keep_snapshots: bool = False,
                          snapshot_dir: Optional[Path] = None,
                          test_name: str = "",
-                         work_dir: Optional[Path] = None) -> Tuple[str, List[Path]]:
+                         work_dir: Optional[Path] = None,
+                         use_fixed_controllers: bool = False) -> Tuple[str, List[Path]]:
     """Run a stop-and-go game with randomized stop points.
+
+    If use_fixed_controllers is True, uses fixed controllers with the provided choice sequences
+    instead of the original p1_controller/p2_controller types.
 
     Returns: (accumulated_log, list_of_snapshot_paths)
     """
@@ -233,6 +237,19 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
     if not stop_points:
         stop_points = [1]  # At least one stop
 
+    # Determine controller types and fixed inputs
+    if use_fixed_controllers:
+        actual_p1_controller = "fixed"
+        actual_p2_controller = "fixed"
+        # Convert choice lists to comma-separated strings
+        p1_fixed_inputs = ",".join(map(str, p1_choices))
+        p2_fixed_inputs = ",".join(map(str, p2_choices))
+    else:
+        actual_p1_controller = p1_controller
+        actual_p2_controller = p2_controller
+        p1_fixed_inputs = None
+        p2_fixed_inputs = None
+
     # Run segments
     for i, stop_after in enumerate(stop_points + [0]):  # 0 = run to completion
         if i == 0:
@@ -240,12 +257,19 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
             cmd = [
                 str(mtg_bin), "tui",
                 deck1, deck2,
-                f"--p1={p1_controller}",
-                f"--p2={p2_controller}",
+                f"--p1={actual_p1_controller}",
+                f"--p2={actual_p2_controller}",
                 f"--seed={seed}",
                 "--verbosity=3",
                 "--debug-state-hash"
             ]
+
+            # Add fixed inputs if using fixed controllers
+            if use_fixed_controllers:
+                cmd.extend([
+                    f"--p1-fixed-inputs={p1_fixed_inputs}",
+                    f"--p2-fixed-inputs={p2_fixed_inputs}",
+                ])
 
             if stop_after > 0:
                 cmd.extend([
@@ -257,7 +281,7 @@ def run_stop_and_go_game(mtg_bin: Path, deck1: str, deck2: str,
             # This restores controllers from snapshot (including RNG state) for proper determinism
             if not snapshot_file.exists():
                 print_color(RED, f"✗ Snapshot file missing at segment {i+1}")
-                return ""
+                return "", saved_snapshots
 
             cmd = [
                 str(mtg_bin), "resume",
@@ -381,8 +405,13 @@ def compare_gamestates_via_tool(normal_state_file: Path, stopgo_state_file: Path
 def run_test_for_deck(mtg_bin: Path, deck_path: str,
                       p1_controller: str, p2_controller: str, seed: int,
                       num_replays: int = 3, verbose: bool = False,
-                      keep_artifacts: bool = False, artifact_dir: Optional[Path] = None) -> bool:
-    """Run complete test for a specific deck with multiple replay runs."""
+                      keep_artifacts: bool = False, artifact_dir: Optional[Path] = None,
+                      switch_fixed: bool = False) -> bool:
+    """Run complete test for a specific deck with multiple replay runs.
+
+    If switch_fixed is True, runs the stop-and-go game with fixed controllers
+    using the extracted choices from the initial run.
+    """
     import tempfile
     import shutil
 
@@ -421,7 +450,8 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
                 keep_snapshots=keep_artifacts,
                 snapshot_dir=artifact_dir,
                 test_name=test_name,
-                work_dir=work_dir
+                work_dir=work_dir,
+                use_fixed_controllers=switch_fixed
             )
 
             if not stopgo_log:
@@ -565,6 +595,12 @@ def parse_args():
         help='Directory to save artifacts when --keep is used (default: test_artifacts/)'
     )
 
+    parser.add_argument(
+        '--switch-fixed',
+        action='store_true',
+        help='Run stop-go reproducer with fixed controllers using extracted choices from initial run'
+    )
+
     return parser.parse_args()
 
 
@@ -596,7 +632,8 @@ def main():
         mtg_bin, args.deck_path, args.p1_controller, args.p2_controller,
         args.seed, num_replays=args.replays, verbose=args.verbose,
         keep_artifacts=args.keep_artifacts,
-        artifact_dir=Path(args.artifact_dir) if args.keep_artifacts else None
+        artifact_dir=Path(args.artifact_dir) if args.keep_artifacts else None,
+        switch_fixed=args.switch_fixed
     )
 
     if passed:
