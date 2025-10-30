@@ -20,20 +20,7 @@ NC='\033[0m' # No Color
 echo "=== HeuristicController: Grizzly Bears Attack Test ==="
 echo
 
-# Check if binary exists
-if [[ ! -f "target/debug/mtg" ]] && [[ ! -f "target/release/mtg" ]]; then
-    echo -e "${RED}Error: mtg binary not found${NC}"
-    echo "Please build the project first with 'cargo build'"
-    exit 1
-fi
-
-# Use debug binary if it exists, otherwise release
-MTG_BIN="target/debug/mtg"
-if [[ ! -f "$MTG_BIN" ]]; then
-    MTG_BIN="target/release/mtg"
-fi
-
-echo "Using binary: $MTG_BIN"
+echo "Will use: cargo run --bin mtg"
 echo
 
 # Create test deck for attacker (minimal - just bears and lands)
@@ -78,7 +65,8 @@ echo
 
 # Run the game with heuristic AI as P1, zero AI as P2
 # Use verbose output to see attack declarations
-if timeout 30s "$MTG_BIN" tui \
+# Since we only call mtg once, use cargo run
+if timeout 30s cargo run --bin mtg -- tui \
     "$ATTACKER_DECK" \
     "$DEFENDER_DECK" \
     --p1 heuristic \

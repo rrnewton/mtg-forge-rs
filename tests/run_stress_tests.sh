@@ -90,6 +90,9 @@ MATCHUPS=(
 
 echo "=== MTG Snapshot/Resume Stress Tests ==="
 echo ""
+echo "Building release binary once (scripts call mtg many times)..."
+cargo build --release
+echo ""
 echo "Decks to test: ${DECKS[*]}"
 echo "Controller matchups: ${#MATCHUPS[@]}"
 echo ""
