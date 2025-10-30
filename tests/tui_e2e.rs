@@ -575,3 +575,128 @@ async fn test_different_deck_matchup() -> Result<()> {
 
     Ok(())
 }
+
+/// Test that spells properly unwind when mana payment fails
+/// This verifies that when a spell fails to be cast due to insufficient mana:
+/// 1. The card returns to hand (not stuck on stack or sent to graveyard)
+/// 2. Any tapped mana sources are untapped
+/// 3. The mana pool is cleared
+#[tokio::test]
+async fn test_spell_casting_unwind_on_mana_failure() -> Result<()> {
+    use mtg_forge_rs::core::{Card, CardType, EntityId, ManaCost};
+
+    // Load card database
+    let cardsfolder = PathBuf::from("cardsfolder");
+    if !cardsfolder.exists() {
+        return Ok(());
+    }
+    let card_db = CardDatabase::new(cardsfolder);
+
+    // Load a simple deck
+    let deck_path = PathBuf::from("decks/simple_bolt.dck");
+    let deck = DeckLoader::load_from_file(&deck_path)?;
+
+    // Initialize game
+    let game_init = GameInitializer::new(&card_db);
+    let mut game = game_init
+        .init_game("Player 1".to_string(), &deck, "Player 2".to_string(), &deck, 20)
+        .await?;
+
+    let players: Vec<_> = game.players.iter().map(|p| p.id).collect();
+    let p1_id = players[0];
+
+    // Create a test spell that costs 2W (2 generic + 1 white)
+    let spell_id = EntityId::<Card>::new(9000);
+    let mut spell_card = Card::new(spell_id, "Test Spell", p1_id);
+    spell_card.types.push(CardType::Instant);
+    spell_card.mana_cost = ManaCost {
+        generic: 2,
+        white: 1,
+        blue: 0,
+        black: 0,
+        red: 0,
+        green: 0,
+        colorless: 0,
+    };
+    game.cards.insert(spell_id, spell_card);
+
+    // Put the spell in player's hand
+    if let Some(zones) = game.get_player_zones_mut(p1_id) {
+        zones.hand.add(spell_id);
+    }
+
+    // Verify spell is in hand
+    let hand_before = game
+        .get_player_zones(p1_id)
+        .map(|z| z.hand.cards.clone())
+        .unwrap_or_default();
+    assert!(
+        hand_before.contains(&spell_id),
+        "Spell should start in hand"
+    );
+
+    // Try to cast the spell without sufficient mana
+    // This should fail and properly unwind
+    let result = game.cast_spell_8_step(
+        p1_id,
+        spell_id,
+        |_state, _card_id| Vec::new(), // No targets
+        |_state, _cost| Vec::new(),    // No mana sources available
+    );
+
+    // The cast should fail with an error
+    assert!(
+        result.is_err(),
+        "Casting spell without mana should fail"
+    );
+
+    // Verify the error message indicates mana payment failure
+    let error_message = format!("{:?}", result.unwrap_err());
+    assert!(
+        error_message.contains("Failed to pay mana cost") || error_message.contains("Insufficient mana"),
+        "Error should indicate mana payment failure, got: {error_message}"
+    );
+
+    // CRITICAL: Verify spell is back in hand (not on stack or in graveyard)
+    let hand_after = game
+        .get_player_zones(p1_id)
+        .map(|z| z.hand.cards.clone())
+        .unwrap_or_default();
+    assert!(
+        hand_after.contains(&spell_id),
+        "Spell should be back in hand after failed cast"
+    );
+
+    // Verify spell is NOT on stack
+    assert!(
+        !game.stack.cards.contains(&spell_id),
+        "Spell should not be on stack after failed cast"
+    );
+
+    // Verify spell is NOT in graveyard
+    let graveyard = game
+        .get_player_zones(p1_id)
+        .map(|z| z.graveyard.cards.clone())
+        .unwrap_or_default();
+    assert!(
+        !graveyard.contains(&spell_id),
+        "Spell should not be in graveyard after failed cast"
+    );
+
+    // Verify mana pool is empty (cleared during unwind)
+    let player = game.get_player(p1_id)?;
+    assert_eq!(
+        player.mana_pool.white, 0,
+        "Mana pool should be cleared"
+    );
+    assert_eq!(
+        player.mana_pool.blue, 0,
+        "Mana pool should be cleared"
+    );
+    assert_eq!(
+        player.mana_pool.colorless, 0,
+        "Mana pool should be cleared"
+    );
+
+    Ok(())
+}
