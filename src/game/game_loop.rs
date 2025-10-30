@@ -232,14 +232,16 @@ impl<'a> GameLoop<'a> {
     /// This method enables replay mode and sets the number of choices to replay.
     /// Also sets resumed_from_snapshot flag to suppress turn header on first turn.
     pub fn with_replay_mode(mut self, choice_count: usize) -> Self {
-        eprintln!("🔍 [RESUME] Setting up replay mode: Choices={}, Turn={}, TotalChoicesSoFar={}",
-            choice_count, self.turns_elapsed, self.choice_counter);
-
-        if choice_count > 0 {
-            self.replaying = true;
-            self.replay_choices_remaining = choice_count;
-            if self.verbosity >= VerbosityLevel::Verbose {
+        // Always enable replay mode when resuming from snapshot
+        // Even if there are 0 intra-turn choices to replay, we still need to suppress
+        // logging for automatic actions (like draws) until we reach the first NEW choice
+        self.replaying = true;
+        self.replay_choices_remaining = choice_count;
+        if self.verbosity >= VerbosityLevel::Verbose {
+            if choice_count > 0 {
                 println!("🔄 REPLAY MODE ENABLED: {} choices to replay", choice_count);
+            } else {
+                println!("🔄 REPLAY MODE ENABLED: 0 intra-turn choices, will suppress until first new choice");
             }
         }
         // Always set resumed flag when loading from snapshot (even if 0 intra-turn choices)
@@ -290,9 +292,6 @@ impl<'a> GameLoop<'a> {
     fn log_choice_point(&mut self, player_id: PlayerId, choice: Option<crate::game::ReplayChoice>) {
         self.choice_counter += 1;
 
-        eprintln!("🔍 [LOG_CHOICE] Player={:?}, ID={}, Replaying={}, RemainingReplays={}",
-            player_id, self.choice_counter, self.replaying, self.replay_choices_remaining);
-
         self.game.undo_log.log(crate::undo::GameAction::ChoicePoint {
             player_id,
             choice_id: self.choice_counter,
@@ -305,7 +304,6 @@ impl<'a> GameLoop<'a> {
         // a choice, so all choices in the snapshot were already made/executed/logged.
         if self.replaying && self.replay_choices_remaining > 0 {
             self.replay_choices_remaining -= 1;
-            eprintln!("🔍   Decremented replay counter to {}", self.replay_choices_remaining);
             if self.verbosity >= VerbosityLevel::Verbose {
                 println!(
                     "🔄 Replay choice: {} remaining (suppressing logs)",
@@ -643,17 +641,6 @@ impl<'a> GameLoop<'a> {
         // Clone the game state at the turn boundary (or game start if turn 1)
         let game_state_snapshot = self.game.clone();
 
-        // DEBUG: Log snapshot details
-        eprintln!("🔍 [SNAPSHOT_CREATE] Turn={}, IntraTurnChoices={}, Rewound={}, TotalChoices={}",
-            turn_number, intra_turn_choices.len(), actions_rewound, self.choice_counter);
-        for (i, choice_action) in intra_turn_choices.iter().enumerate() {
-            if let crate::undo::GameAction::ChoicePoint { player_id, choice_id, choice } = choice_action {
-                eprintln!("🔍   Choice[{}]: Player={:?}, ID={}, Type={:?}",
-                    i, player_id, choice_id,
-                    choice.as_ref().map(|c| format!("{:?}", c)).unwrap_or("None".to_string()));
-            }
-        }
-
         // Capture controller types (ALWAYS needed for resume)
         let p1_controller_type = controller1.get_controller_type();
         let p2_controller_type = controller2.get_controller_type();
@@ -839,7 +826,11 @@ impl<'a> GameLoop<'a> {
                     // Also clear replay mode at end of resumed turn
                     // This handles the case where all intra-turn choices have been replayed
                     // but we haven't yet reached the next choice point (e.g., turn ended naturally)
-                    if self.replaying {
+                    //
+                    // Only clear if we've actually moved past the baseline (made new choices)
+                    // If choice_counter is still at baseline, we didn't make any new choices this turn
+                    // and should keep replaying mode active for the next turn
+                    if self.replaying && (self.choice_counter as usize) > self.baseline_choice_count {
                         if self.verbosity >= VerbosityLevel::Verbose {
                             println!("✅ CLEARING REPLAY MODE at end of resumed turn");
                         }
@@ -1872,21 +1863,19 @@ impl<'a> GameLoop<'a> {
                     // Clear replay mode if all choices have been replayed
                     // This happens BEFORE checking stop conditions, so a snapshot taken here will NOT
                     // include the upcoming choice (which hasn't been presented yet)
-                    if self.replaying && self.replay_choices_remaining == 0 {
+                    //
+                    // We stay in replay mode until BOTH conditions are met:
+                    // 1. All intra-turn choices have been replayed (replay_choices_remaining == 0)
+                    // 2. We've passed the baseline choice count from the snapshot
+                    //
+                    // This ensures that automatic actions (like draws) that happen before the first
+                    // NEW choice point are properly suppressed, avoiding duplicate logging.
+                    if self.replaying && self.replay_choices_remaining == 0
+                       && (self.choice_counter as usize) > self.baseline_choice_count {
                         self.replaying = false;
                         if self.verbosity >= VerbosityLevel::Verbose {
                             println!("✅ REPLAY MODE COMPLETE - will present new choice to controller");
                         }
-                    }
-
-                    // DEBUG: Log state before checking stop condition
-                    eprintln!("🔍 [BEFORE_CHOICE] Turn={}, Player={:?}, Replaying={}, ChoiceCount={}, Available={}",
-                        self.game.turn.turn_number, current_priority, self.replaying,
-                        self.choice_counter, available.len());
-                    if self.stop_condition_info.is_some() {
-                        let (p1_id, ref stop_condition, _) = self.stop_condition_info.as_ref().unwrap();
-                        let filtered = self.count_filtered_choices(*p1_id, stop_condition);
-                        eprintln!("🔍   FilteredChoices={}, StopAt={}", filtered, stop_condition.choice_count);
                     }
 
                     // PREAMBLE: Check stop conditions BEFORE asking for choice
@@ -1894,29 +1883,16 @@ impl<'a> GameLoop<'a> {
                     // The controller can then review the game state up to this point and make their decision
                     // when the game is resumed.
                     if let Some(result) = self.check_stop_conditions(controller, current_priority)? {
-                        eprintln!("🔍 [SNAPSHOT_TRIGGERED] Stopping before presenting choice");
                         return Ok(Some(result));
                     }
 
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);
-
-                    eprintln!("🔍 [ASKING_CONTROLLER] About to ask controller for choice");
-
                     let choice = controller.choose_spell_ability_to_play(&view, &available);
-
-                    eprintln!("🔍 [CHOICE_MADE] Choice={:?}", match &choice {
-                        None => "Pass".to_string(),
-                        Some(crate::core::SpellAbility::PlayLand { card_id }) => format!("PlayLand({})", card_id),
-                        Some(crate::core::SpellAbility::CastSpell { card_id }) => format!("CastSpell({})", card_id),
-                        Some(crate::core::SpellAbility::ActivateAbility { card_id, .. }) => format!("ActivateAbility({})", card_id),
-                    });
 
                     // Log this choice point for snapshot/replay
                     let replay_choice = crate::game::ReplayChoice::SpellAbility(choice.clone());
                     self.log_choice_point(current_priority, Some(replay_choice));
-
-                    eprintln!("🔍 [CHOICE_LOGGED] ChoiceCounter now={}", self.choice_counter);
 
                     choice
                 };
