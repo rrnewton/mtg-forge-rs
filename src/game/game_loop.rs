@@ -2591,8 +2591,20 @@ impl<'a> GameLoop<'a> {
                     && !card.tapped
                     && !self.game.combat.is_attacking(card_id)
                 {
-                    // TODO: Check for summoning sickness
-                    creatures.push(card_id);
+                    // Check for summoning sickness
+                    // Creatures can't attack the turn they entered unless they have haste
+                    let has_summoning_sickness = if let Some(entered_turn) = card.turn_entered_battlefield {
+                        entered_turn == self.game.turn.turn_number && !card.has_keyword(&crate::core::Keyword::Haste)
+                    } else {
+                        false
+                    };
+
+                    // Check for defender keyword
+                    let has_defender = card.has_defender();
+
+                    if !has_summoning_sickness && !has_defender {
+                        creatures.push(card_id);
+                    }
                 }
             }
         }
