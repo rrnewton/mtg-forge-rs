@@ -2160,34 +2160,46 @@ impl<'a> GameLoop<'a> {
                                 };
 
                                 let mana_callback = |game: &GameState, cost: &crate::core::ManaCost| {
-                                    // For now, automatically choose mana sources
-                                    // TODO: Call controller.choose_mana_sources_to_pay()
-                                    let mut sources = Vec::new();
-                                    let mut tappable = game
-                                        .battlefield
-                                        .cards
-                                        .iter()
-                                        .filter(|&&card_id| {
-                                            if let Ok(card) = game.cards.get(card_id) {
-                                                card.owner == current_priority && card.is_land() && !card.tapped
-                                            } else {
-                                                false
+                                    // Use ManaEngine to compute proper color-aware tap order
+                                    use crate::game::mana_engine::ManaEngine;
+
+                                    let mut mana_engine = ManaEngine::new(current_priority);
+                                    mana_engine.update(game);
+
+                                    // The mana engine already knows which sources to tap
+                                    // It uses the GreedyManaResolver internally to compute tap order
+                                    // TODO: Extract tap order from mana_engine instead of computing separately
+
+                                    // For now, use the same logic that get_castable_spells uses:
+                                    // Build ManaSource list and use GreedyManaResolver
+                                    use crate::game::mana_payment::{
+                                        GreedyManaResolver, ManaPaymentResolver, ManaSource,
+                                    };
+
+                                    let mut mana_sources = Vec::new();
+                                    for &card_id in &game.battlefield.cards {
+                                        if let Ok(card) = game.cards.get(card_id) {
+                                            if card.owner == current_priority && card.is_land() && !card.tapped {
+                                                // Determine mana production for this land
+                                                let production = if let Some(prod) = Self::get_mana_production(card) {
+                                                    prod
+                                                } else {
+                                                    continue; // Skip lands we don't know how to tap yet
+                                                };
+
+                                                mana_sources.push(ManaSource {
+                                                    card_id,
+                                                    production,
+                                                    is_tapped: card.tapped,
+                                                    has_summoning_sickness: false, // Lands don't have summoning sickness
+                                                });
                                             }
-                                        })
-                                        .copied()
-                                        .collect::<Vec<_>>();
-
-                                    // Sort for deterministic ordering (critical for snapshot/resume)
-                                    tappable.sort();
-
-                                    // Simple greedy algorithm: tap lands until we have enough
-                                    for &land_id in &tappable {
-                                        sources.push(land_id);
-                                        if sources.len() >= cost.cmc() as usize {
-                                            break;
                                         }
                                     }
-                                    sources
+
+                                    // Use GreedyManaResolver to compute proper tap order
+                                    let resolver = GreedyManaResolver::new();
+                                    resolver.compute_tap_order(cost, &mana_sources).unwrap_or_else(Vec::new)
                                 };
 
                                 // Cast using 8-step process
@@ -2926,6 +2938,63 @@ impl<'a> GameLoop<'a> {
             }
         }
 
+        None
+    }
+
+    /// Determine mana production for a land card
+    /// Returns None if we don't know how to handle this land yet
+    fn get_mana_production(card: &crate::core::Card) -> Option<crate::game::mana_payment::ManaProduction> {
+        use crate::core::CardType;
+        use crate::game::mana_payment::{ManaColor, ManaProduction};
+
+        // Must be a land
+        if !card.types.contains(&CardType::Land) {
+            return None;
+        }
+
+        // Check for basic lands first (simple sources)
+        let simple_color = match card.name.as_str() {
+            "Plains" => Some(ManaColor::White),
+            "Island" => Some(ManaColor::Blue),
+            "Swamp" => Some(ManaColor::Black),
+            "Mountain" => Some(ManaColor::Red),
+            "Forest" => Some(ManaColor::Green),
+            "Wastes" => return Some(ManaProduction::Colorless),
+            _ => None,
+        };
+
+        if let Some(color) = simple_color {
+            return Some(ManaProduction::Fixed(color));
+        }
+
+        // Check for dual lands by looking at basic land subtypes
+        let mut colors = Vec::new();
+        for subtype in &card.subtypes {
+            let color = match subtype.as_str() {
+                "Plains" => Some(ManaColor::White),
+                "Island" => Some(ManaColor::Blue),
+                "Swamp" => Some(ManaColor::Black),
+                "Mountain" => Some(ManaColor::Red),
+                "Forest" => Some(ManaColor::Green),
+                _ => None,
+            };
+            if let Some(c) = color {
+                colors.push(c);
+            }
+        }
+
+        // If we have exactly 2 basic land subtypes, it's a dual land
+        if colors.len() == 2 {
+            return Some(ManaProduction::Choice(colors));
+        }
+
+        // Check oracle text for any-color lands (City of Brass pattern)
+        let text_lower = card.text.to_lowercase();
+        if text_lower.contains("any color") {
+            return Some(ManaProduction::AnyColor);
+        }
+
+        // Not a complex source we can handle yet
         None
     }
 }
