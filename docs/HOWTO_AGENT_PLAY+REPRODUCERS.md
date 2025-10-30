@@ -7,13 +7,21 @@ You're the agent and you can't directly play our MTG  game through interactive t
 * Fixed input controllers
 * Stop/go snapshot and resume execution
 
+Your most basic tool is to run random games in a loo until their logs demonstrate the thing you want:
 
 ```
-cargo run --bin mtg -- tui DECK1.dck DECK2.dck
-    --seed=100 \
-    --stop-when-fixed-exhausted \
-    --p1=fixed --p1-fixed-inputs="${P1_INPUTS}"
-    --p2=fixed --p2-fixed-inputs="${P2_INPUTS}"
+cargo build --release
+./target/release/mtg tui DECK1.dck DECK2.dck --seed=100 --p1=random --p2=fixed
+```
+
+But a more targetted approach is for you to play the game yourself turn by turn.
+To do that play with fixed inputs and have the game stop when they are exhausted:
+
+```
+./target/release/mtg tui DECK1.dck DECK2.dck \
+    --log-tail 50 --stop-when-fixed-exhausted \
+    --p1=fixed --p1-fixed-inputs="" \
+    --p2=fixed --p2-fixed-inputs=""
 ```
 
 

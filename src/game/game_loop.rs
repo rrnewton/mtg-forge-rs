@@ -122,6 +122,10 @@ pub struct GameLoop<'a> {
     resumed_from_snapshot: bool,
     /// The turn number we resumed into (used to suppress header for that specific turn only)
     resumed_turn_number: Option<u32>,
+    /// Optional hand setup for Player 1 (controlled initial hand)
+    p1_hand_setup: Option<crate::game::HandSetup>,
+    /// Optional hand setup for Player 2 (controlled initial hand)
+    p2_hand_setup: Option<crate::game::HandSetup>,
 }
 
 impl<'a> GameLoop<'a> {
@@ -144,6 +148,8 @@ impl<'a> GameLoop<'a> {
             replay_choices_remaining: 0,
             resumed_from_snapshot: false,
             resumed_turn_number: None,
+            p1_hand_setup: None,
+            p2_hand_setup: None,
         }
     }
 
@@ -216,6 +222,18 @@ impl<'a> GameLoop<'a> {
     /// that were made before the snapshot was saved.
     pub fn with_baseline_choice_count(mut self, count: usize) -> Self {
         self.baseline_choice_count = count;
+        self
+    }
+
+    /// Set hand setup for Player 1 (controlled initial hand for testing)
+    pub fn with_p1_hand_setup(mut self, hand_setup: crate::game::HandSetup) -> Self {
+        self.p1_hand_setup = Some(hand_setup);
+        self
+    }
+
+    /// Set hand setup for Player 2 (controlled initial hand for testing)
+    pub fn with_p2_hand_setup(mut self, hand_setup: crate::game::HandSetup) -> Self {
+        self.p2_hand_setup = Some(hand_setup);
         self
     }
 
@@ -510,27 +528,16 @@ impl<'a> GameLoop<'a> {
         let is_puzzle_game = self.game.turn.turn_number > 1 || has_cards_in_play;
 
         if !is_resuming_from_snapshot && !is_puzzle_game {
-            // Shuffle each player's library at game start (MTG Rules 103.2a)
-            // This uses the game's RNG which maintains state across snapshot/resume.
-            //
-            // NOTE: We shuffle both libraries before any other RNG usage to ensure
-            // deterministic behavior. The RNG state after shuffling becomes the
-            // starting point for all gameplay randomness.
-
-            // Extract player IDs to avoid borrow checker issues
-            let player_ids: [PlayerId; 2] = [player1_id, player2_id];
-            for &player_id in &player_ids {
-                self.game.shuffle_library(player_id);
-            }
-
-            // Draw opening hands (MTG Rules 103.4)
-            // Each player draws 7 cards to start the game
+            // Setup opening hands using unified hand setup logic (MTG Rules 103.2-103.4)
+            // This handles shuffling, drawing, and optional controlled hand setup for testing
             // TODO(mtg-102): Implement mulligan system (MTG Rules 103.5)
-            for &player_id in &player_ids {
-                for _ in 0..7 {
-                    self.game.draw_card(player_id)?;
-                }
-            }
+            let player_ids: [PlayerId; 2] = [player1_id, player2_id];
+            crate::game::setup_opening_hands(
+                self.game,
+                &player_ids,
+                self.p1_hand_setup.as_ref(),
+                self.p2_hand_setup.as_ref(),
+            )?;
         }
 
         Ok((player1_id, player2_id))

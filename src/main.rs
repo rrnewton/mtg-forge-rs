@@ -208,6 +208,16 @@ enum Commands {
         /// (useful with --stop-on-choice to see constant-sized output)
         #[arg(long, value_name = "K")]
         log_tail: Option<usize>,
+
+        /// Controlled initial hand for Player 1 (semicolon-separated card names, 1-7 cards)
+        /// Example: "Mountain;Lightning Bolt;Mountain"
+        #[arg(long, value_name = "CARDS")]
+        p1_draw: Option<String>,
+
+        /// Controlled initial hand for Player 2 (semicolon-separated card names, 1-7 cards)
+        /// Example: "Island;Counterspell;Island"
+        #[arg(long, value_name = "CARDS")]
+        p2_draw: Option<String>,
     },
 
     /// Run games for profiling (use with cargo-heaptrack or cargo-flamegraph)
@@ -332,6 +342,8 @@ async fn main() -> Result<()> {
             start_from,
             save_final_gamestate,
             log_tail,
+            p1_draw,
+            p2_draw,
         } => {
             run_tui(
                 deck1,
@@ -356,6 +368,8 @@ async fn main() -> Result<()> {
                 start_from,
                 save_final_gamestate,
                 log_tail,
+                p1_draw,
+                p2_draw,
             )
             .await?
         }
@@ -449,6 +463,8 @@ async fn run_tui(
     start_from: Option<PathBuf>,
     save_final_gamestate: Option<PathBuf>,
     log_tail: Option<usize>,
+    p1_draw: Option<String>,
+    p2_draw: Option<String>,
 ) -> Result<()> {
     let verbosity: VerbosityLevel = verbosity.into();
     let suppress_output = log_tail.is_some();
@@ -475,10 +491,30 @@ async fn run_tui(
         None
     };
 
+    // Parse hand setup if provided
+    let p1_hand_setup = if let Some(ref p1_draw_str) = p1_draw {
+        Some(mtg_forge_rs::game::HandSetup::parse(p1_draw_str)?)
+    } else {
+        None
+    };
+
+    let p2_hand_setup = if let Some(ref p2_draw_str) = p2_draw {
+        Some(mtg_forge_rs::game::HandSetup::parse(p2_draw_str)?)
+    } else {
+        None
+    };
+
     // Check for conflicting options
     if start_from.is_some() && (deck1_path.is_some() || deck2_path.is_some() || puzzle_path.is_some()) {
         return Err(mtg_forge_rs::MtgError::InvalidAction(
             "Cannot specify both --start-from and deck/puzzle files".to_string(),
+        ));
+    }
+
+    // Hand setup flags only work at game start, not when resuming from snapshot
+    if start_from.is_some() && (p1_draw.is_some() || p2_draw.is_some()) {
+        return Err(mtg_forge_rs::MtgError::InvalidAction(
+            "--p1-draw and --p2-draw only work at game start (not when resuming from snapshot)".to_string(),
         ));
     }
 
@@ -979,6 +1015,14 @@ async fn run_tui(
     // Enable stop condition (--stop-on-choice) if requested
     if let Some(ref stop_cond) = stop_condition {
         game_loop = game_loop.with_stop_condition(p1_id, stop_cond.clone(), &snapshot_output);
+    }
+
+    // Set hand setup for controlled initial hands (testing)
+    if let Some(ref p1_setup) = p1_hand_setup {
+        game_loop = game_loop.with_p1_hand_setup(p1_setup.clone());
+    }
+    if let Some(ref p2_setup) = p2_hand_setup {
+        game_loop = game_loop.with_p2_hand_setup(p2_setup.clone());
     }
 
     // Run the game (with mid-turn exits if stop conditions enabled)
