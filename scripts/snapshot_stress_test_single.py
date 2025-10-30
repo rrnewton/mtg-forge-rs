@@ -114,6 +114,10 @@ def filter_game_actions(log: str) -> List[str]:
         if "[SUPPRESSED]" in stripped or "🔄" in stripped or "📸" in stripped or "✅" in stripped:
             continue
 
+        # Skip state hash debug lines (these are non-deterministic in stop/go tests)
+        if "[STATE:" in stripped:
+            continue
+
         # Keep game actions: draws, plays, attacks, damage, etc.
         if any(keyword in stripped for keyword in [
             "draws ",
@@ -447,8 +451,8 @@ def run_test_for_deck(mtg_bin: Path, deck_path: str,
                     shutil.copy(stopgo_state_file, stopgo_state_saved)
 
             # Check if this replay succeeded
-            # NOTE: Only gamestate matters - logs can differ due to replay suppression
-            replay_success = gamestate_success
+            # BOTH logs AND gamestate must match for deterministic correctness
+            replay_success = log_success and gamestate_success
             all_success = all_success and replay_success
 
             if verbose:

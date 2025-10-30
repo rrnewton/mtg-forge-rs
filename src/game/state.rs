@@ -262,7 +262,7 @@ impl GameState {
         Ok(())
     }
 
-    /// Print state hash to stderr if debug mode is enabled
+    /// Print state hash to normal log output if debug mode is enabled
     ///
     /// This is called before logging game actions to help debug divergence.
     /// Prints format: [STATE:a3f7b2c1] message
@@ -271,7 +271,9 @@ impl GameState {
         if self.logger.debug_state_hash_enabled() {
             use crate::game::{compute_state_hash, format_hash};
             let hash = compute_state_hash(self);
-            eprintln!("[STATE:{}] {}", format_hash(hash), message);
+            // Use the logger's normal() method to output to stdout instead of stderr
+            // This makes state hashes part of the deterministic game output
+            self.logger.normal(&format!("[STATE:{}] {}", format_hash(hash), message));
         }
     }
 

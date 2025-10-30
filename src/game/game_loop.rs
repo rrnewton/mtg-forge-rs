@@ -213,7 +213,9 @@ impl<'a> GameLoop<'a> {
     /// Set replay mode for resuming from snapshot
     ///
     /// When resuming from a snapshot, we replay intra-turn choices to restore game state.
-    /// During this replay, ALL logging should be suppressed to avoid duplicate output.
+    /// During this replay, logging is suppressed for all choices EXCEPT the last one.
+    /// The last choice was logged to the replay log but never executed (snapshots are taken
+    /// before execution), so it needs normal logging when it executes.
     /// This method enables replay mode and sets the number of choices to replay.
     /// Also sets resumed_from_snapshot flag to suppress turn header on first turn.
     pub fn with_replay_mode(mut self, choice_count: usize) -> Self {
@@ -278,20 +280,22 @@ impl<'a> GameLoop<'a> {
         });
 
         // If we're in replay mode, decrement counter
-        // Note: We don't exit replay mode immediately when counter reaches 0,
-        // because the action corresponding to this choice will execute AFTER this point
-        // and we need to suppress its logging too. Replay mode will be exited when
-        // we're about to make a NEW choice (not replayed).
         if self.replaying && self.replay_choices_remaining > 0 {
             self.replay_choices_remaining -= 1;
-            if self.verbosity >= VerbosityLevel::Verbose {
-                println!(
-                    "🔄 Replay choice {}/{} (remaining: {})",
-                    self.choice_counter, self.choice_counter, self.replay_choices_remaining
-                );
-                if self.replay_choices_remaining == 0 {
-                    println!("  (Note: Replay mode stays active to suppress the action's execution)");
+
+            // If this is the LAST replay choice (counter reached 1), clear replay mode
+            // so that its execution will be logged normally. The last choice was never
+            // executed (snapshot taken before execution), so it needs stdout logging.
+            if self.replay_choices_remaining == 0 {
+                self.replaying = false;
+                if self.verbosity >= VerbosityLevel::Verbose {
+                    println!("🔄 Replay choice complete: last choice will log normally (never executed before)");
                 }
+            } else if self.verbosity >= VerbosityLevel::Verbose {
+                println!(
+                    "🔄 Replay choice: {} remaining (suppressing execution logs)",
+                    self.replay_choices_remaining
+                );
             }
         }
     }
@@ -1888,14 +1892,8 @@ impl<'a> GameLoop<'a> {
                         return Ok(Some(result));
                     }
 
-                    // Exit replay mode if we've replayed all choices
-                    // This happens BEFORE asking for a new choice, so the new choice isn't suppressed
-                    if self.replaying && self.replay_choices_remaining == 0 {
-                        self.replaying = false;
-                        if self.verbosity >= VerbosityLevel::Verbose {
-                            println!("✅ REPLAY MODE COMPLETE - resuming normal execution");
-                        }
-                    }
+                    // Note: Replay mode is cleared in log_choice_point() after the last choice,
+                    // allowing it to be logged normally when executed
 
                     // Ask controller to choose one (or None to pass)
                     let view = GameStateView::new(self.game, current_priority);

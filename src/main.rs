@@ -177,7 +177,7 @@ enum Commands {
         #[arg(long)]
         numeric_choices: bool,
 
-        /// Enable state hash debugging (prints hash before each action to stderr)
+        /// Enable state hash debugging (prints hash before each action)
         #[arg(long)]
         debug_state_hash: bool,
 
@@ -274,7 +274,7 @@ enum Commands {
         #[arg(long)]
         numeric_choices: bool,
 
-        /// Enable state hash debugging (prints hash before each action to stderr)
+        /// Enable state hash debugging (prints hash before each action)
         #[arg(long)]
         debug_state_hash: bool,
 
@@ -643,7 +643,7 @@ async fn run_tui(
     if debug_state_hash {
         game.logger.set_debug_state_hash(true);
         if !suppress_output {
-            println!("State hash debugging: enabled (output to stderr)");
+            println!("State hash debugging: enabled");
         }
     }
 
@@ -1256,7 +1256,7 @@ async fn run_resume(
     if debug_state_hash {
         game.logger.set_debug_state_hash(true);
         if !suppress_output {
-            println!("State hash debugging: enabled (output to stderr)");
+            println!("State hash debugging: enabled");
         }
     }
 

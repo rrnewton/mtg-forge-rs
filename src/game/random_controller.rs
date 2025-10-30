@@ -47,6 +47,17 @@ impl RandomController {
             rng: rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(seed),
         }
     }
+
+    /// Get a debug representation of the RNG state
+    ///
+    /// This is useful for debugging non-determinism issues. The RNG state
+    /// consists of 4 u64 values that fully determine future random numbers.
+    pub fn debug_rng_state(&self) -> String {
+        match serde_json::to_string(&self.rng) {
+            Ok(json) => json,
+            Err(_) => "<serialization failed>".to_string(),
+        }
+    }
 }
 
 impl PlayerController for RandomController {
