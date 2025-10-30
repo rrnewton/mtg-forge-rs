@@ -1872,10 +1872,15 @@ impl<'a> GameLoop<'a> {
                     // NEW choice point are properly suppressed, avoiding duplicate logging.
                     if self.replaying && self.replay_choices_remaining == 0
                        && (self.choice_counter as usize) >= self.baseline_choice_count {
+                        eprintln!("🔍 [REPLAY_CLEAR_BEFORE_CHOICE] choice_counter={}, baseline={}, CLEARING replay mode",
+                            self.choice_counter, self.baseline_choice_count);
                         self.replaying = false;
                         if self.verbosity >= VerbosityLevel::Verbose {
                             println!("✅ REPLAY MODE COMPLETE - will present new choice to controller");
                         }
+                    } else if self.replaying {
+                        eprintln!("🔍 [REPLAY_STILL_ACTIVE] choice_counter={}, baseline={}, remaining={}",
+                            self.choice_counter, self.baseline_choice_count, self.replay_choices_remaining);
                     }
 
                     // PREAMBLE: Check stop conditions BEFORE asking for choice
