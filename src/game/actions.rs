@@ -614,9 +614,30 @@ impl GameState {
         // Step 7: Pay costs
         let player = self.get_player_mut(player_id)?;
         if let Err(e) = player.mana_pool.pay_cost(&mana_cost) {
-            // If we can't pay, we need to unwind - move card back to hand
-            // and untap mana sources
-            // For now, just return error (TODO: proper unwinding)
+            // If we can't pay, we need to unwind:
+            // 1. Move card back to hand from stack
+            // 2. Untap all mana sources that were tapped
+            // 3. Clear the mana pool
+
+            // Move card back to hand
+            self.move_card(card_id, Zone::Stack, Zone::Hand, player_id)?;
+
+            // Untap all sources that were tapped
+            for &source_id in &sources_to_tap {
+                if let Ok(card) = self.cards.get_mut(source_id) {
+                    card.untap();
+                    // Log the untap for undo functionality
+                    self.undo_log.log(crate::undo::GameAction::TapCard {
+                        card_id: source_id,
+                        tapped: false,
+                    });
+                }
+            }
+
+            // Clear the mana pool (remove any mana that was added)
+            let player = self.get_player_mut(player_id)?;
+            player.mana_pool.clear();
+
             return Err(MtgError::InvalidAction(format!("Failed to pay mana cost: {e}")));
         }
 
