@@ -1,6 +1,6 @@
 //! Game actions and mechanics
 
-use crate::core::{CardId, CardType, Effect, Keyword, PlayerId, TargetRef, TriggerEvent};
+use crate::core::{CardId, CardType, Cost, Effect, Keyword, PlayerId, TargetRef, TriggerEvent};
 use crate::game::GameState;
 use crate::zones::Zone;
 use crate::{MtgError, Result};
@@ -401,6 +401,18 @@ impl GameState {
         Ok(valid_targets)
     }
 
+    /// Check if a cost sacrifices the source card itself
+    ///
+    /// Returns true if the cost includes sacrificing "CARDNAME" (the source card itself).
+    /// For example, Strip Mine has cost "T, Sac<1/CARDNAME>" which sacrifices itself.
+    fn cost_sacrifices_self(cost: &Cost) -> bool {
+        match cost {
+            Cost::SacrificePattern { card_type, .. } => card_type.eq_ignore_ascii_case("CARDNAME"),
+            Cost::Composite(costs) => costs.iter().any(Self::cost_sacrifices_self),
+            _ => false,
+        }
+    }
+
     /// Get valid targets for an activated ability
     ///
     /// Similar to get_valid_targets_for_spell(), but for activated abilities.
@@ -430,11 +442,17 @@ impl GameState {
             ))
         })?;
 
+        // Check if the ability sacrifices the source card itself (e.g., Strip Mine)
+        // If so, the source card won't be on the battlefield when the effect resolves
+        let sacrifices_self = Self::cost_sacrifices_self(&ability.cost);
+
         // Check for targeting restrictions in the ability description
         // For Royal Assassin: "Destroy target tapped creature"
+        // For Strip Mine: "Destroy target land"
         let requires_tapped = ability.description.to_lowercase().contains("tapped");
         let requires_untapped = ability.description.to_lowercase().contains("untapped");
         let targets_creature = ability.description.to_lowercase().contains("creature");
+        let targets_land = ability.description.to_lowercase().contains("land");
 
         // Check each effect to determine valid targets
         for effect in &ability.effects {
@@ -446,8 +464,19 @@ impl GameState {
                             // Check targeting restrictions
                             let mut is_valid = true;
 
+                            // Cannot target the source card if it will be sacrificed as part of the cost
+                            // (e.g., Strip Mine sacrifices itself, so it can't be the target)
+                            if sacrifices_self && card_id == source_card_id {
+                                is_valid = false;
+                            }
+
                             // Must be creature if ability says "creature"
                             if targets_creature && !card.is_creature() {
+                                is_valid = false;
+                            }
+
+                            // Must be land if ability says "land"
+                            if targets_land && !card.is_land() {
                                 is_valid = false;
                             }
 

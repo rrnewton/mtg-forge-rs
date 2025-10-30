@@ -2309,7 +2309,6 @@ impl<'a> GameLoop<'a> {
                                             crate::core::Effect::DestroyPermanent { target }
                                                 if target.as_u32() == 0 && !chosen_targets_vec.is_empty() =>
                                             {
-                                                // Use the first chosen target
                                                 crate::core::Effect::DestroyPermanent {
                                                     target: chosen_targets_vec[0],
                                                 }
