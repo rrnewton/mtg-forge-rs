@@ -125,7 +125,7 @@ pub enum Effect {
 }
 
 /// Events that can trigger abilities
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TriggerEvent {
     /// When a card enters the battlefield
     /// Corresponds to: T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self
