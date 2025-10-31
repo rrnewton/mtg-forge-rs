@@ -717,8 +717,8 @@ impl HeuristicController {
 
         // Will the blocker survive?
         let will_survive = if blocker_has_first_strike && !attacker_has_first_strike {
-            // Blocker strikes first and might kill attacker before taking damage
-            blocker_power < attacker_toughness || blocker_toughness > attacker_power
+            // Blocker strikes first - if it kills the attacker, it takes no damage
+            blocker_power >= attacker_toughness || blocker_toughness > attacker_power
         } else {
             blocker_toughness > attacker_power
         };
@@ -739,11 +739,11 @@ impl HeuristicController {
         }
 
         // Case 2: Trading - kill attacker but die too
-        // Only trade if attacker is more valuable or we're desperate
+        // Only trade if attacker is more valuable or equal value (prevent damage)
         if can_kill_attacker && !will_survive {
-            // Favorable trade: our creature is worth less
-            // Java uses a threshold (typically attacker_value > blocker_value + some margin)
-            return attacker_value > blocker_value;
+            // Favorable trade: our creature is worth less or equal
+            // Trading equal creatures is good because it prevents damage
+            return attacker_value >= blocker_value;
         }
 
         // Case 3: We survive but don't kill the attacker
