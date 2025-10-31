@@ -18,15 +18,29 @@ Track completion of heuristic AI port from Java Forge to Rust.
 **What's Implemented in HeuristicController:**
 - ✅ Creature evaluation (comprehensive, faithful port)
 - ✅ Attack decisions with aggression levels (basic - needs improvement)
-- ✅ Block decisions with value trading
+- ✅ Block decisions with value trading AND life-in-danger logic (2025-10-31)
 - ✅ Basic targeting (best creature)
 - ✅ Basic spell selection (creatures first)
 - ✅ GameStateEvaluator (basic holistic board evaluation)
 - ✅ Opponent life access (bd-4 completed)
+- ✅ Life-in-danger detection for chump blocking (2025-10-31)
 
 **What's Missing:**
 
 ### High Priority (Core AI Strength):
+
+0. **Multi-phase blocking strategy (incomplete)**
+   - Current: Simple single-pass blocking with life-in-danger chump blocks
+   - Missing: Java's sophisticated 3-phase strategy (AiBlockController.java:1075-1148)
+     - Phase 1: Good blocks → Gang blocks → Trade blocks → Chump blocks → Reinforce
+     - Phase 2: If still in danger, reset and reorder: Trade → Good → Chump → Reinforce
+     - Phase 3: If serious danger: Chump → Trade → Reinforce → Good
+   - Missing: Safe blockers vs killing blockers distinction
+   - Missing: Gang blocking (multi-blocker combat math)
+   - Missing: Reinforce against trample
+   - Missing: Planeswalker defense
+   - Impact: Suboptimal blocking, doesn't maximize damage prevention
+   - Reference: AiBlockController.java:187-950 (block type methods)
 
 1. **Attack logic improvements (mtg-85)**
    - Current: Only evaluates attacker stats in isolation
@@ -83,6 +97,12 @@ Track completion of heuristic AI port from Java Forge to Rust.
 - ✅ Opponent life access (bd-4) - GameStateView now provides player_life(), opponents(), and opponent_life() methods
 - ✅ Activated ability targeting (mtg-70) - Royal Assassin can now target and destroy tapped creatures
 - ✅ **Comprehensive test coverage with 4ED cards (2025-10-26) - 312 tests passing**
+- ✅ Life-in-danger blocking logic (2025-10-31):
+  - Ported `lifeInDanger()` from ComputerUtilCombat.java:399-466
+  - Ported `lifeThatWouldRemain()` from ComputerUtilCombat.java:304-329
+  - Ported `lifeInSeriousDanger()` from ComputerUtilCombat.java:477-508
+  - Integrated into `should_block()` for chump blocking when life < 5
+  - Tournament results: Heuristic 51.4% vs Random 48.6% (improved from 49.5/50.5)
 
 ## Test Coverage Expansion (2025-10-26)
 
