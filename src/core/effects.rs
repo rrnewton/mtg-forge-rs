@@ -122,6 +122,11 @@ pub enum Effect {
         counter_type: crate::core::CounterType,
         amount: u8,
     },
+
+    /// Exile a permanent
+    /// Example: "Exile target creature" (Swords to Plowshares)
+    /// Moves a card from the battlefield to the exile zone
+    ExilePermanent { target: CardId },
 }
 
 /// Events that can trigger abilities

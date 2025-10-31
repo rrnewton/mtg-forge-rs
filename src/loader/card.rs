@@ -435,6 +435,19 @@ impl CardDefinition {
                     target: CardId::new(0), // Placeholder, will be set during resolution
                 });
             }
+
+            // Parse ChangeZone abilities (exile effects)
+            // Format: "A:SP$ ChangeZone | Origin$ Battlefield | Destination$ Exile | ValidTgts$ Creature | ..."
+            // Example: Swords to Plowshares
+            if ability.contains("SP$ ChangeZone")
+                && ability.contains("Destination$ Exile")
+                && ability.contains("Origin$ Battlefield")
+            {
+                use crate::core::CardId;
+                effects.push(Effect::ExilePermanent {
+                    target: CardId::new(0), // Placeholder, will be set during resolution
+                });
+            }
         }
 
         effects

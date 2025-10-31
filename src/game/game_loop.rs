@@ -1169,6 +1169,15 @@ impl<'a> GameLoop<'a> {
                     "  {source_name} ({source_id}) removes {amount} {counter_type:?} counter(s) from {target_name} ({target})"
                 );
             }
+            Effect::ExilePermanent { target } => {
+                let target_name = self
+                    .game
+                    .cards
+                    .get(*target)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("Unknown");
+                println!("  {source_name} ({source_id}) exiles {target_name} ({target})");
+            }
         }
     }
 
