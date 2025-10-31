@@ -44,6 +44,9 @@ tokio = { version = "1.0", features = ["rt-multi-thread", "fs", "macros", "time"
 # Parallel directory walking
 jwalk = "0.8"
 
+# Parallel execution
+rayon = "1.10"
+
 [dev-dependencies]
 criterion = "0.5"
 stats_alloc = "0.1"

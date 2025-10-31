@@ -528,6 +528,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_xoshiro",
+ "rayon",
  "rkyv",
  "rustc-hash",
  "serde",

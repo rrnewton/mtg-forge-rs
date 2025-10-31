@@ -31,6 +31,26 @@
 
 use crate::core::{CardId, ManaCost};
 
+/// Result of checking whether a mana cost can be paid
+///
+/// This three-valued logic allows us to distinguish between:
+/// - Definite success (with solution)
+/// - Definite failure (provably impossible)
+/// - Uncertain (greedy failed but backtracking might succeed)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PaymentResult {
+    /// We can definitely pay this cost, here's the tap order
+    Yes(Vec<CardId>),
+
+    /// We can prove that this cost cannot be paid with available sources
+    No,
+
+    /// Our greedy algorithm couldn't find a solution, but one might exist
+    /// via backtracking. This means the problem is complex enough that
+    /// we'd need a full search to be certain.
+    Maybe,
+}
+
 /// Represents a single mana-producing source (land or creature)
 ///
 /// This struct captures all the information needed to determine what mana
@@ -106,20 +126,50 @@ impl ManaColor {
 /// Different implementations can provide different algorithms for determining
 /// how to pay mana costs. The interface is kept minimal to allow flexibility.
 pub trait ManaPaymentResolver {
+    /// Check if a cost can be paid and return the payment result
+    ///
+    /// This is the primary method that should be implemented. It returns:
+    /// - `PaymentResult::Yes(tap_order)` if we found a solution
+    /// - `PaymentResult::No` if we can prove it's impossible
+    /// - `PaymentResult::Maybe` if our algorithm couldn't find a solution but one might exist
+    fn check_payment(&self, cost: &ManaCost, sources: &[ManaSource]) -> PaymentResult;
+
+    /// Quick bounds check without attempting to construct a solution
+    ///
+    /// This is a fast pessimistic check that returns:
+    /// - `PaymentResult::No` if we can prove it's impossible (insufficient mana, wrong colors)
+    /// - `PaymentResult::Maybe` otherwise (might be possible, need full check)
+    ///
+    /// This never returns `Yes` - use `check_payment()` for that.
+    fn quick_check(&self, cost: &ManaCost, sources: &[ManaSource]) -> PaymentResult {
+        // Default implementation: just do full check
+        match self.check_payment(cost, sources) {
+            PaymentResult::Yes(_) => PaymentResult::Maybe,
+            other => other,
+        }
+    }
+
     /// Check if a mana cost can be paid with the given sources
     ///
-    /// This should be a relatively fast check that doesn't necessarily compute
-    /// the full tap order.
-    fn can_pay(&self, cost: &ManaCost, sources: &[ManaSource]) -> bool;
+    /// This is pessimistic: `Maybe` is treated as `No`.
+    /// Returns `true` only if we have a definite solution.
+    fn can_pay(&self, cost: &ManaCost, sources: &[ManaSource]) -> bool {
+        matches!(self.check_payment(cost, sources), PaymentResult::Yes(_))
+    }
 
     /// Compute the actual tap order for paying a cost
     ///
     /// Returns `Some(vec)` with the CardIds to tap in order if payment is
-    /// possible, or `None` if the cost cannot be paid.
+    /// possible, or `None` if the cost cannot be paid or is uncertain.
     ///
     /// The returned vector should contain exactly the cards needed to pay
     /// the cost, in the order they should be tapped.
-    fn compute_tap_order(&self, cost: &ManaCost, sources: &[ManaSource]) -> Option<Vec<CardId>>;
+    fn compute_tap_order(&self, cost: &ManaCost, sources: &[ManaSource]) -> Option<Vec<CardId>> {
+        match self.check_payment(cost, sources) {
+            PaymentResult::Yes(tap_order) => Some(tap_order),
+            _ => None,
+        }
+    }
 }
 
 /// Simple resolver for basic lands only
@@ -146,7 +196,7 @@ impl Default for SimpleManaResolver {
 }
 
 impl ManaPaymentResolver for SimpleManaResolver {
-    fn can_pay(&self, cost: &ManaCost, sources: &[ManaSource]) -> bool {
+    fn check_payment(&self, cost: &ManaCost, sources: &[ManaSource]) -> PaymentResult {
         // Count available mana by color (only untapped, fixed-color sources)
         let mut white = 0u8;
         let mut blue = 0u8;
@@ -154,6 +204,7 @@ impl ManaPaymentResolver for SimpleManaResolver {
         let mut red = 0u8;
         let mut green = 0u8;
         let mut colorless = 0u8;
+        let mut has_complex = false;
 
         for source in sources {
             if source.is_tapped || source.has_summoning_sickness {
@@ -171,30 +222,35 @@ impl ManaPaymentResolver for SimpleManaResolver {
                 ManaProduction::Colorless => colorless += 1,
                 _ => {
                     // SimpleManaResolver doesn't handle complex sources
-                    // If we encounter any, we conservatively return false
-                    return false;
+                    // If we encounter any, we return Maybe (backtracking might help)
+                    has_complex = true;
                 }
             }
         }
 
-        // Check specific color requirements
+        // If we have complex sources, we can't be certain
+        if has_complex {
+            return PaymentResult::Maybe;
+        }
+
+        // Check specific color requirements - these are definite "No" proofs
         if cost.white > white {
-            return false;
+            return PaymentResult::No;
         }
         if cost.blue > blue {
-            return false;
+            return PaymentResult::No;
         }
         if cost.black > black {
-            return false;
+            return PaymentResult::No;
         }
         if cost.red > red {
-            return false;
+            return PaymentResult::No;
         }
         if cost.green > green {
-            return false;
+            return PaymentResult::No;
         }
         if cost.colorless > colorless {
-            return false;
+            return PaymentResult::No;
         }
 
         // Check if we have enough total mana for generic requirement
@@ -215,15 +271,11 @@ impl ManaPaymentResolver for SimpleManaResolver {
 
         let remaining = total.saturating_sub(used);
 
-        remaining >= cost.generic
-    }
-
-    fn compute_tap_order(&self, cost: &ManaCost, sources: &[ManaSource]) -> Option<Vec<CardId>> {
-        // First check if payment is possible
-        if !self.can_pay(cost, sources) {
-            return None;
+        if remaining < cost.generic {
+            return PaymentResult::No;
         }
 
+        // We can pay! Now compute the tap order
         let mut tap_order = Vec::new();
         let mut remaining_cost = *cost;
 
@@ -293,11 +345,11 @@ impl ManaPaymentResolver for SimpleManaResolver {
                     tap_order.push(source.card_id);
                     tapped_generic += 1;
                 }
-                _ => {} // Skip complex sources
+                _ => {} // Skip complex sources (shouldn't be any at this point)
             }
         }
 
-        Some(tap_order)
+        PaymentResult::Yes(tap_order)
     }
 }
 
@@ -354,8 +406,10 @@ impl Default for GreedyManaResolver {
 }
 
 impl ManaPaymentResolver for GreedyManaResolver {
-    fn can_pay(&self, cost: &ManaCost, sources: &[ManaSource]) -> bool {
-        // Quick check: count total available mana
+    fn check_payment(&self, cost: &ManaCost, sources: &[ManaSource]) -> PaymentResult {
+        // First, do bounds checking to see if we can prove "No"
+
+        // Check total available mana
         let mut available = 0u8;
         for source in sources {
             if !source.is_tapped && !source.has_summoning_sickness {
@@ -373,14 +427,172 @@ impl ManaPaymentResolver for GreedyManaResolver {
             .saturating_add(cost.generic);
 
         if available < needed {
-            return false;
+            return PaymentResult::No; // Provably impossible - not enough total mana
         }
 
-        // Try to compute tap order - if successful, we can pay
-        self.compute_tap_order(cost, sources).is_some()
+        // Check if we can produce enough of each required color
+        // Count maximum possible for each color
+        let mut max_white = 0u8;
+        let mut max_blue = 0u8;
+        let mut max_black = 0u8;
+        let mut max_red = 0u8;
+        let mut max_green = 0u8;
+        let mut max_colorless = 0u8;
+
+        for source in sources {
+            if source.is_tapped || source.has_summoning_sickness {
+                continue;
+            }
+
+            match &source.production {
+                ManaProduction::Fixed(color) => match color {
+                    ManaColor::White => max_white += 1,
+                    ManaColor::Blue => max_blue += 1,
+                    ManaColor::Black => max_black += 1,
+                    ManaColor::Red => max_red += 1,
+                    ManaColor::Green => max_green += 1,
+                },
+                ManaProduction::Colorless => max_colorless += 1,
+                ManaProduction::Choice(colors) => {
+                    // Choice lands count toward each color they can produce
+                    for color in colors {
+                        match color {
+                            ManaColor::White => max_white += 1,
+                            ManaColor::Blue => max_blue += 1,
+                            ManaColor::Black => max_black += 1,
+                            ManaColor::Red => max_red += 1,
+                            ManaColor::Green => max_green += 1,
+                        }
+                    }
+                }
+                ManaProduction::AnyColor => {
+                    // Any-color lands count toward all colors
+                    max_white += 1;
+                    max_blue += 1;
+                    max_black += 1;
+                    max_red += 1;
+                    max_green += 1;
+                }
+            }
+        }
+
+        // If we can't produce enough of a specific color, it's provably impossible
+        if cost.white > max_white {
+            return PaymentResult::No;
+        }
+        if cost.blue > max_blue {
+            return PaymentResult::No;
+        }
+        if cost.black > max_black {
+            return PaymentResult::No;
+        }
+        if cost.red > max_red {
+            return PaymentResult::No;
+        }
+        if cost.green > max_green {
+            return PaymentResult::No;
+        }
+        if cost.colorless > max_colorless {
+            return PaymentResult::No;
+        }
+
+        // Bounds check passed, now try greedy algorithm
+        let tap_order_result = self.try_greedy_payment(cost, sources);
+
+        match tap_order_result {
+            Some(tap_order) => PaymentResult::Yes(tap_order),
+            None => {
+                // Greedy failed but bounds check says it might be possible
+                // A backtracking search might find a solution
+                PaymentResult::Maybe
+            }
+        }
     }
 
-    fn compute_tap_order(&self, cost: &ManaCost, sources: &[ManaSource]) -> Option<Vec<CardId>> {
+    fn quick_check(&self, cost: &ManaCost, sources: &[ManaSource]) -> PaymentResult {
+        // Same bounds checks as check_payment, but don't try greedy algorithm
+
+        let mut available = 0u8;
+        for source in sources {
+            if !source.is_tapped && !source.has_summoning_sickness {
+                available = available.saturating_add(1);
+            }
+        }
+
+        let needed = cost
+            .white
+            .saturating_add(cost.blue)
+            .saturating_add(cost.black)
+            .saturating_add(cost.red)
+            .saturating_add(cost.green)
+            .saturating_add(cost.colorless)
+            .saturating_add(cost.generic);
+
+        if available < needed {
+            return PaymentResult::No;
+        }
+
+        // Quick color bounds check (simplified - just check if impossible)
+        let mut max_white = 0u8;
+        let mut max_blue = 0u8;
+        let mut max_black = 0u8;
+        let mut max_red = 0u8;
+        let mut max_green = 0u8;
+        let mut max_colorless = 0u8;
+
+        for source in sources {
+            if source.is_tapped || source.has_summoning_sickness {
+                continue;
+            }
+
+            match &source.production {
+                ManaProduction::Fixed(color) => match color {
+                    ManaColor::White => max_white += 1,
+                    ManaColor::Blue => max_blue += 1,
+                    ManaColor::Black => max_black += 1,
+                    ManaColor::Red => max_red += 1,
+                    ManaColor::Green => max_green += 1,
+                },
+                ManaProduction::Colorless => max_colorless += 1,
+                ManaProduction::Choice(colors) => {
+                    for color in colors {
+                        match color {
+                            ManaColor::White => max_white += 1,
+                            ManaColor::Blue => max_blue += 1,
+                            ManaColor::Black => max_black += 1,
+                            ManaColor::Red => max_red += 1,
+                            ManaColor::Green => max_green += 1,
+                        }
+                    }
+                }
+                ManaProduction::AnyColor => {
+                    max_white += 1;
+                    max_blue += 1;
+                    max_black += 1;
+                    max_red += 1;
+                    max_green += 1;
+                }
+            }
+        }
+
+        if cost.white > max_white
+            || cost.blue > max_blue
+            || cost.black > max_black
+            || cost.red > max_red
+            || cost.green > max_green
+            || cost.colorless > max_colorless
+        {
+            return PaymentResult::No;
+        }
+
+        // Might be possible, need full check
+        PaymentResult::Maybe
+    }
+}
+
+impl GreedyManaResolver {
+    /// Try to pay using greedy algorithm, return tap order if successful
+    fn try_greedy_payment(&self, cost: &ManaCost, sources: &[ManaSource]) -> Option<Vec<CardId>> {
         let mut tap_order = Vec::new();
         let mut remaining_cost = *cost;
 
@@ -774,5 +986,165 @@ mod tests {
 
         assert!(!resolver.can_pay(&cost, &sources));
         assert!(resolver.compute_tap_order(&cost, &sources).is_none());
+    }
+
+    // Tests for PaymentResult::Maybe behavior
+
+    #[test]
+    fn test_simple_resolver_returns_maybe_for_complex_sources() {
+        let resolver = SimpleManaResolver::new();
+
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::Fixed(ManaColor::Red),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::AnyColor, // Complex source
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        let cost = ManaCost {
+            generic: 1,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 0,
+            green: 0,
+            colorless: 0,
+        };
+
+        // SimpleManaResolver returns Maybe when it encounters complex sources
+        let result = resolver.check_payment(&cost, &sources);
+        assert_eq!(result, PaymentResult::Maybe);
+
+        // can_pay treats Maybe as No (pessimistic)
+        assert!(!resolver.can_pay(&cost, &sources));
+    }
+
+    #[test]
+    fn test_payment_result_yes_returns_tap_order() {
+        let resolver = SimpleManaResolver::new();
+
+        let sources = vec![ManaSource {
+            card_id: CardId::new(1),
+            production: ManaProduction::Fixed(ManaColor::Red),
+            is_tapped: false,
+            has_summoning_sickness: false,
+        }];
+
+        let cost = ManaCost {
+            generic: 0,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 0,
+            colorless: 0,
+        };
+
+        let result = resolver.check_payment(&cost, &sources);
+        match result {
+            PaymentResult::Yes(tap_order) => {
+                assert_eq!(tap_order.len(), 1);
+                assert_eq!(tap_order[0], CardId::new(1));
+            }
+            _ => panic!("Expected PaymentResult::Yes, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_payment_result_no_for_insufficient_mana() {
+        let resolver = SimpleManaResolver::new();
+
+        let sources = vec![ManaSource {
+            card_id: CardId::new(1),
+            production: ManaProduction::Fixed(ManaColor::Red),
+            is_tapped: false,
+            has_summoning_sickness: false,
+        }];
+
+        // Need 2 red but only have 1
+        let cost = ManaCost {
+            generic: 0,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 2,
+            green: 0,
+            colorless: 0,
+        };
+
+        let result = resolver.check_payment(&cost, &sources);
+        assert_eq!(result, PaymentResult::No);
+    }
+
+    #[test]
+    fn test_greedy_resolver_returns_no_when_provably_impossible() {
+        let resolver = GreedyManaResolver::new();
+
+        // Have: 1 Mountain, 1 Taiga
+        // Want: 2 blue mana
+        // Even though Taiga could theoretically produce mana, it can't produce blue
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::Fixed(ManaColor::Red),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        let cost = ManaCost {
+            generic: 0,
+            white: 0,
+            blue: 2,
+            black: 0,
+            red: 0,
+            green: 0,
+            colorless: 0,
+        };
+
+        // Should return No - provably impossible
+        let result = resolver.check_payment(&cost, &sources);
+        assert_eq!(result, PaymentResult::No);
+    }
+
+    #[test]
+    fn test_quick_check_returns_maybe_not_yes() {
+        let resolver = SimpleManaResolver::new();
+
+        let sources = vec![ManaSource {
+            card_id: CardId::new(1),
+            production: ManaProduction::Fixed(ManaColor::Red),
+            is_tapped: false,
+            has_summoning_sickness: false,
+        }];
+
+        let cost = ManaCost {
+            generic: 0,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 0,
+            colorless: 0,
+        };
+
+        // quick_check never returns Yes, even when payment is possible
+        let result = resolver.quick_check(&cost, &sources);
+        assert!(matches!(result, PaymentResult::Maybe | PaymentResult::No));
+        assert_ne!(result, PaymentResult::Yes(vec![])); // Should not be Yes
     }
 }
