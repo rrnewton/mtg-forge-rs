@@ -532,6 +532,7 @@ mod tests {
             red: 1,
             green: 0,
             colorless: 0,
+            x_count: 0,
         };
 
         assert!(resolver.can_pay(&cost, &sources));
@@ -560,6 +561,7 @@ mod tests {
             red: 0,
             green: 0,
             colorless: 0,
+            x_count: 0,
         };
 
         assert!(!resolver.can_pay(&cost, &sources));
@@ -593,6 +595,7 @@ mod tests {
             red: 0,
             green: 0,
             colorless: 0,
+            x_count: 0,
         };
 
         // SimpleManaResolver conservatively rejects when complex sources present
@@ -628,6 +631,7 @@ mod tests {
             red: 1,
             green: 0,
             colorless: 0,
+            x_count: 0,
         };
 
         assert!(resolver.can_pay(&cost, &sources));
@@ -660,6 +664,7 @@ mod tests {
             red: 1,
             green: 0,
             colorless: 0,
+            x_count: 0,
         };
 
         assert!(resolver.can_pay(&cost, &sources));
@@ -701,6 +706,7 @@ mod tests {
             red: 1,
             green: 0,
             colorless: 0,
+            x_count: 0,
         };
 
         let tap_order = resolver.compute_tap_order(&cost, &sources).unwrap();
@@ -743,6 +749,7 @@ mod tests {
             red: 1,
             green: 1,
             colorless: 0,
+            x_count: 0,
         };
 
         assert!(resolver.can_pay(&cost, &sources));
@@ -770,6 +777,7 @@ mod tests {
             red: 0,
             green: 0,
             colorless: 0,
+            x_count: 0,
         };
 
         assert!(!resolver.can_pay(&cost, &sources));
