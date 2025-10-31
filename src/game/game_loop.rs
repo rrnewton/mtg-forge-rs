@@ -2776,6 +2776,18 @@ impl<'a> GameLoop<'a> {
                         }
                     }
 
+                    // Check life cost
+                    if let Some(life_cost) = ability.cost.get_life_cost() {
+                        if let Ok(player) = self.game.get_player(player_id) {
+                            if player.life <= life_cost {
+                                // Can't pay life cost (would go to 0 or below)
+                                can_activate = false;
+                            }
+                        } else {
+                            can_activate = false;
+                        }
+                    }
+
                     // TODO: Check other cost types (sacrifice, discard, etc.)
                     // TODO: Check timing restrictions (sorcery speed abilities)
                     // TODO: Check activation limits
