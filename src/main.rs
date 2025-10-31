@@ -414,17 +414,21 @@ async fn main() -> Result<()> {
                 ControllerType::Zero => mtg_forge_rs::tournament::ControllerType::Zero,
                 ControllerType::Random => mtg_forge_rs::tournament::ControllerType::Random,
                 ControllerType::Heuristic => mtg_forge_rs::tournament::ControllerType::Heuristic,
-                _ => return Err(mtg_forge_rs::MtgError::InvalidAction(
-                    "Tournament mode only supports Zero, Random, and Heuristic controllers".to_string(),
-                )),
+                _ => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "Tournament mode only supports Zero, Random, and Heuristic controllers".to_string(),
+                    ))
+                }
             };
             let p2_tourney = match p2 {
                 ControllerType::Zero => mtg_forge_rs::tournament::ControllerType::Zero,
                 ControllerType::Random => mtg_forge_rs::tournament::ControllerType::Random,
                 ControllerType::Heuristic => mtg_forge_rs::tournament::ControllerType::Heuristic,
-                _ => return Err(mtg_forge_rs::MtgError::InvalidAction(
-                    "Tournament mode only supports Zero, Random, and Heuristic controllers".to_string(),
-                )),
+                _ => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "Tournament mode only supports Zero, Random, and Heuristic controllers".to_string(),
+                    ))
+                }
             };
             let seed_resolved = seed.map(|s| s.resolve());
             mtg_forge_rs::tournament::run_tourney(decks, games, seconds, p1_tourney, p2_tourney, seed_resolved).await?

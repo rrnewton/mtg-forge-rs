@@ -70,9 +70,46 @@ pub struct ManaSource {
     pub has_summoning_sickness: bool,
 }
 
-/// What mana a source can produce
+/// What mana a source can produce and at what cost
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ManaProduction {
+pub struct ManaProduction {
+    /// The type of mana this source produces
+    pub kind: ManaProductionKind,
+
+    /// Optional activation cost (e.g., pay {2} to produce mana)
+    /// None means no mana cost (tap-only or free ability)
+    pub activation_cost: Option<ManaCost>,
+}
+
+impl ManaProduction {
+    /// Create a new mana production with no activation cost
+    pub fn free(kind: ManaProductionKind) -> Self {
+        Self {
+            kind,
+            activation_cost: None,
+        }
+    }
+
+    /// Create a new mana production with an activation cost
+    pub fn with_cost(kind: ManaProductionKind, cost: ManaCost) -> Self {
+        Self {
+            kind,
+            activation_cost: Some(cost),
+        }
+    }
+
+    /// Get the net mana delta (production - cost) for total mana bounds checking
+    /// This is an i8 because you can have negative delta (pay more than you produce)
+    pub fn net_delta(&self) -> i8 {
+        let production = 1; // Each source produces 1 mana (we'll handle Amount$ later)
+        let cost = self.activation_cost.as_ref().map(|c| c.cmc() as i8).unwrap_or(0);
+        production - cost
+    }
+}
+
+/// The kind of mana a source can produce
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ManaProductionKind {
     /// Produces exactly one specific color (e.g., Mountain → {R})
     Fixed(ManaColor),
 
@@ -211,15 +248,15 @@ impl ManaPaymentResolver for SimpleManaResolver {
                 continue;
             }
 
-            match &source.production {
-                ManaProduction::Fixed(color) => match color {
+            match &source.production.kind {
+                ManaProductionKind::Fixed(color) => match color {
                     ManaColor::White => white += 1,
                     ManaColor::Blue => blue += 1,
                     ManaColor::Black => black += 1,
                     ManaColor::Red => red += 1,
                     ManaColor::Green => green += 1,
                 },
-                ManaProduction::Colorless => colorless += 1,
+                ManaProductionKind::Colorless => colorless += 1,
                 _ => {
                     // SimpleManaResolver doesn't handle complex sources
                     // If we encounter any, we return Maybe (backtracking might help)
@@ -289,7 +326,7 @@ impl ManaPaymentResolver for SimpleManaResolver {
                 if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                     continue;
                 }
-                if let ManaProduction::Fixed(c) = source.production {
+                if let ManaProductionKind::Fixed(c) = source.production.kind {
                     if c == color {
                         tap_order.push(source.card_id);
                         tapped += 1;
@@ -323,7 +360,7 @@ impl ManaPaymentResolver for SimpleManaResolver {
             if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                 continue;
             }
-            if source.production == ManaProduction::Colorless {
+            if source.production.kind == ManaProductionKind::Colorless {
                 tap_order.push(source.card_id);
                 tapped_colorless += 1;
             }
@@ -340,8 +377,8 @@ impl ManaPaymentResolver for SimpleManaResolver {
                 continue;
             }
             // Can use any untapped source for generic
-            match source.production {
-                ManaProduction::Fixed(_) | ManaProduction::Colorless => {
+            match source.production.kind {
+                ManaProductionKind::Fixed(_) | ManaProductionKind::Colorless => {
                     tap_order.push(source.card_id);
                     tapped_generic += 1;
                 }
@@ -377,24 +414,24 @@ impl GreedyManaResolver {
 
     /// Check if a source can produce a specific color
     fn can_produce_color(production: &ManaProduction, color: ManaColor) -> bool {
-        match production {
-            ManaProduction::Fixed(c) => *c == color,
-            ManaProduction::Choice(colors) => colors.contains(&color),
-            ManaProduction::AnyColor => true,
-            ManaProduction::Colorless => false,
+        match &production.kind {
+            ManaProductionKind::Fixed(c) => *c == color,
+            ManaProductionKind::Choice(colors) => colors.contains(&color),
+            ManaProductionKind::AnyColor => true,
+            ManaProductionKind::Colorless => false,
         }
     }
 
     /// Score a source for a specific color (lower = better = more specific)
     /// This helps us tap the most specific sources first
     fn score_for_color(production: &ManaProduction, color: ManaColor) -> u8 {
-        match production {
-            ManaProduction::Fixed(c) if *c == color => 0, // Best: exact match
-            ManaProduction::Choice(colors) if colors.contains(&color) => {
+        match &production.kind {
+            ManaProductionKind::Fixed(c) if *c == color => 0, // Best: exact match
+            ManaProductionKind::Choice(colors) if colors.contains(&color) => {
                 colors.len() as u8 // Better: dual land (prefer fewer options)
             }
-            ManaProduction::AnyColor => 100, // Worst: save for last resort
-            _ => 255,                        // Can't produce this color
+            ManaProductionKind::AnyColor => 100, // Worst: save for last resort
+            _ => 255,                            // Can't produce this color
         }
     }
 }
@@ -409,11 +446,13 @@ impl ManaPaymentResolver for GreedyManaResolver {
     fn check_payment(&self, cost: &ManaCost, sources: &[ManaSource]) -> PaymentResult {
         // First, do bounds checking to see if we can prove "No"
 
-        // Check total available mana
-        let mut available = 0u8;
+        // Check total available mana (accounting for activation costs)
+        // Use net delta: production - cost for each source
+        // For example, Celestial Prism ({2}, {T}: Add one mana of any color) has delta of -1
+        let mut available_delta: i16 = 0; // Use i16 to handle negative deltas
         for source in sources {
             if !source.is_tapped && !source.has_summoning_sickness {
-                available = available.saturating_add(1);
+                available_delta += source.production.net_delta() as i16;
             }
         }
 
@@ -426,12 +465,17 @@ impl ManaPaymentResolver for GreedyManaResolver {
             .saturating_add(cost.colorless)
             .saturating_add(cost.generic);
 
-        if available < needed {
-            return PaymentResult::No; // Provably impossible - not enough total mana
+        // Can only prove "No" if the total delta is negative and insufficient
+        // If available_delta < needed, we definitely can't pay
+        if available_delta < needed as i16 {
+            return PaymentResult::No; // Provably impossible - not enough total mana (accounting for costs)
         }
 
         // Check if we can produce enough of each required color
-        // Count maximum possible for each color
+        // NOTE: For upper bound color checking, we IGNORE activation costs
+        // (treating all sources as free). This is an optimistic approximation
+        // that allows us to prove impossibility when we can't even meet the
+        // color requirements with free mana.
         let mut max_white = 0u8;
         let mut max_blue = 0u8;
         let mut max_black = 0u8;
@@ -444,16 +488,16 @@ impl ManaPaymentResolver for GreedyManaResolver {
                 continue;
             }
 
-            match &source.production {
-                ManaProduction::Fixed(color) => match color {
+            match &source.production.kind {
+                ManaProductionKind::Fixed(color) => match color {
                     ManaColor::White => max_white += 1,
                     ManaColor::Blue => max_blue += 1,
                     ManaColor::Black => max_black += 1,
                     ManaColor::Red => max_red += 1,
                     ManaColor::Green => max_green += 1,
                 },
-                ManaProduction::Colorless => max_colorless += 1,
-                ManaProduction::Choice(colors) => {
+                ManaProductionKind::Colorless => max_colorless += 1,
+                ManaProductionKind::Choice(colors) => {
                     // Choice lands count toward each color they can produce
                     for color in colors {
                         match color {
@@ -465,7 +509,7 @@ impl ManaPaymentResolver for GreedyManaResolver {
                         }
                     }
                 }
-                ManaProduction::AnyColor => {
+                ManaProductionKind::AnyColor => {
                     // Any-color lands count toward all colors
                     max_white += 1;
                     max_blue += 1;
@@ -512,10 +556,11 @@ impl ManaPaymentResolver for GreedyManaResolver {
     fn quick_check(&self, cost: &ManaCost, sources: &[ManaSource]) -> PaymentResult {
         // Same bounds checks as check_payment, but don't try greedy algorithm
 
-        let mut available = 0u8;
+        // Check total available mana using net delta (accounting for activation costs)
+        let mut available_delta: i16 = 0;
         for source in sources {
             if !source.is_tapped && !source.has_summoning_sickness {
-                available = available.saturating_add(1);
+                available_delta += source.production.net_delta() as i16;
             }
         }
 
@@ -528,7 +573,7 @@ impl ManaPaymentResolver for GreedyManaResolver {
             .saturating_add(cost.colorless)
             .saturating_add(cost.generic);
 
-        if available < needed {
+        if available_delta < needed as i16 {
             return PaymentResult::No;
         }
 
@@ -545,16 +590,16 @@ impl ManaPaymentResolver for GreedyManaResolver {
                 continue;
             }
 
-            match &source.production {
-                ManaProduction::Fixed(color) => match color {
+            match &source.production.kind {
+                ManaProductionKind::Fixed(color) => match color {
                     ManaColor::White => max_white += 1,
                     ManaColor::Blue => max_blue += 1,
                     ManaColor::Black => max_black += 1,
                     ManaColor::Red => max_red += 1,
                     ManaColor::Green => max_green += 1,
                 },
-                ManaProduction::Colorless => max_colorless += 1,
-                ManaProduction::Choice(colors) => {
+                ManaProductionKind::Colorless => max_colorless += 1,
+                ManaProductionKind::Choice(colors) => {
                     for color in colors {
                         match color {
                             ManaColor::White => max_white += 1,
@@ -565,7 +610,7 @@ impl ManaPaymentResolver for GreedyManaResolver {
                         }
                     }
                 }
-                ManaProduction::AnyColor => {
+                ManaProductionKind::AnyColor => {
                     max_white += 1;
                     max_blue += 1;
                     max_black += 1;
@@ -664,7 +709,7 @@ impl GreedyManaResolver {
                 if source.is_tapped || source.has_summoning_sickness || tap_order.contains(&source.card_id) {
                     continue;
                 }
-                if source.production == ManaProduction::Colorless {
+                if source.production.kind == ManaProductionKind::Colorless {
                     tap_order.push(source.card_id);
                     tapped += 1;
                 }
@@ -717,19 +762,19 @@ mod tests {
         let sources = vec![
             ManaSource {
                 card_id: CardId::new(1),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(2),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(3),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
@@ -758,7 +803,7 @@ mod tests {
 
         let sources = vec![ManaSource {
             card_id: CardId::new(1),
-            production: ManaProduction::Fixed(ManaColor::Red),
+            production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
             is_tapped: false,
             has_summoning_sickness: false,
         }];
@@ -785,13 +830,13 @@ mod tests {
         let sources = vec![
             ManaSource {
                 card_id: CardId::new(1),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(2),
-                production: ManaProduction::AnyColor,
+                production: ManaProduction::free(ManaProductionKind::AnyColor),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
@@ -819,13 +864,13 @@ mod tests {
         let sources = vec![
             ManaSource {
                 card_id: CardId::new(1),
-                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]),
+                production: ManaProduction::free(ManaProductionKind::Choice(vec![ManaColor::Red, ManaColor::Green])),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(2),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
@@ -858,7 +903,7 @@ mod tests {
         // City of Brass (any color)
         let sources = vec![ManaSource {
             card_id: CardId::new(1),
-            production: ManaProduction::AnyColor,
+            production: ManaProduction::free(ManaProductionKind::AnyColor),
             is_tapped: false,
             has_summoning_sickness: false,
         }];
@@ -886,19 +931,19 @@ mod tests {
         let sources = vec![
             ManaSource {
                 card_id: CardId::new(1),
-                production: ManaProduction::AnyColor, // City of Brass
+                production: ManaProduction::free(ManaProductionKind::AnyColor), // City of Brass
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(2),
-                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]), // Taiga
+                production: ManaProduction::free(ManaProductionKind::Choice(vec![ManaColor::Red, ManaColor::Green])), // Taiga
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(3),
-                production: ManaProduction::Fixed(ManaColor::Red), // Mountain
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)), // Mountain
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
@@ -928,19 +973,19 @@ mod tests {
         let sources = vec![
             ManaSource {
                 card_id: CardId::new(1),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(2),
-                production: ManaProduction::Fixed(ManaColor::Green),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Green)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(3),
-                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]), // Taiga
+                production: ManaProduction::free(ManaProductionKind::Choice(vec![ManaColor::Red, ManaColor::Green])), // Taiga
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
@@ -968,7 +1013,7 @@ mod tests {
 
         let sources = vec![ManaSource {
             card_id: CardId::new(1),
-            production: ManaProduction::Fixed(ManaColor::Red),
+            production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
             is_tapped: false,
             has_summoning_sickness: false,
         }];
@@ -997,13 +1042,13 @@ mod tests {
         let sources = vec![
             ManaSource {
                 card_id: CardId::new(1),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(2),
-                production: ManaProduction::AnyColor, // Complex source
+                production: ManaProduction::free(ManaProductionKind::AnyColor), // Complex source
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
@@ -1033,7 +1078,7 @@ mod tests {
 
         let sources = vec![ManaSource {
             card_id: CardId::new(1),
-            production: ManaProduction::Fixed(ManaColor::Red),
+            production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
             is_tapped: false,
             has_summoning_sickness: false,
         }];
@@ -1064,7 +1109,7 @@ mod tests {
 
         let sources = vec![ManaSource {
             card_id: CardId::new(1),
-            production: ManaProduction::Fixed(ManaColor::Red),
+            production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
             is_tapped: false,
             has_summoning_sickness: false,
         }];
@@ -1094,13 +1139,13 @@ mod tests {
         let sources = vec![
             ManaSource {
                 card_id: CardId::new(1),
-                production: ManaProduction::Fixed(ManaColor::Red),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
             ManaSource {
                 card_id: CardId::new(2),
-                production: ManaProduction::Choice(vec![ManaColor::Red, ManaColor::Green]),
+                production: ManaProduction::free(ManaProductionKind::Choice(vec![ManaColor::Red, ManaColor::Green])),
                 is_tapped: false,
                 has_summoning_sickness: false,
             },
@@ -1127,7 +1172,7 @@ mod tests {
 
         let sources = vec![ManaSource {
             card_id: CardId::new(1),
-            production: ManaProduction::Fixed(ManaColor::Red),
+            production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
             is_tapped: false,
             has_summoning_sickness: false,
         }];
@@ -1146,5 +1191,179 @@ mod tests {
         let result = resolver.quick_check(&cost, &sources);
         assert!(matches!(result, PaymentResult::Maybe | PaymentResult::No));
         assert_ne!(result, PaymentResult::Yes(vec![])); // Should not be Yes
+    }
+
+    // Tests for conditional mana sources (sources with activation costs)
+
+    #[test]
+    fn test_mana_production_net_delta() {
+        // Free source: Mountain ({T}: Add {R})
+        let free_source = ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red));
+        assert_eq!(free_source.net_delta(), 1);
+
+        // Positive delta: Sol Ring ({T}: Add {C}{C}) - produces 2, costs 0 = +2 delta
+        // Note: We'll handle Amount$ later, for now each source produces 1
+        let free_colorless = ManaProduction::free(ManaProductionKind::Colorless);
+        assert_eq!(free_colorless.net_delta(), 1);
+
+        // Zero delta: Mana Prism ({1}, {T}: Add one mana of any color) - produces 1, costs 1 = 0 delta
+        let zero_delta = ManaProduction::with_cost(ManaProductionKind::AnyColor, ManaCost::from_string("1"));
+        assert_eq!(zero_delta.net_delta(), 0);
+
+        // Negative delta: Celestial Prism ({2}, {T}: Add one mana of any color) - produces 1, costs 2 = -1 delta
+        let negative_delta = ManaProduction::with_cost(ManaProductionKind::AnyColor, ManaCost::from_string("2"));
+        assert_eq!(negative_delta.net_delta(), -1);
+    }
+
+    #[test]
+    fn test_greedy_resolver_conditional_source_positive_delta() {
+        let resolver = GreedyManaResolver::new();
+
+        // Hypothetical: A source that costs {1} to produce {2} (net +1)
+        // For testing, we'll simulate this with multiple sources:
+        // 2 Mountains + 1 Mana Prism (pay {1} to get any color)
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(3),
+                production: ManaProduction::with_cost(ManaProductionKind::AnyColor, ManaCost::from_string("1")), // Zero delta
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        // With 2 free sources (delta +2) and 1 zero-delta source (delta 0), total delta = +2
+        // We should be able to pay for costs up to 2
+
+        // Cost: 1R should be possible (even though we'd need to use the conditional source)
+        let cost = ManaCost {
+            generic: 1,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 0,
+            colorless: 0,
+        };
+
+        // The bounds check should not reject this (total delta = 2, needed = 2)
+        let result = resolver.check_payment(&cost, &sources);
+        // Greedy might not find a solution (it doesn't use conditional sources yet),
+        // but it shouldn't return No due to bounds
+        assert_ne!(result, PaymentResult::No);
+    }
+
+    #[test]
+    fn test_greedy_resolver_conditional_source_negative_delta() {
+        let resolver = GreedyManaResolver::new();
+
+        // Celestial Prism: pay {2} to get any color (net -1 delta)
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::with_cost(ManaProductionKind::AnyColor, ManaCost::from_string("2")), // Negative delta (-1)
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        // With 1 free source (delta +1) and 1 negative-delta source (delta -1), total delta = 0
+        // We can only pay for costs with total = 0
+
+        // Cost: 1 should be impossible (delta = 0, needed = 1)
+        let cost = ManaCost {
+            generic: 1,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 0,
+            green: 0,
+            colorless: 0,
+        };
+
+        let result = resolver.check_payment(&cost, &sources);
+        assert_eq!(result, PaymentResult::No); // Should be provably impossible
+    }
+
+    #[test]
+    fn test_greedy_resolver_color_bounds_ignore_costs() {
+        let resolver = GreedyManaResolver::new();
+
+        // Signpost Scarecrow: {2}: Add one mana of any color
+        // Even though it costs {2}, for color bounds checking we treat it as free
+        let sources = vec![ManaSource {
+            card_id: CardId::new(1),
+            production: ManaProduction::with_cost(ManaProductionKind::AnyColor, ManaCost::from_string("2")),
+            is_tapped: false,
+            has_summoning_sickness: false,
+        }];
+
+        // Cost: {R} (need 1 red mana)
+        let cost = ManaCost {
+            generic: 0,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 1,
+            green: 0,
+            colorless: 0,
+        };
+
+        // The color bounds check should pass (we can produce red, ignoring cost)
+        // But the total delta check should fail (delta = -1, needed = 1)
+        let result = resolver.check_payment(&cost, &sources);
+        assert_eq!(result, PaymentResult::No); // Fails on total delta, not color
+    }
+
+    #[test]
+    fn test_quick_check_with_conditional_sources() {
+        let resolver = GreedyManaResolver::new();
+
+        let sources = vec![
+            ManaSource {
+                card_id: CardId::new(1),
+                production: ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)),
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+            ManaSource {
+                card_id: CardId::new(2),
+                production: ManaProduction::with_cost(ManaProductionKind::AnyColor, ManaCost::from_string("1")), // Zero delta
+                is_tapped: false,
+                has_summoning_sickness: false,
+            },
+        ];
+
+        // Total delta = 1 (one free + one zero-delta)
+        let cost = ManaCost {
+            generic: 2,
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 0,
+            green: 0,
+            colorless: 0,
+        };
+
+        // quick_check should return No (delta = 1, needed = 2)
+        let result = resolver.quick_check(&cost, &sources);
+        assert_eq!(result, PaymentResult::No);
     }
 }

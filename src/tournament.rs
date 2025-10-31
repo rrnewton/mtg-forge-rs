@@ -4,7 +4,10 @@
 //! are executed concurrently using rayon, with comprehensive statistics collection.
 
 use crate::{
-    game::{random_controller::RandomController, zero_controller::ZeroController, GameLoop, HeuristicController, VerbosityLevel},
+    game::{
+        random_controller::RandomController, zero_controller::ZeroController, GameLoop, HeuristicController,
+        VerbosityLevel,
+    },
     loader::{AsyncCardDatabase as CardDatabase, DeckLoader, GameInitializer},
     Result,
 };
@@ -147,17 +150,13 @@ pub async fn run_tourney(
             .block_on(async {
                 let game_init = GameInitializer::new(&card_db);
                 let mut game = game_init
-                    .init_game(
-                        "Player 1".to_string(),
-                        deck1,
-                        "Player 2".to_string(),
-                        deck2,
-                        20,
-                    )
+                    .init_game("Player 1".to_string(), deck1, "Player 2".to_string(), deck2, 20)
                     .await?;
 
                 // Seed the game RNG
-                let game_seed = seed_resolved.unwrap_or(42).wrapping_add((game_idx as u64).wrapping_mul(0x9E3779B97F4A7C15));
+                let game_seed = seed_resolved
+                    .unwrap_or(42)
+                    .wrapping_add((game_idx as u64).wrapping_mul(0x9E3779B97F4A7C15));
                 game.seed_rng(game_seed);
 
                 // Get player IDs
@@ -251,9 +250,21 @@ pub async fn run_tourney(
     println!("=== Player Position Statistics ===");
     let total = stats.p1_wins + stats.p2_wins + stats.draws;
     if total > 0 {
-        println!("P1 wins: {} ({:.1}%)", stats.p1_wins, 100.0 * stats.p1_wins as f64 / total as f64);
-        println!("P2 wins: {} ({:.1}%)", stats.p2_wins, 100.0 * stats.p2_wins as f64 / total as f64);
-        println!("Draws: {} ({:.1}%)", stats.draws, 100.0 * stats.draws as f64 / total as f64);
+        println!(
+            "P1 wins: {} ({:.1}%)",
+            stats.p1_wins,
+            100.0 * stats.p1_wins as f64 / total as f64
+        );
+        println!(
+            "P2 wins: {} ({:.1}%)",
+            stats.p2_wins,
+            100.0 * stats.p2_wins as f64 / total as f64
+        );
+        println!(
+            "Draws: {} ({:.1}%)",
+            stats.draws,
+            100.0 * stats.draws as f64 / total as f64
+        );
     }
 
     println!("\n=== Deck Win Rates ===");
@@ -262,7 +273,13 @@ pub async fn run_tourney(
     for (deck_name, wins) in deck_stats {
         let games_played = stats.deck_games.get(deck_name).unwrap_or(&0);
         if *games_played > 0 {
-            println!("  {}: {}/{} ({:.1}%)", deck_name, wins, games_played, 100.0 * *wins as f64 / *games_played as f64);
+            println!(
+                "  {}: {}/{} ({:.1}%)",
+                deck_name,
+                wins,
+                games_played,
+                100.0 * *wins as f64 / *games_played as f64
+            );
         }
     }
 
@@ -275,19 +292,45 @@ pub async fn run_tourney(
             // Mirror match
             println!("  {} (mirror): {} games", deck1, total_matchup);
             if total_matchup > 0 {
-                println!("    Player 1: {} ({:.1}%)", p1_wins, 100.0 * *p1_wins as f64 / total_matchup as f64);
-                println!("    Player 2: {} ({:.1}%)", p2_wins, 100.0 * *p2_wins as f64 / total_matchup as f64);
+                println!(
+                    "    Player 1: {} ({:.1}%)",
+                    p1_wins,
+                    100.0 * *p1_wins as f64 / total_matchup as f64
+                );
+                println!(
+                    "    Player 2: {} ({:.1}%)",
+                    p2_wins,
+                    100.0 * *p2_wins as f64 / total_matchup as f64
+                );
                 if *draws > 0 {
-                    println!("    Draws: {} ({:.1}%)", draws, 100.0 * *draws as f64 / total_matchup as f64);
+                    println!(
+                        "    Draws: {} ({:.1}%)",
+                        draws,
+                        100.0 * *draws as f64 / total_matchup as f64
+                    );
                 }
             }
         } else {
             println!("  {} vs {}: {} games", deck1, deck2, total_matchup);
             if total_matchup > 0 {
-                println!("    {} wins: {} ({:.1}%)", deck1, p1_wins, 100.0 * *p1_wins as f64 / total_matchup as f64);
-                println!("    {} wins: {} ({:.1}%)", deck2, p2_wins, 100.0 * *p2_wins as f64 / total_matchup as f64);
+                println!(
+                    "    {} wins: {} ({:.1}%)",
+                    deck1,
+                    p1_wins,
+                    100.0 * *p1_wins as f64 / total_matchup as f64
+                );
+                println!(
+                    "    {} wins: {} ({:.1}%)",
+                    deck2,
+                    p2_wins,
+                    100.0 * *p2_wins as f64 / total_matchup as f64
+                );
                 if *draws > 0 {
-                    println!("    Draws: {} ({:.1}%)", draws, 100.0 * *draws as f64 / total_matchup as f64);
+                    println!(
+                        "    Draws: {} ({:.1}%)",
+                        draws,
+                        100.0 * *draws as f64 / total_matchup as f64
+                    );
                 }
             }
         }
