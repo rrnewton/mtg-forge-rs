@@ -784,12 +784,7 @@ impl HeuristicController {
     /// 4. Life after combat < threshold -> true
     ///
     /// Simplified implementation for now (full port would require threshold config)
-    fn life_in_danger(
-        &self,
-        view: &GameStateView,
-        attackers: &[CardId],
-        current_blocks: &[(CardId, CardId)],
-    ) -> bool {
+    fn life_in_danger(&self, view: &GameStateView, attackers: &[CardId], current_blocks: &[(CardId, CardId)]) -> bool {
         // Java default threshold is around 3-5 life depending on AI profile
         // We'll use a simple threshold of 5 for now
         const DANGER_THRESHOLD: i32 = 5;
@@ -798,21 +793,6 @@ impl HeuristicController {
 
         // Life in danger if we'd drop below threshold
         remaining_life < DANGER_THRESHOLD
-    }
-
-    /// Determine if life is in SERIOUS danger (would die this combat)
-    ///
-    /// Reference: ComputerUtilCombat.lifeInSeriousDanger() (lines 477-508)
-    ///
-    /// Returns true if the player would die (life <= 0) after combat damage.
-    fn life_in_serious_danger(
-        &self,
-        view: &GameStateView,
-        attackers: &[CardId],
-        current_blocks: &[(CardId, CardId)],
-    ) -> bool {
-        let remaining_life = self.life_that_would_remain(view, attackers, current_blocks);
-        remaining_life < 1
     }
 
     /// Determine if we should block an attacker with a specific blocker
