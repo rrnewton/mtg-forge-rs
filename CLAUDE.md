@@ -1,6 +1,10 @@
 
-A performant Magic The Gathering engine for AI research
+MTG Forge-rs: Devolpement Guidelines
 =======================================================
+
+This document contains the development guidelines and instructions for the project. This guide OVERRIDES any default behaviors and MUST be followed exactly.
+
+NEVER run `git clean -fxd` in this repo or any submodule, that would destroy valuable container configuration.
 
 Read the PROJECT_VISION.md document.
 
