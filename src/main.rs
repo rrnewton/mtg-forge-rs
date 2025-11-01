@@ -235,6 +235,33 @@ enum Commands {
         deck: PathBuf,
     },
 
+    /// Tournament Mode - Run multiple games in parallel and collect statistics
+    Tourney {
+        /// Deck files to include in tournament (at least 2 required)
+        #[arg(value_name = "DECKS", required = true, num_args = 2..)]
+        decks: Vec<PathBuf>,
+
+        /// Total number of games to run (mutually exclusive with --seconds)
+        #[arg(long, short = 'g', conflicts_with = "seconds")]
+        games: Option<usize>,
+
+        /// Run for N seconds (mutually exclusive with --games)
+        #[arg(long, short = 's', conflicts_with = "games")]
+        seconds: Option<u64>,
+
+        /// Player 1 controller type for all games
+        #[arg(long, value_enum, default_value = "heuristic")]
+        p1: ControllerType,
+
+        /// Player 2 controller type for all games
+        #[arg(long, value_enum, default_value = "heuristic")]
+        p2: ControllerType,
+
+        /// Random seed for deterministic tournament
+        #[arg(long)]
+        seed: Option<SeedArg>,
+    },
+
     /// Resume a saved game from snapshot
     ///
     /// By default, restores everything from the snapshot: game state, controller types,
@@ -374,6 +401,38 @@ async fn main() -> Result<()> {
             .await?
         }
         Commands::Profile { games, seed, deck } => run_profile(games, seed, deck).await?,
+        Commands::Tourney {
+            decks,
+            games,
+            seconds,
+            p1,
+            p2,
+            seed,
+        } => {
+            // Convert ControllerType to tournament::ControllerType
+            let p1_tourney = match p1 {
+                ControllerType::Zero => mtg_forge_rs::tournament::ControllerType::Zero,
+                ControllerType::Random => mtg_forge_rs::tournament::ControllerType::Random,
+                ControllerType::Heuristic => mtg_forge_rs::tournament::ControllerType::Heuristic,
+                _ => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "Tournament mode only supports Zero, Random, and Heuristic controllers".to_string(),
+                    ))
+                }
+            };
+            let p2_tourney = match p2 {
+                ControllerType::Zero => mtg_forge_rs::tournament::ControllerType::Zero,
+                ControllerType::Random => mtg_forge_rs::tournament::ControllerType::Random,
+                ControllerType::Heuristic => mtg_forge_rs::tournament::ControllerType::Heuristic,
+                _ => {
+                    return Err(mtg_forge_rs::MtgError::InvalidAction(
+                        "Tournament mode only supports Zero, Random, and Heuristic controllers".to_string(),
+                    ))
+                }
+            };
+            let seed_resolved = seed.map(|s| s.resolve());
+            mtg_forge_rs::tournament::run_tourney(decks, games, seconds, p1_tourney, p2_tourney, seed_resolved).await?
+        }
         Commands::Resume {
             snapshot_file,
             override_p1,

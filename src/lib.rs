@@ -8,6 +8,7 @@ pub mod error;
 pub mod game;
 pub mod loader;
 pub mod puzzle;
+pub mod tournament;
 pub mod undo;
 pub mod zones;
 

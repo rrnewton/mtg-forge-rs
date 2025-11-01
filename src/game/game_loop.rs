@@ -1703,6 +1703,12 @@ impl<'a> GameLoop<'a> {
         attackers.sort_by_key(|id| id.as_u32());
 
         for attacker_id in &attackers {
+            // Skip creatures that are no longer on the battlefield
+            // MTG Rule 510.1c: Only creatures still on the battlefield deal combat damage
+            if !self.game.battlefield.contains(*attacker_id) {
+                continue;
+            }
+
             if let Ok(attacker) = self.game.cards.get(*attacker_id) {
                 // Check if this attacker deals damage in this step
                 let deals_damage = if first_strike_step {
@@ -3118,7 +3124,7 @@ impl<'a> GameLoop<'a> {
     /// Returns None if we don't know how to handle this land yet
     fn get_mana_production(card: &crate::core::Card) -> Option<crate::game::mana_payment::ManaProduction> {
         use crate::core::CardType;
-        use crate::game::mana_payment::{ManaColor, ManaProduction};
+        use crate::game::mana_payment::{ManaColor, ManaProduction, ManaProductionKind};
 
         // Must be a land
         if !card.types.contains(&CardType::Land) {
@@ -3132,12 +3138,12 @@ impl<'a> GameLoop<'a> {
             "Swamp" => Some(ManaColor::Black),
             "Mountain" => Some(ManaColor::Red),
             "Forest" => Some(ManaColor::Green),
-            "Wastes" => return Some(ManaProduction::Colorless),
+            "Wastes" => return Some(ManaProduction::free(ManaProductionKind::Colorless)),
             _ => None,
         };
 
         if let Some(color) = simple_color {
-            return Some(ManaProduction::Fixed(color));
+            return Some(ManaProduction::free(ManaProductionKind::Fixed(color)));
         }
 
         // Check for dual lands by looking at basic land subtypes
@@ -3158,13 +3164,13 @@ impl<'a> GameLoop<'a> {
 
         // If we have exactly 2 basic land subtypes, it's a dual land
         if colors.len() == 2 {
-            return Some(ManaProduction::Choice(colors));
+            return Some(ManaProduction::free(ManaProductionKind::Choice(colors)));
         }
 
         // Check oracle text for any-color lands (City of Brass pattern)
         let text_lower = card.text.to_lowercase();
         if text_lower.contains("any color") {
-            return Some(ManaProduction::AnyColor);
+            return Some(ManaProduction::free(ManaProductionKind::AnyColor));
         }
 
         // Not a complex source we can handle yet

@@ -114,7 +114,8 @@
 
 use crate::core::{CardId, ManaCost, PlayerId};
 use crate::game::mana_payment::{
-    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaSource, SimpleManaResolver,
+    GreedyManaResolver, ManaColor, ManaPaymentResolver, ManaProduction, ManaProductionKind, ManaSource,
+    SimpleManaResolver,
 };
 use crate::game::GameState;
 
@@ -282,7 +283,7 @@ impl ManaEngine {
                                 }
                                 self.mana_sources.push(ManaSource {
                                     card_id,
-                                    production: ManaProduction::Colorless,
+                                    production: ManaProduction::free(ManaProductionKind::Colorless),
                                     is_tapped: card.tapped,
                                     has_summoning_sickness,
                                 });
@@ -304,7 +305,7 @@ impl ManaEngine {
 
                         self.mana_sources.push(ManaSource {
                             card_id,
-                            production: ManaProduction::Fixed(color),
+                            production: ManaProduction::free(ManaProductionKind::Fixed(color)),
                             is_tapped: card.tapped,
                             has_summoning_sickness,
                         });
@@ -413,28 +414,28 @@ fn get_creature_mana_production(card: &crate::core::Card) -> Option<ManaProducti
 
     // Check for any-color production (Birds of Paradise pattern)
     if text_lower.contains("any color") {
-        return Some(ManaProduction::AnyColor);
+        return Some(ManaProduction::free(ManaProductionKind::AnyColor));
     }
 
     // Check for specific color production patterns
     // Pattern: "{T}: Add {G}" or similar
     if text_lower.contains("{t}: add {w}") || text_lower.contains("add {w}") {
-        return Some(ManaProduction::Fixed(ManaColor::White));
+        return Some(ManaProduction::free(ManaProductionKind::Fixed(ManaColor::White)));
     }
     if text_lower.contains("{t}: add {u}") || text_lower.contains("add {u}") {
-        return Some(ManaProduction::Fixed(ManaColor::Blue));
+        return Some(ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Blue)));
     }
     if text_lower.contains("{t}: add {b}") || text_lower.contains("add {b}") {
-        return Some(ManaProduction::Fixed(ManaColor::Black));
+        return Some(ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Black)));
     }
     if text_lower.contains("{t}: add {r}") || text_lower.contains("add {r}") {
-        return Some(ManaProduction::Fixed(ManaColor::Red));
+        return Some(ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Red)));
     }
     if text_lower.contains("{t}: add {g}") || text_lower.contains("add {g}") {
-        return Some(ManaProduction::Fixed(ManaColor::Green));
+        return Some(ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Green)));
     }
     if text_lower.contains("{t}: add {c}") || text_lower.contains("add {c}") {
-        return Some(ManaProduction::Colorless);
+        return Some(ManaProduction::free(ManaProductionKind::Colorless));
     }
 
     None
@@ -472,14 +473,14 @@ fn get_complex_mana_production(card: &crate::core::Card) -> Option<ManaProductio
 
     // If we have exactly 2 basic land subtypes, it's a dual land
     if colors.len() == 2 {
-        return Some(ManaProduction::Choice(colors));
+        return Some(ManaProduction::free(ManaProductionKind::Choice(colors)));
     }
 
     // Check oracle text for any-color lands (City of Brass pattern)
     // Example: "Add one mana of any color"
     let text_lower = card.text.to_lowercase();
     if text_lower.contains("any color") {
-        return Some(ManaProduction::AnyColor);
+        return Some(ManaProduction::free(ManaProductionKind::AnyColor));
     }
 
     // Not a complex source we can handle yet
@@ -671,7 +672,7 @@ mod tests {
         assert!(has_mana_ability(&llanowar));
         assert_eq!(
             get_creature_mana_production(&llanowar),
-            Some(ManaProduction::Fixed(ManaColor::Green))
+            Some(ManaProduction::free(ManaProductionKind::Fixed(ManaColor::Green)))
         );
 
         // Test Birds of Paradise pattern: "Add one mana of any color"
@@ -679,7 +680,10 @@ mod tests {
         birds.types.push(CardType::Creature);
         birds.text = "{T}: Add one mana of any color.".to_string();
         assert!(has_mana_ability(&birds));
-        assert_eq!(get_creature_mana_production(&birds), Some(ManaProduction::AnyColor));
+        assert_eq!(
+            get_creature_mana_production(&birds),
+            Some(ManaProduction::free(ManaProductionKind::AnyColor))
+        );
 
         // Test non-mana creature
         let mut bear = Card::new(EntityId::new(3), "Grizzly Bears".to_string(), p1_id);

@@ -1174,15 +1174,39 @@ impl GameState {
 
             // Log the mana addition
             let mut mana = crate::core::ManaCost::new();
-            match color {
-                crate::core::Color::White => mana.white = 1,
-                crate::core::Color::Blue => mana.blue = 1,
-                crate::core::Color::Black => mana.black = 1,
-                crate::core::Color::Red => mana.red = 1,
-                crate::core::Color::Green => mana.green = 1,
-                crate::core::Color::Colorless => mana.colorless = 1,
-            }
+            let color_symbol = match color {
+                crate::core::Color::White => {
+                    mana.white = 1;
+                    "W"
+                }
+                crate::core::Color::Blue => {
+                    mana.blue = 1;
+                    "U"
+                }
+                crate::core::Color::Black => {
+                    mana.black = 1;
+                    "B"
+                }
+                crate::core::Color::Red => {
+                    mana.red = 1;
+                    "R"
+                }
+                crate::core::Color::Green => {
+                    mana.green = 1;
+                    "G"
+                }
+                crate::core::Color::Colorless => {
+                    mana.colorless = 1;
+                    "C"
+                }
+            };
             self.undo_log.log(crate::undo::GameAction::AddMana { player_id, mana });
+
+            // Log visible message for mana tapping
+            if self.logger.verbosity() >= crate::game::VerbosityLevel::Normal {
+                let card_name = self.cards.get(card_id).map(|c| c.name.as_str()).unwrap_or("Unknown");
+                println!("  Tap {} for {{{}}}", card_name, color_symbol);
+            }
         }
 
         Ok(())

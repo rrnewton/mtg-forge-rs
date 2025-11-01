@@ -735,6 +735,86 @@ impl HeuristicController {
         }
     }
 
+    /// Calculate how much life would remain after unblocked attackers deal damage
+    ///
+    /// Reference: ComputerUtilCombat.lifeThatWouldRemain() (lines 304-329)
+    ///
+    /// This computes: current_life - damage_from_unblocked_attackers
+    /// Used to determine if life is in danger and emergency blocks are needed.
+    fn life_that_would_remain(
+        &self,
+        view: &GameStateView,
+        attackers: &[CardId],
+        current_blocks: &[(CardId, CardId)],
+    ) -> i32 {
+        let current_life = view.life();
+        let mut damage = 0;
+
+        // Calculate which attackers are unblocked
+        for &attacker_id in attackers {
+            // Check if this attacker is blocked
+            let is_blocked = current_blocks.iter().any(|(_, a_id)| *a_id == attacker_id);
+
+            if !is_blocked {
+                // Add this attacker's damage
+                if let Some(attacker) = view.get_card(attacker_id) {
+                    let attacker_power = attacker.power.unwrap_or(0) as i32;
+                    damage += attacker_power;
+
+                    // TODO: Handle trample damage (damage overflow from blocked attackers)
+                    // TODO: Handle "damage as though unblocked" static abilities
+                }
+            }
+        }
+
+        current_life - damage
+    }
+
+    /// Determine if life is in danger based on potential combat damage
+    ///
+    /// Reference: ComputerUtilCombat.lifeInDanger() (lines 399-466)
+    ///
+    /// Returns true if the player would drop to dangerously low life after combat.
+    /// The threshold is context-dependent but generally around 3-5 life.
+    ///
+    /// Key checks from Java:
+    /// 1. Player can't lose -> false
+    /// 2. Special cards (Worship, Elderscale Wurm) -> false
+    /// 3. "Must be blocked" creatures unblocked -> true
+    /// 4. Life after combat < threshold -> true
+    ///
+    /// Simplified implementation for now (full port would require threshold config)
+    fn life_in_danger(
+        &self,
+        view: &GameStateView,
+        attackers: &[CardId],
+        current_blocks: &[(CardId, CardId)],
+    ) -> bool {
+        // Java default threshold is around 3-5 life depending on AI profile
+        // We'll use a simple threshold of 5 for now
+        const DANGER_THRESHOLD: i32 = 5;
+
+        let remaining_life = self.life_that_would_remain(view, attackers, current_blocks);
+
+        // Life in danger if we'd drop below threshold
+        remaining_life < DANGER_THRESHOLD
+    }
+
+    /// Determine if life is in SERIOUS danger (would die this combat)
+    ///
+    /// Reference: ComputerUtilCombat.lifeInSeriousDanger() (lines 477-508)
+    ///
+    /// Returns true if the player would die (life <= 0) after combat damage.
+    fn life_in_serious_danger(
+        &self,
+        view: &GameStateView,
+        attackers: &[CardId],
+        current_blocks: &[(CardId, CardId)],
+    ) -> bool {
+        let remaining_life = self.life_that_would_remain(view, attackers, current_blocks);
+        remaining_life < 1
+    }
+
     /// Determine if we should block an attacker with a specific blocker
     ///
     /// Reference: AiBlockController.java (blocking decision logic)
@@ -744,7 +824,14 @@ impl HeuristicController {
     /// - Can the blocker kill the attacker? (blocker power >= attacker toughness)
     /// - Favorable trade? (blocker value < attacker value)
     /// - Life in danger? (must block to survive)
-    fn should_block(&self, blocker: &Card, attacker: &Card) -> bool {
+    fn should_block(
+        &self,
+        blocker: &Card,
+        attacker: &Card,
+        view: &GameStateView,
+        attackers: &[CardId],
+        current_blocks: &[(CardId, CardId)],
+    ) -> bool {
         let blocker_power = blocker.power.unwrap_or(0) as i32;
         let blocker_toughness = blocker.toughness.unwrap_or(0) as i32;
         let attacker_power = attacker.power.unwrap_or(0) as i32;
@@ -760,8 +847,8 @@ impl HeuristicController {
 
         // Will the blocker survive?
         let will_survive = if blocker_has_first_strike && !attacker_has_first_strike {
-            // Blocker strikes first and might kill attacker before taking damage
-            blocker_power < attacker_toughness || blocker_toughness > attacker_power
+            // Blocker strikes first - if it kills the attacker, it takes no damage
+            blocker_power >= attacker_toughness || blocker_toughness > attacker_power
         } else {
             blocker_toughness > attacker_power
         };
@@ -782,11 +869,11 @@ impl HeuristicController {
         }
 
         // Case 2: Trading - kill attacker but die too
-        // Only trade if attacker is more valuable or we're desperate
+        // Only trade if attacker is more valuable or equal value (prevent damage)
         if can_kill_attacker && !will_survive {
-            // Favorable trade: our creature is worth less
-            // Java uses a threshold (typically attacker_value > blocker_value + some margin)
-            return attacker_value > blocker_value;
+            // Favorable trade: our creature is worth less or equal
+            // Trading equal creatures is good because it prevents damage
+            return attacker_value >= blocker_value;
         }
 
         // Case 3: We survive but don't kill the attacker
@@ -797,8 +884,19 @@ impl HeuristicController {
         }
 
         // Case 4: We die without killing the attacker - usually avoid
-        // Only in desperate situations (life in danger)
-        // TODO: Check life total and implement "life in danger" logic
+        // Only make this block if life is in danger (chump block to survive)
+        //
+        // Reference: AiBlockController.makeChumpBlocks() (lines 641-704)
+        // This is the "chump block" scenario - sacrifice a creature just to prevent damage
+        if !can_kill_attacker && !will_survive {
+            // Check if life is in danger - if so, must chump block
+            let life_danger = self.life_in_danger(view, attackers, current_blocks);
+            if life_danger {
+                // Chump block to save life
+                return true;
+            }
+        }
+
         false
     }
 }
@@ -1022,7 +1120,7 @@ impl PlayerController for HeuristicController {
                 }
 
                 // Check if this is a good block
-                if self.should_block(blocker, attacker) {
+                if self.should_block(blocker, attacker, view, attackers, &blocks) {
                     // Score this blocking assignment
                     // Prefer blockers that:
                     // 1. Kill the attacker and survive (best)
